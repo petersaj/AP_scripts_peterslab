@@ -1,26 +1,26 @@
 function daq_test
 
+% Requires: 
+% data acquisition toolbox
+% instrument control toolbox
+
 %% Make GUI
 
 gui_fig = figure('Units','Normalized','Position',[0.01,0.2,0.1,0.2],'color','w');
 
 % Control buttons
-button_fontsize = 12;
-button_position = [0,0,1,0.5];
 clear controls_h
-controls_h(1) = uicontrol('Parent',gui_fig,'Style','pushbutton','FontSize',button_fontsize, ...
-    'Units','normalized','Position',button_position,'BackgroundColor','w', ...
+controls_h(1) = uicontrol('Parent',gui_fig,'Style','pushbutton', ...
     'String','Run','Callback',{@daq_run,gui_fig});
-controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','togglebutton','FontSize',button_fontsize, ...
-    'Units','normalized','Position',button_position,'BackgroundColor','w', ...
+controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
     'String','Listen','Callback',{@daq_listen,gui_fig});
-controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','pushbutton','FontSize',button_fontsize, ...
-    'Units','normalized','Position',button_position,'BackgroundColor','w', ...
+controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','pushbutton', ...
     'String','Stop','Callback',{@daq_stop,gui_fig});
+set(controls_h,'Units','normalized','FontSize',12, ...
+    'BackgroundColor','w','Position',[0,0,1,1/length(controls_h)]);
+
 set(gcf,'Children',flipud(get(gcf,'Children')));
 align(fliplr(controls_h),'center','fixed',0);
-
-
 
 %% Set up DAQ
 
@@ -78,16 +78,12 @@ gui_data = guidata(gui_fig);
 % Stop DAQ acquisition
 stop(gui_data.daq_device)
 
-close(gui_data.live_plot);
+close(gui_data.live_plot.Parent);
 
 % Update gui data
 guidata(gui_fig,gui_data);
 
 end
-
-
-%%%%% TO SAVE TEST
-% fn = "C:\Users\petersa\Desktop\test";
 
 function daq_live_plot_test(obj,event,gui_fig)
 
