@@ -6,8 +6,7 @@ function daq_test
 
 %% Make GUI
 
-gui_fig = figure('Name','Timelite','Units','Normalized', ...
-    'Position',[0.01,0.4,0.1,0.2],'color','w','menu','none');
+gui_fig = figure('Units','Normalized','Position',[0.01,0.2,0.1,0.2],'color','w');
 
 % Control buttons
 clear controls_h
@@ -98,23 +97,14 @@ gui_data = guidata(gui_fig);
 daq_plot(obj,gui_data,daq_data);
 
 % Write data to disk (streaming)
-% TO DO: create filename with UDP, save header vars, save blank
-% data/timestamp vars, open matfile
-% reference:
+% TO DO: create filename with UDP, sdafsdfdsafdsawrite header, open matfile, like this: 
 % save_filename = "C:\Users\peter\OneDrive\Desktop\test.mat";
 % timestamps = [];
 % data = [];
 % save(save_filename,'timestamps','data','-v7.3');
 % save_file_mat = matfile(save_filename,'Writable',true);
 
-% Get index for new data
-curr_data_size = size(save_file_mat.timestamps,1);
-new_data_size = length(daq_timestamps,1);
-new_data_row_idx = curr_data_size+1:curr_data_size+new_data_size;
 
-% Write new data by appending to saved data
-save_file_mat.timestamps(new_data_row_idx,1) = daq_timestamps;
-save_file_mat.data(new_data_row_idx,1:size(daq_data,2)) = daq_data;
 
 end
 
