@@ -5,6 +5,13 @@ function timelite
 % data acquisition toolbox
 % instrument control toolbox
 
+%%%% TO DO: 
+% - set filename dynamically (append to current experiments)
+% - make listen mode to set filename and run
+% - upload to server
+% - set up DAQ with a local setup file
+
+
 %% Make GUI
 
 gui_fig = figure('Name','Timelite','Units','Normalized', ...
@@ -119,7 +126,6 @@ function daq_start(gui_fig)
 gui_data = guidata(gui_fig);
 
 % Create save file
-% TO DO: create filename with UDP, save header vars
 % (daq information)
 daq_info = struct( ...
     'rate',gui_data.daq_device.Rate, ...
