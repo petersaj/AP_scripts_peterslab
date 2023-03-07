@@ -95,7 +95,7 @@ switch h.Value
 
         % Set save filename
         save_dir = "C:\Users\petersa\Desktop";
-        gui_data.save_filename = fullfile(save_dir,[mouse_name,'.mat']);
+        gui_data.save_filename = fullfile(save_dir,[mouse_name,'_timelite.mat']);
 
         % Update gui data
         guidata(gui_fig,gui_data);
