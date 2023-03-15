@@ -421,7 +421,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Timer">
-                <rx:DueTime>PT2S</rx:DueTime>
+                <rx:DueTime>PT1.1S</rx:DueTime>
                 <rx:Period>PT0S</rx:Period>
               </Combinator>
             </Expression>
@@ -504,7 +504,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Throttle">
-                <rx:DueTime>PT4S</rx:DueTime>
+                <rx:DueTime>PT3.9S</rx:DueTime>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -742,13 +742,13 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.DrawGratings.bonsai">
-              <LocationX>0</LocationX>
+              <LocationX>90</LocationX>
               <LocationY>0</LocationY>
               <Layer>0</Layer>
               <Angle>0</Angle>
               <SpatialFrequency>0.1</SpatialFrequency>
               <TemporalFrequency>0</TemporalFrequency>
-              <Phase>-6531.71875</Phase>
+              <Phase>-6932.78955</Phase>
               <SquareWave>false</SquareWave>
               <Contrast>1</Contrast>
               <DutyCycle xsi:nil="true" />
