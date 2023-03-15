@@ -174,13 +174,13 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.DrawGratings.bonsai">
-                    <LocationX>0</LocationX>
+                    <LocationX>-90</LocationX>
                     <LocationY>0</LocationY>
                     <Layer>0</Layer>
                     <Angle>0</Angle>
                     <SpatialFrequency>0.1</SpatialFrequency>
                     <TemporalFrequency>0</TemporalFrequency>
-                    <Phase>7734.93</Phase>
+                    <Phase>6875.49365</Phase>
                     <SquareWave>false</SquareWave>
                     <Contrast>1</Contrast>
                     <DutyCycle xsi:nil="true" />
@@ -271,12 +271,12 @@
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Logging.LogEvent.bonsai">
               <Format xsi:nil="true" />
               <Selector xsi:nil="true" />
-              <Name>Events2</Name>
+              <Name>Events</Name>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Logging.LogEvent.bonsai">
               <Format xsi:nil="true" />
               <Selector xsi:nil="true" />
-              <Name>Events</Name>
+              <Name>Events2</Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -315,7 +315,7 @@
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="BonVision:Logging.EventLogger.bonsai">
         <Name>Events2</Name>
-        <FileName>test_2.csv</FileName>
+        <FileName>test2.csv</FileName>
         <Append>true</Append>
         <Overwrite>false</Overwrite>
         <Suffix>None</Suffix>

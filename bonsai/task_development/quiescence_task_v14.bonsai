@@ -19,20 +19,22 @@
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.ParameterRange.bonsai">
-              <RangeMin>2</RangeMin>
-              <RangeMax>1</RangeMax>
+              <RangeMin>1</RangeMin>
+              <RangeMax>2</RangeMax>
               <Count>11</Count>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject">
+            <Expression xsi:type="rx:ReplaySubject">
               <Name>ITITimes</Name>
+              <rx:BufferSize xsi:nil="true" />
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.ParameterRange.bonsai">
               <RangeMin>2</RangeMin>
               <RangeMax>4</RangeMax>
               <Count>21</Count>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject">
+            <Expression xsi:type="rx:ReplaySubject">
               <Name>QuiescenceTimes</Name>
+              <rx:BufferSize xsi:nil="true" />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="DoubleProperty">
@@ -409,7 +411,7 @@
               <Name>TrialITI</Name>
             </Expression>
             <Expression xsi:type="scr:ExpressionTransform">
-              <scr:Name>Float2Timespan</scr:Name>
+              <scr:Name>MakeTimespan</scr:Name>
               <scr:Expression>TimeSpan.FromSeconds(it)</scr:Expression>
             </Expression>
             <Expression xsi:type="PropertyMapping">
@@ -419,7 +421,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Timer">
-                <rx:DueTime>PT3.7S</rx:DueTime>
+                <rx:DueTime>PT2S</rx:DueTime>
                 <rx:Period>PT0S</rx:Period>
               </Combinator>
             </Expression>
@@ -492,7 +494,7 @@
               <Name>TrialQuiescence</Name>
             </Expression>
             <Expression xsi:type="scr:ExpressionTransform">
-              <scr:Name>Float2Timespan</scr:Name>
+              <scr:Name>MakeTimespan</scr:Name>
               <scr:Expression>TimeSpan.FromSeconds(it)</scr:Expression>
             </Expression>
             <Expression xsi:type="PropertyMapping">
@@ -502,7 +504,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Throttle">
-                <rx:DueTime>PT1.9S</rx:DueTime>
+                <rx:DueTime>PT4S</rx:DueTime>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -740,13 +742,13 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.DrawGratings.bonsai">
-              <LocationX>90</LocationX>
+              <LocationX>0</LocationX>
               <LocationY>0</LocationY>
               <Layer>0</Layer>
               <Angle>0</Angle>
               <SpatialFrequency>0.1</SpatialFrequency>
               <TemporalFrequency>0</TemporalFrequency>
-              <Phase>6245.23975</Phase>
+              <Phase>-6531.71875</Phase>
               <SquareWave>false</SquareWave>
               <Contrast>1</Contrast>
               <DutyCycle xsi:nil="true" />
@@ -786,6 +788,9 @@
                     <Combinator xsi:type="rx:Merge" />
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
+                    <Name>StimOn</Name>
+                  </Expression>
+                  <Expression xsi:type="MulticastSubject">
                     <Name>PhotodiodeSquare</Name>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
@@ -799,21 +804,9 @@
                   <Edge From="4" To="5" Label="Source2" />
                   <Edge From="5" To="6" Label="Source1" />
                   <Edge From="6" To="7" Label="Source1" />
+                  <Edge From="7" To="8" Label="Source1" />
                 </Edges>
               </Workflow>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Take">
-                <rx:Count>1</rx:Count>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="BooleanProperty">
-                <Value>true</Value>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>StimOn</Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -847,10 +840,7 @@
             <Edge From="25" To="26" Label="Source1" />
             <Edge From="26" To="27" Label="Source5" />
             <Edge From="27" To="28" Label="Source1" />
-            <Edge From="27" To="30" Label="Source1" />
             <Edge From="28" To="29" Label="Source1" />
-            <Edge From="30" To="31" Label="Source1" />
-            <Edge From="31" To="32" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
