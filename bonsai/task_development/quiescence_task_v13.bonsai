@@ -437,7 +437,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Timer">
-                <rx:DueTime>PT3.5S</rx:DueTime>
+                <rx:DueTime>PT3.7S</rx:DueTime>
                 <rx:Period>PT0S</rx:Period>
               </Combinator>
             </Expression>
@@ -548,7 +548,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Throttle">
-                <rx:DueTime>PT1.1S</rx:DueTime>
+                <rx:DueTime>PT1.8S</rx:DueTime>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -820,7 +820,7 @@
               <Angle>0</Angle>
               <SpatialFrequency>0.1</SpatialFrequency>
               <TemporalFrequency>0</TemporalFrequency>
-              <Phase>-10026.7617</Phase>
+              <Phase>8651.663</Phase>
               <SquareWave>false</SquareWave>
               <Contrast>1</Contrast>
               <DutyCycle xsi:nil="true" />
@@ -1053,7 +1053,7 @@
             <Expression xsi:type="ExternalizedMapping">
               <Property Name="FileName" />
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Tuple(sys:Int32,sys:String,sys:Double,sys:DateTimeOffset)">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Tuple(sys:Int32,sys:String,sys:String,sys:DateTimeOffset)">
               <rx:Name>WriteData</rx:Name>
             </Expression>
             <Expression xsi:type="scr:ExpressionTransform">
@@ -1081,50 +1081,50 @@ it.Item4 as Timestamp
                     <Name>ITIMin</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>ITIMax</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>QuiescenceTimeMin</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>QuiescenceTimeMax</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>QuiescenceThreshold</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>StimSize</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>StimSpatialFreq</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertySource" TypeArguments="SubscribeSubject,sys:String">
                     <MemberName>Name</MemberName>
@@ -1241,8 +1241,8 @@ it.Item4 as Timestamp
                     <Name>TrialITI</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertySource" TypeArguments="SubscribeSubject,sys:String">
                     <MemberName>Name</MemberName>
@@ -1255,8 +1255,8 @@ it.Item4 as Timestamp
                     <Name>TrialQuiescence</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertySource" TypeArguments="SubscribeSubject,sys:String">
                     <MemberName>Name</MemberName>
@@ -1269,8 +1269,8 @@ it.Item4 as Timestamp
                     <Name>QuiescenceReset</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertySource" TypeArguments="SubscribeSubject,sys:String">
                     <MemberName>Name</MemberName>
@@ -1283,15 +1283,15 @@ it.Item4 as Timestamp
                     <Name>StimOn</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Outcome</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertySource" TypeArguments="SubscribeSubject,sys:String">
                     <MemberName>Name</MemberName>
@@ -1311,22 +1311,22 @@ it.Item4 as Timestamp
                     <Name>TrialStart</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>ITIStart</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>QuiescenceStart</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Any2Double</scr:Name>
-                    <scr:Expression>Convert.ToDouble(it)</scr:Expression>
+                    <scr:Name>MakeString</scr:Name>
+                    <scr:Expression>Convert.ToString(it)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertySource" TypeArguments="SubscribeSubject,sys:String">
                     <MemberName>Name</MemberName>
