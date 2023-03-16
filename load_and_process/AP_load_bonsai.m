@@ -4,15 +4,14 @@ if ~exist('fn','var') || isempty(fn)
     fn = uigetfile('*.csv','Choose Bonsai file');
 end
 
+% Set Bonsai timestamp format
+bonsai_table_opts = detectImportOptions(fn);
+bonsai_table_opts = setvaropts(bonsai_table_opts,'Timestamp','Type','datetime', ...
+    'InputFormat','yyyy-MM-dd''T''HH:mm:ss.SSSSSSSZ','TimeZone','local', ...
+    'DatetimeFormat','yyyy-MM-dd HH:mm:ss.SSS');
+
 % Load Bonsai CSV file
-data = readtable(fn,'Delimiter',',');
-
-% Convert Bonsai timestamp to matlab timestamp
-bonsai_timestamp_format = 'yyyy-MM-dd''T''HH:mm:ss.SSS';
-bonsai_timestamp_length = length(bonsai_timestamp_format)-2; % -2 for the 'T'
-
-matlab_timetamps = cellfun(@(x) datetime(x(1:bonsai_timestamp_length), ...
-    'InputFormat',bonsai_timestamp_format),data.Timestamp);
+data = readtable(fn,bonsai_table_opts);
 
 % Create nested structure for trial events
 trial_events = struct('parameters',cell(1),'values',cell(1),'timestamps',cell(1)); 
@@ -32,7 +31,7 @@ for curr_trial = 1:n_trials
     for curr_event = unique_events'
         curr_event_idx = data.Trial == curr_trial & strcmp(data.Event,curr_event);
         trial_events.values(curr_trial).(cell2mat(curr_event)) = data.Value(curr_event_idx);
-        trial_events.timestamps(curr_trial).(cell2mat(curr_event)) = matlab_timetamps(curr_event_idx);
+        trial_events.timestamps(curr_trial).(cell2mat(curr_event)) = data.Timestamp(curr_event_idx);
     end
 end
 

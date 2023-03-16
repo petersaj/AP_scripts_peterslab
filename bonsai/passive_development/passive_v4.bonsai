@@ -4,12 +4,12 @@
                  xmlns:rx="clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core"
                  xmlns:gl="clr-namespace:Bonsai.Shaders;assembly=Bonsai.Shaders"
                  xmlns:res="clr-namespace:Bonsai.Resources;assembly=Bonsai.System"
-                 xmlns:scr="clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions"
                  xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                 xmlns:p1="clr-namespace:BonVision.Collections;assembly=BonVision"
                  xmlns:num="clr-namespace:Bonsai.Numerics;assembly=Bonsai.Numerics"
-                 xmlns:p1="clr-namespace:Bonsai.Numerics.Distributions;assembly=Bonsai.Numerics"
+                 xmlns:scr="clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions"
+                 xmlns:p2="clr-namespace:Bonsai.Numerics.Distributions;assembly=Bonsai.Numerics"
                  xmlns:io="clr-namespace:Bonsai.IO;assembly=Bonsai.System"
-                 xmlns:p2="clr-namespace:BonVision.Collections;assembly=BonVision"
                  xmlns="https://bonsai-rx.org/2018/workflow">
   <Workflow>
     <Nodes>
@@ -17,6 +17,14 @@
         <Name>SetParameters</Name>
         <Workflow>
           <Nodes>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="IntProperty">
+                <Value>10</Value>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="rx:BehaviorSubject">
+              <Name>NTrials</Name>
+            </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="FloatProperty">
                 <Value>20</Value>
@@ -56,6 +64,7 @@
             <Edge From="2" To="3" Label="Source1" />
             <Edge From="4" To="5" Label="Source1" />
             <Edge From="6" To="7" Label="Source1" />
+            <Edge From="8" To="9" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -195,10 +204,6 @@
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:DistinctUntilChanged" />
                   </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>Boolean2Int</scr:Name>
-                    <scr:Expression>it ? 1 : 0</scr:Expression>
-                  </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
                       <Property Name="ColorR" />
@@ -223,8 +228,8 @@
                     <ColorA>1</ColorA>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="BooleanProperty">
-                      <Value>false</Value>
+                    <Combinator xsi:type="IntProperty">
+                      <Value>0</Value>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="rx:BehaviorSubject">
@@ -234,11 +239,10 @@
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
                   <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="2" To="3" Label="Source1" />
-                  <Edge From="3" To="6" Label="Source2" />
+                  <Edge From="2" To="5" Label="Source2" />
+                  <Edge From="3" To="4" Label="Source1" />
                   <Edge From="4" To="5" Label="Source1" />
-                  <Edge From="5" To="6" Label="Source1" />
-                  <Edge From="7" To="8" Label="Source1" />
+                  <Edge From="6" To="7" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
@@ -277,7 +281,7 @@
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Single">
               <rx:Name>TrialStimX</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Boolean">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Single">
               <rx:Name>StimOn</rx:Name>
             </Expression>
           </Nodes>
@@ -348,43 +352,43 @@
               <Name>Source1</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="p2:GratingsSpecification">
-                <p2:Trials>
-                  <p2:GratingParameters>
-                    <p2:X>-90</p2:X>
-                    <p2:Y>0</p2:Y>
-                    <p2:Contrast>1</p2:Contrast>
-                    <p2:TemporalFrequency>0</p2:TemporalFrequency>
-                    <p2:Orientation>0</p2:Orientation>
-                  </p2:GratingParameters>
-                  <p2:GratingParameters>
-                    <p2:X>0</p2:X>
-                    <p2:Y>0</p2:Y>
-                    <p2:Contrast>1</p2:Contrast>
-                    <p2:TemporalFrequency>0</p2:TemporalFrequency>
-                    <p2:Orientation>0</p2:Orientation>
-                  </p2:GratingParameters>
-                  <p2:GratingParameters>
-                    <p2:X>90</p2:X>
-                    <p2:Y>0</p2:Y>
-                    <p2:Contrast>1</p2:Contrast>
-                    <p2:TemporalFrequency>0</p2:TemporalFrequency>
-                    <p2:Orientation>0</p2:Orientation>
-                  </p2:GratingParameters>
-                </p2:Trials>
+              <Combinator xsi:type="p1:GratingsSpecification">
+                <p1:Trials>
+                  <p1:GratingParameters>
+                    <p1:X>-90</p1:X>
+                    <p1:Y>0</p1:Y>
+                    <p1:Contrast>1</p1:Contrast>
+                    <p1:TemporalFrequency>0</p1:TemporalFrequency>
+                    <p1:Orientation>0</p1:Orientation>
+                  </p1:GratingParameters>
+                  <p1:GratingParameters>
+                    <p1:X>0</p1:X>
+                    <p1:Y>0</p1:Y>
+                    <p1:Contrast>1</p1:Contrast>
+                    <p1:TemporalFrequency>0</p1:TemporalFrequency>
+                    <p1:Orientation>0</p1:Orientation>
+                  </p1:GratingParameters>
+                  <p1:GratingParameters>
+                    <p1:X>90</p1:X>
+                    <p1:Y>0</p1:Y>
+                    <p1:Contrast>1</p1:Contrast>
+                    <p1:TemporalFrequency>0</p1:TemporalFrequency>
+                    <p1:Orientation>0</p1:Orientation>
+                  </p1:GratingParameters>
+                </p1:Trials>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="p2:CreateGratingTrial">
-                <p2:Delay>0</p2:Delay>
-                <p2:Duration>0.5</p2:Duration>
-                <p2:Diameter>20</p2:Diameter>
-                <p2:X>0</p2:X>
-                <p2:Y>0</p2:Y>
-                <p2:Contrast>1</p2:Contrast>
-                <p2:SpatialFrequency>0.1</p2:SpatialFrequency>
-                <p2:TemporalFrequency>0</p2:TemporalFrequency>
-                <p2:Orientation>0</p2:Orientation>
+              <Combinator xsi:type="p1:CreateGratingTrial">
+                <p1:Delay>0</p1:Delay>
+                <p1:Duration>0.5</p1:Duration>
+                <p1:Diameter>20</p1:Diameter>
+                <p1:X>0</p1:X>
+                <p1:Y>0</p1:Y>
+                <p1:Contrast>1</p1:Contrast>
+                <p1:SpatialFrequency>0.1</p1:SpatialFrequency>
+                <p1:TemporalFrequency>0</p1:TemporalFrequency>
+                <p1:Orientation>0</p1:Orientation>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -464,13 +468,13 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:CreateDiscreteUniform">
-                      <p1:Lower>-180</p1:Lower>
-                      <p1:Upper>180</p1:Upper>
+                    <Combinator xsi:type="p2:CreateDiscreteUniform">
+                      <p2:Lower>-180</p2:Lower>
+                      <p2:Upper>180</p2:Upper>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:Sample" />
+                    <Combinator xsi:type="p2:Sample" />
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -484,7 +488,7 @@
                     <Angle>0</Angle>
                     <SpatialFrequency>0.1</SpatialFrequency>
                     <TemporalFrequency>0</TemporalFrequency>
-                    <Phase>4125.296</Phase>
+                    <Phase>-8537.071</Phase>
                     <SquareWave>false</SquareWave>
                     <Contrast>1</Contrast>
                     <DutyCycle xsi:nil="true" />
@@ -508,16 +512,16 @@
                           <Combinator xsi:type="rx:First" />
                         </Expression>
                         <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="BooleanProperty">
-                            <Value>true</Value>
+                          <Combinator xsi:type="IntProperty">
+                            <Value>1</Value>
                           </Combinator>
                         </Expression>
                         <Expression xsi:type="Combinator">
                           <Combinator xsi:type="rx:Last" />
                         </Expression>
                         <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="BooleanProperty">
-                            <Value>false</Value>
+                          <Combinator xsi:type="IntProperty">
+                            <Value>0</Value>
                           </Combinator>
                         </Expression>
                         <Expression xsi:type="Combinator">
@@ -582,7 +586,7 @@
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="gl:Timer">
-                      <gl:DueTime>PT1.4S</gl:DueTime>
+                      <gl:DueTime>PT1.5S</gl:DueTime>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
@@ -635,6 +639,14 @@
             <Edge From="2" To="3" Label="Source1" />
           </Edges>
         </Workflow>
+      </Expression>
+      <Expression xsi:type="SubscribeSubject">
+        <Name>NTrials</Name>
+      </Expression>
+      <Expression xsi:type="PropertyMapping">
+        <PropertyMappings>
+          <Property Name="Count" />
+        </PropertyMappings>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="rx:RepeatCount">
@@ -902,9 +914,11 @@ it.Item4 as Timestamp
     <Edges>
       <Edge From="3" To="4" Label="Source1" />
       <Edge From="4" To="5" Label="Source1" />
-      <Edge From="5" To="6" Label="Source1" />
-      <Edge From="7" To="8" Label="Source1" />
-      <Edge From="8" To="9" Label="Source1" />
+      <Edge From="5" To="8" Label="Source1" />
+      <Edge From="6" To="7" Label="Source1" />
+      <Edge From="7" To="8" Label="Source2" />
+      <Edge From="9" To="10" Label="Source1" />
+      <Edge From="10" To="11" Label="Source1" />
     </Edges>
   </Workflow>
 </WorkflowBuilder>
