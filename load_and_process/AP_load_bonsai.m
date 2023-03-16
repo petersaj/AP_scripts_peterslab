@@ -1,4 +1,19 @@
 function trial_events = AP_load_bonsai(fn)
+% Load Bonsai events file saved with CSVWRITER, output structure of events
+%
+% INPUTS: 
+% fn = Bonsai csv file (prompts if nothing entered)
+% 
+% OUTPUTS: 
+% trial_events = structure of events for each trial
+%   .parameters = things set once at start (Trial 0)
+%   .values = event values (as double)
+%   .timestamps = event timestamps (as datetime)
+% 
+% Conventions: 
+% Headers = Trial, Event, Value, Timestamp
+% Trial 0 = Parameters set once at the workflow start
+% Value = Only numbers (can't load mixed, e.g. [5;TRUE]) 
 
 if ~exist('fn','var') || isempty(fn)
     fn = uigetfile('*.csv','Choose Bonsai file');
@@ -34,16 +49,6 @@ for curr_trial = 1:n_trials
         trial_events.timestamps(curr_trial).(cell2mat(curr_event)) = data.Timestamp(curr_event_idx);
     end
 end
-
-
-
-
-
-
-
-
-
-
 
 
 
