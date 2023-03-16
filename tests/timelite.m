@@ -37,25 +37,32 @@ drawnow;
 
 %% Set up DAQ
 
+% Set sample rate for DAQ
 daq_sample_rate = 1000;
-daq_samples_per_notify = 1/daq_sample_rate; % collect 1s of data per cycle
 
-% Find DAQ
+% Set DAQ buffer time (uploads and processes every n seconds)
+daq_buffer_time = 1;
+
+% Find and connect to DAQ
+% (for now: use the first available DAQ)
 daqs_available = daqlist;
-% (for now: assume first available DAQ is the one to use)
-use_daq = 1;
-daq_device = daq(daqs_available.VendorID(use_daq));
+use_daq_idx = 1;
+% (if device is simulated, error out)
+if contains(daqs_available.DeviceID(use_daq_idx),'Sim')
+    error('No DAQ detected');
+end
+daq_device = daq(daqs_available.VendorID(use_daq_idx));
 
 % Set DAQ properties 
 daq_device.Rate = daq_sample_rate;
 daq_device.ScansAvailableFcn = @(src,evt,x) daq_upload(src,evt,gui_fig);
-daq_device.ScansAvailableFcnCount = daq_sample_rate;
+daq_device.ScansAvailableFcnCount = daq_buffer_time*daq_sample_rate;
 
-ch = addinput(daq_device,daqs_available.DeviceID(use_daq),'ai0','Voltage');
+ch = addinput(daq_device,daqs_available.DeviceID(use_daq_idx),'ai0','Voltage');
 ch.TerminalConfig = 'SingleEnded';
 ch.Name = 'ai_test';
 
-ch = addinput(daq_device,daqs_available.DeviceID(use_daq),'ctr0','Position');
+ch = addinput(daq_device,daqs_available.DeviceID(use_daq_idx),'ctr0','Position');
 ch.EncoderType = 'X4';
 ch.Name = 'wheel';
 
@@ -117,6 +124,14 @@ switch h.Value
         h.ForegroundColor = 'k';
         set(gui_data.controls_h,'Enable','on');
 end
+
+end
+
+function daq_listen(h,eventdata,gui_fig)
+% Listen for start from experiment controller
+
+tcpclient("163.1.249.17",plab.locations.timelite_port);
+% TO DO: pull from bonsai_server to do the same thing
 
 end
 

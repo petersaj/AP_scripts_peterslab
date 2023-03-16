@@ -957,7 +957,7 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="StringProperty">
-          <Value>C:\Users\petersa\Desktop\test.csv</Value>
+          <Value>C:\Users\petersa\Desktop\bonsai.csv</Value>
         </Combinator>
       </Expression>
       <Expression xsi:type="PropertyMapping">
