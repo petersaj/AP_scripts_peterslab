@@ -447,9 +447,9 @@
               <Property Name="EndDelay" />
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="Extensions\ReceptiveFieldMappingStim.bonsai">
-              <FileNameRFMapStim>NoiseLocations.bin</FileNameRFMapStim>
+              <FileNameRFMapStim>C:\Users\petersa\Desktop\NoiseLocations.bin</FileNameRFMapStim>
               <EndDelay>PT10S</EndDelay>
-              <InitDelay>PT10S</InitDelay>
+              <InitDelay>PT1S</InitDelay>
               <MappingTime>PT1M</MappingTime>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -484,6 +484,33 @@
             <Expression xsi:type="MulticastSubject">
               <Name>SyncState</Name>
             </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Combinator">
+                <Combinator xsi:type="gl:RenderFrame" />
+              </Builder>
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Combinator">
+                <Combinator xsi:type="rx:ElementIndex" />
+              </Builder>
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="MemberSelector">
+                <Selector>Index</Selector>
+              </Builder>
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Mod">
+                <Operand xsi:type="IntProperty">
+                  <Value>2</Value>
+                </Operand>
+              </Builder>
+            </Expression>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="MulticastSubject">
+                <Name>PhotodiodeSquare</Name>
+              </Builder>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -500,6 +527,10 @@
             <Edge From="14" To="15" Label="Source1" />
             <Edge From="15" To="16" Label="Source1" />
             <Edge From="16" To="17" Label="Source1" />
+            <Edge From="18" To="19" Label="Source1" />
+            <Edge From="19" To="20" Label="Source1" />
+            <Edge From="20" To="21" Label="Source1" />
+            <Edge From="21" To="22" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

@@ -170,10 +170,10 @@
               <Combinator xsi:type="gl:RenderFrame" />
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Environment.OrthographicView.bonsai">
-              <Left>-270</Left>
-              <Right>270</Right>
-              <Bottom>-90</Bottom>
-              <Top>90</Top>
+              <Left>-135</Left>
+              <Right>135</Right>
+              <Bottom>-45</Bottom>
+              <Top>45</Top>
             </Expression>
             <Expression xsi:type="rx:PublishSubject">
               <Name>Draw</Name>
@@ -416,7 +416,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Timer">
-                <rx:DueTime>PT1.4S</rx:DueTime>
+                <rx:DueTime>PT1.3S</rx:DueTime>
                 <rx:Period>PT0S</rx:Period>
               </Combinator>
             </Expression>
@@ -499,7 +499,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Throttle">
-                <rx:DueTime>PT2.9S</rx:DueTime>
+                <rx:DueTime>PT3S</rx:DueTime>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -660,7 +660,7 @@
             </Expression>
             <Expression xsi:type="GreaterThanOrEqual">
               <Operand xsi:type="FloatProperty">
-                <Value>180</Value>
+                <Value>135</Value>
               </Operand>
             </Expression>
             <Expression xsi:type="rx:Condition">
@@ -737,13 +737,13 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.DrawGratings.bonsai">
-              <LocationX>0</LocationX>
+              <LocationX>136</LocationX>
               <LocationY>0</LocationY>
               <Layer>0</Layer>
               <Angle>0</Angle>
               <SpatialFrequency>0.1</SpatialFrequency>
               <TemporalFrequency>0</TemporalFrequency>
-              <Phase>7276.564</Phase>
+              <Phase>6187.94434</Phase>
               <SquareWave>false</SquareWave>
               <Contrast>1</Contrast>
               <DutyCycle xsi:nil="true" />

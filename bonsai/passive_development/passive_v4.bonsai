@@ -117,10 +117,10 @@
               <Combinator xsi:type="gl:RenderFrame" />
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="BonVision:Environment.OrthographicView.bonsai">
-              <Left>-270</Left>
-              <Right>270</Right>
-              <Bottom>-90</Bottom>
-              <Top>90</Top>
+              <Left>-135</Left>
+              <Right>135</Right>
+              <Bottom>-45</Bottom>
+              <Top>45</Top>
             </Expression>
             <Expression xsi:type="rx:PublishSubject">
               <Name>Draw</Name>
@@ -482,13 +482,13 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="BonVision:Primitives.DrawGratings.bonsai">
-                    <LocationX>0</LocationX>
+                    <LocationX>-90</LocationX>
                     <LocationY>0</LocationY>
                     <Layer>0</Layer>
                     <Angle>0</Angle>
                     <SpatialFrequency>0.1</SpatialFrequency>
                     <TemporalFrequency>0</TemporalFrequency>
-                    <Phase>-8537.071</Phase>
+                    <Phase>-7161.97266</Phase>
                     <SquareWave>false</SquareWave>
                     <Contrast>1</Contrast>
                     <DutyCycle xsi:nil="true" />
