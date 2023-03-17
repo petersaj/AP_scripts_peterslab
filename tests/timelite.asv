@@ -6,10 +6,11 @@ function timelite
 % instrument control toolbox
 
 %%%% TO DO: 
-% - display daq/channel info?
 % - set filename dynamically (append to current experiments)
 % - make listen mode to set filename and run
 % - upload to server
+% - set up DAQ with a local setup file
+
 
 %% Make GUI
 
@@ -37,16 +38,8 @@ drawnow;
 %% Set up DAQ
 
 try
-    % Set up DAQ according to local config file
-    daq_device = plab.local_rig.timelite_config;
-catch me
-    % Error if DAQ could not be configured
-    error('Timelite - DAQ device could not be configured: \n %s',me.message)
-end
-
-% Set DAQ update function
-daq_device.ScansAvailableFcn = @(src,evt,x) daq_upload(src,evt,gui_fig);
-
+daq_device = plab.local_rig.timelite_config;
+cat
 % Initialize and upload gui data
 gui_data = struct;
 gui_data.controls_h = controls_h;
@@ -90,7 +83,6 @@ switch h.Value
 
         % Start DAQ acquisition
         daq_start(gui_fig);
-
     case 0
         % Manual recording is turned off
 
@@ -105,7 +97,6 @@ switch h.Value
         h.BackgroundColor = 'w';
         h.ForegroundColor = 'k';
         set(gui_data.controls_h,'Enable','on');
-
 end
 
 end
