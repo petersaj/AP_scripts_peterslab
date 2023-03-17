@@ -248,9 +248,9 @@
                     <LocationY>-1</LocationY>
                     <Layer>0</Layer>
                     <Angle>0</Angle>
-                    <ColorR>0</ColorR>
-                    <ColorG>0</ColorG>
-                    <ColorB>0</ColorB>
+                    <ColorR>1</ColorR>
+                    <ColorG>1</ColorG>
+                    <ColorB>1</ColorB>
                     <ColorA>1</ColorA>
                   </Expression>
                   <Expression xsi:type="Combinator">
@@ -540,7 +540,7 @@
             </Expression>
             <Expression xsi:type="rx:Accumulate" />
             <Expression xsi:type="scr:ExpressionTransform">
-              <scr:Name>DivideBy2</scr:Name>
+              <scr:Name>Mod2</scr:Name>
               <scr:Expression>it % 2</scr:Expression>
             </Expression>
             <Expression xsi:type="MulticastSubject">

@@ -39,9 +39,9 @@ for curr_parameter = unique_parameters'
     trial_events.parameters.(cell2mat(curr_parameter)) = data.Value(curr_parameter_idx);
 end
 
-% Loop through trials, save values and timestamps for all events
+% Loop through trials (excluding 0), save values and timestamps for all events
 n_trials = max(data.Trial);
-unique_events = unique(data.Event);
+unique_events = unique(data.Event(~parameter_idx));
 for curr_trial = 1:n_trials
     for curr_event = unique_events'
         curr_event_idx = data.Trial == curr_trial & strcmp(data.Event,curr_event);
