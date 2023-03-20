@@ -14,16 +14,23 @@ function timelite
 %% Make GUI
 
 gui_fig = figure('Name','Timelite','Units','Normalized', ...
-    'Position',[0.01,0.7,0.1,0.2],'color','w','menu','none');
+    'Position',[0,0.1,0.1,0.8],'color','w','menu','none');
 
 % Control buttons
 clear controls_h
-controls_h(1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
+% (text)
+controls_h(1) = uicontrol('Parent',gui_fig,'Style','text', ...
+    'String','Setting up DAQ...','FontSize',12, ...
+    'HorizontalAlignment','left', ...
+    'Units','normalized','BackgroundColor','w','Position',[0,0.5,1,0.5]);
+
+% (buttons)
+controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
     'String','Manual','Callback',{@daq_manual,gui_fig});
 controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
     'String','Listen','Callback',{@daq_listen,gui_fig});
-set(controls_h,'Units','normalized','FontSize',16, ...
-    'BackgroundColor','w','Position',[0,0,1,1/length(controls_h)]);
+set(controls_h(2:end),'Units','normalized','FontSize',16, ...
+    'BackgroundColor','w','Position',[0,0,1,0.5/(length(controls_h)-1)]);
 
 set(gcf,'Children',flipud(get(gcf,'Children')));
 align(fliplr(controls_h),'center','fixed',0);
@@ -43,6 +50,16 @@ catch me
     % Error if DAQ could not be configured
     error('Timelite - DAQ device could not be configured: \n %s',me.message)
 end
+
+% Display DAQ channel info
+channel_text = [ ...
+    {sprintf('Sample rate:  %d',daq_device.Rate)}
+    {sprintf('Sample rate:  %d',daq_device.Rate)}; ...
+    {sprintf('Samples/upload:  %d \n',daq_device.ScansAvailableFcnCount)}
+    {'Channels: '}; ...
+    join([{daq_device.Channels.ID}',{daq_device.Channels.Name}',],': ')];
+
+set(controls_h(1),'String',channel_text);
 
 % Set DAQ update function
 daq_device.ScansAvailableFcn = @(src,evt,x) daq_upload(src,evt,gui_fig);

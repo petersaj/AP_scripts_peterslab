@@ -6,11 +6,10 @@ function timelite
 % instrument control toolbox
 
 %%%% TO DO: 
+% - display daq/channel info?
 % - set filename dynamically (append to current experiments)
 % - make listen mode to set filename and run
 % - upload to server
-% - set up DAQ with a local setup file
-
 
 %% Make GUI
 
@@ -19,7 +18,11 @@ gui_fig = figure('Name','Timelite','Units','Normalized', ...
 
 % Control buttons
 clear controls_h
-controls_h(1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
+% (text)
+controls_h(1) = uicontrol('Parent',gui_fig,'Style','text', ...
+    'String','Setting up...','FontSize',12,'HorizontalAlignment','left');
+% (buttons)
+controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
     'String','Manual','Callback',{@daq_manual,gui_fig});
 controls_h(end+1) = uicontrol('Parent',gui_fig,'Style','togglebutton', ...
     'String','Listen','Callback',{@daq_listen,gui_fig});
@@ -38,8 +41,25 @@ drawnow;
 %% Set up DAQ
 
 try
-daq_device = plab.local_rig.timelite_config;
-cat
+    % Set up DAQ according to local config file
+    daq_device = plab.local_rig.timelite_config;
+catch me
+    % Error if DAQ could not be configured
+    error('Timelite - DAQ device could not be configured: \n %s',me.message)
+end
+
+% Set DAQ update function
+daq_device.ScansAvailableFcn = @(src,evt,x) daq_upload(src,evt,gui_fig);
+
+channel_text = [ ...
+    {sprintf('Sample rate:  %d',daq_device.Rate)}
+    {sprintf('Sample rate:  %d',daq_device.Rate)}; ...
+    {sprintf('Samples/upload:  %d \n',daq_device.ScansAvailableFcnCount)}
+    {'Channels: '}; ...
+    join([{daq_device.Channels.ID}',{daq_device.Channels.Name}',],': ')];
+
+set(controls_h(1),'String',channel_text);
+daq_device.ScansAvailableFcnCount
 % Initialize and upload gui data
 gui_data = struct;
 gui_data.controls_h = controls_h;
@@ -83,6 +103,7 @@ switch h.Value
 
         % Start DAQ acquisition
         daq_start(gui_fig);
+
     case 0
         % Manual recording is turned off
 
@@ -97,6 +118,7 @@ switch h.Value
         h.BackgroundColor = 'w';
         h.ForegroundColor = 'k';
         set(gui_data.controls_h,'Enable','on');
+
 end
 
 end
