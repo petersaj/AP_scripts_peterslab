@@ -420,7 +420,7 @@
                       <p2:Rows>27</p2:Rows>
                       <p2:Columns>9</p2:Columns>
                       <p2:Duration>0.2</p2:Duration>
-                      <p2:Rate>0.1</p2:Rate>
+                      <p2:Rate>20</p2:Rate>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
