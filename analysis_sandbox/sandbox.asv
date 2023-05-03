@@ -1,0 +1,89 @@
+%% SANDBOX
+% 
+% Temporary code
+
+%% Align widefield to event
+
+trial_stim = vertcat(trial_events.values.TrialStimX);
+stim_times = photodiode_times(1:2:end);
+
+align_times = stim_times;
+align_category = trial_stim(1:length(stim_times));
+
+surround_window = [-0.2,4];
+
+surround_samplerate = 35;
+t = surround_window(1):1/surround_samplerate:surround_window(2);
+peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
+
+use_U = wf_U;
+use_V = wf_V;
+use_wf_t = wf_times;
+
+aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
+    length(align_times),length(t),[]);
+
+align_id = findgroups(align_category);
+aligned_v_avg = permute(splitapply(@nanmean,aligned_v,align_id),[3,2,1]);
+aligned_v_avg_baselined = aligned_v_avg - nanmean(aligned_v_avg(:,t < 0,:),2);
+
+aligned_px_avg = plab.wf.svd2px(use_U,aligned_v_avg_baselined);
+
+AP_imscroll(aligned_px_avg,t);
+colormap(AP_colormap('PWG'));
+clim(prctile(abs(aligned_px_avg(:)),99).*[-1,1]);
+axis image;
+
+
+
+%% Testing load DCIMG
+
+img_fn = "D:\AP00400001.dcimg";
+
+fid2 = fopen(img_fn,'r','l');
+metadata = fread(fid2,232,'uint32'); 
+fclose(fid2);
+
+x = metadata(47);
+y = metadata(48);
+
+fid3 = fopen(img_fn,'r');
+fseek(fid3,232,'bof'); % seek past the 232-byte header
+mystack = fread(fid3,x*y*10,'uint16=>uint16'); % 16-bit images
+fclose(fid3);
+mystack = reshape(mystack,y,x,[]);
+AP_imscroll(mystack);
+
+
+cd D:\
+hdcimg = dcimgmex('open', 'AP00400001.dcimg');
+numFrames = dcimgmex( 'getparam', hdcimg, 'NUMBEROF_FRAME' );
+im_width = dcimgmex( 'getparam', hdcimg, 'IMAGE_WIDTH' );
+im_height = dcimgmex( 'getparam', hdcimg, 'IMAGE_HEIGHT' );
+
+% Frame number is 0-indexed
+curr_im = 1;
+data = dcimgmex( 'readframe', hdcimg, curr_im-1);
+
+figure;
+h = imagesc; axis image off;
+for curr_im = 901:2:1000
+    data = flipud(dcimgmex( 'readframe', hdcimg, curr_im-1)');
+    set(h,'CData',data);
+    pause(0.01);
+    drawnow
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
