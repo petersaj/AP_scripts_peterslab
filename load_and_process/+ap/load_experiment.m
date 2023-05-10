@@ -1,7 +1,7 @@
 
 animal = 'AP005';
-rec_day = '2023-04-30';
-rec_time = '1435';
+rec_day = '2023-05-07';
+rec_time = '1541';
 
 %% Load timelite and associated inputs
 
@@ -73,7 +73,7 @@ mousecam_header_fn = plab.locations.make_server_filename(animal,rec_day,rec_time
 
 % Read mousecam header and get flipper times
 mousecam_flipper_pin = 2;
-mousecam_header = read_mousecam_header(mousecam_header_fn, mousecam_flipper_pin);
+mousecam_header = plab.mousecam.read_mousecam_header(mousecam_header_fn, mousecam_flipper_pin);
 mousecam_flipper_times = mousecam_header.timestamps(find(diff(mousecam_header.flipper) ~= 0) + 1);
 
 % Check that timelite and mousecam have equal flipper flips
