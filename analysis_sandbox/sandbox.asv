@@ -7,21 +7,34 @@
 align_times = photodiode_times(1:2:end);
 align_category = vertcat(trial_events.values.TrialStimX);
 
+noise_x = 23;
+noise_y = 4;
+align_times = ...
+    stim_times(find( ...
+    (noise_locations(noise_y,noise_x,1:end-1) == 128 & ...
+    noise_locations(noise_y,noise_x,2:end) == 255) | ...
+    (noise_locations(noise_y,noise_x,1:end-1) == 128 & ...
+    noise_locations(4noise_ynoise_x,2:end) == 0))+1);
+
+
 % align_times = reward_times;
 % align_category = ones(size(align_times));
 
-% (get only quiescent trials)
-[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-framerate = 30;
-wheel_window = [0,0.5];
-wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-wheel_window_t_peri_event = align_times + wheel_window_t;
-event_aligned_wheel = interp1(Timeline.rawDAQTimestamps, ...
-    wheel_velocity,wheel_window_t_peri_event);
-wheel_thresh = 0;
-quiescent_trials = ~any(abs(event_aligned_wheel) > 0,2);
+% % (get only quiescent trials)
+% [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+% framerate = 30;
+% wheel_window = [0,0.5];
+% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+% wheel_window_t_peri_event = align_times + wheel_window_t;
+% event_aligned_move = interp1(timelite.timestamps, ...
+%     +wheel_move,wheel_window_t_peri_event,'previous');
+% quiescent_trials = ~any(event_aligned_move,2);
+% 
+% align_times = align_times(quiescent_trials);
+% align_category = align_category(quiescent_trials);
 
-surround_window = [-0.2,4];
+
+surround_window = [-0.5,1];
 
 surround_samplerate = 35;
 t = surround_window(1):1/surround_samplerate:surround_window(2);
