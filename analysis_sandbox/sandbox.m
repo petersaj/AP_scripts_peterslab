@@ -4,13 +4,13 @@
 
 %% Align widefield to event
 
-% % (passive)
-% align_times = photodiode_times(1:2:end);
-% align_category = vertcat(trial_events.values.TrialStimX);
-
-% (task stim)
+% (passive)
 align_times = photodiode_times(1:2:end);
-align_category = ones(size(align_times));
+align_category = vertcat(trial_events.values.TrialStimX);
+
+% % (task stim)
+% align_times = photodiode_times(1:2:end);
+% align_category = ones(size(align_times));
 
 % % (task rewards)
 % align_times = reward_times;

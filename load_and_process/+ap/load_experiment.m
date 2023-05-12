@@ -1,7 +1,13 @@
 
-animal = 'AP004';
-rec_day = '2023-05-11';
-rec_time = '1320';
+animal = 'AP005';
+% rec_day = '2023-05-11';
+% rec_time = '1410';
+
+use_workflow = 'lcr_passive';
+recordings = ap.find_workflow(animal,use_workflow);
+rec_day = recordings(end).day;
+rec_time = recordings(end).protocol{1}(end-3:end);
+
 
 %% Load timelite and associated inputs
 
@@ -94,18 +100,18 @@ end
 
 
 %%%%% testing: bonsai times into timelite times
-bonsai_reward_datetime = [trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome];
-bonsai_relative_t = bonsai_reward_datetime(1);
-
-bonsai_reward_t = seconds(bonsai_reward_datetime - bonsai_relative_t);
-
-% event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
+% bonsai_reward_datetime = [trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome];
+% bonsai_relative_t = bonsai_reward_datetime(1);
+% 
+% bonsai_reward_t = seconds(bonsai_reward_datetime - bonsai_relative_t);
+% 
+% % event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
 % event_datetime = vertcat(trial_events.timestamps.QuiescenceStart);
-event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
-
-event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
-
-event_t_tl = interp1(bonsai_reward_t,reward_times,event_t_bonsai);
+% % event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
+% 
+% event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
+% 
+% event_t_tl = interp1(bonsai_reward_t,reward_times,event_t_bonsai,'linear','extrap');
 
 
 
@@ -134,8 +140,8 @@ mousecam_postflips_idx_tl = arrayfun(@(x) ...
     1:length(flipper_times))';
 
 mousecam_postflips_idx_cam = find(diff(mousecam_header.flipper) ~= 0) + 1;
-%%% temporary?
-mousecam_postflips_idx_cam = mousecam_postflips_idx_cam(1:min_flipper_n);
+% %%% temporary?
+% mousecam_postflips_idx_cam = mousecam_postflips_idx_cam(1:min_flipper_n);
 
 % For sync: only use frames where flip happened in window before frame
 % started (if flip happens during/close to exposure - camera pin state can
@@ -237,7 +243,9 @@ wf_V = AP_deconv_wf(wf_Vdf,[],wf_framerate);
 
 % AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
 
-AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
+
+% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
 
 
