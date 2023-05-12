@@ -4,23 +4,27 @@
 
 %% Align widefield to event
 
-% (passive)
+% % (passive)
 % align_times = photodiode_times(1:2:end);
 % align_category = vertcat(trial_events.values.TrialStimX);
 
-% (sparse noise)
-px_x = 23;
-px_y = 4;
-align_times = ...
-    stim_times(find( ...
-    (noise_locations(px_y,px_x,1:end-1) == 128 & ...
-    noise_locations(px_y,px_x,2:end) == 255) | ...
-    (noise_locations(px_y,px_x,1:end-1) == 128 & ...
-    noise_locations(px_y,px_x,2:end) == 0))+1);
+% (task stim)
+align_times = photodiode_times(1:2:end);
 align_category = ones(size(align_times));
 
-% (rewards)
+% % (task rewards)
 % align_times = reward_times;
+% align_category = ones(size(align_times));
+
+% % (sparse noise)
+% px_x = 23;
+% px_y = 4;
+% align_times = ...
+%     stim_times(find( ...
+%     (noise_locations(px_y,px_x,1:end-1) == 128 & ...
+%     noise_locations(px_y,px_x,2:end) == 255) | ...
+%     (noise_locations(px_y,px_x,1:end-1) == 128 & ...
+%     noise_locations(px_y,px_x,2:end) == 0))+1);
 % align_category = ones(size(align_times));
 
 % % (get only quiescent trials)

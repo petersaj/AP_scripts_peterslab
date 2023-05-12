@@ -1,7 +1,7 @@
 
-animal = 'AP005';
+animal = 'AP004';
 rec_day = '2023-05-11';
-rec_time = '1441';
+rec_time = '1320';
 
 %% Load timelite and associated inputs
 
@@ -93,6 +93,22 @@ catch me
 end
 
 
+%%%%% testing: bonsai times into timelite times
+bonsai_reward_datetime = [trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome];
+bonsai_relative_t = bonsai_reward_datetime(1);
+
+bonsai_reward_t = seconds(bonsai_reward_datetime - bonsai_relative_t);
+
+% event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
+% event_datetime = vertcat(trial_events.timestamps.QuiescenceStart);
+event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
+
+event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
+
+event_t_tl = interp1(bonsai_reward_t,reward_times,event_t_bonsai);
+
+
+
 %% Load mousecam
 
 mousecam_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam.mj2');
@@ -105,7 +121,11 @@ mousecam_flipper_times = mousecam_header.timestamps(find(diff(mousecam_header.fl
 
 % Check that timelite and mousecam have equal flipper flips
 if length(flipper_times) ~= length(mousecam_flipper_times)
-    error('Flipper times not matched in timelite and mousecam');
+    warning('Flipper times not matched in timelite and mousecam');
+    min_flipper_n = min(length(flipper_times),length(mousecam_flipper_times));
+    %%% temporary?
+    flipper_times = flipper_times(1:min_flipper_n);
+    mousecam_flipper_times = mousecam_flipper_times(1:min_flipper_n);
 end
 
 % Get frame time after flips in timeline and mousecam
@@ -114,6 +134,8 @@ mousecam_postflips_idx_tl = arrayfun(@(x) ...
     1:length(flipper_times))';
 
 mousecam_postflips_idx_cam = find(diff(mousecam_header.flipper) ~= 0) + 1;
+%%% temporary?
+mousecam_postflips_idx_cam = mousecam_postflips_idx_cam(1:min_flipper_n);
 
 % For sync: only use frames where flip happened in window before frame
 % started (if flip happens during/close to exposure - camera pin state can

@@ -1,7 +1,7 @@
 
 animal = 'AP004';
-rec_day = '2023-05-10';
-rec_time = '1655';
+rec_day = '2023-05-11';
+rec_time = '1320';
 
 %% Load timelite and associated inputs
 
@@ -87,9 +87,21 @@ try
     end
 
     stim_times = interp1(photodiode_stim_idx,photodiode_times, ...
-        1:size(noise_locations,3),'linear','extrap');
+        1:size(noise_locations,3),'linear','extrap')';
+
 catch me
 end
+
+
+%%%%% testing: bonsai times into timelite times
+bonsai_reward_t = [trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome];
+
+
+event_t = cellfun(@(x) x(1),{trial_events.timestamps.StimOn})';
+seconds(event_t - event_t(1))
+
+
+
 
 
 %% Load mousecam
@@ -104,7 +116,11 @@ mousecam_flipper_times = mousecam_header.timestamps(find(diff(mousecam_header.fl
 
 % Check that timelite and mousecam have equal flipper flips
 if length(flipper_times) ~= length(mousecam_flipper_times)
-    error('Flipper times not matched in timelite and mousecam');
+    warning('Flipper times not matched in timelite and mousecam');
+    min_flipper_n = min(length(flipper_times),length(mousecam_flipper_times));
+    %%% temporary?
+    flipper_times = flipper_times(1:min_flipper_n);
+    mousecam_flipper_times = mousecam_flipper_times(1:min_flipper_n);
 end
 
 % Get frame time after flips in timeline and mousecam
@@ -113,6 +129,8 @@ mousecam_postflips_idx_tl = arrayfun(@(x) ...
     1:length(flipper_times))';
 
 mousecam_postflips_idx_cam = find(diff(mousecam_header.flipper) ~= 0) + 1;
+%%% temporary?
+mousecam_postflips_idx_cam = mousecam_postflips_idx_cam(1:min_flipper_n);
 
 % For sync: only use frames where flip happened in window before frame
 % started (if flip happens during/close to exposure - camera pin state can
@@ -160,7 +178,9 @@ for curr_wf = 1:length(widefield_colors)
     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
 end
 
-% 
+%%%%%%%%% TEMPORARY? clip frames off the end if they were 
+wf_V_raw = cellfun(@(x,t) x(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
+%%%%%%%%%%%
 
 wf_framerate = mean(1./diff(wf_t_all{1}));
 
@@ -210,10 +230,9 @@ wf_V = AP_deconv_wf(wf_Vdf,[],wf_framerate);
 
 %% Experiment scroller (check alignment)
 
-AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
 
-
-% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
 
 
