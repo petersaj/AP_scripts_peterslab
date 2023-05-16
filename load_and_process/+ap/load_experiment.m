@@ -1,9 +1,11 @@
 
-animal = 'AP005';
+animal = 'AP004';
 % rec_day = '2023-05-11';
 % rec_time = '1410';
 
 use_workflow = 'lcr_passive';
+% use_workflow = 'stim_wheel_right_stage2';
+
 recordings = ap.find_workflow(animal,use_workflow);
 rec_day = recordings(end).day;
 rec_time = recordings(end).protocol{1}(end-3:end);
@@ -210,7 +212,8 @@ hemo_local_px = 3; % pixel downsampling for local correction
 skip_seconds = 20; % the beginning and end can be wonky
 
 skip_frames = 1 + round(skip_seconds*wf_framerate);
-[~,hemo_tform] = plab.wf.hemo_correct_local(wf_U_raw{1}, ...
+[~,hemo_tform] = plab.wf.hemo_correct_local( ...
+    wf_U_raw{1}, ...
     wf_V_raw{1}(:,skip_frames:end-skip_frames-1), ...
     wf_Vhemo_Uneuro(:,skip_frames:end-skip_frames-1), ...
     wf_framerate,hemo_freq,hemo_local_px);
@@ -241,9 +244,12 @@ wf_V = AP_deconv_wf(wf_Vdf,[],wf_framerate);
 
 %% Experiment scroller (check alignment)
 
-% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
 
-AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
+
+AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
+AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
+
 
 % AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
