@@ -1,15 +1,15 @@
 
-animal = 'AP005';
-% rec_day = '2023-05-11';
-% rec_time = '1410';
-
+% animal = 'AP005';
+% % rec_day = '2023-05-11';
+% % rec_time = '1410';
+% 
 % use_workflow = 'lcr_passive';
-use_workflow = 'stim_wheel_right_stage2';
-% use_workflow = 'sparse_noise';
-
-recordings = ap.find_workflow(animal,use_workflow);
-rec_day = recordings(end).day;
-rec_time = recordings(end).protocol{end}; % (use last, if multiple)
+% % use_workflow = 'stim_wheel_right_stage2';
+% % use_workflow = 'sparse_noise';
+% 
+% recordings = ap.find_workflow(animal,use_workflow);
+% rec_day = recordings(1).day;
+% rec_time = recordings(1).protocol{end}; % (use last, if multiple)
 
 
 %% Load timelite and associated inputs
@@ -188,7 +188,8 @@ for curr_wf = 1:length(widefield_colors)
     wf_avg_all{curr_wf} = readNPY(mean_image_fn);
     wf_U_raw{curr_wf} = readNPY(svdU_fn);
     wf_V_raw{curr_wf} = readNPY(svdV_fn);
-    % Assume colors go in order: dictated by Arduino
+
+    % Timestamps: assume colors go in order (dictated by Arduino)
     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
 end
 
@@ -211,15 +212,16 @@ wf_times = wf_t_all{1};
 wf_avg = wf_avg_all{1};
 
 
-%% Experiment scroller (check alignment)
+%% Experiment scroller
 
 % AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
 
 % AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
 % AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
 
+% AP_expscroll(wf_U,wf_Vdf,wf_times,mousecam_fn,mousecam_times)
 
-AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
 
 

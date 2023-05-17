@@ -4,17 +4,28 @@
 
 %% Align widefield to event
 
-% % (passive)
-% align_times = photodiode_times(1:2:end);
-% align_category = vertcat(trial_events.values.TrialStimX);
+% (passive)
+align_times_all = photodiode_times(1:2:end);
+align_category_all = vertcat(trial_events.values.TrialStimX);
+% (get only quiescent trials)
+[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+framerate = 30;
+wheel_window = [0,0.5];
+wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+wheel_window_t_peri_event = align_times_all + wheel_window_t;
+event_aligned_move = interp1(timelite.timestamps, ...
+    +wheel_move,wheel_window_t_peri_event,'previous');
+quiescent_trials = ~any(event_aligned_move,2);
+align_times = align_times_all(quiescent_trials);
+align_category = align_category_all(quiescent_trials);
 
 % % (task stim)
 % align_times = photodiode_times(1:2:end);
 % align_category = ones(size(align_times));
 
-% (task rewards)
-align_times = reward_times;
-align_category = ones(size(align_times));
+% % (task rewards)
+% align_times = reward_times;
+% align_category = ones(size(align_times));
 
 % % (sparse noise)
 % px_x = 23;
@@ -27,18 +38,7 @@ align_category = ones(size(align_times));
 %     noise_locations(px_y,px_x,2:end) == 0))+1);
 % align_category = ones(size(align_times));
 
-% % (get only quiescent trials)
-% [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-% framerate = 30;
-% wheel_window = [0,0.5];
-% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-% wheel_window_t_peri_event = align_times + wheel_window_t;
-% event_aligned_move = interp1(timelite.timestamps, ...
-%     +wheel_move,wheel_window_t_peri_event,'previous');
-% quiescent_trials = ~any(event_aligned_move,2);
-% 
-% align_times = align_times(quiescent_trials);
-% align_category = align_category(quiescent_trials);
+
 
 
 surround_window = [-0.5,1];
@@ -62,7 +62,7 @@ aligned_px_avg = plab.wf.svd2px(use_U,aligned_v_avg_baselined);
 
 AP_imscroll(aligned_px_avg,t);
 colormap(AP_colormap('PWG'));
-clim(prctile(abs(aligned_px_avg(:)),99.5).*[-1,1]);
+clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
 
 
@@ -405,11 +405,62 @@ plab.wf.dcimgmex('close', dcimg_fid)
 AP_imscroll(im);axis image
 
 
+%% TESTING BATCH PASSIVE
 
+animal = 'AP005';
+use_workflow = 'lcr_passive';
+recordings = ap.find_workflow(animal,use_workflow);
 
+wf_px = cell(size(recordings));
 
+for curr_recording = 1:length(recordings)
+    
+    % Grab pre-load vars
+    preload_vars = who;
 
+    % Load data
+    rec_day = recordings(curr_recording).day;
+    rec_time = recordings(curr_recording).protocol{end};
+    ap.load_experiment;
 
+    % Align to stim and store
+    % (passive)
+    align_times_all = photodiode_times(1:2:end);
+    align_category_all = vertcat(trial_events.values.TrialStimX);
+    % (get only quiescent trials)
+    [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+    framerate = 30;
+    wheel_window = [0,0.5];
+    wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+    wheel_window_t_peri_event = align_times_all + wheel_window_t;
+    event_aligned_move = interp1(timelite.timestamps, ...
+        +wheel_move,wheel_window_t_peri_event,'previous');
+    quiescent_trials = ~any(event_aligned_move,2);
+    align_times = align_times_all(quiescent_trials);
+    align_category = align_category_all(quiescent_trials);
+
+    surround_window = [-0.5,1];
+    surround_samplerate = 35;
+    t = surround_window(1):1/surround_samplerate:surround_window(2);
+    peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
+
+    aligned_v = reshape(interp1(wf_times,wf_V',peri_event_t,'previous'), ...
+        length(align_times),length(t),[]);
+
+    align_id = findgroups(align_category);
+    aligned_v_avg = permute(splitapply(@nanmean,aligned_v,align_id),[3,2,1]);
+    aligned_v_avg_baselined = aligned_v_avg - nanmean(aligned_v_avg(:,t < 0,:),2);
+
+    aligned_px_avg = plab.wf.svd2px(wf_U,aligned_v_avg_baselined);
+
+    wf_px{curr_recording} = aligned_px_avg;
+
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+
+end
 
 
 
