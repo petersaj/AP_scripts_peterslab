@@ -411,8 +411,8 @@ animal = 'AP005';
 use_workflow = 'lcr_passive';
 recordings = ap.find_workflow(animal,use_workflow);
 
-% temp: cut out bad days
-recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
+% temp: cut out bad day
+recordings(strcmp({recordings.day},'2023-05-04')) = [];
 
 wf_px = cell(size(recordings));
 
