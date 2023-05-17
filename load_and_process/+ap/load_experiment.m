@@ -4,12 +4,12 @@ animal = 'AP005';
 % rec_time = '1410';
 
 % use_workflow = 'lcr_passive';
-% use_workflow = 'stim_wheel_right_stage2';
-use_workflow = 'sparse_noise';
+use_workflow = 'stim_wheel_right_stage2';
+% use_workflow = 'sparse_noise';
 
 recordings = ap.find_workflow(animal,use_workflow);
 rec_day = recordings(end).day;
-rec_time = recordings(end).protocol{1}(end-3:end);
+rec_time = recordings(end).protocol{end}; % (use last, if multiple)
 
 
 %% Load timelite and associated inputs

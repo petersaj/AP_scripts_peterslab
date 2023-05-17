@@ -62,7 +62,8 @@ for curr_day = 1:length(recording_days)
         curr_recording_idx = length(recordings) + 1;
 
         recordings(curr_recording_idx).day = recording_days{curr_day};
-        recordings(curr_recording_idx).protocol = {curr_protocol_paths(use_protocol_paths).name};
+        recordings(curr_recording_idx).protocol = ...
+            strtok({curr_protocol_paths(use_protocol_paths).name},'Protocol_');
 
         % Check which modalities were recorded
         recordings(curr_recording_idx).mousecam = ...
