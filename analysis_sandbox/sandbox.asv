@@ -41,7 +41,7 @@ align_category = vertcat(trial_events.values.TrialStimX);
 % align_category = align_category(quiescent_trials);
 
 
-surround_window = [-0.5,1];
+surround_window = [-0.5,5];
 
 surround_samplerate = 35;
 t = surround_window(1):1/surround_samplerate:surround_window(2);
@@ -481,6 +481,10 @@ legend({'Blue','Violet','Blue hemocorr'})
 
 %% Testing hemo correction (whole brain)
 
+% (I think this works fine - it should be almost the exact same as the
+% other one but for some reason looks much better at getting rid of
+% heartbeat, anyway the visual responses look the same)
+
 px_downsample = 3;
 
 % Downsample U
@@ -490,7 +494,7 @@ Ud_violet= imresize(wf_U_raw{2},1/px_downsample,'bilinear');
 
 % Get all pixel traces (flat) from downsampled U
 px_blue = reshape(plab.wf.svd2px(Ud_blue,wf_V_raw{1}),[],size(wf_V_raw{1},2))';
-px_violet = reshape(plab.wf.svd2px(Ud_blue,wf_V_raw{2}),[],size(wf_V_raw{2},2))';
+px_violet = reshape(plab.wf.svd2px(Ud_violet,wf_V_raw{2}),[],size(wf_V_raw{2},2))';
 
 % Interpolate violet into blue timepoints (extrapolate if last unpaired)
 px_violet_bt = interp1(wf_t_all{2},px_violet,wf_t_all{1},'linear','extrap');
@@ -553,6 +557,24 @@ plot(F,log10(smooth(blue_hc_spectrum,50)),'k');
 xlabel('Frequency');
 ylabel('Log Power');
 legend({'Blue','Blue hemocorr','Blue old hemocorr'})
+
+
+V_neuro_hemocorr = plab.wf.hemo_correct( ...
+    wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
+    wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -41,14 +41,14 @@ align_category = vertcat(trial_events.values.TrialStimX);
 % align_category = align_category(quiescent_trials);
 
 
-surround_window = [-0.5,5];
+surround_window = [-0.5,1];
 
 surround_samplerate = 35;
 t = surround_window(1):1/surround_samplerate:surround_window(2);
 peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
 
 use_U = wf_U;
-use_V = AP_deconv_wf(Vhemocorr_df,[],wf_framerate); %wf_V;
+use_V = AP_deconv_wf(V_neuro_hemocorr,[],wf_framerate); %wf_V;
 use_wf_t = wf_times;
 
 aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
@@ -494,7 +494,7 @@ Ud_violet= imresize(wf_U_raw{2},1/px_downsample,'bilinear');
 
 % Get all pixel traces (flat) from downsampled U
 px_blue = reshape(plab.wf.svd2px(Ud_blue,wf_V_raw{1}),[],size(wf_V_raw{1},2))';
-px_violet = reshape(plab.wf.svd2px(Ud_blue,wf_V_raw{2}),[],size(wf_V_raw{2},2))';
+px_violet = reshape(plab.wf.svd2px(Ud_violet,wf_V_raw{2}),[],size(wf_V_raw{2},2))';
 
 % Interpolate violet into blue timepoints (extrapolate if last unpaired)
 px_violet_bt = interp1(wf_t_all{2},px_violet,wf_t_all{1},'linear','extrap');
@@ -557,6 +557,24 @@ plot(F,log10(smooth(blue_hc_spectrum,50)),'k');
 xlabel('Frequency');
 ylabel('Log Power');
 legend({'Blue','Blue hemocorr','Blue old hemocorr'})
+
+
+V_neuro_hemocorr = plab.wf.hemo_correct( ...
+    wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
+    wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
