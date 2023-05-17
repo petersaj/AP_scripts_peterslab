@@ -4,17 +4,17 @@
 
 %% Align widefield to event
 
-% (passive)
-align_times = photodiode_times(1:2:end);
-align_category = vertcat(trial_events.values.TrialStimX);
+% % (passive)
+% align_times = photodiode_times(1:2:end);
+% align_category = vertcat(trial_events.values.TrialStimX);
 
 % % (task stim)
 % align_times = photodiode_times(1:2:end);
 % align_category = ones(size(align_times));
 
-% % (task rewards)
-% align_times = reward_times;
-% align_category = ones(size(align_times));
+% (task rewards)
+align_times = reward_times;
+align_category = ones(size(align_times));
 
 % % (sparse noise)
 % px_x = 23;
@@ -48,7 +48,7 @@ t = surround_window(1):1/surround_samplerate:surround_window(2);
 peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
 
 use_U = wf_U;
-use_V = AP_deconv_wf(V_neuro_hemocorr,[],wf_framerate); %wf_V;
+use_V = wf_V;
 use_wf_t = wf_times;
 
 aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
@@ -255,10 +255,10 @@ options = weboptions( ...
 data = webread(endpoint,options);
 
 %% Sparse noise retinotopy
+% Best SNR comes from using raw blue signal
 
-
-surround_window = [0.3,0.5]; % 6s = [0.3,0.5]
-framerate = 1./nanmedian(diff(wf_times));
+surround_window = [0.3,0.5]; % 6s = [0.3,0.5], deconv = [0.05,0.15]
+framerate = 1./nanmean(diff(wf_times));
 surround_samplerate = 1/(framerate*1);
 surround_time = surround_window(1):surround_samplerate:surround_window(2);
 response_n = nan(n_y_squares,n_x_squares);
@@ -403,166 +403,6 @@ plab.wf.dcimgmex('close', dcimg_fid)
 
 % Show image
 AP_imscroll(im);axis image
-
-
-%% Testing hemo correction (ROI)
-
-% IN PROGRESS: 
-% trying moving mean, looks the same as moving median
-
-[blue,roi] = AP_svd_roi(wf_U_raw{1},wf_V_raw{1},wf_avg);
-violet = AP_svd_roi(wf_U_raw{2},wf_V_raw{2},[],[],roi);
-
-blue_hc = AP_svd_roi(wf_U,wf_Vneuro_hemocorrected,[],[],roi);
-
-skip_frames = 10;
-use_frames = skip_frames:length(wf_t_all{1})-skip_frames;
-% use_frames = 1:length(wf_t_all{1});
-blue = blue(use_frames);
-violet = violet(use_frames);
-blue_hc = blue_hc(use_frames);
-
-% Interpolate violet onto blue times (measured in alternating)
-violet_bt = interp1(wf_t_all{2}(use_frames),violet,wf_t_all{1}(use_frames),'linear','extrap')';
-
-% Get violet scale: filter in heartbeat range, regress
-heartbeat_freq = [5,15];
-[b,a] = butter(2,heartbeat_freq/(wf_framerate/2));
-fblue = filtfilt(b,a,double(blue));
-fviolet = filtfilt(b,a,double(violet_bt));
-
-violet_scale = fviolet'\fblue';
-
-% Baseline subtract: moving mean 
-movmed_n = wf_framerate*60*2;
-blue_movmed = movmean(blue,movmed_n);
-violet_movmed = movmean(violet_bt,movmed_n);
-
-blue_baselined = blue - blue_movmed;
-violet_baselined = violet_bt - violet_movmed;
-
-% Hemocorrect: subtract scaled baselined violet from baselined blue
-blue_hemocorr = blue_baselined - violet_baselined*violet_scale;
-
-% Plots
-figure; tiledlayout('flow');
-
-% Plot heartbeat-filtered traces
-nexttile; hold on;
-plot(fblue,'b');
-plot(fviolet,'color',[0.7,0,0.7]);
-
-% Plot traces
-nexttile; hold on;
-plot(blue,'b');
-plot(violet_bt,'color',[0.7,0,0.7]);
-plot(blue_hemocorr,'color',[0.8,0,0]);
-
-% Plot spectrum
-Fs = wf_framerate;
-L = length(use_trace);
-NFFT = 2^nextpow2(L);
-
-[blue_spectrum,F] = pwelch(double(blue)',[],[],NFFT,Fs);
-[violet_spectrum,F] = pwelch(double(violet_bt)',[],[],NFFT,Fs);
-[blue_hemocorr_spectrum,F] = pwelch(double(blue_hemocorr)',[],[],NFFT,Fs);
-[blue_hc_spectrum,F] = pwelch(double(blue_hc)',[],[],NFFT,Fs);
-
-nexttile; hold on;
-plot(F,log10(smooth(blue_spectrum,50)),'b');
-plot(F,log10(smooth(violet_spectrum,50)),'color',[0.7,0,0.7]);
-plot(F,log10(smooth(blue_hemocorr_spectrum,50)),'color',[0.8,0,0]);
-plot(F,log10(smooth(blue_hc_spectrum,50)),'k');
-
-xlabel('Frequency');
-ylabel('Log Power');
-legend({'Blue','Violet','Blue hemocorr'})
-
-
-%% Testing hemo correction (whole brain)
-
-% (I think this works fine - it should be almost the exact same as the
-% other one but for some reason looks much better at getting rid of
-% heartbeat, anyway the visual responses look the same)
-
-px_downsample = 3;
-
-% Downsample U
-[Uy,Ux,nSV] = size(wf_U);
-Ud_blue = imresize(wf_U_raw{1},1/px_downsample,'bilinear');
-Ud_violet= imresize(wf_U_raw{2},1/px_downsample,'bilinear');
-
-% Get all pixel traces (flat) from downsampled U
-px_blue = reshape(plab.wf.svd2px(Ud_blue,wf_V_raw{1}),[],size(wf_V_raw{1},2))';
-px_violet = reshape(plab.wf.svd2px(Ud_violet,wf_V_raw{2}),[],size(wf_V_raw{2},2))';
-
-% Interpolate violet into blue timepoints (extrapolate if last unpaired)
-px_violet_bt = interp1(wf_t_all{2},px_violet,wf_t_all{1},'linear','extrap');
-
-% Filter both colors at heartbeat frequency, subtract mean
-heartbeat_freq = [5,15];
-[b,a] = butter(2,heartbeat_freq/(wf_framerate/2));
-px_blue_heartbeat = filter(b,a,px_blue);
-px_violet_bt_heartbeat = filter(b,a,px_violet_bt);
-
-% Get scaling of violet to blue from heartbeat (don't use trace edges)
-skip_frames_scale = 500;
-use_frames_scale = skip_frames_scale:size(px_blue_heartbeat,1)-skip_frames_scale;
-% (scaling = cov(blue-mean,viol-mean)/var(viol-mean) )
-violet_scale_downsamp = sum(detrend(px_blue_heartbeat(use_frames_scale,:),'constant').*...
-    detrend(px_violet_bt_heartbeat(use_frames_scale,:),'constant'))./ ...
-    sum(detrend(px_violet_bt_heartbeat(use_frames_scale,:),'constant').^2);
-
-% Get transform matrix to convert pixel scaling into V-space
-T = pinv(reshape(Ud_blue,[],size(Ud_blue,3)))* ...
-    diag(violet_scale_downsamp)* ...
-    reshape(Ud_blue,[],size(Ud_blue,3));
-
-% Hemo-correct blue
-% (subtract scaled violet moving mean)
-wf_V_violet_bt = interp1(wf_t_all{2},wf_V_raw{2}',wf_t_all{1},'linear','extrap')';
-
-movmed_n = wf_framerate*60*2;
-violet_movmean = movmean(wf_V_violet_bt,movmed_n,2);
-
-Vhemocorr = wf_V_raw{1} - transpose((wf_V_violet_bt - violet_movmean)'*T');
-
-Vhemocorr_df = plab.wf.svd_dff(wf_U_raw{1},Vhemocorr,wf_avg_all{1});
-
-% Check results
-AP_expscroll(wf_U_raw{1},Vhemocorr,wf_t_all{1},mousecam_fn,mousecam_times)
-
-[a,roi] = AP_svd_roi(wf_U_raw{1},wf_V_raw{1},wf_avg);
-b = AP_svd_roi(wf_U_raw{1},Vhemocorr,[],[],roi);
-blue_hc = AP_svd_roi(wf_U,wf_Vneuro_hemocorrected,[],[],roi);
-
-figure; hold on;
-plot(a);plot(b);
-
-
-% Plot spectrum
-Fs = wf_framerate;
-L = length(a);
-NFFT = 2^nextpow2(L);
-
-[blue_spectrum,F] = pwelch(double(a)',[],[],NFFT,Fs);
-[blue_hemocorr_spectrum,F] = pwelch(double(b)',[],[],NFFT,Fs);
-[blue_hc_spectrum,F] = pwelch(double(blue_hc)',[],[],NFFT,Fs);
-
-nexttile; hold on;
-plot(F,log10(smooth(blue_spectrum,50)),'b');
-plot(F,log10(smooth(blue_hemocorr_spectrum,50)),'color',[0.8,0,0]);
-plot(F,log10(smooth(blue_hc_spectrum,50)),'k');
-
-xlabel('Frequency');
-ylabel('Log Power');
-legend({'Blue','Blue hemocorr','Blue old hemocorr'})
-
-
-V_neuro_hemocorr = plab.wf.hemo_correct( ...
-    wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
-    wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
-
 
 
 

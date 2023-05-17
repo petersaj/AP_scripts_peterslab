@@ -1,11 +1,10 @@
 
-animal = 'AP005';
+animal = 'AP004';
 % rec_day = '2023-05-11';
 % rec_time = '1410';
 
-% use_workflow = 'lcr_passive';
+use_workflow = 'lcr_passive';
 % use_workflow = 'stim_wheel_right_stage2';
-use_workflow = 'sparse_noise';
 
 recordings = ap.find_workflow(animal,use_workflow);
 rec_day = recordings(end).day;
@@ -192,34 +191,41 @@ for curr_wf = 1:length(widefield_colors)
     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
 end
 
+%%%%%%%%% TEMPORARY? clip frames off the end if they were 
+wf_V_raw = cellfun(@(x,t) x(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
+%%%%%%%%%%%
+
+wf_framerate = mean(1./diff(wf_t_all{1}));
+
 % Correct hemodynamics
 V_neuro_hemocorr = plab.wf.hemo_correct( ...
     wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
     wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
 
 % Get DF/F
-wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
-
-% Deconvolve
-wf_framerate = mean(1./diff(wf_t_all{1}));
-wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
+wf_Vdf = plab.wf.svd_dff(wf_U_raw{1}, wf_Vneuro_hemocorrected_filtered, wf_avg_all{1});
 
 % Set final processed widefield variables
 wf_U = wf_U_raw{1};
-wf_V = wf_Vdf_deconv;
+wf_V = wf_Vdf;
 wf_times = wf_t_all{1};
 wf_avg = wf_avg_all{1};
 
 
+%%%% TEMPORARY: MOVE THIS FUNCTION 
+wf_V = AP_deconv_wf(wf_Vdf,[],wf_framerate);
+
+
 %% Experiment scroller (check alignment)
+
 
 % AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
 
-% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
-% AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
+AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
+AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
 
 
-AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
 
 
