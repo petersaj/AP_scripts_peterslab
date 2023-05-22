@@ -2,26 +2,27 @@
 %
 % Temporary code
 
+
 %% Align widefield to event
 
-% (passive)
-align_times_all = photodiode_times(1:2:end);
-align_category_all = vertcat(trial_events.values.TrialStimX);
-% (get only quiescent trials)
-[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-framerate = 30;
-wheel_window = [0,0.5];
-wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-wheel_window_t_peri_event = align_times_all + wheel_window_t;
-event_aligned_move = interp1(timelite.timestamps, ...
-    +wheel_move,wheel_window_t_peri_event,'previous');
-quiescent_trials = ~any(event_aligned_move,2);
-align_times = align_times_all(quiescent_trials);
-align_category = align_category_all(quiescent_trials);
+% % (passive)
+% align_times_all = photodiode_times(1:2:end);
+% align_category_all = vertcat(trial_events.values.TrialStimX);
+% % (get only quiescent trials)
+% [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+% framerate = 30;
+% wheel_window = [0,0.5];
+% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+% wheel_window_t_peri_event = align_times_all + wheel_window_t;
+% event_aligned_move = interp1(timelite.timestamps, ...
+%     +wheel_move,wheel_window_t_peri_event,'previous');
+% quiescent_trials = ~any(event_aligned_move,2);
+% align_times = align_times_all(quiescent_trials);
+% align_category = align_category_all(quiescent_trials);
 
-% % (task stim)
-% align_times = photodiode_times(1:2:end);
-% align_category = ones(size(align_times));
+% (task stim)
+align_times = photodiode_times(1:2:end);
+align_category = ones(size(align_times));
 
 % % (task rewards)
 % align_times = reward_times;
@@ -37,8 +38,6 @@ align_category = align_category_all(quiescent_trials);
 %     (noise_locations(px_y,px_x,1:end-1) == 128 & ...
 %     noise_locations(px_y,px_x,2:end) == 0))+1);
 % align_category = ones(size(align_times));
-
-
 
 
 surround_window = [-0.5,1];
@@ -136,9 +135,8 @@ axis image off;
 %% Align wheel to event
 
 align_times = photodiode_times(1:2:end);
-align_category = vertcat(trial_events.values.TrialStimX);
 
-surround_time = [-0.5,2];
+surround_time = [-10,10];
 surround_sample_rate = 100;
 surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
 pull_times = align_times + surround_time_points;
@@ -146,10 +144,42 @@ pull_times = align_times + surround_time_points;
 [wheel_velocity,wheel_move] = ...
     AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
 
-stim_aligned_wheel = interp1(timelite.timestamps, ...
+event_aligned_wheel_vel = interp1(timelite.timestamps, ...
     wheel_velocity,pull_times);
+event_aligned_wheel_move = interp1(timelite.timestamps, ...
+    +wheel_move,pull_times,'previous');
 
 
+figure;
+subplot(2,2,1);
+imagesc(surround_time_points,[],event_aligned_wheel_vel)
+xline(0,'color','r');
+clim(max(abs(clim)).*[-1,1])
+colormap(gca,AP_colormap('BWR'));
+
+subplot(2,2,3);
+plot(surround_time_points,nanmean(event_aligned_wheel_vel,1));
+xline(0,'color','r');
+
+subplot(2,2,2);
+imagesc(surround_time_points,[],event_aligned_wheel_move)
+xline(0,'color','r');
+ylabel('Velocity');
+xlabel('Time from event');
+
+subplot(2,2,4);
+plot(surround_time_points,nanmean(event_aligned_wheel_move,1));
+xline(0,'color','r');
+ylabel('Move prob.');
+xlabel('Time from event');
+
+
+[~,sort_idx] = sort([trial_events.values.TrialQuiescence]);
+figure;
+imagesc(surround_time_points,[],event_aligned_wheel_vel(sort_idx,:));
+xline(0,'color','r','linewidth',2);
+hold on;
+plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.values),'b','linewidth',2);
 
 
 %% Testing MCMS API
