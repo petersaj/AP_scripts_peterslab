@@ -1,21 +1,42 @@
 
-animal = 'AP006';
+% animal = 'AP006';
+% 
+% % use_workflow = 'lcr_passive';
+% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% % use_workflow = 'sparse_noise';
+% 
+% recordings = ap.find_workflow(animal,use_workflow);
+% 
+% % use_rec = 5;
+% 
+% rec_day = '2023-05-23';
+% use_rec = strcmp(rec_day,{recordings.day});
+% 
+% rec_day = recordings(use_rec).day;
+% % rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
+% rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
 
-% use_workflow = 'lcr_passive';
-% use_workflow = 'stim_wheel_right_stage1';
-use_workflow = 'stim_wheel_right_stage2';
-% use_workflow = 'sparse_noise';
+%% Define parts to load
 
-recordings = ap.find_workflow(animal,use_workflow);
+%% Define what to load
 
-% use_rec = 3;
-
-rec_day = '2023-05-19';
-use_rec = strcmp(rec_day,{recordings.day});
-
-rec_day = recordings(use_rec).day;
-% rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
-rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
+% If nothing specified, load everything (but not LFP)
+if ~exist('load_parts','var')
+    load_parts.mousecam = true;
+    load_parts.widefield = true;
+    load_parts.ephys = true;
+else
+    % If only some things specified, don't load others
+    if ~isfield(load_parts,'mousecam')
+        load_parts.mousecam = false;
+    end
+    if ~isfield(load_parts,'widefield')
+        load_parts.widefield = false;
+    end
+    if ~isfield(load_parts,'ephys')
+        load_parts.ephys = false;
+    end
+end
 
 
 %% Load timelite and associated inputs
@@ -126,6 +147,8 @@ end
 
 %% Load mousecam
 
+if load_parts.mousecam
+
 mousecam_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam.mj2');
 mousecam_header_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam_header.bin');
 
@@ -177,64 +200,64 @@ mousecam_tl_idx = (1:length(mousecam_header.timestamps)) + mousecam_idx_offset;
 mousecam_tl_captured = mousecam_tl_idx > 0 & mousecam_tl_idx <= length(mousecam_expose_times);
 mousecam_times = mousecam_expose_times(mousecam_tl_idx(mousecam_tl_captured));
 
+end
 
 %% Load widefield
 
-if recordings(use_rec).widefield
+if load_parts.widefield && ...
+        exist(plab.locations.make_server_filename(animal,rec_day,[],'widefield'),'dir')
 
-    % Load widefield data for all colors
-    widefield_colors = {'blue','violet'};
-    [wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
-    for curr_wf = 1:length(widefield_colors)
-        mean_image_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
-            'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
-        svdU_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
-            'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
-        svdV_fn = plab.locations.make_server_filename(animal,rec_day,rec_time, ...
-            'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
+% Load widefield data for all colors
+widefield_colors = {'blue','violet'};
+[wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
+for curr_wf = 1:length(widefield_colors)
+    mean_image_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
+        'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
+    svdU_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
+        'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
+    svdV_fn = plab.locations.make_server_filename(animal,rec_day,rec_time, ...
+        'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
 
-        wf_avg_all{curr_wf} = readNPY(mean_image_fn);
-        wf_U_raw{curr_wf} = readNPY(svdU_fn);
-        wf_V_raw{curr_wf} = readNPY(svdV_fn);
+    wf_avg_all{curr_wf} = readNPY(mean_image_fn);
+    wf_U_raw{curr_wf} = readNPY(svdU_fn);
+    wf_V_raw{curr_wf} = readNPY(svdV_fn);
 
-        % Timestamps: assume colors go in order (dictated by Arduino)
-        wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
-    end
-
-    % Correct hemodynamics
-    V_neuro_hemocorr = plab.wf.hemo_correct( ...
-        wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
-        wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
-
-    % Get DF/F
-    wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
-
-    % Deconvolve
-    wf_framerate = mean(1./diff(wf_t_all{1}));
-    wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
-
-    % Set final processed widefield variables
-    wf_U = wf_U_raw{1};
-    wf_V = wf_Vdf_deconv;
-    wf_times = wf_t_all{1};
-    wf_avg = wf_avg_all{1};
-
+    % Timestamps: assume colors go in order (dictated by Arduino)
+    wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
 end
+
+% Correct hemodynamics
+V_neuro_hemocorr = plab.wf.hemo_correct( ...
+    wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
+    wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
+
+% Get DF/F
+wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
+
+% Deconvolve
+wf_framerate = mean(1./diff(wf_t_all{1}));
+wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
+
+% Set final processed widefield variables
+wf_U = wf_U_raw{1};
+wf_V = wf_Vdf_deconv;
+wf_times = wf_t_all{1};
+wf_avg = wf_avg_all{1};
+
+end 
 
 %% Experiment scroller
 
-if recordings(use_rec).widefield
 
-    % AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
 
-    % AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
-    % AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
 
-    % AP_expscroll(wf_U,wf_Vdf,wf_times,mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U,wf_Vdf,wf_times,mousecam_fn,mousecam_times)
 
-    AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
-end
 
 
 

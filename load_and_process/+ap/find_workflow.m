@@ -2,6 +2,8 @@ function recordings = find_workflow(animal,workflow_name)
 % recordings = find_workflow(animal,workflow_name)
 %
 % Find instances of bonsai workflows for a given animal
+% 
+% Input: workflow_name - can be multiple {'workflow 1','workflow 2'};
 %
 % Output: 
 % recordings (struct): 
@@ -9,6 +11,13 @@ function recordings = find_workflow(animal,workflow_name)
 % .protocol - protocol folder name(s) for each workflow
 % .mousecam - whether mousecam was recorded for each protocol
 % .widefield - whether widefield was recorded for each protocol
+
+%% Standardize inputs
+
+% If workflow name isn't a cell, make it a cell
+if ~iscell(workflow_name)
+    workflow_name = {workflow_name};
+end
 
 %% Find recording folders
 
@@ -50,7 +59,7 @@ for curr_day = 1:length(recording_days)
 
         if any(curr_workflow_idx)
             curr_workflow = curr_bonsai_dir(curr_workflow_idx).name;
-            if strcmp(curr_workflow,workflow_name)
+            if ismember(curr_workflow,workflow_name)
                 use_protocol_paths(curr_path_idx) = true;
             end
         end

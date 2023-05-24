@@ -175,7 +175,11 @@ xlabel('Time from event');
 
 
 [~,sort_idx] = sort([trial_events.values.TrialQuiescence]);
-figure;imagesc(event_aligned_wheel_move(sort_idx,:));
+figure;
+imagesc(surround_time_points,[],event_aligned_wheel_move(sort_idx,:));
+xline(0,'color','r','linewidth',2);
+hold on;
+plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.values),'b','linewidth',2);
 
 
 %% Testing MCMS API
@@ -433,12 +437,13 @@ AP_imscroll(im);axis image
 
 %% TESTING BATCH PASSIVE
 
-animal = 'AP005';
+animal = 'AP004';
 use_workflow = 'lcr_passive';
 recordings = ap.find_workflow(animal,use_workflow);
 
 % temp: cut out bad days
-recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
+% recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
+recordings(ismember({recordings.day},{'2023-05-08'})) = [];
 
 wf_px = cell(size(recordings));
 
@@ -450,6 +455,9 @@ for curr_recording = 1:length(recordings)
     % Load data
     rec_day = recordings(curr_recording).day;
     rec_time = recordings(curr_recording).protocol{end};
+    if ~recordings(curr_recording).widefield(end)
+        continue
+    end
     ap.load_experiment;
 
     % Align to stim and store
@@ -491,8 +499,109 @@ for curr_recording = 1:length(recordings)
 
 end
 
+surround_window = [-0.5,1];
+surround_samplerate = 35;
+t = surround_window(1):1/surround_samplerate:surround_window(2);
+a = cellfun(@(x) max(x(:,:,t > 0 & t < 0.2,3),[],3), ...
+    wf_px(cellfun(@(x) ~isempty(x),wf_px)),'uni',false);
+c = [0,max(cellfun(@(x) max(x(:)),a))];
+
+figure('Name',animal');
+tiledlayout('flow')
+for i = 1:length(a)
+nexttile;imagesc(a{i});clim(c);axis image off;
+end
 
 
+%% TESTING BATCH BEHAVIOR
+
+animal = 'AP004';
+use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+recordings = ap.find_workflow(animal,use_workflow);
+
+surround_time = [-5,5];
+surround_sample_rate = 100;
+surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+
+n_trials_water = nan(length(recordings),2);
+rxn_med = nan(length(recordings),1);
+frac_move_stimalign = nan(length(recordings),length(surround_time_points));
+
+for curr_recording = 1:length(recordings)
+    
+    % Grab pre-load vars
+    preload_vars = who;
+
+    % Load data
+    rec_day = recordings(curr_recording).day;
+    rec_time = recordings(curr_recording).protocol{end};
+    load_parts.widefield = false;
+    ap.load_experiment;
+
+    % Get total trials/water
+    n_trials_water(curr_recording,:) = [length(trial_events.timestamps), ...
+        sum(([trial_events.values.Outcome] == 1)*6)];
+
+    % Get median stim-outcome time
+    n_trials = length([trial_events.timestamps.Outcome]);
+    rxn_med(curr_recording) = median(seconds([trial_events.timestamps(1:n_trials).Outcome] - ...
+    cellfun(@(x) x(1),{trial_events.timestamps(1:n_trials).StimOn})));
+
+    % Align wheel movement to stim onset
+    align_times = photodiode_times(1:2:end);
+    pull_times = align_times + surround_time_points;
+
+    [wheel_velocity,wheel_move] = ...
+        AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+
+    event_aligned_wheel_vel = interp1(timelite.timestamps, ...
+        wheel_velocity,pull_times);
+    event_aligned_wheel_move = interp1(timelite.timestamps, ...
+        +wheel_move,pull_times,'previous');
+
+    frac_move_stimalign(curr_recording,:) = nanmean(event_aligned_wheel_move,1);
+
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+
+end
+
+relative_day = (datenum({recordings.day}) - datenum({recordings(1).day}))+1;
+nonrecorded_day = setdiff(1:length(recordings),relative_day);
+
+figure;
+tiledlayout('flow');
+
+nexttile;
+yyaxis left; plot(relative_day,n_trials_water(:,1));
+ylabel('# trials');
+yyaxis right; plot(relative_day,n_trials_water(:,2));
+ylabel('Reward amount');
+xlabel('Day');
+if any(nonrecorded_day)
+    xline(nonrecorded_day,'--k');
+end
+
+nexttile;
+imagesc(surround_time_points,[],frac_move_stimalign);
+colormap(gca,AP_colormap('WK'));
+set(gca,'YTick',1:length(recordings),'YTickLabel',datetime({recordings.day},'format','MM-dd'));
+ylabel('Day');
+xlabel('Time from stim');
+
+
+nexttile; hold on
+set(gca,'ColorOrder',copper(length(recordings)));
+plot(surround_time_points,frac_move_stimalign');
+xline(0,'color','k');
+
+nexttile;
+prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);
+poststim_max = max(frac_move_stimalign(:,surround_time_points > 0),[],2);
+plot((poststim_max-prestim_max)./(poststim_max+prestim_max),'k','linewidth',2);
+yline(0,'color','r');
 
 
 

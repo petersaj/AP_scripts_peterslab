@@ -40,8 +40,10 @@ for curr_parameter = unique_parameters'
 end
 
 % Loop through trials (excluding 0), save values and timestamps for all events
+% (exclude entries with empty events - happens sometimes on last entry)
+empty_events = cellfun(@isempty,data.Event);
 n_trials = max(data.Trial);
-unique_events = unique(data.Event(~parameter_idx));
+unique_events = unique(data.Event(~parameter_idx & ~empty_events));
 for curr_trial = 1:n_trials
     for curr_event = unique_events'
         curr_event_idx = data.Trial == curr_trial & strcmp(data.Event,curr_event);
