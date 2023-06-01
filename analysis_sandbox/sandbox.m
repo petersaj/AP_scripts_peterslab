@@ -515,7 +515,7 @@ end
 
 %% TESTING BATCH BEHAVIOR
 
-animal = 'AP004';
+animal = 'AP007';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_workflow(animal,use_workflow);
 
@@ -585,11 +585,29 @@ if any(nonrecorded_day)
 end
 
 nexttile;
+yyaxis left
+plot(relative_day,rxn_med)
+set(gca,'YScale','log');
+ylabel('Med. rxn');
+xlabel('Day');
+if any(nonrecorded_day)
+    xline(nonrecorded_day,'--k');
+end
+
+yyaxis right
+prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);
+poststim_max = max(frac_move_stimalign(:,surround_time_points > 0),[],2);
+plot(relative_day,(poststim_max-prestim_max)./(poststim_max+prestim_max));
+yline(0);
+ylabel('pre/post move idx');
+xlabel('Day');
+
+nexttile;
 imagesc(surround_time_points,[],frac_move_stimalign);
+clim([0,1]);
 colormap(gca,AP_colormap('WK'));
 set(gca,'YTick',1:length(recordings),'YTickLabel',string(datetime({recordings.day},'format','MM-dd')));
 xlabel('Time from stim');
-
 
 nexttile; hold on
 set(gca,'ColorOrder',copper(length(recordings)));
@@ -598,13 +616,6 @@ xline(0,'color','k');
 ylabel('Fraction moving');
 xlabel('Time from stim');
 
-nexttile;
-prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);
-poststim_max = max(frac_move_stimalign(:,surround_time_points > 0),[],2);
-plot(relative_day,(poststim_max-prestim_max)./(poststim_max+prestim_max),'k','linewidth',2);
-yline(0,'color','r');
-ylabel('diff/sum pre/post move max');
-xlabel('Day');
 
 
 

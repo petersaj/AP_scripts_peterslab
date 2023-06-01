@@ -1,19 +1,19 @@
 
-% animal = 'AP006';
-% 
-% % use_workflow = 'lcr_passive';
+animal = 'test';
+
+use_workflow = 'lcr_passive';
 % use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-% % use_workflow = 'sparse_noise';
-% 
-% recordings = ap.find_workflow(animal,use_workflow);
-% 
-% % use_rec = 5;
-% 
-% rec_day = '2023-05-23';
-% use_rec = strcmp(rec_day,{recordings.day});
-% 
-% rec_day = recordings(use_rec).day;
-% % rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
+% use_workflow = 'sparse_noise';
+
+recordings = ap.find_workflow(animal,use_workflow);
+
+% use_rec = 5;
+
+rec_day = '2023-06-01';
+use_rec = strcmp(rec_day,{recordings.day});
+
+rec_day = recordings(use_rec).day;
+rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
 % rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
 
 %% Define parts to load
@@ -147,10 +147,10 @@ end
 
 %% Load mousecam
 
-if load_parts.mousecam
-
 mousecam_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam.mj2');
 mousecam_header_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam_header.bin');
+
+if load_parts.mousecam && exist(mousecam_fn,'file')
 
 % Read mousecam header and get flipper times
 mousecam_flipper_pin = 2;
