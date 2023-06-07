@@ -8,15 +8,13 @@ use_workflow = 'lcr_passive';
 recordings = ap.find_workflow(animal,use_workflow);
 
 % use_rec = 5;
-
-rec_day = '2023-06-01';
-use_rec = strcmp(rec_day,{recordings.day});
+% rec_day = '2023-06-02';
+% use_rec = strcmp(rec_day,{recordings.day});
+use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
-rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
-% rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
-
-%% Define parts to load
+% rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
+rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
 
 %% Define what to load
 
@@ -256,8 +254,11 @@ end
 
 % AP_expscroll(wf_U,wf_Vdf,wf_times,mousecam_fn,mousecam_times)
 
-% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
+% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
+% AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})
+% AP_expscroll(wf_U,wf_V,wf_times)
 
 
 

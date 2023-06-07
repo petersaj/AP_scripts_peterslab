@@ -5,24 +5,24 @@
 
 %% Align widefield to event
 
-% % (passive)
-% align_times_all = photodiode_times(1:2:end);
-% align_category_all = vertcat(trial_events.values.TrialStimX);
-% % (get only quiescent trials)
-% [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-% framerate = 30;
-% wheel_window = [0,0.5];
-% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-% wheel_window_t_peri_event = align_times_all + wheel_window_t;
-% event_aligned_move = interp1(timelite.timestamps, ...
-%     +wheel_move,wheel_window_t_peri_event,'previous');
-% quiescent_trials = ~any(event_aligned_move,2);
-% align_times = align_times_all(quiescent_trials);
-% align_category = align_category_all(quiescent_trials);
+% (passive)
+align_times_all = photodiode_times(1:2:end);
+align_category_all = vertcat(trial_events.values.TrialStimX);
+% (get only quiescent trials)
+[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+framerate = 30;
+wheel_window = [0,0.5];
+wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+wheel_window_t_peri_event = align_times_all + wheel_window_t;
+event_aligned_move = interp1(timelite.timestamps, ...
+    +wheel_move,wheel_window_t_peri_event,'previous');
+quiescent_trials = ~any(event_aligned_move,2);
+align_times = align_times_all(quiescent_trials);
+align_category = align_category_all(quiescent_trials);
 
-% (task stim)
-align_times = photodiode_times(1:2:end);
-align_category = ones(size(align_times));
+% % (task stim)
+% align_times = photodiode_times(1:2:end);
+% align_category = ones(size(align_times));
 
 % % (task rewards)
 % align_times = reward_times;
@@ -515,7 +515,7 @@ end
 
 %% TESTING BATCH BEHAVIOR
 
-animal = 'AP007';
+animal = 'AP005';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_workflow(animal,use_workflow);
 
