@@ -13,8 +13,8 @@ recordings = ap.find_workflow(animal,use_workflow);
 use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
-rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
-% rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
+% rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
+rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
 
 verbose = true;
 
@@ -347,7 +347,7 @@ if load_parts.ephys
     
     % Get experiment index by finding numbered folders
     % (UPDATING FOR NEW FORMAT - DONE BY HAND AT THE MOMENT)
-    experiment_idx = 1;
+    experiment_idx = 3;
 
     if exist('flipper_times','var')
         % (if flipper, use that)
