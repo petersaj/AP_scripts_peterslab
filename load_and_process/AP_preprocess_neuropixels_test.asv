@@ -4,8 +4,6 @@ function AP_preprocess_neuropixels_test(animal,day)
 % Spike sorts with Pykilosort (into 'pykilosort' folder)
 %
 % Currently assumes Neuropixels Phase 3A recorded with Open Ephys
-%
-% IN PROGRESS: DOING UP WITH NEW FILE STRUCTURES ETC
 
 %% Get paths and filenames
 
@@ -49,10 +47,10 @@ for curr_site = 1:length(data_paths)
               
         % Get OE filenames (check for multiple experiments, do separately)
         exp_rec_dir = [ephys_exp_paths(curr_exp).name filesep 'recording1'];
-        ap_data_filename = [curr_data_path filesep exp_rec_dir filesep 'continuous' filesep 'Neuropix-3a-100.Neuropix-3a-AP' filesep 'continuous.dat'];
-        lfp_data_filename = [curr_data_path filesep exp_rec_dir filesep 'continuous' filesep 'Neuropix-3a-100.Neuropix-3a-LFP' filesep 'continuous.dat'];
-        sync_filename = [curr_data_path filesep filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.Neuropix-3a-AP' filesep 'TTL' filesep 'states.npy' ];
-        sync_timestamps_filename = [curr_data_path filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.Neuropix-3a-AP' filesep 'TTL' filesep 'timestamps.npy' ];
+        ap_data_filename = [curr_data_path filesep exp_rec_dir filesep 'continuous' filesep 'Neuropix-3a-100.0' filesep 'continuous.dat'];
+        lfp_data_filename = [curr_data_path filesep exp_rec_dir filesep 'continuous' filesep 'Neuropix-3a-100.1' filesep 'continuous.dat'];
+        sync_filename = [curr_data_path filesep filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.0' filesep 'TTL_1' filesep 'channel_states.npy' ];
+        sync_timestamps_filename = [curr_data_path filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.0' filesep 'TTL_1' filesep 'timestamps.npy' ];
         messages_filename = [curr_data_path filesep exp_rec_dir filesep 'sync_messages.txt'];
         settings_filename = [curr_data_path filesep exp_rec_dir filesep 'structure.oebin'];
         
@@ -90,16 +88,22 @@ for curr_site = 1:length(data_paths)
         
         
         %% Get/save digital input events
-               
+        
+        % Get processor start information 
+        messages_id = fopen(messages_filename);
+        messages_text = textscan(messages_id,'%*s %d@%dHz','delimiter',{'Time: '});
+        fclose(messages_id);
+        
         % Get/save digital input event times,
         sync_data = readNPY(sync_filename);
-        sync_timestamps = readNPY(sync_timestamps_filename);
+        sync_timestamps_int = readNPY(sync_timestamps_filename);
+        sync_timestamps = double(sync_timestamps_int)/ap_sample_rate;
         
         sync_channels = unique(abs(sync_data));
         sync = struct('timestamps',cell(size(sync_channels)),'values',cell(size(sync_channels)));
         for curr_sync = 1:length(sync_channels)
             sync_events = abs(sync_data) == (sync_channels(curr_sync));
-            sync(curr_sync).timestamps = sync_timestamps(sync_events);
+            sync(curr_sync).timestamps = sync_timestamps(sync_events) - start_time_sec;
             sync(curr_sync).values = sign(sync_data(sync_events)) == 1;
         end
         
@@ -154,6 +158,21 @@ for curr_site = 1:length(data_paths)
 
         kilosort_results_path = fullfile(pykilosort_output_path,'output');
         copyfile(pykilosort_results_path,curr_save_path);
+        
+        %% Copy kilosort results and raw data to phy folder for clustering
+        
+        local_phy_path = ['G:\data_temp\phy_staging' filesep animal '_' day];
+        mkdir(local_phy_path)
+        
+        % Move the cleaned data into the phy directory
+        [~,ap_file,ap_ext] = fileparts(apband_local_filename);
+        movefile(apband_local_filename,fullfile(local_phy_path,[ap_file ap_ext]))
+        
+        % Move the results into the phy directory
+        movefile(fullfile(kilosort_results_path,'*'),local_phy_path)
+        
+        % Copy the dat_params file into the phy directory
+        copyfile(param_filename,fullfile(local_phy_path,'dat_params.txt'));
         
         %% Delete all temporary local data
         rmdir(ssd_kilosort_path,'s');

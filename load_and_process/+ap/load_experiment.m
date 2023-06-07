@@ -1,5 +1,5 @@
 
-animal = 'test';
+animal = 'AP003';
 
 use_workflow = 'lcr_passive';
 % use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
@@ -7,14 +7,16 @@ use_workflow = 'lcr_passive';
 
 recordings = ap.find_workflow(animal,use_workflow);
 
-% use_rec = 5;
+% use_rec = 1;
 % rec_day = '2023-06-02';
 % use_rec = strcmp(rec_day,{recordings.day});
 use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
-% rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
-rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
+rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
+% rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
+
+verbose = true;
 
 %% Define what to load
 
@@ -244,6 +246,223 @@ wf_avg = wf_avg_all{1};
 
 end 
 
+%% Load ephys
+
+ephys_quality_control = false;
+
+if load_parts.ephys
+
+    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
+    
+    if verbose; disp('Loading ephys...'); end
+    
+    % These are the digital channels going into the FPGA
+    flipper_sync_idx = 1;
+    
+    % Load phy sorting if it exists
+    % (old = cluster_groups.csv, new = cluster_group.tsv because fuck me)
+    cluster_filepattern = [ephys_path filesep 'cluster_group*'];
+    cluster_filedir = dir(cluster_filepattern);
+    if ~isempty(cluster_filedir)
+        cluster_filename = [ephys_path filesep cluster_filedir.name];
+        fid = fopen(cluster_filename);
+        cluster_groups = textscan(fid,'%d%s','HeaderLines',1);
+        fclose(fid);
+    end
+    
+    % Load sync/photodiode
+    load(([ephys_path filesep 'sync.mat']));
+    
+    % Read header information
+    header_path = [ephys_path filesep 'dat_params.txt'];
+    header_fid = fopen(header_path);
+    header_info = textscan(header_fid,'%s %s', 'delimiter',{' = '});
+    fclose(header_fid);
+    
+    header = struct;
+    for i = 1:length(header_info{1})
+        header.(header_info{1}{i}) = header_info{2}{i};
+    end
+    
+    % Load spike data
+    if isfield(header,'sample_rate')
+        ephys_sample_rate = str2num(header.sample_rate);
+    elseif isfield(header,'ap_sample_rate')
+        ephys_sample_rate = str2num(header.ap_sample_rate);
+    end
+    spike_times = double(readNPY([ephys_path filesep 'spike_times.npy']))./ephys_sample_rate;
+    spike_templates_0idx = readNPY([ephys_path filesep 'spike_templates.npy']);
+    templates_whitened = readNPY([ephys_path filesep 'templates.npy']);
+    channel_positions = readNPY([ephys_path filesep 'channel_positions.npy']);
+    channel_map = readNPY([ephys_path filesep 'channel_map.npy']);
+    winv = readNPY([ephys_path filesep 'whitening_mat_inv.npy']);
+    template_amplitudes = readNPY([ephys_path filesep 'amplitudes.npy']);
+    
+    % Default channel map/positions are from end: make from surface
+    % (hardcode this: kilosort2 drops channels)
+    max_depth = 3840;
+    channel_positions(:,2) = max_depth - channel_positions(:,2);
+    
+    % Unwhiten templates
+    templates = zeros(size(templates_whitened));
+    for t = 1:size(templates_whitened,1)
+        templates(t,:,:) = squeeze(templates_whitened(t,:,:))*winv;
+    end
+    
+    % Get the waveform of all templates (channel with largest amplitude)
+    [~,max_site] = max(max(abs(templates),[],2),[],3);
+    templates_max = nan(size(templates,1),size(templates,2));
+    for curr_template = 1:size(templates,1)
+        templates_max(curr_template,:) = ...
+            templates(curr_template,:,max_site(curr_template));
+    end
+    waveforms = templates_max;
+    
+    % Get depth of each template
+    % (get min-max range for each channel)
+    template_chan_amp = squeeze(range(templates,2));
+    % (zero-out low amplitude channels)
+    template_chan_amp_thresh = max(template_chan_amp,[],2)*0.5;
+    template_chan_amp_overthresh = template_chan_amp.*(template_chan_amp >= template_chan_amp_thresh);
+    % (get center-of-mass on thresholded channel amplitudes)
+    template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
+    
+    % Get the depth of each spike (templates are zero-indexed)
+    spike_depths = template_depths(spike_templates_0idx+1);
+    
+    % Get trough-to-peak time for each template
+    templates_max_signfix = bsxfun(@times,templates_max, ...
+        sign(abs(min(templates_max,[],2)) - abs(max(templates_max,[],2))));
+    
+    [~,waveform_trough] = min(templates_max,[],2);
+    [~,waveform_peak_rel] = arrayfun(@(x) ...
+        max(templates_max(x,waveform_trough(x):end),[],2), ...
+        transpose(1:size(templates_max,1)));
+    waveform_peak = waveform_peak_rel + waveform_trough;
+    
+    templateDuration = waveform_peak - waveform_trough;
+    templateDuration_us = (templateDuration/ephys_sample_rate)*1e6;
+    
+    % Get sync points for alignment
+    
+    % Get experiment index by finding numbered folders
+    % (UPDATING FOR NEW FORMAT - DONE BY HAND AT THE MOMENT)
+    experiment_idx = 1;
+
+    if exist('flipper_times','var')
+        % (if flipper, use that)
+        % (at least one experiment the acqLive connection to ephys was bad
+        % so it was delayed - ideally check consistency since it's
+        % redundant)
+        bad_flipper = false;
+        
+        % Get flipper experiment differences by long delays
+        % (note: this is absolute difference, if recording stopped and
+        % started then the clock starts over again, although I thought it
+        % wasn't supposed to when I grab the concatenated sync, so
+        % something might be wrong)
+        flip_diff_thresh = 10; % time between flips to define experiment gap (s)
+        flipper_expt_idx = [1;find(abs(diff(sync(flipper_sync_idx).timestamps)) > ...
+            flip_diff_thresh)+1;length(sync(flipper_sync_idx).timestamps)+1];
+        
+        flipper_flip_times_ephys = sync(flipper_sync_idx).timestamps( ...
+            flipper_expt_idx(experiment_idx):flipper_expt_idx(experiment_idx+1)-1);
+        
+        % Pick flipper times to use for alignment
+        if length(flipper_flip_times_ephys) == length(flipper_times)
+            % If same number of flips in ephys/timeline, use all
+            sync_timeline = flipper_times;
+            sync_ephys = flipper_flip_times_ephys;
+        elseif length(flipper_flip_times_ephys) ~= length(flipper_times)
+            % If different number of flips in ephys/timeline, best
+            % contiguous set via xcorr of diff
+            warning([animal ' ' rec_day ':Flipper flip times different in timeline/ephys'])
+            warning(['The fix for this is probably not robust: always check'])
+            [flipper_xcorr,flipper_lags] = ...
+                xcorr(diff(flipper_times),diff(flipper_flip_times_ephys));
+            [~,flipper_lag_idx] = max(flipper_xcorr);
+            flipper_lag = flipper_lags(flipper_lag_idx);
+            % (at the moment, assuming only dropped from ephys)
+            sync_ephys = flipper_flip_times_ephys;
+            sync_timeline = flipper_times(flipper_lag+1: ...
+                flipper_lag+1:flipper_lag+length(flipper_flip_times_ephys));
+        end
+        
+    else
+        bad_flipper = true;
+    end
+    
+    if bad_flipper
+        % (if no flipper or flipper problem, use acqLive)
+        
+        % Get acqLive times for current experiment
+        experiment_ephys_starts = sync(acqLive_sync_idx).timestamps(sync(acqLive_sync_idx).values == 1);
+        experiment_ephys_stops = sync(acqLive_sync_idx).timestamps(sync(acqLive_sync_idx).values == 0);
+        acqlive_ephys_currexpt = [experiment_ephys_starts(experiment_idx), ...
+            experiment_ephys_stops(experiment_idx)];
+        
+        sync_timeline = acqLive_timeline;
+        sync_ephys = acqlive_ephys_currexpt;
+        
+        % Check that the experiment time is the same within threshold
+        % (it should be almost exactly the same)
+        if abs(diff(acqLive_timeline) - diff(acqlive_ephys_currexpt)) > 1
+            error([animal ' ' day ': acqLive duration different in timeline and ephys']);
+        end
+    end
+    
+    % Get spike times in timeline time
+    spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times,'linear','extrap');
+    
+    % Get "good" templates from labels if quality control selected and
+    % manual labels exist
+    if ephys_quality_control && exist('cluster_groups','var')
+        % If there's a manual classification
+        if verbose; disp('Keeping manually labelled good units...'); end
+        
+        % Check that all used spike templates have a label
+        spike_templates_0idx_unique = unique(spike_templates_0idx);
+        if ~all(ismember(spike_templates_0idx_unique,uint32(cluster_groups{1}))) || ...
+                ~all(ismember(cluster_groups{2},{'good','mua','noise'}))
+            warning([animal ' ' day ': not all templates labeled']);
+        end
+        
+        % Define good units from labels
+        good_templates_idx = uint32(cluster_groups{1}( ...
+            strcmp(cluster_groups{2},'good') | strcmp(cluster_groups{2},'mua')));
+        good_templates = ismember(0:size(templates,1)-1,good_templates_idx);        
+    else
+        % If no cluster groups at all, keep all
+        warning([animal ' ' rec_day ' - no ephys quality control']);
+        if verbose; disp('No ephys quality control, keeping all and re-indexing'); end
+        good_templates_idx = unique(spike_templates_0idx);
+        good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
+    end
+    
+    % Throw out all non-good template data
+    templates = templates(good_templates,:,:);
+    template_depths = template_depths(good_templates);
+    waveforms = waveforms(good_templates,:);
+    templateDuration = templateDuration(good_templates);
+    templateDuration_us = templateDuration_us(good_templates);
+    
+    % Throw out all non-good spike data
+    good_spike_idx = ismember(spike_templates_0idx,good_templates_idx);
+    spike_times = spike_times(good_spike_idx);
+    spike_templates_0idx = spike_templates_0idx(good_spike_idx);
+    template_amplitudes = template_amplitudes(good_spike_idx);
+    spike_depths = spike_depths(good_spike_idx);
+    spike_times_timeline = spike_times_timeline(good_spike_idx);
+    
+    % Rename the spike templates according to the remaining templates
+    % (and make 1-indexed from 0-indexed)
+    new_spike_idx = nan(max(spike_templates_0idx)+1,1);
+    new_spike_idx(good_templates_idx+1) = 1:length(good_templates_idx);
+    spike_templates = new_spike_idx(spike_templates_0idx+1);
+       
+end
+
+
 %% Experiment scroller
 
 
@@ -254,7 +473,7 @@ end
 
 % AP_expscroll(wf_U,wf_Vdf,wf_times,mousecam_fn,mousecam_times)
 
-AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
 % AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
 % AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})

@@ -2,6 +2,12 @@
 %
 % Temporary code
 
+%% Ephys raster
+
+stim_times = photodiode_times(1:2:end);
+stim_type = vertcat(trial_events.values.TrialStimX);
+AP_cellraster(stim_times,stim_type);
+
 
 %% Align widefield to event
 
