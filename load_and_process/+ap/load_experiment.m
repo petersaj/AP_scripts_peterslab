@@ -13,8 +13,8 @@ recordings = ap.find_recordings(animal,use_workflow);
 use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
-% rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
-rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
+rec_time = recordings(use_rec).protocol{1}; % (if multiple, use first)
+% rec_time = recordings(use_rec).protocol{end}; % (if multiple, use last)
 
 verbose = true;
 
