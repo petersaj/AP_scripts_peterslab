@@ -445,7 +445,7 @@ AP_imscroll(im);axis image
 
 animal = 'AP004';
 use_workflow = 'lcr_passive';
-recordings = ap.find_workflow(animal,use_workflow);
+recordings = ap.find_recordings(animal,use_workflow);
 
 % temp: cut out bad days
 % recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
@@ -523,7 +523,7 @@ end
 
 animal = 'AP005';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-recordings = ap.find_workflow(animal,use_workflow);
+recordings = ap.find_recordings(animal,use_workflow);
 
 surround_time = [-5,5];
 surround_sample_rate = 100;
