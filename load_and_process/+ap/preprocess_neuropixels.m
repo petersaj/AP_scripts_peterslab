@@ -1,11 +1,9 @@
-function AP_preprocess_neuropixels_test(animal,day)
-% AP_preprocess_neuropixels(animal,day)
+function preprocess_neuropixels(animal,day)
+% preprocess_neuropixels(animal,day)
 %
 % Spike sorts with Pykilosort (into 'pykilosort' folder)
 %
 % Currently assumes Neuropixels Phase 3A recorded with Open Ephys
-%
-% IN PROGRESS: DOING UP WITH NEW FILE STRUCTURES ETC
 
 %% Get paths and filenames
 
@@ -21,7 +19,7 @@ save_paths = {[ephys_path filesep 'pykilosort']};
 data_paths = {ephys_path};
 
 % Check for multiple sites (assume sites are marked as site#)
-data_path_dir = dir([data_paths{1} filesep 'site*']);
+data_path_dir = dir([data_paths{1} filesep 'probe_*']);
 if ~isempty(data_path_dir)
     data_paths = cellfun(@(x) [data_paths{1} filesep x],{data_path_dir.name},'uni',false);
     save_paths = cellfun(@(x) [save_paths{1} filesep x],{data_path_dir.name},'uni',false);
@@ -89,9 +87,20 @@ for curr_site = 1:length(data_paths)
         fclose(fid);
         
         
-        %% Get/save digital input events
-               
-        % Get/save digital input event times,
+        %% Get and save digital input events
+
+        % NOTE: open ephys gives timestamps relative to start of PREVIEW,
+        % kilosort only gives timestamps relative to beginning of RECORD.
+        % This means that to match up kilosort (t(1) = 0) to OE (t(1) =
+        % arbitrary), the sync timestamps are saved as sync_timestamps -
+        % ap_timestamps(1)
+              
+        % Load spike timestamps
+        ap_timestamps_filename = fullfile(fileparts(ap_data_filename),'timestamps.npy');
+        ap_timestamps = readNPY(ap_timestamps_filename);
+        sync_timestamp_offset = ap_timestamps(1);
+            
+        % Load digital input event times
         sync_data = readNPY(sync_filename);
         sync_timestamps = readNPY(sync_timestamps_filename);
         
@@ -99,7 +108,7 @@ for curr_site = 1:length(data_paths)
         sync = struct('timestamps',cell(size(sync_channels)),'values',cell(size(sync_channels)));
         for curr_sync = 1:length(sync_channels)
             sync_events = abs(sync_data) == (sync_channels(curr_sync));
-            sync(curr_sync).timestamps = sync_timestamps(sync_events);
+            sync(curr_sync).timestamps = sync_timestamps(sync_events) - sync_timestamp_offset;
             sync(curr_sync).values = sign(sync_data(sync_events)) == 1;
         end
         
@@ -152,7 +161,7 @@ for curr_site = 1:length(data_paths)
                 
         disp('Copying sorted data to server...');
 
-        kilosort_results_path = fullfile(pykilosort_output_path,'output');
+        pykilosort_results_path = fullfile(pykilosort_output_path,'output');
         copyfile(pykilosort_results_path,curr_save_path);
         
         %% Delete all temporary local data
