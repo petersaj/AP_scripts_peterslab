@@ -33,35 +33,35 @@ stim_to_move = wheel_move_time - stimOn_times;
 
 %% Ephys raster
 
-% % (passive)
-% align_times_all = photodiode_times(1:2:end);
-% align_category_all = vertcat(trial_events.values.TrialStimX);
-% % (get only quiescent trials)
-% [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-% framerate = 30;
-% wheel_window = [0,0.5];
-% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-% wheel_window_t_peri_event = align_times_all + wheel_window_t;
-% event_aligned_move = interp1(timelite.timestamps, ...
-%     +wheel_move,wheel_window_t_peri_event,'previous');
-% quiescent_trials = ~any(event_aligned_move,2);
-% align_times = align_times_all(quiescent_trials);
-% align_category = align_category_all(quiescent_trials);
+% (passive)
+align_times_all = photodiode_times(1:2:end);
+align_category_all = vertcat(trial_events.values.TrialStimX);
+% (get only quiescent trials)
+[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+framerate = 30;
+wheel_window = [0,0.5];
+wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+wheel_window_t_peri_event = align_times_all + wheel_window_t;
+event_aligned_move = interp1(timelite.timestamps, ...
+    +wheel_move,wheel_window_t_peri_event,'previous');
+quiescent_trials = ~any(event_aligned_move,2);
+align_times = align_times_all(quiescent_trials);
+align_category = align_category_all(quiescent_trials);
+
+AP_cellraster(align_times,align_category);
+
+% % (task)
+% stimOn_times = photodiode_times(1:2:end);
+% wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
 % 
-% AP_cellraster(align_times,align_category);
-
-% (task)
-stimOn_times = photodiode_times(1:2:end);
-wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
-
-% (get wheel starts when no stim on screen: not sure this works yet)
-wheel_starts_iti = ...
-    wheel_starts(interp1(timelite.timestamps, ...
-    +photodiode_thresh,wheel_starts,'previous') == 0);
-
-[~,rxn_sort_idx] = sort(stim_to_move);
-AP_cellraster({stimOn_times,wheel_move_time,wheel_starts_iti,reward_times}, ...
-    {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
+% % (get wheel starts when no stim on screen: not sure this works yet)
+% wheel_starts_iti = ...
+%     wheel_starts(interp1(timelite.timestamps, ...
+%     +photodiode_thresh,wheel_starts,'previous') == 0);
+% 
+% [~,rxn_sort_idx] = sort(stim_to_move);
+% AP_cellraster({stimOn_times,wheel_move_time,wheel_starts_iti,reward_times}, ...
+%     {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 
 
 %% Ephys sparse noise? 

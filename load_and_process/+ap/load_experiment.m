@@ -1,21 +1,21 @@
 
-animal = 'AP006';
-
-% use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-% use_workflow = 'sparse_noise';
-
-recordings = ap.find_recordings(animal,use_workflow);
-
-% use_rec = 1;
-rec_day = '2023-06-13';
-use_rec = strcmp(rec_day,{recordings.day});
-% use_rec = length(recordings);
-
-rec_day = recordings(use_rec).day;
-rec_time = recordings(use_rec).protocol{end};
-
-verbose = true;
+% animal = 'AP005';
+% 
+% % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
+% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% % use_workflow = 'sparse_noise';
+% 
+% recordings = ap.find_recordings(animal,use_workflow);
+% 
+% % use_rec = 1;
+% rec_day = '2023-06-20';
+% use_rec = strcmp(rec_day,{recordings.day});
+% % use_rec = length(recordings);
+% 
+% rec_day = recordings(use_rec).day;
+% rec_time = recordings(use_rec).protocol{end};
+% 
+% verbose = true;
 
 %% Define what to load
 
@@ -252,7 +252,7 @@ ephys_quality_control = false;
 if load_parts.ephys
 
 %     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
-    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_2');
+    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
     
     if verbose; disp('Loading ephys...'); end
     
