@@ -1,23 +1,27 @@
 
-% animal = 'AP005';
-% 
-% % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
+animal = 'AP005';
+
+use_workflow = {'lcr_passive'};
+% use_workflow = {'lcr_passive_fullscreen'};
+% use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
 % use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-% % use_workflow = 'sparse_noise';
-% 
-% recordings = ap.find_recordings(animal,use_workflow);
-% 
-% % use_rec = 1;
-% rec_day = '2023-06-20';
-% use_rec = strcmp(rec_day,{recordings.day});
-% % use_rec = length(recordings);
-% 
-% rec_day = recordings(use_rec).day;
-% rec_time = recordings(use_rec).protocol{end};
-% 
-% verbose = true;
+% use_workflow = 'sparse_noise';
+
+recordings = ap.find_recordings(animal,use_workflow);
+
+% use_rec = 1;
+rec_day = '2023-06-22';
+use_rec = strcmp(rec_day,{recordings.day});
+% use_rec = length(recordings);
+
+rec_day = recordings(use_rec).day;
+rec_time = recordings(use_rec).protocol{end};
+
+verbose = true;
 
 %% Define what to load
+
+if verbose; fprintf('Loading %s, %s, Protocol %s\n', animal, rec_day, rec_time); end;
 
 % If nothing specified, load everything (but not LFP)
 if ~exist('load_parts','var')
@@ -39,6 +43,8 @@ end
 
 
 %% Load timelite and associated inputs
+
+if verbose; disp('Loading Timelite...'); end
 
 % Set level for TTL threshold
 ttl_thresh = 2;
@@ -93,19 +99,24 @@ reward_times = timelite.timestamps(strfind(reward_thresh',reward_on_pattern));
 
 %% Load Bonsai
 
-% Bonsai events (put in all my protocols)
-try
-    bonsai_file = 'bonsai_events.csv';
-    bonsai_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai',bonsai_file);
-    trial_events = AP_load_bonsai(bonsai_fn);
-catch me
+if verbose; disp('Loading Bonsai...'); end
+
+% Get Bonsai workflow
+bonsai_dir = dir(plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai'));
+bonsai_workflow = bonsai_dir([bonsai_dir.isdir] & ~contains({bonsai_dir.name},'.')).name;
+
+% Load Bonsai events
+bonsai_events_fn = plab.locations.make_server_filename( ...
+    animal,rec_day,rec_time,'bonsai','bonsai_events.csv');
+if exist(bonsai_events_fn,'file')
+    trial_events = AP_load_bonsai(bonsai_events_fn);
 end
 
 % Sparse noise: get noise locations and times
-try
-    bonsai_file = 'NoiseLocations.bin';
-    bonsai_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai',bonsai_file);
-    fid = fopen(bonsai_fn);
+if strcmp(bonsai_workflow,'sparse_noise')
+    bonsai_noise_fn = plab.locations.make_server_filename( ...
+        animal,rec_day,rec_time,'bonsai','NoiseLocations.bin');
+    fid = fopen(bonsai_noise_fn);
 
     n_x_squares = trial_events.parameters.ScreenExtentX./trial_events.parameters.StimSize;
     n_y_squares = trial_events.parameters.ScreenExtentY./trial_events.parameters.StimSize;
@@ -118,13 +129,31 @@ try
     photodiode_stim_idx = 1:trial_events.parameters.NthPhotodiodeFlip:size(noise_locations,3);
     % (check that the number of photodiode flips is expected)
     if length(photodiode_stim_idx) ~= length(photodiode_times)
-        error('Sparse noise: mismatch photodiode times and stim number')
+        if length(photodiode_stim_idx) < length(photodiode_times)
+            % (rarely: Bonsai square to black temporarily, don't know why)
+            % (fix? find when time differences on either side are less than a
+            % threshold and remove those flips)
+            photodiode_diff = diff(photodiode_times);
+            photodiode_diff_thresh = mean(photodiode_diff)/2;
+            bad_photodiode_idx = ...
+                find(photodiode_diff(1:end-1) < photodiode_diff_thresh & ...
+                photodiode_diff(2:end) < photodiode_diff_thresh) + 1;
+
+            if (length(photodiode_times) - length(photodiode_stim_idx)) == ...
+                    length(bad_photodiode_idx)
+                % (if detected bad flips even out the numbers, apply fix)
+                photodiode_times(bad_photodiode_idx) = [];
+            else
+                % (otherwise, error)
+                error('Sparse noise: photodiode > stim, unfixable')
+            end
+        else
+            error('Sparse noise: photodiode < stim')
+        end
     end
 
     stim_times = interp1(photodiode_stim_idx,photodiode_times, ...
         1:size(noise_locations,3),'linear','extrap')';
-
-catch me
 end
 
 
@@ -145,6 +174,8 @@ end
 
 
 %% Load mousecam
+
+if verbose; disp('Loading Mousecam...'); end
 
 mousecam_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam.mj2');
 mousecam_header_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam_header.bin');
@@ -206,44 +237,47 @@ end
 if load_parts.widefield && ...
         exist(plab.locations.make_server_filename(animal,rec_day,[],'widefield'),'dir')
 
-% Load widefield data for all colors
-widefield_colors = {'blue','violet'};
-[wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
-for curr_wf = 1:length(widefield_colors)
-    mean_image_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
-        'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
-    svdU_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
-        'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
-    svdV_fn = plab.locations.make_server_filename(animal,rec_day,rec_time, ...
-        'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
+    if verbose; disp('Loading Widefield...'); end
 
-    wf_avg_all{curr_wf} = readNPY(mean_image_fn);
-    wf_U_raw{curr_wf} = readNPY(svdU_fn);
-    wf_V_raw{curr_wf} = readNPY(svdV_fn);
+    % Load widefield data for all colors
+    widefield_colors = {'blue','violet'};
+    [wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
+    for curr_wf = 1:length(widefield_colors)
+        mean_image_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
+            'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
+        svdU_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
+            'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
+        svdV_fn = plab.locations.make_server_filename(animal,rec_day,rec_time, ...
+            'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
 
-    % Timestamps: assume colors go in order (dictated by Arduino)
-    wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
+        wf_avg_all{curr_wf} = readNPY(mean_image_fn);
+        wf_U_raw{curr_wf} = readNPY(svdU_fn);
+        wf_V_raw{curr_wf} = readNPY(svdV_fn);
+
+        % Timestamps: assume colors go in order (dictated by Arduino)
+        wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
+
+    end
+
+    % Correct hemodynamics
+    V_neuro_hemocorr = plab.wf.hemo_correct( ...
+        wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
+        wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
+
+    % Get DF/F
+    wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
+
+    % Deconvolve
+    wf_framerate = mean(1./diff(wf_t_all{1}));
+    wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
+
+    % Set final processed widefield variables
+    wf_U = wf_U_raw{1};
+    wf_V = wf_Vdf_deconv;
+    wf_times = wf_t_all{1};
+    wf_avg = wf_avg_all{1};
+
 end
-
-% Correct hemodynamics
-V_neuro_hemocorr = plab.wf.hemo_correct( ...
-    wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
-    wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
-
-% Get DF/F
-wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
-
-% Deconvolve
-wf_framerate = mean(1./diff(wf_t_all{1}));
-wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
-
-% Set final processed widefield variables
-wf_U = wf_U_raw{1};
-wf_V = wf_Vdf_deconv;
-wf_times = wf_t_all{1};
-wf_avg = wf_avg_all{1};
-
-end 
 
 %% Load ephys
 
@@ -251,16 +285,16 @@ ephys_quality_control = false;
 
 if load_parts.ephys
 
-%     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
-    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
-    
-    if verbose; disp('Loading ephys...'); end
-    
+    if verbose; disp('Loading Ephys...'); end
+
+    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
+%     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
+        
     % These are the digital channels going into the FPGA
     flipper_sync_idx = 1;
     
     % Load phy sorting if it exists
-    % (old = cluster_groups.csv, new = cluster_group.tsv because fuck me)
+    % (old = cluster_groups.csv, new = cluster_group.tsv)
     cluster_filepattern = [ephys_path filesep 'cluster_group*'];
     cluster_filedir = dir(cluster_filepattern);
     if ~isempty(cluster_filedir)
@@ -377,15 +411,9 @@ if load_parts.ephys
             % If different number of flips in ephys/timeline, best
             % contiguous set via xcorr of diff
             warning([animal ' ' rec_day ':Flipper flip times different in timeline/ephys'])
-            warning(['The fix for this is probably not robust: always check'])
-            [flipper_xcorr,flipper_lags] = ...
-                xcorr(diff(flipper_times),diff(flipper_flip_times_ephys));
-            [~,flipper_lag_idx] = max(flipper_xcorr);
-            flipper_lag = flipper_lags(flipper_lag_idx);
-            % (at the moment, assuming only dropped from ephys)
-            sync_ephys = flipper_flip_times_ephys;
-            sync_timeline = flipper_times(flipper_lag+1: ...
-                flipper_lag+1:flipper_lag+length(flipper_flip_times_ephys));
+            warning(['TEMPORARY: using only first and last flip'])
+            sync_ephys = flipper_flip_times_ephys([1,end]);
+            sync_timeline = flipper_times([1,end]);
         end
         
     else

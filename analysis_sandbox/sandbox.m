@@ -119,24 +119,24 @@ axis image;
 
 %% Align widefield to event
 
-% (passive)
-align_times_all = photodiode_times(1:2:end);
-align_category_all = vertcat(trial_events.values.TrialStimX);
-% (get only quiescent trials)
-[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-framerate = 30;
-wheel_window = [0,0.5];
-wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-wheel_window_t_peri_event = align_times_all + wheel_window_t;
-event_aligned_move = interp1(timelite.timestamps, ...
-    +wheel_move,wheel_window_t_peri_event,'previous');
-quiescent_trials = ~any(event_aligned_move,2);
-align_times = align_times_all(quiescent_trials);
-align_category = align_category_all(quiescent_trials);
+% % (passive)
+% align_times_all = photodiode_times(1:2:end);
+% align_category_all = vertcat(trial_events.values.TrialStimX);
+% % (get only quiescent trials)
+% [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+% framerate = 30;
+% wheel_window = [0,0.5];
+% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+% wheel_window_t_peri_event = align_times_all + wheel_window_t;
+% event_aligned_move = interp1(timelite.timestamps, ...
+%     +wheel_move,wheel_window_t_peri_event,'previous');
+% quiescent_trials = ~any(event_aligned_move,2);
+% align_times = align_times_all(quiescent_trials);
+% align_category = align_category_all(quiescent_trials);
 
-% % (task stim)
-% align_times = photodiode_times(1:2:end);
-% align_category = ones(size(align_times));
+% (task stim)
+align_times = photodiode_times(1:2:end);
+align_category = ones(size(align_times));
 
 % % (task rewards)
 % align_times = reward_times;
@@ -175,7 +175,7 @@ aligned_px_avg = plab.wf.svd2px(use_U,aligned_v_avg_baselined);
 
 AP_imscroll(aligned_px_avg,t);
 colormap(AP_colormap('PWG'));
-clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
+clim(prctile(abs(aligned_px_avg(:)),99.5).*[-1,1]);
 axis image;
 
 
@@ -184,23 +184,20 @@ axis image;
 use_cam = mousecam_fn;
 use_t = mousecam_times;
 
-% % Get wheel movements during stim, only use quiescent trials
-% framerate = 30;
-% wheel_window = [0,0.5];
-% wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-% wheel_window_t_peri_event = bsxfun(@plus,stimOn_times,wheel_window_t);
-% event_aligned_wheel = interp1(Timeline.rawDAQTimestamps, ...
-%     wheel_velocity,wheel_window_t_peri_event);
-% wheel_thresh = 0;
-% quiescent_trials = ~any(abs(event_aligned_wheel) > 0,2);
-%
-% use_stim = 3;
-% use_align = stimOn_times(stimIDs == use_stim & quiescent_trials);
-%
+% (get only quiescent trials)
+[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+framerate = 30;
+wheel_window = [0,0.5];
+wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
+wheel_window_t_peri_event = align_times_all + wheel_window_t;
+event_aligned_move = interp1(timelite.timestamps, ...
+    +wheel_move,wheel_window_t_peri_event,'previous');
+quiescent_trials = ~any(event_aligned_move,2);
+
 align_times = photodiode_times(1:2:end);
 align_category = vertcat(trial_events.values.TrialStimX);
 
-use_align = align_times(align_category == 90);
+use_align = align_times(align_category == 90 & quiescent_trials);
 
 surround_frames = 30;
 
@@ -245,6 +242,112 @@ use_t_idx = surround_t >= use_t(1) & surround_t <= use_t(2);
 figure;
 imagesc(nanmean(cam_align_diff_avg(:,:,use_t_idx(2:end)),3));
 axis image off;
+
+%% Widefield/ephys regression maps
+
+% Set upsample value for regression
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_times)))*upsample_factor;
+
+% Skip the first/last n seconds to do this
+skip_seconds = 60;
+time_bins = wf_times(find(wf_times > skip_seconds,1)):1/sample_rate:wf_times(find(wf_times-wf_times(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+% % (to group multiunit by depth from top)
+% n_depths = 10;
+% depth_group_edges = round(linspace(min(template_depths),max(template_depths),n_depths+1));
+% [depth_group_n,depth_group] = histc(spike_depths,depth_group_edges);
+% depth_groups_used = unique(depth_group);
+% depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+% (to group multiunit by depth within striatum)
+n_depths = 4;
+depth_group_edges = round(linspace(2000,3500,n_depths+1));
+[depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+depth_groups_used = unique(depth_group);
+depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+% % (to use aligned striatum depths)
+% n_depths = n_aligned_depths;
+% depth_group = aligned_str_depth_group;
+
+% % (for manual depth)
+% depth_group_edges = [1000,4000];
+% n_depths = length(depth_group_edges) - 1;
+% [depth_group_n,depth_group] = histcounts(spike_depths,depth_group_edges);
+
+binned_spikes = zeros(n_depths,length(time_bins)-1);
+for curr_depth = 1:n_depths
+    
+    curr_spike_times = spike_times_timeline(depth_group == curr_depth);
+%     curr_spike_times = spike_times_timeline((depth_group == curr_depth) & ...
+%         ismember(spike_templates,find(msn)));
+    
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+    
+end
+
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+use_svs = 1:200;
+kernel_t = [-0.5,0.5];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 5;
+zs = [false,false];
+cvfold = 5;
+return_constant = false;
+use_constant = true;
+    
+fVdf_deconv_resample = interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)';
+        
+% TO USE DECONV
+[k,predicted_spikes,explained_var] = ...
+    AP_regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames,lambda,zs,cvfold,return_constant,use_constant);
+
+% Convert kernel to pixel space
+r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
+
+AP_imscroll(r_px,kernel_frames/framerate);
+caxis([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+colormap(AP_colormap('BWR'));
+axis image;
+
+% Get center of mass for each pixel
+% (get max r for each pixel, filter out big ones)
+r_px_max = squeeze(max(r_px,[],3));
+r_px_max(isnan(r_px_max)) = 0;
+% for i = 1:n_depths
+%     r_px_max(:,:,i) = medfilt2(r_px_max(:,:,i),[10,10]);
+% end
+r_px_max_norm = bsxfun(@rdivide,r_px_max, ...
+    permute(max(reshape(r_px_max,[],n_depths),[],1),[1,3,2]));
+r_px_max_norm(isnan(r_px_max_norm)) = 0;
+r_px_com = sum(bsxfun(@times,r_px_max_norm,permute(1:n_depths,[1,3,2])),3)./sum(r_px_max_norm,3);
+
+% Plot map of cortical pixel by preferred depth of probe
+r_px_com_col = ind2rgb(round(mat2gray(r_px_com,[1,n_depths])*255),jet(255));
+figure;
+a1 = axes('YDir','reverse');
+imagesc(wf_avg); colormap(gray); caxis([0,prctile(wf_avg(:),99.7)]);
+axis off; axis image;
+a2 = axes('Visible','off'); 
+p = imagesc(r_px_com_col);
+axis off; axis image;
+set(p,'AlphaData',mat2gray(max(r_px_max_norm,[],3), ...
+     [0,double(prctile(reshape(max(r_px_max_norm,[],3),[],1),95))]));
+set(gcf,'color','w');
+
+c1 = colorbar('peer',a1,'Visible','off');
+c2 = colorbar('peer',a2);
+ylabel(c2,'Depth (\mum)');
+colormap(c2,jet);
+set(c2,'YDir','reverse');
+set(c2,'YTick',linspace(0,1,n_depths));
+set(c2,'YTickLabel',round(linspace(depth_group_edges(1),depth_group_edges(end),n_depths)));
+
 
 %% Align wheel to event
 
@@ -629,7 +732,7 @@ end
 
 %% TESTING BATCH BEHAVIOR
 
-animal = 'AP005';
+animal = 'AP004';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 

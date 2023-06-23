@@ -1,21 +1,23 @@
 
-% animal = 'AP005';
-% 
-% % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
+animal = 'AP005';
+
+% use_workflow = {'lcr_passive'};
+use_workflow = {'lcr_passive_fullscreen'};
+% use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
 % use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-% % use_workflow = 'sparse_noise';
-% 
-% recordings = ap.find_recordings(animal,use_workflow);
-% 
-% % use_rec = 1;
+% use_workflow = 'sparse_noise';
+
+recordings = ap.find_recordings(animal,use_workflow);
+
+% use_rec = 1;
 % rec_day = '2023-06-20';
 % use_rec = strcmp(rec_day,{recordings.day});
-% % use_rec = length(recordings);
-% 
-% rec_day = recordings(use_rec).day;
-% rec_time = recordings(use_rec).protocol{end};
-% 
-% verbose = true;
+use_rec = length(recordings);
+
+rec_day = recordings(use_rec).day;
+rec_time = recordings(use_rec).protocol{end};
+
+verbose = true;
 
 %% Define what to load
 
@@ -39,6 +41,8 @@ end
 
 
 %% Load timelite and associated inputs
+
+if verbose; disp('Loading Timelite...'); end
 
 % Set level for TTL threshold
 ttl_thresh = 2;
@@ -93,19 +97,24 @@ reward_times = timelite.timestamps(strfind(reward_thresh',reward_on_pattern));
 
 %% Load Bonsai
 
-% Bonsai events (put in all my protocols)
-try
-    bonsai_file = 'bonsai_events.csv';
-    bonsai_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai',bonsai_file);
-    trial_events = AP_load_bonsai(bonsai_fn);
-catch me
+if verbose; disp('Loading Bonsai...'); end
+
+% Get Bonsai workflow
+bonsai_dir = dir(plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai'));
+bonsai_workflow = bonsai_dir([bonsai_dir.isdir] & ~contains({bonsai_dir.name},'.')).name;
+
+% Load Bonsai events
+bonsai_events_fn = plab.locations.make_server_filename( ...
+    animal,rec_day,rec_time,'bonsai','bonsai_events.csv');
+if exist(bonsai_events_fn,'file')
+    trial_events = AP_load_bonsai(bonsai_events_fn);
 end
 
 % Sparse noise: get noise locations and times
-try
-    bonsai_file = 'NoiseLocations.bin';
-    bonsai_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai',bonsai_file);
-    fid = fopen(bonsai_fn);
+if strcmp(bonsai_workflow,'sparse_noise')
+    bonsai_noise_fn = plab.locations.make_server_filename( ...
+        animal,rec_day,rec_time,'bonsai','NoiseLocations.bin');
+    fid = fopen(bonsai_noise_fn);
 
     n_x_squares = trial_events.parameters.ScreenExtentX./trial_events.parameters.StimSize;
     n_y_squares = trial_events.parameters.ScreenExtentY./trial_events.parameters.StimSize;
@@ -118,13 +127,31 @@ try
     photodiode_stim_idx = 1:trial_events.parameters.NthPhotodiodeFlip:size(noise_locations,3);
     % (check that the number of photodiode flips is expected)
     if length(photodiode_stim_idx) ~= length(photodiode_times)
-        error('Sparse noise: mismatch photodiode times and stim number')
+        if length(photodiode_stim_idx) < length(photodiode_times)
+            % (rarely: Bonsai square to black temporarily, don't know why)
+            % (fix? find when time differences on either side are less than a
+            % threshold and remove those flips)
+            photodiode_diff = diff(photodiode_times);
+            photodiode_diff_thresh = mean(photodiode_diff)/2;
+            bad_photodiode_idx = ...
+                find(photodiode_diff(1:end-1) < photodiode_diff_thresh & ...
+                photodiode_diff(2:end) < photodiode_diff_thresh) + 1;
+
+            if (length(photodiode_times) - length(photodiode_stim_idx)) == ...
+                    length(bad_photodiode_idx)
+                % (if detected bad flips even out the numbers, apply fix)
+                photodiode_times(bad_photodiode_idx) = [];
+            else
+                % (otherwise, error)
+                error('Sparse noise: photodiode > stim, unfixable')
+            end
+        else
+            error('Sparse noise: photodiode < stim')
+        end
     end
 
     stim_times = interp1(photodiode_stim_idx,photodiode_times, ...
         1:size(noise_locations,3),'linear','extrap')';
-
-catch me
 end
 
 
@@ -223,6 +250,7 @@ for curr_wf = 1:length(widefield_colors)
 
     % Timestamps: assume colors go in order (dictated by Arduino)
     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
+
 end
 
 % Correct hemodynamics
@@ -251,8 +279,8 @@ ephys_quality_control = false;
 
 if load_parts.ephys
 
-%     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
-    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
+    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
+%     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
     
     if verbose; disp('Loading ephys...'); end
     

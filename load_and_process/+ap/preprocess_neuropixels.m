@@ -156,6 +156,10 @@ for curr_site = 1:length(data_paths)
         % (just in case alternate python environments used elsewhere)
         setenv('PATH',pre_pykilosort_syspath);
 
+        % Delete TSV files (KSLabel, group, ContamPct, Amplitude), these
+        % cluster groups are not used and would otherwise be loaded by
+        % default into Phy
+        delete(fullfile(pykilosort_output_path,'*.tsv'))
         
         %% Copy kilosort results to server
                 
