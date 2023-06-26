@@ -287,28 +287,28 @@ if load_parts.ephys
 
     if verbose; disp('Loading Ephys...'); end
 
-    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
-%     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
+    % Get paths for ephys, raw data, kilosort
+    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys');
+    kilosort_path = fullfile(ephys_path,'pykilosort');
+    open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
+    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
         
     % These are the digital channels going into the FPGA
     flipper_sync_idx = 1;
     
     % Load phy sorting if it exists
     % (old = cluster_groups.csv, new = cluster_group.tsv)
-    cluster_filepattern = [ephys_path filesep 'cluster_group*'];
+    cluster_filepattern = [kilosort_path filesep 'cluster_group*'];
     cluster_filedir = dir(cluster_filepattern);
     if ~isempty(cluster_filedir)
-        cluster_filename = [ephys_path filesep cluster_filedir.name];
+        cluster_filename = [kilosort_path filesep cluster_filedir.name];
         fid = fopen(cluster_filename);
         cluster_groups = textscan(fid,'%d%s','HeaderLines',1);
         fclose(fid);
     end
     
-    % Load sync/photodiode
-    load(([ephys_path filesep 'sync.mat']));
-    
     % Read header information
-    header_path = [ephys_path filesep 'dat_params.txt'];
+    header_path = [kilosort_path filesep 'dat_params.txt'];
     header_fid = fopen(header_path);
     header_info = textscan(header_fid,'%s %s', 'delimiter',{' = '});
     fclose(header_fid);
@@ -318,19 +318,32 @@ if load_parts.ephys
         header.(header_info{1}{i}) = header_info{2}{i};
     end
     
-    % Load spike data
+    % Load raw timestamps and sync
+    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
+        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+    open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
+        'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','states.npy'));
+    open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_path, ...
+        'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','timestamps.npy'));
+    open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
+    open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
+    open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
+
+    % Load kilosort data
     if isfield(header,'sample_rate')
         ephys_sample_rate = str2num(header.sample_rate);
     elseif isfield(header,'ap_sample_rate')
         ephys_sample_rate = str2num(header.ap_sample_rate);
     end
-    spike_times = double(readNPY([ephys_path filesep 'spike_times.npy']))./ephys_sample_rate;
-    spike_templates_0idx = readNPY([ephys_path filesep 'spike_templates.npy']);
-    templates_whitened = readNPY([ephys_path filesep 'templates.npy']);
-    channel_positions = readNPY([ephys_path filesep 'channel_positions.npy']);
-    channel_map = readNPY([ephys_path filesep 'channel_map.npy']);
-    winv = readNPY([ephys_path filesep 'whitening_mat_inv.npy']);
-    template_amplitudes = readNPY([ephys_path filesep 'amplitudes.npy']);
+    % (spike times: index Open Ephys timestamps rather than assume constant
+    % sampling rate as before, this accounts for potentially dropped data)
+    spike_times = open_ephys_timestamps(readNPY(fullfile(kilosort_path,'spike_times.npy')));
+    spike_templates_0idx = readNPY(fullfile(kilosort_path,'spike_templates.npy'));
+    templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
+    channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
+    channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));
+    winv = readNPY(fullfile(kilosort_path,'whitening_mat_inv.npy'));
+    template_amplitudes = readNPY(fullfile(kilosort_path,'amplitudes.npy'));
     
     % Default channel map/positions are from end: make from surface
     % (hardcode this: kilosort2 drops channels)
@@ -396,10 +409,10 @@ if load_parts.ephys
         % wasn't supposed to when I grab the concatenated sync, so
         % something might be wrong)
         flip_diff_thresh = 10; % time between flips to define experiment gap (s)
-        flipper_expt_idx = [1;find(abs(diff(sync(flipper_sync_idx).timestamps)) > ...
-            flip_diff_thresh)+1;length(sync(flipper_sync_idx).timestamps)+1];
+        flipper_expt_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
+            flip_diff_thresh)+1;length(open_ephys_flipper.timestamps)+1];
         
-        flipper_flip_times_ephys = sync(flipper_sync_idx).timestamps( ...
+        flipper_flip_times_ephys = open_ephys_flipper.timestamps( ...
             flipper_expt_idx(experiment_idx):flipper_expt_idx(experiment_idx+1)-1);
         
         % Pick flipper times to use for alignment

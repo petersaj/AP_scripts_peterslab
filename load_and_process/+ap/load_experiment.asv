@@ -1,8 +1,8 @@
 
 animal = 'AP005';
 
-% use_workflow = {'lcr_passive'};
-use_workflow = {'lcr_passive_fullscreen'};
+use_workflow = {'lcr_passive'};
+% use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
 % use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
@@ -10,9 +10,9 @@ use_workflow = {'lcr_passive_fullscreen'};
 recordings = ap.find_recordings(animal,use_workflow);
 
 % use_rec = 1;
-% rec_day = '2023-06-20';
-% use_rec = strcmp(rec_day,{recordings.day});
-use_rec = length(recordings);
+rec_day = '2023-06-22';
+use_rec = strcmp(rec_day,{recordings.day});
+% use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
 rec_time = recordings(use_rec).protocol{end};
@@ -20,6 +20,8 @@ rec_time = recordings(use_rec).protocol{end};
 verbose = true;
 
 %% Define what to load
+
+if verbose; fprintf('Loading %s, %s, Protocol %s\n', animal, rec_day, rec_time); end;
 
 % If nothing specified, load everything (but not LFP)
 if ~exist('load_parts','var')
@@ -173,6 +175,8 @@ end
 
 %% Load mousecam
 
+if verbose; disp('Loading Mousecam...'); end
+
 mousecam_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam.mj2');
 mousecam_header_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'mousecam','mousecam_header.bin');
 
@@ -233,45 +237,47 @@ end
 if load_parts.widefield && ...
         exist(plab.locations.make_server_filename(animal,rec_day,[],'widefield'),'dir')
 
-% Load widefield data for all colors
-widefield_colors = {'blue','violet'};
-[wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
-for curr_wf = 1:length(widefield_colors)
-    mean_image_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
-        'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
-    svdU_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
-        'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
-    svdV_fn = plab.locations.make_server_filename(animal,rec_day,rec_time, ...
-        'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
+    if verbose; disp('Loading Widefield...'); end
 
-    wf_avg_all{curr_wf} = readNPY(mean_image_fn);
-    wf_U_raw{curr_wf} = readNPY(svdU_fn);
-    wf_V_raw{curr_wf} = readNPY(svdV_fn);
+    % Load widefield data for all colors
+    widefield_colors = {'blue','violet'};
+    [wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
+    for curr_wf = 1:length(widefield_colors)
+        mean_image_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
+            'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
+        svdU_fn = plab.locations.make_server_filename(animal,rec_day,[], ...
+            'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
+        svdV_fn = plab.locations.make_server_filename(animal,rec_day,rec_time, ...
+            'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
 
-    % Timestamps: assume colors go in order (dictated by Arduino)
-    wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
+        wf_avg_all{curr_wf} = readNPY(mean_image_fn);
+        wf_U_raw{curr_wf} = readNPY(svdU_fn);
+        wf_V_raw{curr_wf} = readNPY(svdV_fn);
+
+        % Timestamps: assume colors go in order (dictated by Arduino)
+        wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
+
+    end
+
+    % Correct hemodynamics
+    V_neuro_hemocorr = plab.wf.hemo_correct( ...
+        wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
+        wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
+
+    % Get DF/F
+    wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
+
+    % Deconvolve
+    wf_framerate = mean(1./diff(wf_t_all{1}));
+    wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
+
+    % Set final processed widefield variables
+    wf_U = wf_U_raw{1};
+    wf_V = wf_Vdf_deconv;
+    wf_times = wf_t_all{1};
+    wf_avg = wf_avg_all{1};
 
 end
-
-% Correct hemodynamics
-V_neuro_hemocorr = plab.wf.hemo_correct( ...
-    wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
-    wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
-
-% Get DF/F
-wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
-
-% Deconvolve
-wf_framerate = mean(1./diff(wf_t_all{1}));
-wf_Vdf_deconv = AP_deconv_wf(wf_Vdf,[],wf_framerate);
-
-% Set final processed widefield variables
-wf_U = wf_U_raw{1};
-wf_V = wf_Vdf_deconv;
-wf_times = wf_t_all{1};
-wf_avg = wf_avg_all{1};
-
-end 
 
 %% Load ephys
 
@@ -279,30 +285,33 @@ ephys_quality_control = false;
 
 if load_parts.ephys
 
-    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort');
-%     ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys','pykilosort','probe_1');
-    
-    if verbose; disp('Loading ephys...'); end
-    
+    if verbose; disp('Loading Ephys...'); end
+
+    % Get paths for ephys, raw data, kilosort
+    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys');
+    kilosort_path = fullfile(ephys_path,'pykilosort');
+    open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
+    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+        
     % These are the digital channels going into the FPGA
     flipper_sync_idx = 1;
     
     % Load phy sorting if it exists
-    % (old = cluster_groups.csv, new = cluster_group.tsv because fuck me)
-    cluster_filepattern = [ephys_path filesep 'cluster_group*'];
+    % (old = cluster_groups.csv, new = cluster_group.tsv)
+    cluster_filepattern = [kilosort_path filesep 'cluster_group*'];
     cluster_filedir = dir(cluster_filepattern);
     if ~isempty(cluster_filedir)
-        cluster_filename = [ephys_path filesep cluster_filedir.name];
+        cluster_filename = [kilosort_path filesep cluster_filedir.name];
         fid = fopen(cluster_filename);
         cluster_groups = textscan(fid,'%d%s','HeaderLines',1);
         fclose(fid);
     end
     
     % Load sync/photodiode
-    load(([ephys_path filesep 'sync.mat']));
+    load(([kilosort_path filesep 'sync.mat']));
     
     % Read header information
-    header_path = [ephys_path filesep 'dat_params.txt'];
+    header_path = [kilosort_path filesep 'dat_params.txt'];
     header_fid = fopen(header_path);
     header_info = textscan(header_fid,'%s %s', 'delimiter',{' = '});
     fclose(header_fid);
@@ -318,13 +327,27 @@ if load_parts.ephys
     elseif isfield(header,'ap_sample_rate')
         ephys_sample_rate = str2num(header.ap_sample_rate);
     end
-    spike_times = double(readNPY([ephys_path filesep 'spike_times.npy']))./ephys_sample_rate;
-    spike_templates_0idx = readNPY([ephys_path filesep 'spike_templates.npy']);
-    templates_whitened = readNPY([ephys_path filesep 'templates.npy']);
-    channel_positions = readNPY([ephys_path filesep 'channel_positions.npy']);
-    channel_map = readNPY([ephys_path filesep 'channel_map.npy']);
-    winv = readNPY([ephys_path filesep 'whitening_mat_inv.npy']);
-    template_amplitudes = readNPY([ephys_path filesep 'amplitudes.npy']);
+    % (spike times: index Open Ephys timestamps rather than assume constant
+    % sampling rate as before, this accounts for potentially dropped data)
+    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
+        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+    spike_times_idx = readNPY(fullfile(kilosort_path,'spike_times.npy'));
+    spike_times = open_ephys_timestamps(spike_times_idx);
+
+    open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
+        'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','states.npy'));
+    open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_path, ...
+        'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','timestamps.npy'));
+
+    sync_filename = [curr_data_path filesep filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.Neuropix-3a-AP' filesep 'TTL' filesep 'states.npy' ];
+    sync_timestamps_filename = [curr_data_path filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.Neuropix-3a-AP' filesep 'TTL' filesep 'timestamps.npy' ];
+
+    spike_templates_0idx = readNPY(fullfile(kilosort_path,'spike_templates.npy'));
+    templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
+    channel_positions = readNPY([fullfile(kilosort_path,'channel_positions.npy'));
+    channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));
+    winv = readNPY(fullfile(kilosort_path,'whitening_mat_inv.npy'));
+    template_amplitudes = readNPY(fullfile(kilosort_path,'amplitudes.npy'));
     
     % Default channel map/positions are from end: make from surface
     % (hardcode this: kilosort2 drops channels)
@@ -405,15 +428,9 @@ if load_parts.ephys
             % If different number of flips in ephys/timeline, best
             % contiguous set via xcorr of diff
             warning([animal ' ' rec_day ':Flipper flip times different in timeline/ephys'])
-            warning(['The fix for this is probably not robust: always check'])
-            [flipper_xcorr,flipper_lags] = ...
-                xcorr(diff(flipper_times),diff(flipper_flip_times_ephys));
-            [~,flipper_lag_idx] = max(flipper_xcorr);
-            flipper_lag = flipper_lags(flipper_lag_idx);
-            % (at the moment, assuming only dropped from ephys)
-            sync_ephys = flipper_flip_times_ephys;
-            sync_timeline = flipper_times(flipper_lag+1: ...
-                flipper_lag+1:flipper_lag+length(flipper_flip_times_ephys));
+            warning(['TEMPORARY: using only first and last flip'])
+            sync_ephys = flipper_flip_times_ephys([1,end]);
+            sync_timeline = flipper_times([1,end]);
         end
         
     else
