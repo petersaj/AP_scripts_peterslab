@@ -86,65 +86,6 @@ for curr_site = 1:length(data_paths)
         end
         fclose(fid);
         
-        
-        %% Get and save digital input events
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%% 
-
-%         Currently obsolete: loaded in loading script
-
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-        % NOTE: open ephys gives timestamps relative to start of PREVIEW,
-        % kilosort only gives timestamps relative to beginning of RECORD.
-        % This means that to match up kilosort (t(1) = 0) to OE (t(1) =
-        % arbitrary), the sync timestamps are saved as sync_timestamps -
-        % ap_timestamps(1)
-              
-        % Load spike timestamps
-        ap_timestamps_filename = fullfile(fileparts(ap_data_filename),'timestamps.npy');
-        ap_timestamps = readNPY(ap_timestamps_filename);
-        sync_timestamp_offset = ap_timestamps(1);
-                    
-        % Load digital input event times
-        sync_data = readNPY(sync_filename);
-        sync_timestamps = readNPY(sync_timestamps_filename);
-        
-        sync_channels = unique(abs(sync_data));
-        sync = struct('timestamps',cell(size(sync_channels)),'values',cell(size(sync_channels)));
-        for curr_sync = 1:length(sync_channels)
-            sync_events = abs(sync_data) == (sync_channels(curr_sync));
-            sync(curr_sync).timestamps = sync_timestamps(sync_events) - sync_timestamp_offset;
-            sync(curr_sync).values = sign(sync_data(sync_events)) == 1;
-        end
-        
-        sync_save_filename = [curr_save_path filesep 'sync.mat'];
-        save(sync_save_filename,'sync');
-
-
-%         %%%%%%%% TESTING: use sample number instead of timestamp
-%         ap_sample_number_filename = fullfile(fileparts(ap_data_filename),'sample_numbers.npy');
-%         ap_sample_number = readNPY(ap_sample_number_filename);
-%         sync_sample_number_offset = ap_sample_number(1);
-%         
-%         % Load digital input event times
-%         sync_data = readNPY(sync_filename);
-%         sync_sample_numbers_filename = [curr_data_path filesep exp_rec_dir filesep 'events' filesep 'Neuropix-3a-100.Neuropix-3a-AP' filesep 'TTL' filesep 'sample_numbers.npy' ];
-%         sync_sample_numbers = readNPY(sync_sample_numbers_filename);
-% 
-%         sync_channels = unique(abs(sync_data));
-%         sync = struct('timestamps',cell(size(sync_channels)),'values',cell(size(sync_channels)));
-%         for curr_sync = 1:length(sync_channels)
-%             sync_events = abs(sync_data) == (sync_channels(curr_sync));
-%             sync(curr_sync).timestamps = double((sync_sample_numbers(sync_events) - sync_sample_number_offset))/30000;
-%             sync(curr_sync).values = sign(sync_data(sync_events)) == 1;
-%         end
-% 
-%         sync_save_filename = [curr_save_path filesep 'sync.mat'];
-%         save(sync_save_filename,'sync');
-
-
         %% Run kilosort
         
         % Set up local directory and clear out
@@ -190,6 +131,25 @@ for curr_site = 1:length(data_paths)
         % cluster groups are not used and would otherwise be loaded by
         % default into Phy
         delete(fullfile(pykilosort_output_path,'*.tsv'))
+
+        %% Convert spike times to Open Ephys timestamps
+        % This has two advantages: 
+        % - sync timestamps can be used as-is without applying offset
+        % - compensates for dropped samples
+
+        % Load AP-band timestamps
+        openephys_ap_timestamps_filename = fullfile(fileparts(ap_data_filename),'timestamps.npy');
+        openephys_ap_timestamps = readNPY(openephys_ap_timestamps_filename);
+
+        % Convert kilosort spike time ouput (as sample index) into open
+        % ephys timestamp (in seconds)
+        spike_times_kilosort_filename = fullfile(pykilosort_output_path,'spike_times.npy');
+        spike_times_kilosort = readNPY(spike_times_kilosort_filename);
+        spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort);
+
+        % Save open ephys spike times into kilosort output folder
+        spike_times_openephys_filename = fullfile(pykilosort_output_path,'spike_times_openephys.npy');
+        writeNPY(spike_times_openephys,spike_times_openephys_filename);
         
         %% Copy kilosort results to server
                 

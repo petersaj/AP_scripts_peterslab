@@ -57,7 +57,10 @@ handles.t = wf_t(wf_frame);
 
 wf_im = plab.wf.svd2px(U,V(:,wf_frame));
 handles.wf_im = imagesc(handles.wf_axis,wf_im); axis(handles.wf_axis,'off','image');
-caxis(handles.wf_axis,[-0.2,0.2]);
+
+% Set up color axis (std non-linear so not accurate, but ballpark)
+avg_im = plab.wf.svd2px(U,nanstd(V,[],2));
+clim(handles.wf_axis,(prctile(abs(avg_im(:)),95)*5)*[-1,1]);
 
 % Set up videoreaders, relative times, and images of cameras
 discretize_times = [wf_t;wf_t(end)+framerate];

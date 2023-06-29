@@ -1,17 +1,22 @@
 
 animal = 'AP005';
 
-use_workflow = {'lcr_passive'};
+% use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
 
 recordings = ap.find_recordings(animal,use_workflow);
 
+% % (use rec number)
 % use_rec = 1;
+
+% % (use rec day)
 rec_day = '2023-06-22';
 use_rec = strcmp(rec_day,{recordings.day});
+
+% % (use last rec)
 % use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
@@ -71,6 +76,10 @@ mousecam_expose_times = timelite.timestamps(find(diff(mousecam_thresh) == 1) + 1
 widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');
 widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
 widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
+% (if stuck high at the end, bad frame: remove)
+if widefield_thresh(end)
+    widefield_expose_times(end) = [];
+end
 
 % Wheel position and velocity
 timelite_wheel_idx = strcmp({timelite.daq_info.channel_name}, 'wheel');
@@ -81,13 +90,18 @@ wheel_position = timelite.data(:,timelite_wheel_idx);
 screen_idx = strcmp({timelite.daq_info.channel_name}, 'stim_screen');
 screen_on = timelite.data(:,screen_idx) > ttl_thresh;
 
-% Photodiode flips (interpolate from previous across screen flicker)
-photodiode_thresh_level = 1; % low: has a relatively slow rise time
+% Photodiode flips
+photodiode_thresh_level = 1;
 photodiode_idx = strcmp({timelite.daq_info.channel_name}, 'photodiode');
 photodiode_thresh_screen_on = medfilt1(timelite.data(screen_on,photodiode_idx),3);
+% (interpolate from previous across screen flicker)
 photodiode_thresh = interp1(timelite.timestamps(screen_on),photodiode_thresh_screen_on, ...
     timelite.timestamps,'previous','extrap') > photodiode_thresh_level;
-photodiode_times = timelite.timestamps(find(diff(photodiode_thresh) ~= 0) + 1);
+% (usually starts gray to black, so get times from first under-thresh)
+photodiode_first_underthresh = find(~photodiode_thresh,1);
+photodiode_times = timelite.timestamps(find( ...
+    diff(photodiode_thresh(photodiode_first_underthresh:end)) ~= 0) ...
+    + photodiode_first_underthresh + 1);
 
 % Reward times (if on past certain time, valve signal flips rapidly to
 % avoid burnout - take the reward onset as flipping up and staying high for
@@ -171,7 +185,27 @@ end
 % 
 % event_t_tl = interp1(bonsai_reward_t,reward_times,event_t_bonsai,'linear','extrap');
 
-
+% Checks
+% - number of photodiode flips in Bonsai matches timelite
+if isfield(trial_events.timestamps,'StimOn')
+    bonsai_stimOn_n = length(vertcat(trial_events.timestamps.StimOn));
+    %%%%%%%% TEMPORARY: TO COMPENSATE FOR SCREEN FLICKER ISSUE WHEN
+    %%%%%%%% CLICKING AWAY FROM BONSAI FULLSCREEN WINDOW BEFORE FIXED
+    % (align first flips and look for outliers)
+    if bonsai_stimOn_n < length(photodiode_times)
+        bonsai_stim_times_relative = ...
+            seconds(vertcat(trial_events.timestamps.StimOn) - ...
+            trial_events.timestamps(1).StimOn(1)) + ...
+            photodiode_times(1);
+        bonsai_photodiode_mindiff = min(abs(bonsai_stim_times_relative - photodiode_times'),[],1);
+        bad_photodiode_idx = bonsai_photodiode_mindiff > 0.1;
+        photodiode_times(bad_photodiode_idx) = [];
+        warning('More photodiode flips than Bonsai stim: attempted correction');
+    elseif bonsai_stimOn_n > length(photodiode_times)
+        error('More Bosnai stims than photodiode flips');
+    end   
+    
+end
 
 %% Load mousecam
 
@@ -264,6 +298,12 @@ if load_parts.widefield && ...
         wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
         wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
 
+    %%%%% NOTE: 
+    % some difference from this and the old code in the higher components:
+    % e.g. the hemo estimation for component 1500 is totally different.
+    % I can't figure out the difference so I'm leaving it for now.
+    %%%%%%%%%%%
+
     % Get DF/F
     wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
 
@@ -283,12 +323,13 @@ end
 
 ephys_quality_control = false;
 
-if load_parts.ephys
+ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys');
+
+if load_parts.ephys && exist(ephys_path,'dir')
 
     if verbose; disp('Loading Ephys...'); end
 
-    % Get paths for ephys, raw data, kilosort
-    ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys');
+    % Get paths for raw data and kilosort
     kilosort_path = fullfile(ephys_path,'pykilosort');
     open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
     open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
@@ -420,13 +461,35 @@ if load_parts.ephys
             % If same number of flips in ephys/timeline, use all
             sync_timeline = flipper_times;
             sync_ephys = flipper_flip_times_ephys;
-        elseif length(flipper_flip_times_ephys) ~= length(flipper_times)
-            % If different number of flips in ephys/timeline, best
-            % contiguous set via xcorr of diff
-            warning([animal ' ' rec_day ':Flipper flip times different in timeline/ephys'])
-            warning(['TEMPORARY: using only first and last flip'])
-            sync_ephys = flipper_flip_times_ephys([1,end]);
+
+        elseif length(flipper_flip_times_ephys) < length(flipper_times)
+            warning([animal ' ' rec_day ': ephys missed flips, using first/last - better fix IN PROGRESS'])
             sync_timeline = flipper_times([1,end]);
+            sync_ephys = flipper_flip_times_ephys([1,end]);
+            
+%             sync_timeline = flipper_times;
+%             sync_ephys = flipper_flip_times_ephys;
+% 
+%             % Remove flips by flip interval until same number
+%             ephys_missed_flips_n = length(flipper_times) - length(flipper_flip_times_ephys);
+%             missed_flip_t_thresh = 0.1;
+%             while length(sync_ephys) ~= length(sync_timeline)
+%                 curr_missed_flip = ...
+%                     find(abs(diff(sync_ephys) - ...
+%                     diff(sync_timeline(1:length(sync_ephys)))) > ...
+%                     missed_flip_t_thresh,1);
+%                 sync_timeline(curr_missed_flip) = [];
+%             end
+% 
+%             % Remove remaining flips with mismatching flip intervals
+%             remove_flips = abs(diff(sync_ephys) - ...
+%                 diff(sync_timeline(1:length(sync_ephys)))) > missed_flip_t_thresh;
+%             sync_timeline(remove_flips) = [];
+%             sync_ephys(remove_flips) = [];
+
+        elseif length(flipper_flip_times_ephys) > length(flipper_times)
+            % If more flips in ephys than timeline, screwed
+            error([animal ' ' rec_day ': flips ephys > timelite'])
         end
         
     else
