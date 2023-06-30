@@ -1,10 +1,10 @@
 
-animal = 'AP005';
+animal = 'AP008';
 
-% use_workflow = {'lcr_passive'};
+use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
 
 recordings = ap.find_recordings(animal,use_workflow);
@@ -13,7 +13,7 @@ recordings = ap.find_recordings(animal,use_workflow);
 % use_rec = 1;
 
 % % (use rec day)
-rec_day = '2023-06-22';
+rec_day = '2023-06-29';
 use_rec = strcmp(rec_day,{recordings.day});
 
 % % (use last rec)
@@ -77,7 +77,7 @@ widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');
 widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
 widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
 % (if stuck high at the end, bad frame: remove)
-if widefield_thresh(end)
+if widefield_thresh(end) && ~isempty(widefield_expose_times)
     widefield_expose_times(end) = [];
 end
 
@@ -359,9 +359,7 @@ if load_parts.ephys && exist(ephys_path,'dir')
         header.(header_info{1}{i}) = header_info{2}{i};
     end
     
-    % Load raw timestamps and sync
-    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
-        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+    % Load ephys flipper
     open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
         'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','states.npy'));
     open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_path, ...
@@ -376,6 +374,13 @@ if load_parts.ephys && exist(ephys_path,'dir')
     elseif isfield(header,'ap_sample_rate')
         ephys_sample_rate = str2num(header.ap_sample_rate);
     end
+    
+    % (spike times: load open ephys times if available, create if not)
+
+    
+    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
+        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+
     % (spike times: index Open Ephys timestamps rather than assume constant
     % sampling rate as before, this accounts for potentially dropped data)
     spike_times = open_ephys_timestamps(readNPY(fullfile(kilosort_path,'spike_times.npy')));
@@ -463,25 +468,29 @@ if load_parts.ephys && exist(ephys_path,'dir')
             sync_ephys = flipper_flip_times_ephys;
 
         elseif length(flipper_flip_times_ephys) < length(flipper_times)
-            warning([animal ' ' rec_day ': ephys missed flips'])
-     
-            % Remove flips by flip interval until same number
-            ephys_missed_flips_n = length(flipper_times) - length(flipper_flip_times_ephys);
-            sync_timeline = flipper_times;
-            sync_ephys = flipper_flip_times_ephys;
-            missed_flip_t_thresh = 0.1;
-            while length(sync_ephys) ~= length(sync_timeline)
-                curr_missed_flip = ...
-                    find(abs(diff(sync_ephys) - ...
-                    diff(sync_timeline(1:length(sync_ephys)))) > ...
-                    missed_flip_t_thresh,1);
-                sync_timeline(curr_missed_flip) = [];
-            end
-
-            % Remove any mismatching flips from flip interval
-            remove_flips = abs(diff(sync_ephys) - ...
-                diff(sync_timeline(1:length(sync_ephys)))) > missed_flip_t_thresh
-
+            warning([animal ' ' rec_day ': ephys missed flips, using first/last - better fix IN PROGRESS'])
+            sync_timeline = flipper_times([1,end]);
+            sync_ephys = flipper_flip_times_ephys([1,end]);
+            
+%             sync_timeline = flipper_times;
+%             sync_ephys = flipper_flip_times_ephys;
+% 
+%             % Remove flips by flip interval until same number
+%             ephys_missed_flips_n = length(flipper_times) - length(flipper_flip_times_ephys);
+%             missed_flip_t_thresh = 0.1;
+%             while length(sync_ephys) ~= length(sync_timeline)
+%                 curr_missed_flip = ...
+%                     find(abs(diff(sync_ephys) - ...
+%                     diff(sync_timeline(1:length(sync_ephys)))) > ...
+%                     missed_flip_t_thresh,1);
+%                 sync_timeline(curr_missed_flip) = [];
+%             end
+% 
+%             % Remove remaining flips with mismatching flip intervals
+%             remove_flips = abs(diff(sync_ephys) - ...
+%                 diff(sync_timeline(1:length(sync_ephys)))) > missed_flip_t_thresh;
+%             sync_timeline(remove_flips) = [];
+%             sync_ephys(remove_flips) = [];
 
         elseif length(flipper_flip_times_ephys) > length(flipper_times)
             % If more flips in ephys than timeline, screwed

@@ -1,10 +1,10 @@
 
-animal = 'AP005';
+animal = 'AP008';
 
-% use_workflow = {'lcr_passive'};
+use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
 
 recordings = ap.find_recordings(animal,use_workflow);
@@ -13,7 +13,7 @@ recordings = ap.find_recordings(animal,use_workflow);
 % use_rec = 1;
 
 % % (use rec day)
-rec_day = '2023-06-22';
+rec_day = '2023-06-29';
 use_rec = strcmp(rec_day,{recordings.day});
 
 % % (use last rec)
@@ -77,7 +77,7 @@ widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');
 widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
 widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
 % (if stuck high at the end, bad frame: remove)
-if widefield_thresh(end)
+if widefield_thresh(end) && ~isempty(widefield_expose_times)
     widefield_expose_times(end) = [];
 end
 
@@ -359,9 +359,7 @@ if load_parts.ephys && exist(ephys_path,'dir')
         header.(header_info{1}{i}) = header_info{2}{i};
     end
     
-    % Load raw timestamps and sync
-    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
-        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+    % Load ephys flipper
     open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
         'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','states.npy'));
     open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_path, ...
@@ -376,9 +374,22 @@ if load_parts.ephys && exist(ephys_path,'dir')
     elseif isfield(header,'ap_sample_rate')
         ephys_sample_rate = str2num(header.ap_sample_rate);
     end
+    
+    % (spike times: load open ephys times if available, create if not)
+    spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.npy');
+    if exist(spike_times_openephys_filename,'file')
+        spike_times_openephys = readNPY(spike_times_openephys_filename);
+    else
+        open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
+            'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+        spike_times_openephys = open_ephys_timestamps( ...
+            readNPY(fullfile(kilosort_path,'spike_times.npy')));
+        writeNPY(spike_times_openephys,spike_times_openephys_filename);
+        fprintf('Saved spike times openephys: %s\n',spike_times_openephys_filename);
+    end
+
     % (spike times: index Open Ephys timestamps rather than assume constant
     % sampling rate as before, this accounts for potentially dropped data)
-    spike_times = open_ephys_timestamps(readNPY(fullfile(kilosort_path,'spike_times.npy')));
     spike_templates_0idx = readNPY(fullfile(kilosort_path,'spike_templates.npy'));
     templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
     channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
@@ -497,7 +508,7 @@ if load_parts.ephys && exist(ephys_path,'dir')
     end
         
     % Get spike times in timeline time
-    spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times,'linear','extrap');
+    spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times_openephys,'linear','extrap');
     
     % Get "good" templates from labels if quality control selected and
     % manual labels exist
@@ -533,7 +544,6 @@ if load_parts.ephys && exist(ephys_path,'dir')
     
     % Throw out all non-good spike data
     good_spike_idx = ismember(spike_templates_0idx,good_templates_idx);
-    spike_times = spike_times(good_spike_idx);
     spike_templates_0idx = spike_templates_0idx(good_spike_idx);
     template_amplitudes = template_amplitudes(good_spike_idx);
     spike_depths = spike_depths(good_spike_idx);

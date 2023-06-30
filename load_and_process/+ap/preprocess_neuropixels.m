@@ -132,6 +132,9 @@ for curr_site = 1:length(data_paths)
         % default into Phy
         delete(fullfile(pykilosort_output_path,'*.tsv'))
 
+        % Grab the path with kilosort results
+        pykilosort_results_path = fullfile(pykilosort_output_path,'output');
+
         %% Convert spike times to Open Ephys timestamps
         % This has two advantages: 
         % - sync timestamps can be used as-is without applying offset
@@ -143,19 +146,17 @@ for curr_site = 1:length(data_paths)
 
         % Convert kilosort spike time ouput (as sample index) into open
         % ephys timestamp (in seconds)
-        spike_times_kilosort_filename = fullfile(pykilosort_output_path,'spike_times.npy');
+        spike_times_kilosort_filename = fullfile(pykilosort_results_path,'spike_times.npy');
         spike_times_kilosort = readNPY(spike_times_kilosort_filename);
         spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort);
 
         % Save open ephys spike times into kilosort output folder
-        spike_times_openephys_filename = fullfile(pykilosort_output_path,'spike_times_openephys.npy');
+        spike_times_openephys_filename = fullfile(pykilosort_results_path,'spike_times_openephys.npy');
         writeNPY(spike_times_openephys,spike_times_openephys_filename);
         
         %% Copy kilosort results to server
                 
         disp('Copying sorted data to server...');
-
-        pykilosort_results_path = fullfile(pykilosort_output_path,'output');
         copyfile(pykilosort_results_path,curr_save_path);
         
         %% Delete all temporary local data
