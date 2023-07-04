@@ -1,30 +1,8 @@
-
-animal = 'AP008';
-
-use_workflow = {'lcr_passive'};
-% use_workflow = {'lcr_passive_fullscreen'};
-% use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-% use_workflow = 'sparse_noise';
-
-recordings = ap.find_recordings(animal,use_workflow);
-
-% % (use rec number)
-% use_rec = 1;
-
-% % (use rec day)
-rec_day = '2023-06-29';
-use_rec = strcmp(rec_day,{recordings.day});
-
-% % (use last rec)
-% use_rec = length(recordings);
-
-rec_day = recordings(use_rec).day;
-rec_time = recordings(use_rec).protocol{end};
-
-verbose = true;
-
 %% Define what to load
+
+if ~exist('verbose','var')
+    verbose = false;
+end
 
 if verbose; fprintf('Loading %s, %s, Protocol %s\n', animal, rec_day, rec_time); end;
 
@@ -91,13 +69,31 @@ screen_idx = strcmp({timelite.daq_info.channel_name}, 'stim_screen');
 screen_on = timelite.data(:,screen_idx) > ttl_thresh;
 
 % Photodiode flips
-photodiode_thresh_level = 1;
 photodiode_idx = strcmp({timelite.daq_info.channel_name}, 'photodiode');
-photodiode_thresh_screen_on = medfilt1(timelite.data(screen_on,photodiode_idx),3);
-% (interpolate from previous across screen flicker)
-photodiode_thresh = interp1(timelite.timestamps(screen_on),photodiode_thresh_screen_on, ...
-    timelite.timestamps,'previous','extrap') > photodiode_thresh_level;
+if all(screen_on)
+    % (if no screen flicker, use as is)
+    photodiode_trace = timelite.data(screen_on,photodiode_idx);
+else
+    % (if screen flicker: median filter and interpolate across flicker)
+    photodiode_trace = ...
+        interp1(timelite.timestamps(screen_on), ...
+        medfilt1(timelite.data(screen_on,photodiode_idx),3), ...
+        timelite.timestamps,'previous','extrap');
+end
+photodiode_bw_thresh = [0.2,2.8]; % [black,white]
+photodiode_bw = photodiode_trace < photodiode_bw_thresh(1) | ...
+    photodiode_trace > photodiode_bw_thresh(2);
+% (use only first to last bw: exclude initial/end gray)
+use_photodiode_idx = find(photodiode_bw,1,'first'):find(photodiode_bw,1,'last');
+photodiode_times = timelite.timestamps(find(diff( ...
+    photodiode_bw(1:find(photodiode_bw,1,'last')) == -1)) + 1);
+
+diff(photodiode_bw(use_photodiode_idx) == -1)
+
+photodiode_thresh = photodiode_trace > photodiode_thresh_level;
 % (usually starts gray to black, so get times from first under-thresh)
+photodiode_gray_thresh
+
 photodiode_first_underthresh = find(~photodiode_thresh,1);
 photodiode_times = timelite.timestamps(find( ...
     diff(photodiode_thresh(photodiode_first_underthresh:end)) ~= 0) ...
@@ -171,40 +167,51 @@ if strcmp(bonsai_workflow,'sparse_noise')
 end
 
 
-%%%%% testing: bonsai times into timelite times
-% bonsai_reward_datetime = [trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome];
-% bonsai_relative_t = bonsai_reward_datetime(1);
-% 
-% bonsai_reward_t = seconds(bonsai_reward_datetime - bonsai_relative_t);
-% 
-% % event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
-% event_datetime = vertcat(trial_events.timestamps.QuiescenceStart);
-% % event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
-% 
-% event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
-% 
-% event_t_tl = interp1(bonsai_reward_t,reward_times,event_t_bonsai,'linear','extrap');
+%%%% testing: bonsai times into timelite times
+% % (reward)
+% timelite2bonsai = reward_times;
+% bonsai2timelite_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
+% (stim)
+timelite2bonsai = stimOn_times;
+bonsai2timelite_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
+bonsai_relative_t = bonsai2timelite_datetime(1);
+bonsai2timelite = seconds(bonsai2timelite_datetime - bonsai_relative_t);
+
+% event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
+event_datetime = vertcat(trial_events.timestamps.QuiescenceStart);
+% event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
+
+event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
+
+event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
+
 
 % Checks
 % - number of photodiode flips in Bonsai matches timelite
 if isfield(trial_events.timestamps,'StimOn')
-    bonsai_stimOn_n = length(vertcat(trial_events.timestamps.StimOn));
-    %%%%%%%% TEMPORARY: TO COMPENSATE FOR SCREEN FLICKER ISSUE WHEN
-    %%%%%%%% CLICKING AWAY FROM BONSAI FULLSCREEN WINDOW BEFORE FIXED
-    % (align first flips and look for outliers)
-    if bonsai_stimOn_n < length(photodiode_times)
-        bonsai_stim_times_relative = ...
+    bonsai_stimOn_n = length(vertcat(trial_events.timestamps.StimOn));    
+    bonsai_stim_times_relative = ...
             seconds(vertcat(trial_events.timestamps.StimOn) - ...
             trial_events.timestamps(1).StimOn(1)) + ...
             photodiode_times(1);
+    if bonsai_stimOn_n < length(photodiode_times)        
+        %%%%%%%% TEMPORARY: TO COMPENSATE FOR SCREEN FLICKER ISSUE WHEN
+        %%%%%%%% CLICKING AWAY FROM BONSAI FULLSCREEN WINDOW BEFORE FIXED
+        % (align first flips and look for outliers)
         bonsai_photodiode_mindiff = min(abs(bonsai_stim_times_relative - photodiode_times'),[],1);
         bad_photodiode_idx = bonsai_photodiode_mindiff > 0.1;
         photodiode_times(bad_photodiode_idx) = [];
         warning('More photodiode flips than Bonsai stim: attempted correction');
+    elseif bonsai_stimOn_n > length(photodiode_times) && ...
+            all(bonsai_stim_times_relative(length(photodiode_times)+1:end) > ...
+            photodiode_times(end))
+        % If extra Bonsai stim after last photodiode time, assume missed by
+        % timelite and do nothing
     elseif bonsai_stimOn_n > length(photodiode_times)
-        error('More Bosnai stims than photodiode flips');
-    end   
-    
+        % Otherwise if more Bonsai stim than photodiode, error
+        error('More Bonsai stims than photodiode flips');
+    end
+
 end
 
 %% Load mousecam
@@ -376,14 +383,20 @@ if load_parts.ephys && exist(ephys_path,'dir')
     end
     
     % (spike times: load open ephys times if available, create if not)
-
-    
-    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
-        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+    spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.npy');
+    if exist(spike_times_openephys_filename,'file')
+        spike_times_openephys = readNPY(spike_times_openephys_filename);
+    else
+        open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
+            'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+        spike_times_openephys = open_ephys_timestamps( ...
+            readNPY(fullfile(kilosort_path,'spike_times.npy')));
+        writeNPY(spike_times_openephys,spike_times_openephys_filename);
+        fprintf('Saved spike times openephys: %s\n',spike_times_openephys_filename);
+    end
 
     % (spike times: index Open Ephys timestamps rather than assume constant
     % sampling rate as before, this accounts for potentially dropped data)
-    spike_times = open_ephys_timestamps(readNPY(fullfile(kilosort_path,'spike_times.npy')));
     spike_templates_0idx = readNPY(fullfile(kilosort_path,'spike_templates.npy'));
     templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
     channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
@@ -502,7 +515,7 @@ if load_parts.ephys && exist(ephys_path,'dir')
     end
         
     % Get spike times in timeline time
-    spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times,'linear','extrap');
+    spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times_openephys,'linear','extrap');
     
     % Get "good" templates from labels if quality control selected and
     % manual labels exist
@@ -538,7 +551,6 @@ if load_parts.ephys && exist(ephys_path,'dir')
     
     % Throw out all non-good spike data
     good_spike_idx = ismember(spike_templates_0idx,good_templates_idx);
-    spike_times = spike_times(good_spike_idx);
     spike_templates_0idx = spike_templates_0idx(good_spike_idx);
     template_amplitudes = template_amplitudes(good_spike_idx);
     spike_depths = spike_depths(good_spike_idx);
