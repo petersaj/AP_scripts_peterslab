@@ -4,12 +4,12 @@
 
 %% Load data
 
-animal = 'AM002';
+animal = 'AP008';
 
-% use_workflow = {'lcr_passive'};
+use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
 
 recordings = ap.find_recordings(animal,use_workflow);
@@ -18,7 +18,7 @@ recordings = ap.find_recordings(animal,use_workflow);
 % use_rec = 1;
 
 % (use rec day)
-rec_day = '2023-06-30';
+rec_day = '2023-06-27';
 use_rec = strcmp(rec_day,{recordings.day});
 
 % % (use last rec)
@@ -65,7 +65,7 @@ stim_to_move = wheel_move_time - stimOn_times;
 
 if contains(bonsai_workflow,'lcr')
     % (L/C/R passive)
-    align_times_all = photodiode_times(1:2:end);
+    align_times_all = stimOn_times;
     align_category_all = vertcat(trial_events.values.TrialStimX);
     % (get only quiescent trials)
     [~,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
@@ -88,13 +88,14 @@ elseif contains(bonsai_workflow,'stim_wheel')
 
     % (get wheel starts when no stim on screen: not sure this works yet)
     wheel_starts_iti = ...
-        wheel_starts(interp1(timelite.timestamps, ...
-        +photodiode_thresh,wheel_starts,'previous') == 0);
+        wheel_starts(interp1(photodiode_times, ...
+        photodiode_values,wheel_starts,'previous') == 0);
 
     [~,rxn_sort_idx] = sort(stim_to_move);
     AP_cellraster({stimOn_times,wheel_move_time,wheel_starts_iti,reward_times}, ...
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
+
 
 %% Ephys sparse noise? 
 
@@ -753,7 +754,7 @@ end
 
 %% TESTING BATCH BEHAVIOR
 
-animal = 'AM002';
+animal = 'AP009';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 
@@ -787,7 +788,7 @@ for curr_recording = 1:length(recordings)
     cellfun(@(x) x(1),{trial_events.timestamps(1:n_trials).StimOn})));
 
     % Align wheel movement to stim onset
-    align_times = photodiode_times(photodiode_values == 1);
+    align_times = stimOn_times;
     pull_times = align_times + surround_time_points;
 
     [wheel_velocity,wheel_move] = ...

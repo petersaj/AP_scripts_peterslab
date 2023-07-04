@@ -88,7 +88,7 @@ photodiode_bw(photodiode_trace < photodiode_bw_thresh(1)) = 0;
 photodiode_bw(photodiode_trace > photodiode_bw_thresh(2)) = 1;
 photodiode_bw_interp = interp1(find(~isnan(photodiode_bw)), ...
     photodiode_bw(~isnan(photodiode_bw)), ...
-    1:length(photodiode_bw),'next','extrap');
+    1:length(photodiode_bw),'next','extrap')';
 
 photodiode_flip_idx = find(diff(photodiode_bw_interp) ~= 0 & ...
     ~isnan(photodiode_bw_interp(2:end))) + 1;
@@ -111,6 +111,7 @@ reward_idx = strcmp({timelite.daq_info.channel_name}, 'reward_valve');
 reward_thresh = timelite.data(:,reward_idx) >= ttl_thresh;
 reward_on_pattern = [0,ones(1,3)]; % flip up, be consecutively high
 reward_times = timelite.timestamps(strfind(reward_thresh',reward_on_pattern));
+
 
 %% Load Bonsai
 
@@ -197,6 +198,9 @@ bonsai_stim_times_relative = ...
     seconds(vertcat(trial_events.timestamps.StimOn) - ...
     trial_events.timestamps(1).StimOn(1)) + ...
     photodiode_times(1);
+
+% Get stim times depending on Bonsai workflow
+stimOn_times = photodiode_times(photodiode_values == 1);
 
 
 %% Load mousecam
