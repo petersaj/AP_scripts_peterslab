@@ -4,7 +4,7 @@
 
 %% Load data
 
-animal = 'AP008';
+animal = 'AM002';
 
 % use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
@@ -18,7 +18,7 @@ recordings = ap.find_recordings(animal,use_workflow);
 % use_rec = 1;
 
 % (use rec day)
-rec_day = '2023-06-28';
+rec_day = '2023-06-30';
 use_rec = strcmp(rec_day,{recordings.day});
 
 % % (use last rec)
@@ -787,7 +787,7 @@ for curr_recording = 1:length(recordings)
     cellfun(@(x) x(1),{trial_events.timestamps(1:n_trials).StimOn})));
 
     % Align wheel movement to stim onset
-    align_times = photodiode_times(1:2:end);
+    align_times = photodiode_times(photodiode_values == 1);
     pull_times = align_times + surround_time_points;
 
     [wheel_velocity,wheel_move] = ...

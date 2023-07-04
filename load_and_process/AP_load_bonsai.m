@@ -28,6 +28,11 @@ bonsai_table_opts = setvaropts(bonsai_table_opts,'Timestamp','Type','datetime', 
 % Load Bonsai CSV file
 data = readtable(fn,bonsai_table_opts);
 
+% Check for NaT timestamps, throw warning if any
+if any(isnat(data.Timestamp))
+    warning('Bonsai file ends improperly: %s',fn);
+end
+
 % Create nested structure for trial events
 trial_events = struct('parameters',cell(1),'values',cell(1),'timestamps',cell(1)); 
 
