@@ -48,20 +48,29 @@ for curr_site = 1:length(data_paths)
             mkdir(curr_save_path)
         end
               
-        % Get OE filenames
-        % (check for multiple experiments, CURRENTLY: only do last)
+        % Find Open Ephys recordings
         experiment_dir = dir(fullfile(curr_exp_path,'recording*'));
 
-        curr_recording_path = fullfile(experiment_dir(end).folder,experiment_dir(end).name);
+        % If more than one recording, error out at the moment
+        % (multiple recordings = record stopped/started, preview continuous)
+        % (in future, could manually concatenate them - pykilosort allows
+        % for py.lists of filenames, but it assumes chronic so performs
+        % some chronic drift correction which is broken)
+        if length(experiment_dir) > 1
+            error('%s %s: multiple recordings, not handled in kilosort code yet',animal,day);
+        end
 
-        ap_data_filename = fullfile(curr_recording_path, 'continuous', 'Neuropix-3a-100.Neuropix-3a-AP', 'continuous.dat');
-        lfp_data_filename = fullfile(curr_recording_path, 'continuous', 'Neuropix-3a-100.Neuropix-3a-LFP', 'continuous.dat');
-        sync_filename = fullfile(curr_recording_path, 'events', 'Neuropix-3a-100.Neuropix-3a-AP', 'TTL', 'states.npy');
-        sync_timestamps_filename = fullfile(curr_recording_path, 'events', 'Neuropix-3a-100.Neuropix-3a-AP', 'TTL', 'timestamps.npy');
-        messages_filename = fullfile(curr_recording_path, 'sync_messages.txt');
-        settings_filename = fullfile(curr_recording_path, 'structure.oebin');
+        % Get Open Ephys filenames
+        ap_data_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
+            'continuous', 'Neuropix-3a-100.Neuropix-3a-AP', 'continuous.dat');
+
+%         % (sync not used - loaded when loading experiment)
+%         sync_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
+%             'events', 'Neuropix-3a-100.Neuropix-3a-AP', 'TTL', 'states.npy');
+%         sync_timestamps_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
+%             'events', 'Neuropix-3a-100.Neuropix-3a-AP', 'TTL', 'timestamps.npy');
         
-        
+
         %% Get and save recording parameters
         
         % The gains and filter cuts aren't recorded anymore?!
@@ -92,6 +101,39 @@ for curr_site = 1:length(data_paths)
             fprintf(fid,formatSpec,params{curr_param,:});
         end
         fclose(fid);
+
+        %% Get and save digital input events
+        
+%         %%%%%%%%%%%%%%%%%%%%%%%%%%% 
+% 
+% %         Currently obsolete: loaded in loading script
+% 
+%         %%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+%         % NOTE: open ephys gives timestamps relative to start of PREVIEW,
+%         % kilosort only gives timestamps relative to beginning of RECORD.
+%         % This means that to match up kilosort (t(1) = 0) to OE (t(1) =
+%         % arbitrary), the sync timestamps are saved as sync_timestamps -
+%         % ap_timestamps(1)
+%               
+%         % Load spike timestamps
+%         ap_timestamps_filename = fullfile(fileparts(ap_data_filename),'timestamps.npy');
+%         ap_timestamps = readNPY(ap_timestamps_filename);
+%                     
+%         % Load digital input event times
+%         sync_data = readNPY(sync_filename);
+%         sync_timestamps = readNPY(sync_timestamps_filename);
+%         
+%         sync_channels = unique(abs(sync_data));
+%         open_ephys_ttl = struct('timestamps',cell(size(sync_channels)),'values',cell(size(sync_channels)));
+%         for curr_sync = 1:length(sync_channels)
+%             sync_events = abs(sync_data) == (sync_channels(curr_sync));
+%             open_ephys_ttl(curr_sync).timestamps = sync_timestamps(sync_events);
+%             open_ephys_ttl(curr_sync).values = sign(sync_data(sync_events)) == 1;
+%         end
+%         
+%         sync_save_filename = [curr_save_path filesep 'open_ephys_ttl.mat'];
+%         save(sync_save_filename,'open_ephys_ttl');
         
         %% Run kilosort
         
@@ -105,9 +147,15 @@ for curr_site = 1:length(data_paths)
         mkdir(ssd_kilosort_path);
         
         % Copy AP-band data locally
-        disp('Copying AP data to local drive...')
-        apband_local_filename = [ssd_kilosort_path filesep animal '_' day  '_' 'ephys_apband.dat'];
-        copyfile(ap_data_filename,apband_local_filename);
+        disp('Copying AP data to local drive...')        
+        apband_local_filename = arrayfun(@(x) ...
+            fullfile(ssd_kilosort_path,sprintf('ap_data_%d.dat',x)), ...
+            1:length(ap_data_filename),'uni',false);
+
+        for curr_recording = 1:length(ap_data_filename)         
+            copyfile(ap_data_filename{curr_recording}, ...
+                apband_local_filename{curr_recording});
+        end
         disp('Done');
         
         % Set up python
@@ -123,24 +171,10 @@ for curr_site = 1:length(data_paths)
             split(pre_pykilosort_syspath,pathsep)),'stable'),pathsep);
         setenv('PATH',run_pykilosort_syspath);
 
-        % Run pykilosort
-        % (directly on raw data - pykilosort does local common average
-        pykilosort_output_path = fullfile(ssd_kilosort_path,'pykilosort');
+        % Run pykilosort (does common average referencing by default)
         pyrunfile('AP_run_pykilosort.py', ...
             data_filename = apband_local_filename, ...
             pykilosort_output_path = pykilosort_output_path);
-        %%%%%%%%%% WORKING HERE
-        error('building concat here')
-        % tried doing filename = ['file1','file2'], didn't work
-        pykilosort_output_path = fullfile(ssd_kilosort_path,'pykilosort');
-
-        apband_local_filename = [ ...
-            'D:\data_temp\kilosort\AP009_2023-07-04_ephys_apband_rec1.dat,', ...
-            'D:\data_temp\kilosort\AP009_2023-07-04_ephys_apband_rec2.dat'];
-        pyrunfile('AP_run_pykilosort.py', ...
-            data_filename = apband_local_filename, ...
-            pykilosort_output_path = pykilosort_output_path);
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         % Revert system paths to pre-pykilosort
         % (just in case alternate python environments used elsewhere)
