@@ -4,12 +4,12 @@
 
 %% Load data
 
-animal = 'AP009';
+animal = 'AP008';
 
-% use_workflow = {'lcr_passive'};
+use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
 
 recordings = ap.find_recordings(animal,use_workflow);
@@ -18,7 +18,7 @@ recordings = ap.find_recordings(animal,use_workflow);
 % use_rec = 1;
 
 % (use rec day)
-rec_day = '2023-07-04';
+rec_day = '2023-07-05';
 use_rec = strcmp(rec_day,{recordings.day});
 
 % % (use last rec)
@@ -754,7 +754,7 @@ end
 
 %% TESTING BATCH BEHAVIOR
 
-animal = 'AM002';
+animal = 'AM001';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 

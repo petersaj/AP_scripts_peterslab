@@ -147,15 +147,11 @@ for curr_site = 1:length(data_paths)
         mkdir(ssd_kilosort_path);
         
         % Copy AP-band data locally
-        disp('Copying AP data to local drive...')        
-        apband_local_filename = arrayfun(@(x) ...
-            fullfile(ssd_kilosort_path,sprintf('ap_data_%d.dat',x)), ...
-            1:length(ap_data_filename),'uni',false);
+        disp('Copying AP data to local drive...') 
+        apband_local_filename = fullfile(ssd_kilosort_path, ...
+            sprintf('%s_%s_apband.dat',animal,day));
 
-        for curr_recording = 1:length(ap_data_filename)         
-            copyfile(ap_data_filename{curr_recording}, ...
-                apband_local_filename{curr_recording});
-        end
+        copyfile(ap_data_filename, apband_local_filename);
         disp('Done');
         
         % Set up python
@@ -172,6 +168,7 @@ for curr_site = 1:length(data_paths)
         setenv('PATH',run_pykilosort_syspath);
 
         % Run pykilosort (does common average referencing by default)
+        pykilosort_output_path = fullfile(ssd_kilosort_path,'pykilosort');
         pyrunfile('AP_run_pykilosort.py', ...
             data_filename = apband_local_filename, ...
             pykilosort_output_path = pykilosort_output_path);
@@ -180,13 +177,13 @@ for curr_site = 1:length(data_paths)
         % (just in case alternate python environments used elsewhere)
         setenv('PATH',pre_pykilosort_syspath);
 
+        % Grab the path with results (pykilosort makes this)
+        pykilosort_results_path = fullfile(pykilosort_output_path,'output');
+
         % Delete TSV files (KSLabel, group, ContamPct, Amplitude), these
         % cluster groups are not used and would otherwise be loaded by
         % default into Phy
-        delete(fullfile(pykilosort_output_path,'*.tsv'))
-
-        % Grab the path with kilosort results
-        pykilosort_results_path = fullfile(pykilosort_output_path,'output');
+        delete(fullfile(pykilosort_results_path,'*.tsv'))
 
         %% Convert spike times to Open Ephys timestamps
         % This has two advantages: 
@@ -201,7 +198,24 @@ for curr_site = 1:length(data_paths)
         % ephys timestamp (in seconds)
         spike_times_kilosort_filename = fullfile(pykilosort_results_path,'spike_times.npy');
         spike_times_kilosort = readNPY(spike_times_kilosort_filename);
-        spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort);
+
+        % NOTE: sometimes kilsort outputs indicies of spike times which are
+        % past the length of the recording??! Give a warning and calculate
+        % those times with the sample rate
+        spike_times_kilosort_validtime = spike_times_kilosort <= length(openephys_ap_timestamps);
+        if all(spike_times_kilosort_validtime)
+            spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort);
+        else
+            kilosort_times_overshoot = double(max(spike_times_kilosort) - ...
+                length(openephys_ap_timestamps))/ap_sample_rate;
+            warning('Kilosort %s %s: Kilosort spike times exceed data length by %.2fs', ....
+                animal,day,kilosort_times_overshoot);
+            spike_times_openephys = nan(size(spike_times_kilosort));
+            spike_times_openephys(spike_times_kilosort_validtime) = ...
+                openephys_ap_timestamps(spike_times_kilosort(spike_times_kilosort_validtime));
+            spike_times_openephys(~spike_times_kilosort_validtime) = ...
+                ((double(spike_times_kilosort(~spike_times_kilosort_validtime))-1)/ap_sample_rate);
+        end
 
         % Save open ephys spike times into kilosort output folder
         spike_times_openephys_filename = fullfile(pykilosort_results_path,'spike_times_openephys.npy');
@@ -213,6 +227,7 @@ for curr_site = 1:length(data_paths)
         copyfile(pykilosort_results_path,curr_save_path);
         
         %% Delete all temporary local data
+        
         rmdir(ssd_kilosort_path,'s');
         mkdir(ssd_kilosort_path);
         

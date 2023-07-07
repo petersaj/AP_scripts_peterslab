@@ -442,16 +442,13 @@ if load_parts.ephys && exist(ephys_path,'dir')
     
     % Get flipper experiment boundaries by long delays
     flip_diff_thresh = 5; % time between flips to define experiment gap (s)
-    flipper_protocol_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
+    flipper_expt_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
         flip_diff_thresh)+1;length(open_ephys_flipper.timestamps)+1];
 
-    % Get index of protocol within day and use corresponding flips
-    protocol_idx = strcmp(ap.find_recordings(animal,rec_day).protocol,rec_time);
-    if length(protocol_idx) ~= length(flipper_protocol_idx)-1
-        error('Ephys flip boundaries don''t match number of protocols')
-    end
+    % Get index of experiment within day and use corresponding flips
+    experiment_idx = strcmp(ap.find_recordings(animal,rec_day).protocol,rec_time);
     flipper_flip_times_ephys = open_ephys_flipper.timestamps( ...
-        flipper_protocol_idx(protocol_idx):flipper_protocol_idx(find(protocol_idx)+1)-1);
+        flipper_expt_idx(experiment_idx):flipper_expt_idx(experiment_idx+1)-1);
 
     % Pick flipper times to use for alignment
     if length(flipper_flip_times_ephys) == length(flipper_times)
