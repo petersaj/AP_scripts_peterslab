@@ -213,8 +213,12 @@ for curr_site = 1:length(data_paths)
             spike_times_openephys = nan(size(spike_times_kilosort));
             spike_times_openephys(spike_times_kilosort_validtime) = ...
                 openephys_ap_timestamps(spike_times_kilosort(spike_times_kilosort_validtime));
+            % (get samples from end, add to last timestamp - can't use
+            % offset from first timestamp if timestamps aren't consistent)
             spike_times_openephys(~spike_times_kilosort_validtime) = ...
-                ((double(spike_times_kilosort(~spike_times_kilosort_validtime))-1)/ap_sample_rate);
+                double(spike_times_kilosort(~spike_times_kilosort_validtime) - ...
+                length(openephys_ap_timestamps))/ap_sample_rate + ...
+                openephys_ap_timestamps(end);
         end
 
         % Save open ephys spike times into kilosort output folder

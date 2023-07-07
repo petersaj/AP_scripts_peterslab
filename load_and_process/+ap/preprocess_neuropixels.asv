@@ -202,7 +202,7 @@ for curr_site = 1:length(data_paths)
         % NOTE: sometimes kilsort outputs indicies of spike times which are
         % past the length of the recording??! Give a warning and calculate
         % those times with the sample rate
-        spike_times_kilosort_validtime = spike_times_kilosort <= length(spike_times_kilosort);
+        spike_times_kilosort_validtime = spike_times_kilosort <= length(openephys_ap_timestamps);
         if all(spike_times_kilosort_validtime)
             spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort);
         else
@@ -213,14 +213,13 @@ for curr_site = 1:length(data_paths)
             spike_times_openephys = nan(size(spike_times_kilosort));
             spike_times_openephys(spike_times_kilosort_validtime) = ...
                 openephys_ap_timestamps(spike_times_kilosort(spike_times_kilosort_validtime));
-            spike_times_openephys(spike_times_kilosort_validtime) = ...
-                openephys_ap_timestamps(spike_times_kilosort(spike_times_kilosort_validtime));
+            % (get samples from end, add to last timestamp)
+            spike_times_openephys(~spike_times_kilosort_validtime) = ...
+spike_times_kilosort(~spike_times_kilosort_validtime) - length(openephys_ap_timestamps)
 
-            b = ((double(spike_times_kilosort(~spike_times_kilosort_validtime))-1)/ap_sample_rate);
-
-
+                ((double(spike_times_kilosort(~spike_times_kilosort_validtime))-1)/ap_sample_rate) + ...
+                openephys_ap_timestamps(1);
         end
-        spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort(spike_times_kilosort_validtime));
 
         % Save open ephys spike times into kilosort output folder
         spike_times_openephys_filename = fullfile(pykilosort_results_path,'spike_times_openephys.npy');
@@ -232,6 +231,7 @@ for curr_site = 1:length(data_paths)
         copyfile(pykilosort_results_path,curr_save_path);
         
         %% Delete all temporary local data
+        
         rmdir(ssd_kilosort_path,'s');
         mkdir(ssd_kilosort_path);
         

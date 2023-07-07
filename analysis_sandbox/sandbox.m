@@ -4,7 +4,7 @@
 
 %% Load data
 
-animal = 'AP008';
+animal = 'AP009';
 
 use_workflow = {'lcr_passive'};
 % use_workflow = {'lcr_passive_fullscreen'};
