@@ -113,7 +113,6 @@ end
 %
 % event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
 
-
 % (temp: checking photodiode matches)
 bonsai_stimOn_n = length(vertcat(trial_events.timestamps.StimOn));
 bonsai_stim_times_relative = ...

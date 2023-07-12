@@ -1,9 +1,15 @@
 function preprocess_neuropixels(animal,day)
 % preprocess_neuropixels(animal,day)
-%
-% Spike sorts with Pykilosort (into 'pykilosort' folder)
-%
 % Currently assumes Neuropixels Phase 3A recorded with Open Ephys
+
+%% Set user locations
+
+% Path to copy and sort locally
+local_kilosort_path = 'D:\data_temp\kilosort';
+
+% Path to pykilosort python environment
+pykilosort_python_environment = pyenv('Version','C:\Users\petersa\anaconda3\envs\pyks2\pythonw.exe');
+
 
 %% Get paths and filenames
 
@@ -110,7 +116,7 @@ for curr_site = 1:length(data_paths)
         
 %         %%%%%%%%%%%%%%%%%%%%%%%%%%% 
 % 
-% %         Currently obsolete: loaded in loading script
+%         Obsolete: original values loaded in loading script
 % 
 %         %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 
@@ -141,38 +147,33 @@ for curr_site = 1:length(data_paths)
         
         %% Run kilosort
         
-        % Set up local directory and clear out
-        ssd_kilosort_path = 'D:\data_temp\kilosort';
-        
         % Clear out local kilosort directories
-        if exist(ssd_kilosort_path,'dir')
-            rmdir(ssd_kilosort_path,'s')
+        if exist(local_kilosort_path,'dir')
+            rmdir(local_kilosort_path,'s')
         end
-        mkdir(ssd_kilosort_path);
+        mkdir(local_kilosort_path);
         
         % Copy AP-band data locally
         disp('Copying AP data to local drive...') 
-        apband_local_filename = fullfile(ssd_kilosort_path, ...
+        apband_local_filename = fullfile(local_kilosort_path, ...
             sprintf('%s_%s_apband.dat',animal,day));
 
         copyfile(ap_data_filename, apband_local_filename);
         disp('Done');
         
         % Set up python
-        % (set pykilosort python environment)
-        py_version = pyenv('Version','C:\Users\petersa\anaconda3\envs\pyks2\pythonw.exe');
         % (add pykilosort environment paths to windows system path)
         pre_pykilosort_syspath = getenv('PATH');
         py_env_paths = {
-            fullfile(char(py_version.Home),'Library','bin'); ...
-            fullfile(char(py_version.Home),'Scripts')};
+            fullfile(char(pykilosort_python_environment.Home),'Library','bin'); ...
+            fullfile(char(pykilosort_python_environment.Home),'Scripts')};
         run_pykilosort_syspath = strjoin( ...
             unique(cat(1,py_env_paths, ...
             split(pre_pykilosort_syspath,pathsep)),'stable'),pathsep);
         setenv('PATH',run_pykilosort_syspath);
 
         % Run pykilosort (does common average referencing by default)
-        pykilosort_output_path = fullfile(ssd_kilosort_path,'pykilosort');
+        pykilosort_output_path = fullfile(local_kilosort_path,'pykilosort');
         pyrunfile('AP_run_pykilosort.py', ...
             data_filename = apband_local_filename, ...
             pykilosort_output_path = pykilosort_output_path);
@@ -236,13 +237,13 @@ for curr_site = 1:length(data_paths)
         
         %% Delete all temporary local data
         
-        rmdir(ssd_kilosort_path,'s');
-        mkdir(ssd_kilosort_path);
+        rmdir(local_kilosort_path,'s');
+        mkdir(local_kilosort_path);
         
     end
     
 end
 
-fprintf('Done preprocessing Neuropixels: %s %s',animal,day);
+fprintf('\nDone preprocessing Neuropixels: %s %s\n',animal,day);
 
 

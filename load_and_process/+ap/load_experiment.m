@@ -24,45 +24,35 @@ else
     end
 end
 
-%% Get datetime of selected recording
-
+% Get datetime of selected recording
 rec_datetime = datetime(strjoin({rec_day,rec_time}), ...
                 'InputFormat','yyyy-MM-dd HHmm');
 
-%% Load timelite and associated inputs
+%% Load experiment components
 
+% Load timelite and associated inputs
 ap.load_timelite
 
-%% Load Bonsai
-
+% Load Bonsai
 ap.load_bonsai
 
-%% Load mousecam
-
+% Load mousecam
 ap.load_mousecam
 
-%% Load widefield
-
+% Load widefield
 if load_parts.widefield && ...
-        exist(plab.locations.make_server_filename( ...
-        animal,rec_day,[],'widefield'),'dir')
-
+        exist(plab.locations.make_server_filename(animal,rec_day,[],'widefield'),'dir')
     ap.load_widefield
-
 end
 
-%% Load ephys
+% Load ephys
 if load_parts.ephys && ...
-        exist(plab.locations.make_server_filename( ...
-        animal,rec_day,[],'ephys'),'dir')
-
+        exist(plab.locations.make_server_filename(animal,rec_day,[],'ephys'),'dir')
     ap.load_ephys
-
 end
 
 
 %% Experiment scroller
-
 
 % AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
 
