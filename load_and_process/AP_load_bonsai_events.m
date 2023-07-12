@@ -1,4 +1,4 @@
-function trial_events = AP_load_bonsai(fn)
+function trial_events = AP_load_bonsai_events(fn)
 % Load Bonsai events file saved with CSVWRITER, output structure of events
 %
 % INPUTS: 
