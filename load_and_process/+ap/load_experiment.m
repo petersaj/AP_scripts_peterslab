@@ -361,7 +361,7 @@ if load_parts.ephys && exist(ephys_path,'dir')
                     'InputFormat','dd MMM yyyy HH:mm:ss');
             end
 
-            [~,ephys_use_site] = find(ephys_site_datetime - rec_datetime < 0,1,'last');
+            ephys_use_site = find(ephys_site_datetime - rec_datetime < 0,1,'last');
 
             kilosort_path = fullfile(kilosort_top_path, ...
                 ephys_site_paths(ephys_use_site).name);
@@ -498,8 +498,9 @@ if load_parts.ephys && exist(ephys_path,'dir')
     protocol_datetimes = ...
         cellfun(@(x) datetime(strjoin({rec_day,x}),'InputFormat','yyyy-MM-dd HHmm'), ...
         day_protocols);
-
-    ephys_included_protocols = find(ephys_datetime - protocol_datetimes < 0, ...
+    % (add 1 minute leeway on recording time since seconds not included)
+    ephys_included_protocols = find(ephys_datetime -  ...
+        (protocol_datetimes + minutes(1)) < 0, ...
         length(flipper_protocol_idx)-1,'first');
     ephys_protocol_idx = strcmp(day_protocols(ephys_included_protocols),rec_time);
 
