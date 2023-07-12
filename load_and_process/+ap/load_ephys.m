@@ -33,7 +33,9 @@ elseif any(contains({kilosort_dir.name},'site'))
                 'InputFormat','dd MMM yyyy HH:mm:ss');
         end
 
-        ephys_use_site = find(ephys_site_datetime - rec_datetime < 0,1,'last');
+        % (add 1 minute leeway to recording time since no seconds)
+        ephys_use_site = find(ephys_site_datetime - ...
+            (rec_datetime + minutes(1)) < 0,1,'last');
 
         kilosort_path = fullfile(kilosort_top_path, ...
             ephys_site_paths(ephys_use_site).name);
@@ -50,9 +52,11 @@ ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
 % Load probe position from trajectory explorer, if exists
-probe_positions_filename = dir(fullfile(fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
+probe_positions_filename = dir(fullfile( ...
+    fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
 if ~isempty(probe_positions_filename)
-    probe_positions = load(fullfile(probe_positions_filename.folder,probe_positions_filename.name));
+    probe_positions = load(fullfile( ...
+        probe_positions_filename.folder,probe_positions_filename.name));
 end
 
 % Load phy sorting if it exists

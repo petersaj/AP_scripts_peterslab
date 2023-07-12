@@ -25,7 +25,7 @@ use_rec = strcmp(rec_day,{recordings.day});
 % use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
-rec_time = recordings(use_rec).protocol{2};
+rec_time = recordings(use_rec).protocol{4};
 
 verbose = true;
 
