@@ -24,6 +24,10 @@ else
     end
 end
 
+%% Get datetime of selected recording
+
+rec_datetime = datetime(strjoin({rec_day,rec_time}), ...
+                'InputFormat','yyyy-MM-dd HHmm');
 
 %% Load timelite and associated inputs
 
@@ -325,13 +329,55 @@ if load_parts.ephys && exist(ephys_path,'dir')
 
     if verbose; disp('Loading Ephys...'); end
 
-    % Get paths for raw data and kilosort
-    kilosort_path = fullfile(ephys_path,'pykilosort');
-    open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
-    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
-        
-    % These are the digital channels going into the FPGA
-    flipper_sync_idx = 1;
+    % Get path for raw data and kilosort
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% IN PROGRESS
+
+    % TO DO: 
+    % - if multiple sites (in serial), grab closest to protocol
+    % - if multiple probes (in parallel), load and package all
+
+    kilosort_top_path = fullfile(ephys_path,'pykilosort');    
+    kilosort_dir = dir(kilosort_top_path);
+
+    if ~any([kilosort_dir.isdir] & ~contains({kilosort_dir.name},'.'))
+        % If no kilosort subfolders, use that top path
+        kilosort_path = kilosort_top_path;
+        open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
+        open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+
+    elseif any(contains({kilosort_dir.name},'site'))
+        % If multiple sites (in serial), choose last before protocol
+        ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
+        if ~isempty(ephys_site_paths)
+            ephys_site_datetime = NaT(size(ephys_site_paths));
+            for curr_site = 1:length(ephys_site_paths)
+                curr_ephys_settings_file = fullfile( ...
+                    ephys_path,ephys_site_paths(curr_site).name, ...
+                    'settings.xml');                
+                curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
+                ephys_site_datetime(curr_site) = ...
+                    datetime(curr_ephys_settings.INFO.DATE, ...
+                    'InputFormat','dd MMM yyyy HH:mm:ss');
+            end
+
+            [~,ephys_use_site] = find(ephys_site_datetime - rec_datetime < 0,1,'last');
+
+            kilosort_path = fullfile(kilosort_top_path, ...
+                ephys_site_paths(ephys_use_site).name);
+            open_ephys_path_dir = dir(fullfile(ephys_path, ...
+                ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));
+            open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+        end
+    end
+  
+    % Get start time of ephys recording
+    ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir.folder),'settings.xml');
+    ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
+    ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
+                    'InputFormat','dd MMM yyyy HH:mm:ss');
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % Load phy sorting if it exists
     % (old = cluster_groups.csv, new = cluster_group.tsv)
@@ -356,6 +402,7 @@ if load_parts.ephys && exist(ephys_path,'dir')
     end
     
     % Load ephys flipper
+    flipper_sync_idx = 1;
     open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
         'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','states.npy'));
     open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_path, ...
@@ -442,13 +489,29 @@ if load_parts.ephys && exist(ephys_path,'dir')
     
     % Get flipper experiment boundaries by long delays
     flip_diff_thresh = 5; % time between flips to define experiment gap (s)
-    flipper_expt_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
+    flipper_protocol_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
         flip_diff_thresh)+1;length(open_ephys_flipper.timestamps)+1];
 
-    % Get index of experiment within day and use corresponding flips
-    experiment_idx = strcmp(ap.find_recordings(animal,rec_day).protocol,rec_time);
+    %%%%%%%% WORKING HERE
+
+    % Get protocols within recording (first protocol after recording starts
+    % until number of recorded protocols)
+    protocol_datetimes = ...
+        cellfun(@(x) datetime(strjoin({rec_day,x}),'InputFormat','yyyy-MM-dd HHmm'), ...
+        ap.find_recordings(animal,rec_day).protocol);
+
+    ephys_protocol_idx = find(ephys_datetime - protocol_datetimes < 0, ...
+        length(flipper_protocol_idx)-1,'first')
+
+    %%%%%%%%%%%%%%%%
+
+    % Get index of protocol within day and use corresponding flips
+    protocol_idx = strcmp(ap.find_recordings(animal,rec_day).protocol,rec_time);
+    if length(protocol_idx) ~= length(flipper_protocol_idx)-1
+        error('Ephys flip boundaries don''t match number of protocols')
+    end
     flipper_flip_times_ephys = open_ephys_flipper.timestamps( ...
-        flipper_expt_idx(experiment_idx):flipper_expt_idx(experiment_idx+1)-1);
+        flipper_protocol_idx(protocol_idx):flipper_protocol_idx(find(protocol_idx)+1)-1);
 
     % Pick flipper times to use for alignment
     if length(flipper_flip_times_ephys) == length(flipper_times)

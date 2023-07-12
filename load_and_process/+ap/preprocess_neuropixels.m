@@ -18,8 +18,12 @@ end
 save_paths = {[ephys_path filesep 'pykilosort']};
 data_paths = {ephys_path};
 
-% Check for multiple sites (assume sites are marked as site#)
-data_path_dir = dir([data_paths{1} filesep 'probe_*']);
+% Get ephys recording paths
+% probe_n = multiple probes simultaneously
+% site_n = multiple sites recorded in serial
+data_path_dir = ...
+    [dir(fullfile(data_paths{1}, 'probe_*')), ...
+    dir(fullfile(data_paths{1}, 'site_*'))];
 if ~isempty(data_path_dir)
     data_paths = cellfun(@(x) [data_paths{1} filesep x],{data_path_dir.name},'uni',false);
     save_paths = cellfun(@(x) [save_paths{1} filesep x],{data_path_dir.name},'uni',false);
