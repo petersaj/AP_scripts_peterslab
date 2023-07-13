@@ -4,7 +4,7 @@
 
 %% Load data
 
-animal = 'AP008';
+animal = 'AP009';
 
 % use_workflow = {'lcr_passive'};
 use_workflow = {'lcr_passive_fullscreen'};
@@ -18,18 +18,34 @@ recordings = ap.find_recordings(animal,use_workflow);
 % use_rec = 1;
 
 % (use rec day)
-rec_day = '2023-07-11';
+rec_day = '2023-07-12';
 use_rec = strcmp(rec_day,{recordings.day});
 
 % % (use last rec)
 % use_rec = length(recordings);
 
 rec_day = recordings(use_rec).day;
-rec_time = recordings(use_rec).protocol{4};
+rec_time = recordings(use_rec).protocol{1};
 
 verbose = true;
 
 ap.load_experiment;
+
+%% Plot loaded probe positions
+
+probe_areas = probe_positions.probe_areas{1}.atlas_id;
+
+probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+    probe_positions.probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
+
+probe_area_boundaries = find(diff([NaN;probe_areas;NaN]) ~= 0);
+probe_area_centers_idx = probe_area_boundaries(1:end-1) + round(diff(probe_area_boundaries)/2);
+probe_areas_label = probe_positions.probe_areas{1}.safe_name(probe_area_centers_idx,:);
+
+figure('color','w');
+image(probe_areas_rgb);
+yline(probe_area_boundaries,'color','k','linewidth',1);
+set(gca,'YTick',probe_area_centers_idx,'YTickLabels',probe_areas_label);
 
 
 %% Get move times in task (put into load)
