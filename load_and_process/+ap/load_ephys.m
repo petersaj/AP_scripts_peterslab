@@ -70,17 +70,6 @@ if ~isempty(cluster_filedir)
     fclose(fid);
 end
 
-% Read header information
-header_path = [kilosort_path filesep 'dat_params.txt'];
-header_fid = fopen(header_path);
-header_info = textscan(header_fid,'%s %s', 'delimiter',{' = '});
-fclose(header_fid);
-
-header = struct;
-for i = 1:length(header_info{1})
-    header.(header_info{1}{i}) = header_info{2}{i};
-end
-
 % Load ephys flipper
 flipper_sync_idx = 1;
 open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
@@ -92,11 +81,7 @@ open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx
 open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
 
 % Load kilosort data
-if isfield(header,'sample_rate')
-    ephys_sample_rate = str2num(header.sample_rate);
-elseif isfield(header,'ap_sample_rate')
-    ephys_sample_rate = str2num(header.ap_sample_rate);
-end
+ephys_sample_rate = 30000; % (just hardcoded for now, it never changes)
 
 % (spike times: load open ephys times if available, create if not)
 spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.npy');
