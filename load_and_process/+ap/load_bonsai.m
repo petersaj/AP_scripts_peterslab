@@ -18,10 +18,10 @@ if exist(bonsai_events_fn,'file')
         'DatetimeFormat','yyyy-MM-dd HH:mm:ss.SSS');
 
     % Load Bonsai CSV file
-    data = readtable(bonsai_events_fn,bonsai_table_opts);
+    bonsai_events_raw = readtable(bonsai_events_fn,bonsai_table_opts);
 
     % Check for NaT timestamps, throw warning if any
-    if any(isnat(data.Timestamp))
+    if any(isnat(bonsai_events_raw.Timestamp))
         warning('Bonsai file ends improperly: %s',bonsai_events_fn);
     end
 
@@ -29,23 +29,23 @@ if exist(bonsai_events_fn,'file')
     trial_events = struct('parameters',cell(1),'values',cell(1),'timestamps',cell(1));
 
     % Save anything in "Trial 0" as a parameter
-    parameter_idx = data.Trial == 0;
-    unique_parameters = unique(data.Event(parameter_idx));
+    parameter_idx = bonsai_events_raw.Trial == 0;
+    unique_parameters = unique(bonsai_events_raw.Event(parameter_idx));
     for curr_parameter = unique_parameters'
-        curr_parameter_idx = parameter_idx & strcmp(data.Event,curr_parameter);
-        trial_events.parameters.(cell2mat(curr_parameter)) = data.Value(curr_parameter_idx);
+        curr_parameter_idx = parameter_idx & strcmp(bonsai_events_raw.Event,curr_parameter);
+        trial_events.parameters.(cell2mat(curr_parameter)) = bonsai_events_raw.Value(curr_parameter_idx);
     end
 
     % Loop through trials (excluding 0), save values and timestamps for all events
     % (exclude entries with empty events - happens sometimes on last entry)
-    empty_events = cellfun(@isempty,data.Event);
-    n_trials = max(data.Trial);
-    unique_events = unique(data.Event(~parameter_idx & ~empty_events));
+    empty_events = cellfun(@isempty,bonsai_events_raw.Event);
+    n_trials = max(bonsai_events_raw.Trial);
+    unique_events = unique(bonsai_events_raw.Event(~parameter_idx & ~empty_events));
     for curr_trial = 1:n_trials
         for curr_event = unique_events'
-            curr_event_idx = data.Trial == curr_trial & strcmp(data.Event,curr_event);
-            trial_events.values(curr_trial).(cell2mat(curr_event)) = data.Value(curr_event_idx);
-            trial_events.timestamps(curr_trial).(cell2mat(curr_event)) = data.Timestamp(curr_event_idx);
+            curr_event_idx = bonsai_events_raw.Trial == curr_trial & strcmp(bonsai_events_raw.Event,curr_event);
+            trial_events.values(curr_trial).(cell2mat(curr_event)) = bonsai_events_raw.Value(curr_event_idx);
+            trial_events.timestamps(curr_trial).(cell2mat(curr_event)) = bonsai_events_raw.Timestamp(curr_event_idx);
         end
     end
 end

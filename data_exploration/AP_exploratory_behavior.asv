@@ -236,16 +236,20 @@ load_parts.behavior = true;
 ap.load_experiment;
 
 % Convert wheel into Bonsai times
-% (sync with reward - I'm not happy about this)
+% (done with reward - I'm not happy about this)
 timelite2bonsai = reward_times;
-
 bonsai2timelite_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
 bonsai_relative_t = bonsai2timelite_datetime(1);
-bonsai2timelite = seconds(bonsai2timelite_datetime-bonsai_relative_t);
 
-timelite_bonsai_timestamps = ...
-    bonsai_relative_t + seconds( ...
-    interp1(timelite2bonsai,bonsai2timelite,timelite.timestamps,'linear','extrap'));
+timelite_timestamps_
+
+% event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
+event_datetime = vertcat(trial_events.timestamps.QuiescenceStart);
+% event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
+
+event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
+
+event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
 
 % Get quiescence reset times
 iti_range = trial_events.parameters.ITITimes;
@@ -253,13 +257,12 @@ quiescence_range = trial_events.parameters.QuiescenceTimes;
 
 for curr_trial = 1:length(trial_events)
 
-    curr_iti_start_t = trial_events.timestamps(curr_trial).ITIStart;
+    curr_iti_start = trial_events.timestamps(curr_trial).ITIStart;
 
     curr_quiescence_resets_sec = seconds( ...
         trial_events.timestamps(curr_trial).QuiescenceReset - ...
         trial_events.timestamps(curr_trial).QuiescenceStart);
 
-    curr_outcome_t = trial_events.timestamps(curr_trial).Outcome;
 
     % TO DO: NEED TO CALCULATE
     % - would-be quiescence resets during ITI (if ITI was shorter)
@@ -268,15 +271,6 @@ for curr_trial = 1:length(trial_events)
     % will need this: trial_events.parameters.QuiescenceThreshold
     % and the wheel trace in bonsai time
     % (NOTE: THAT WILL BE DIFFICULT - SHOULD PUT FLIPPER INTO BONSAI)
-
-    % Grab wheel trace from ITI start to reward
-    curr_use_t = timelite_bonsai_timestamps >= curr_iti_start_t & ...
-        timelite_bonsai_timestamps <= curr_outcome_t;
-    curr_wheel_pos = wheel_position(curr_use_t);
-
-    %%%% NOT READY
-    % quiescence resets are cumulative: need to calculate accumulated ticks
-    % and check against actual quiescence resets
 
     curr_quiescence_lengths = diff(curr_quiescence_resets_sec);
 

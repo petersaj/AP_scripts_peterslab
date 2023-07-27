@@ -17,14 +17,32 @@ recordings = ap.find_recordings(animal,use_workflow);
 % % (use rec number)
 % use_rec = 1;
 
+% (use rec day)
+rec_day = '2023-07-12';
+use_rec = strcmp(rec_day,{recordings.day});
+
+% % (use last rec)
+% use_rec = length(recordings);
+
+rec_day = recordings(use_rec).day;
+rec_time = recordings(use_rec).protocol{1};
+
+verbose = true;
+
+ap.load_experiment;
+
 %% Testing MCMS API
 
 % MCMS API documentation is here:
-% https://oxford-uat.colonymanagement.org/api/swagger-ui/index.html
+% Production: https://oxford.colonymanagement.org/api/swagger-ui/index.html
+% Test: https://oxford-uat.colonymanagement.org/api/swagger-ui/index.html
 
 % Get authentication token
 
-basicUrl = 'https://oxford-uat.colonymanagement.org/api';
+% (production)
+basicUrl = 'https://oxford.colonymanagement.org/api';
+% (test database)
+% basicUrl = 'https://oxford-uat.colonymanagement.org/api';
 authenticateEndpoint = [basicUrl '/authenticate'];
 
 usr = 'ap7';
@@ -43,6 +61,7 @@ options = weboptions( ...
     'RequestMethod','post', ...
     'HeaderFields',header_cell);
 mcms_token = webread(authenticateEndpoint,options);
+
 
 % Get procedure list
 
@@ -85,9 +104,8 @@ data_timestamps = datetime({data.sampleDate},'InputFormat','yyyy-MM-dd''T''HH:mm
 [data(sort_idx).weightValue]
 
 
-% Get name
-
-curr_animal = 'TOAA1.1a';
+% Get animal via name
+curr_animal = 'TOAA2.1d';
 endpoint = [basicUrl '/animals/name/' curr_animal];
 headers = struct;
 headers.Accept = 'application/json';
@@ -118,6 +136,59 @@ options = weboptions( ...
     'HeaderFields',header_cell);
 
 data = webread(endpoint,options);
+
+% Cohort history
+curr_animal = '2152600';
+endpoint = [basicUrl '/animalcohorthistory/animal/' curr_animal];
+headers = struct;
+headers.Accept = 'application/json';
+headers.Authorization = ['Bearer ' mcms_token.token];
+
+header_cell = [fieldnames(headers),struct2cell(headers)];
+
+options = weboptions( ...
+    'MediaType','application/json', ...
+    'ContentType','json', ...
+    'HeaderFields',header_cell);
+
+data = webread(endpoint,options);
+
+
+%% temp histology: combine jpg channels
+
+hist_path = "P:\Data\AP004\histology";
+save_path = "C:\Users\petersa\Desktop\test_histology";
+for slice = 1:8
+    curr_g_filename = fullfile(hist_path,sprintf('thalamus_%d_g.jpg',slice));
+    curr_r_filename = fullfile(hist_path,sprintf('thalamus_%d_r.jpg',slice));
+
+    curr_g = imread(curr_g_filename);
+    curr_r = imread(curr_r_filename);
+
+    curr_gr = curr_g + curr_r*3;
+
+    curr_gr_filename = fullfile(save_path,sprintf('%d.tif',slice));
+    imwrite(curr_gr,curr_gr_filename);
+end
+
+%% temp histology: convert single jpeg to tiff
+
+hist_path = "P:\Data\AP009\histology";
+save_path = "C:\Users\petersa\Desktop\test_histology";
+for slice = 1:18
+    curr_filename = fullfile(hist_path,sprintf('%d.jpg',slice));
+    curr_im = imread(curr_filename);
+
+    curr_im = curr_im.*5;
+
+    curr_save_filename = fullfile(save_path,sprintf('%d.tif',slice));
+    imwrite(curr_im,curr_save_filename);
+end
+
+%% temp: plot probe histology and intended together
+
+nte_filename = "P:\Data\AP004\2023-06-22\ephys\AP004_2023-06-22_probe_positions.mat";
+hist_filename = "P:\Data\AP004\histology\slices\probe_ccf.mat";
 
 
 
