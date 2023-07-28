@@ -235,55 +235,117 @@ rec_time = recordings.protocol{rec_idx};
 load_parts.behavior = true;
 ap.load_experiment;
 
-% Convert wheel into Bonsai times
-% (done with reward - I'm not happy about this)
-timelite2bonsai = reward_times;
-bonsai2timelite_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
-bonsai_relative_t = bonsai2timelite_datetime(1);
-
-timelite_timestamps_
-
-% event_datetime = cellfun(@(x) x(1),{trial_events.timestamps.StimOn}');
-event_datetime = vertcat(trial_events.timestamps.QuiescenceStart);
-% event_datetime = vertcat(trial_events.timestamps.QuiescenceReset);
-
-event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
-
-event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
+% NOT NECESSARY AT THE MOMENT
+% (only add if need more alternates)
+% % Convert wheel into Bonsai times
+% % (sync with reward - I'm not happy about this)
+% timelite2bonsai = reward_times;
+% 
+% bonsai2timelite_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
+% bonsai_relative_t = bonsai2timelite_datetime(1);
+% bonsai2timelite = seconds(bonsai2timelite_datetime-bonsai_relative_t);
+% 
+% timelite_bonsai_timestamps = ...
+%     bonsai_relative_t + seconds( ...
+%     interp1(timelite2bonsai,bonsai2timelite,timelite.timestamps,'linear','extrap'));
 
 % Get quiescence reset times
 iti_range = trial_events.parameters.ITITimes;
 quiescence_range = trial_events.parameters.QuiescenceTimes;
 
-for curr_trial = 1:length(trial_events)
+stimOn_times_valid = cell(n_trials,1);
+for curr_trial = 1:n_trials
 
-    curr_iti_start = trial_events.timestamps(curr_trial).ITIStart;
+%     curr_iti_start_t = trial_events.timestamps(curr_trial).ITIStart;
+% 
+%     curr_quiescence_durations = seconds( ...
+%         trial_events.timestamps(curr_trial).QuiescenceReset - ...
+%         trial_events.timestamps(curr_trial).QuiescenceStart);
+% 
+%     curr_outcome_t = trial_events.timestamps(curr_trial).Outcome;
 
-    curr_quiescence_resets_sec = seconds( ...
-        trial_events.timestamps(curr_trial).QuiescenceReset - ...
-        trial_events.timestamps(curr_trial).QuiescenceStart);
+%     % TO DO: NEED TO CALCULATE
+%     % - would-be quiescence resets during ITI (if ITI was shorter)
+%     % - first post-stim movement time (to get final quiescence length)
+%     %
+%     % will need this: trial_events.parameters.QuiescenceThreshold
+%     % and the wheel trace in bonsai time
+%     % (NOTE: THAT WILL BE DIFFICULT - SHOULD PUT FLIPPER INTO BONSAI)
+%    
+%     % Grab wheel trace from ITI start to reward
+%     curr_use_t = timelite_bonsai_timestamps >= curr_iti_start_t & ...
+%         timelite_bonsai_timestamps <= curr_outcome_t;
+%     curr_wheel_ticks = [diff(wheel_position(curr_use_t));0];
+% 
+%     % Estimate quiescence resets: abs cumulative > threshold
+%     % Testing a short version here: find every nth click (or if ticks in
+%     % one sample are over threshold)
+%     x = mod(cumsum(abs(curr_wheel_ticks)),trial_events.parameters.QuiescenceThreshold);
+%     x2 = ([0;diff(x)] == -(trial_events.parameters.QuiescenceThreshold-1)) | ...
+%         (abs(curr_wheel_ticks) > trial_events.parameters.QuiescenceThreshold);
+%     % It looks like bonsai is way less sensitive that nidaq, lots of
+%     % quiescence resets in nidaq estimation that aren't in bonsai
 
+    % ANOTHER SIMPLER OPTION: don't include alternate ITIs, just use
+    % quiescence resets as-is (this will give many less combinations so
+    % won't have the same power, but it's more accurate and easier)
+    
+    % Get quiescence durations (time difference between [quiescence start,
+    % quiescence resets, stim time + response move time])
+    % (NOTE: response move time is calculated elswhere, can't accurately
+    % estimate Bonsai quiescence resets from nidaq)
+    
+    response_move_timestamp = trial_events.timestamps(curr_trial).StimOn(1) + ...
+        seconds(stim_to_move(curr_trial));
 
-    % TO DO: NEED TO CALCULATE
-    % - would-be quiescence resets during ITI (if ITI was shorter)
-    % - first post-stim movement time (to get final quiescence length)
-    %
-    % will need this: trial_events.parameters.QuiescenceThreshold
-    % and the wheel trace in bonsai time
-    % (NOTE: THAT WILL BE DIFFICULT - SHOULD PUT FLIPPER INTO BONSAI)
+    curr_quiescence_resets = vertcat(...
+        trial_events.timestamps(curr_trial).QuiescenceStart, ... % start of quiescence period
+        trial_events.timestamps(curr_trial).QuiescenceReset, ... % all quiescence resets
+        response_move_timestamp);                                % first post-stim movement
 
-    curr_quiescence_lengths = diff(curr_quiescence_resets_sec);
+    curr_quiescence_durations = seconds(diff(curr_quiescence_resets));
 
-    curr_quiescence = trial_events.values(curr_trial).TrialQuiescence;
-
+    % Get valid quiescence times that would yield same response movement
+    % (i.e. last quiescence duration was first over-threshold)
+    quiescence_overthresh_grid = curr_quiescence_durations > quiescence_range';
+    valid_quiescence_times = quiescence_range( ...
+        (sum(quiescence_overthresh_grid,1) == 1) & quiescence_overthresh_grid(end,:));
+    
+    % Get valid stim offsets (timelite/phodiode)
+    % (get offsets between actual and valid quiescence times, apply to
+    % actual stim times to get all valid stim times)
+    valid_quiescence_offsets =  ...
+        valid_quiescence_times - trial_events.values(curr_trial).TrialQuiescence;
+    
+    stimOn_times_valid{curr_trial} = stimOn_times(curr_trial) + valid_quiescence_offsets;
 
 end
 
-% Find all possible stim times
+stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
+    stimOn_times_valid,num2cell(poststim_move_time),'uni',false);
 
-% Get alternate stim times that would have produced same first move
+stim_to_move_null = poststim_move_time - stimOn_times;
 
-% Sanity check: real stim time is in possible stim times
+% Use only trials with array of valid stim times 
+% (sometimes empty because inexact Bonsai timing, e.g. a quiescence period
+% was barely fulfilled so not registered as fulfilled in Bonsai)
+use_trials = cellfun(@length,stim_to_move_valid) ~= 0;
+
+n_samples = 1000;
+stim_to_move_null = cellfun(@(x) datasample(x,n_samples),stim_to_move_valid(use_trials),'uni',false);
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

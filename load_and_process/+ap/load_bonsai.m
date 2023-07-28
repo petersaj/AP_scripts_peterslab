@@ -125,34 +125,18 @@ stimOn_times = photodiode_times(photodiode_values == 1);
 
 %% Workflow-specific loading
 
-% Task: get time to response movement onset
+% Task: get time from stim to response (first) movement onset
 if contains(bonsai_workflow,'stim_wheel')
 
-    % Align wheel movement to stim onset
-    stimOn_times = photodiode_times(1:2:end);
+    % Use only trials with outcome
+    n_trials = length([trial_events.timestamps.Outcome]);
 
-    [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-    surround_sample_rate = timelite.daq_info(1).rate;
-    wheel_window = [-0.5,2];
-    wheel_window_t = wheel_window(1):1/surround_sample_rate:wheel_window(2);
-    wheel_window_t_peri_event = stimOn_times + wheel_window_t;
-    stim_aligned_wheel = interp1(timelite.timestamps, ...
-        wheel_velocity,wheel_window_t_peri_event);
+    % Use 'wheel_move' from AP_parse_wheel, created in ap.load_timelite
+    poststim_move_times = cellfun(@(x) x + ...
+        find(wheel_move(timelite.timestamps >= x),1,'first')/timelite.daq_info(1).rate, ...
+        num2cell(stimOn_times(1:n_trials)));
 
-    % (set a threshold in speed and time for wheel movement)
-    thresh_displacement = 0.025;
-    time_over_thresh = 0.05; % ms over velocity threshold to count
-    samples_over_thresh = time_over_thresh.*surround_sample_rate;
-    wheel_over_thresh_fullconv = convn( ...
-        abs(stim_aligned_wheel) > thresh_displacement, ...
-        ones(1,samples_over_thresh)) >= samples_over_thresh;
-    wheel_over_thresh = wheel_over_thresh_fullconv(:,end-size(stim_aligned_wheel,2)+1:end);
-
-    [move_trial,wheel_move_sample] = max(wheel_over_thresh,[],2);
-    wheel_move_time = arrayfun(@(x) wheel_window_t_peri_event(x,wheel_move_sample(x)),1:size(wheel_window_t_peri_event,1))';
-    wheel_move_time(~move_trial) = NaN;
-
-    stim_to_move = wheel_move_time - stimOn_times;
+    stim_to_move = poststim_move_times - stimOn_times(1:n_trials);
 
 end
 
