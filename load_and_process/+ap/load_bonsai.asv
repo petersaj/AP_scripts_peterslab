@@ -108,27 +108,30 @@ stimOn_times = photodiode_times(photodiode_values == 1);
 %% Workflow-specific loading
 
 % Task: get time from stim to response (first) movement onset
-% (use parsed wheel from ap.parse_wheel)
 if contains(bonsai_workflow,'stim_wheel')
 
     % Use only trials with outcome
     n_trials = length([trial_events.timestamps.Outcome]);
 
-    % Find the last move stop before stim on 
-    % (sometimes this isn't after the stimulus: Bonsai's quiescence clock
-    % isn't very accurate)
+    % Find the last stop before movement to the first start
     last_prestim_move_stop = cellfun(@(x) ...
         find(~wheel_move(timelite.timestamps <= x),1,'last') + 1, ...
         num2cell(stimOn_times(1:n_trials)));
 
-    % Find the first move start after the pre-stim move stop
-    % (usually this is the first post-stim move, sometimes this is before
-    % stim if quiescence clock didn't work)
     stim_move_time = cellfun(@(x) ...
         timelite.timestamps((x-1) + find(wheel_move(x:end),1,'first')), ...
         num2cell(last_prestim_move_stop));
 
-    stim_to_move = stim_move_time - stimOn_times(1:n_trials);
+    %%%%%% CURRENTLY HERE
+
+    find(wheel_move(find(~wheel_move(timelite.timestamps < x),1,'last'):end,1,'first')), ...
+        num2cell(stimOn_times(1:n_trials)));
+
+    poststim_move_times = cellfun(@(x) x + ...
+        find(wheel_move(timelite.timestamps >= x),1,'first')/timelite.daq_info(1).rate, ...
+        num2cell(stimOn_times(1:n_trials)));
+
+    stim_to_move = poststim_move_times - stimOn_times(1:n_trials);
 
 end
 

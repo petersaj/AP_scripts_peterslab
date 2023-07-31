@@ -215,7 +215,6 @@ for curr_recording = 1:length(recordings)
     align_times_all = photodiode_times(1:2:end);
     align_category_all = vertcat(trial_events.values.TrialStimX);
     % (get only quiescent trials)
-    [wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
     framerate = 30;
     wheel_window = [0,0.5];
     wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);

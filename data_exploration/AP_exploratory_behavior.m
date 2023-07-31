@@ -115,9 +115,9 @@ hold on;
 plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.values),'b','linewidth',2);
 
 
-%% TESTING BATCH BEHAVIOR
+%% Behavior across days
 
-animal = 'AP009';
+animal = 'AP005';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 
@@ -155,9 +155,6 @@ for curr_recording = 1:length(recordings)
     align_times = stimOn_times;
     pull_times = align_times + surround_time_points;
 
-    [wheel_velocity,wheel_move] = ...
-        AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-
     frac_move_day(curr_recording) = nanmean(wheel_move);
 
     event_aligned_wheel_vel = interp1(timelite.timestamps, ...
@@ -172,6 +169,12 @@ for curr_recording = 1:length(recordings)
 
     stimOn_times_valid = cell(n_trials,1);
     for curr_trial = 1:n_trials
+
+        % Old bug: before trial 1 delay, sometimes first trial quiescence
+        % wasn't saved properly. If no trial quiescence, skip trial.
+        if isempty(trial_events.values(curr_trial).TrialQuiescence)
+            continue
+        end
 
         % NOTE: this is only using alternate quiescence periods, not alternate
         % ITIs. No quiescence clock during ITI means no direct Bonsai measure
@@ -208,11 +211,13 @@ for curr_recording = 1:length(recordings)
     end
 
     stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
-        stimOn_times_valid,num2cell(poststim_move_times),'uni',false);
+        stimOn_times_valid,num2cell(stim_move_time),'uni',false);
 
-    % Use only trials with array of valid stim times (inexact Bonsai timing
-    % sometimes misses a fulfilled quiescence period)
-    null_use_trials = cellfun(@length,stim_to_move_valid) ~= 0;
+    % Set trials to use for null calculation: 
+    % - has valid stim times (Bonsai sometimes misses a fulfilled quiescence period)
+    % - reaction time is > 100 ms (either lucky guess, or Bonsai had bad quiescence clock)
+    null_use_trials = cellfun(@length,stim_to_move_valid) ~= 0 & ...
+        stim_to_move > 0.1;
 
     n_samples = 10000;
     stim_to_move_null = cell2mat(cellfun(@(x) datasample(x,n_samples)', ...
