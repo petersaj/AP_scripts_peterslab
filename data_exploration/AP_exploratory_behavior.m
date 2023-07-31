@@ -117,7 +117,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animal = 'AP006';
+animal = 'AP009';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 
@@ -243,7 +243,8 @@ relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+
 nonrecorded_day = setdiff(1:length(recordings),relative_day);
 
 figure('Name',animal);
-tiledlayout('flow');
+t = tiledlayout('flow');
+title(t,animal);
 
 nexttile;
 yyaxis left; plot(relative_day,n_trials_water(:,1));
@@ -254,6 +255,7 @@ xlabel('Day');
 if any(nonrecorded_day)
     xline(nonrecorded_day,'--k');
 end
+xline(relative_day(learned_day),'g')
 
 nexttile;
 yyaxis left
@@ -264,6 +266,7 @@ xlabel('Day');
 if any(nonrecorded_day)
     xline(nonrecorded_day,'--k');
 end
+xline(relative_day(learned_day),'g')
 
 yyaxis right
 prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);

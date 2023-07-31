@@ -27,9 +27,9 @@ wheel_position = reshape(wheel_position,[],1);
 % Turn position into single clicks (position diff with leading 0)
 wheel_clicks = [0;diff(wheel_position)]; % rotary encoder clicks
 
-% Get rid of single wheel clicks within smoothing window
+% Get rid of single-timepoint wheel clicks within smoothing window
 % (otherwise it's below meaningful velocity detection threshold)
-wheel_clicks_use = movsum(abs(wheel_clicks),wheel_smooth_samples) > 1;
+wheel_clicks_use = movsum(abs(wheel_clicks) > 0,wheel_smooth_samples) > 1;
 wheel_clicks_clean = wheel_clicks.*wheel_clicks_use;
 
 % Get velocity (in clicks/s: sum in window, divide by window time)
