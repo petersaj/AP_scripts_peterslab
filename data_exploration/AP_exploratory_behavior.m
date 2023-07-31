@@ -117,7 +117,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animal = 'AP009';
+animal = 'AP004';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 
@@ -237,7 +237,7 @@ for curr_recording = 1:length(recordings)
 
 end
 
-learned_day = rxn_stat_p < 0.01;
+learned_day = rxn_stat_p < 0.05;
 
 relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
 nonrecorded_day = setdiff(1:length(recordings),relative_day);
