@@ -117,7 +117,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animal = 'AP005';
+animal = 'AP006';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 
@@ -213,17 +213,22 @@ for curr_recording = 1:length(recordings)
     stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
         stimOn_times_valid,num2cell(stim_move_time),'uni',false);
 
-    % Set trials to use for null calculation: 
-    % - has valid stim times (Bonsai sometimes misses a fulfilled quiescence period)
-    % - reaction time is > 100 ms (either lucky guess, or Bonsai had bad quiescence clock)
-    null_use_trials = cellfun(@length,stim_to_move_valid) ~= 0 & ...
-        stim_to_move > 0.1;
+    % Create null reaction distribution (only from trials will valid stim
+    % times: sometimes none if Bonsai quiescence clock on trial bad)
+    null_use_trials = cellfun(@length,stim_to_move_valid) ~= 0;
 
     n_samples = 10000;
-    stim_to_move_null = cell2mat(cellfun(@(x) datasample(x,n_samples)', ...
+    stim_to_move_null = nan(length(stim_to_move),n_samples);
+    stim_to_move_null(null_use_trials,:) = ...
+        cell2mat(cellfun(@(x) datasample(x,n_samples)', ...
         stim_to_move_valid(null_use_trials),'uni',false));
 
-    rxn_stat_rank = tiedrank([median(stim_to_move(null_use_trials)),median(stim_to_move_null,1)]);
+    % Get reaction statistic (ignore trials with <100ms reaction: these are
+    % too fast to be responses and are lucky timing guesses)
+    rxn_stat = nanmedian(stim_to_move.*AP_nanout(stim_to_move < 0.1),1);
+    rxn_null_stat = nanmedian(stim_to_move_null.*AP_nanout(stim_to_move_null < 0.1),1);
+
+    rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
     rxn_stat_p(curr_recording) = rxn_stat_rank(1)./(n_samples+1);
 
     % Clear vars except pre-load for next loop
@@ -232,7 +237,7 @@ for curr_recording = 1:length(recordings)
 
 end
 
-learned_day = rxn_stat_p < 0.05;
+learned_day = rxn_stat_p < 0.01;
 
 relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
 nonrecorded_day = setdiff(1:length(recordings),relative_day);
