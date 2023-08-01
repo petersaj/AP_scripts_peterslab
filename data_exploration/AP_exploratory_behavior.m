@@ -117,7 +117,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animal = 'AP004';
+animal = 'AP009';
 use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 recordings = ap.find_recordings(animal,use_workflow);
 
@@ -164,72 +164,9 @@ for curr_recording = 1:length(recordings)
 
     frac_move_stimalign(curr_recording,:) = nanmean(event_aligned_wheel_move,1);
 
-    % Determine if reaction times are faster than chance (learned day)
-    quiescence_range = trial_events.parameters.QuiescenceTimes;
-
-    stimOn_times_valid = cell(n_trials,1);
-    for curr_trial = 1:n_trials
-
-        % Old bug: before trial 1 delay, sometimes first trial quiescence
-        % wasn't saved properly. If no trial quiescence, skip trial.
-        if isempty(trial_events.values(curr_trial).TrialQuiescence)
-            continue
-        end
-
-        % NOTE: this is only using alternate quiescence periods, not alternate
-        % ITIs. No quiescence clock during ITI means no direct Bonsai measure
-        % of would-be quiescence resets, and they're not accurately estimatable
-        % from NIDAQ because of timing/precision differences. This means that
-        % there's fewer "valid" stim times, so less statistical power, and may
-        % err on the side of missing learned days.
-
-        % Get quiescence durations
-        response_move_timestamp = trial_events.timestamps(curr_trial).StimOn(1) + ...
-            seconds(stim_to_move(curr_trial));
-
-        curr_quiescence_resets = vertcat(...
-            trial_events.timestamps(curr_trial).QuiescenceStart, ... % start of quiescence period
-            trial_events.timestamps(curr_trial).QuiescenceReset, ... % all quiescence resets
-            response_move_timestamp);                                % first post-stim movement
-
-        curr_quiescence_durations = seconds(diff(curr_quiescence_resets));
-
-        % Get valid quiescence times that would yield same response movement
-        % (i.e. last quiescence duration was first over-threshold)
-        quiescence_overthresh_grid = curr_quiescence_durations > quiescence_range';
-        valid_quiescence_times = quiescence_range( ...
-            (sum(quiescence_overthresh_grid,1) == 1) & quiescence_overthresh_grid(end,:));
-
-        % Get valid stim offsets (timelite/phodiode)
-        % (get offsets between actual and valid quiescence times, apply to
-        % actual stim times to get all valid stim times)
-        valid_quiescence_offsets =  ...
-            valid_quiescence_times - trial_events.values(curr_trial).TrialQuiescence;
-
-        stimOn_times_valid{curr_trial} = stimOn_times(curr_trial) + valid_quiescence_offsets;
-
-    end
-
-    stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
-        stimOn_times_valid,num2cell(stim_move_time),'uni',false);
-
-    % Create null reaction distribution (only from trials will valid stim
-    % times: sometimes none if Bonsai quiescence clock on trial bad)
-    null_use_trials = cellfun(@length,stim_to_move_valid) ~= 0;
-
-    n_samples = 10000;
-    stim_to_move_null = nan(length(stim_to_move),n_samples);
-    stim_to_move_null(null_use_trials,:) = ...
-        cell2mat(cellfun(@(x) datasample(x,n_samples)', ...
-        stim_to_move_valid(null_use_trials),'uni',false));
-
-    % Get reaction statistic (ignore trials with <100ms reaction: these are
-    % too fast to be responses and are lucky timing guesses)
-    rxn_stat = nanmedian(stim_to_move.*AP_nanout(stim_to_move < 0.1),1);
-    rxn_null_stat = nanmedian(stim_to_move_null.*AP_nanout(stim_to_move_null < 0.1),1);
-
-    rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
-    rxn_stat_p(curr_recording) = rxn_stat_rank(1)./(n_samples+1);
+    % Get association stat
+    rxn_stat_p(curr_recording) = AP_stimwheel_association_pvalue( ...
+        stimOn_times,trial_events,stim_to_move);
 
     % Clear vars except pre-load for next loop
     clearvars('-except',preload_vars{:});
