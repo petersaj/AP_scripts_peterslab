@@ -189,7 +189,7 @@ title(animal)
 
 animal = 'AP009';
 use_workflow = 'lcr_passive';
-recordings = ap.find_recordings(animal,use_workflow);
+recordings = ap.find_recordings(animal,[],use_workflow);
 
 % temp: cut out bad days
 % recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
