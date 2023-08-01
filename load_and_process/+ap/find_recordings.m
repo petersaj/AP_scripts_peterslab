@@ -1,5 +1,5 @@
-function recordings = find_recordings(animal,recording_params)
-% recordings = find_recordings(animal,recording_params)
+function recordings = find_recordings(animal,recording_date,workflow)
+% recordings = find_recordings(animal,recording_date,workflow)
 %
 % Find recordings for a given animal
 %

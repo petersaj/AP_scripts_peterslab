@@ -11,8 +11,8 @@ st = loadStructureTree([allen_atlas_path filesep 'structure_tree_safe_2017.csv']
 % Set paths for histology images and directory to save slice/alignment
 
 % New histology
-% im_path = 'P:\Data\AP009\histology';
-im_path = 'C:\Users\petersa\Desktop\test_histology';
+im_path = 'P:\Data\AP009\histology';
+% im_path = 'C:\Users\petersa\Desktop\test_histology';
 
 slice_path = [im_path filesep 'slices'];
 

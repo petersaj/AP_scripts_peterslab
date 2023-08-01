@@ -15,9 +15,17 @@ use_workflow = {'lcr_passive_fullscreen'};
 
 recordings = ap.find_recordings(animal,rec_day);
 
-use_rec = find(ismember(recordings.workflow,use_workflow));
+use_rec = find(ismember(recordings.workflow,use_workflow),1,'last');
 
-rec_time = recordings.protocol{use_rec(end)};
+% % (use rec number)
+% use_rec = 1;
+
+% (use rec day)
+rec_day = '2023-06-22';
+use_rec = strcmp(rec_day,{recordings.day});
+
+rec_day = recordings(use_rec).day;
+rec_time = recordings(use_rec).protocol{1};
 
 verbose = true;
 
