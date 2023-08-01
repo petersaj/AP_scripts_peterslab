@@ -1,5 +1,4 @@
-function [wheel_velocity,wheel_move] = ...
-    parse_wheel(wheel_position,sample_rate)
+function [wheel_velocity,wheel_move] = parse_wheel(wheel_position,sample_rate)
 % [wheel_velocity,wheel_move,wheel_velocity_split] = parse_wheel(wheel_position,sample_rate)
 % 
 % Get velocity and parse movements from wheel position trace 
