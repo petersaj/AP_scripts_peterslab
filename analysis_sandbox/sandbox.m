@@ -13,7 +13,7 @@ use_workflow = {'lcr_passive_fullscreen'};
 % use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
 % use_workflow = 'sparse_noise';
 
-recordings = ap.find_recordings(animal,rec_day);
+recordings = ap.find_recordings(animal,rec_day,use_workflow);
 
 use_rec = find(ismember(recordings.workflow,use_workflow));
 
