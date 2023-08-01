@@ -204,11 +204,11 @@ for curr_recording = 1:length(recordings)
 
     % Load data
     rec_day = recordings(curr_recording).day;
-    rec_time = recordings(curr_recording).protocol{end};
+    rec_time = recordings(curr_recording).recording{end};
     if ~recordings(curr_recording).widefield(end)
         continue
     end
-    ap.load_experiment;
+    ap.load_recording;
 
     % Align to stim and store
     % (passive)

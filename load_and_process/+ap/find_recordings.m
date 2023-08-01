@@ -10,11 +10,11 @@ function recordings = find_recordings(animal,recording_date,workflow)
 % Output:
 % recordings (struct):
 % .day - date of recording
-% .protocol - protocol folder name(s) (time as HHMM)
-% .index - index of protocol within day (e.g. 3rd protocol is [3])
+% .recording - recording folder name(s) (time as HHMM)
+% .index - index of recording within day (e.g. 3rd recording is [3])
 % .workflow - Bonsai workflow
-% .mousecam - whether mousecam was recorded for each protocol
-% .widefield - whether widefield was recorded for each protocol
+% .mousecam - whether mousecam was recorded for each recording
+% .widefield - whether widefield was recorded for each recording
 
 %% Initialize parameters
 
@@ -53,15 +53,15 @@ switch search_type
 
         curr_path = plab.locations.make_server_filename(animal,recording_date);
 
-        % Get protocol folders within day
-        curr_protocol_paths = dir(fullfile(curr_path,'Protocol*'));
+        % Get recording folders within day
+        curr_recording_paths = dir(fullfile(curr_path,'Recording*'));
 
-        % Get bonsai workflows for each protocol
-        protocol_workflows = cell(size(curr_protocol_paths));
-        for curr_path_idx = 1:length(curr_protocol_paths)
+        % Get bonsai workflows for each recording
+        recording_workflows = cell(size(curr_recording_paths));
+        for curr_path_idx = 1:length(curr_recording_paths)
             curr_bonsai_path = fullfile( ...
-                curr_protocol_paths(curr_path_idx).folder, ...
-                curr_protocol_paths(curr_path_idx).name,'bonsai');
+                curr_recording_paths(curr_path_idx).folder, ...
+                curr_recording_paths(curr_path_idx).name,'bonsai');
 
             curr_bonsai_dir = dir(curr_bonsai_path);
             curr_workflow_idx = [curr_bonsai_dir.isdir] & ...
@@ -69,29 +69,29 @@ switch search_type
 
             if any(curr_workflow_idx)
                 curr_workflow = curr_bonsai_dir(curr_workflow_idx).name;
-                protocol_workflows{curr_path_idx} = curr_workflow;
+                recording_workflows{curr_path_idx} = curr_workflow;
             end
         end
 
         % Return all workflows (if unspecified), or specified workflows
         if ~isempty(workflow)
-            use_protocols = ismember(protocol_workflows,workflow);
+            use_recordings = ismember(recording_workflows,workflow);
         else
-            use_protocols = true(size(curr_protocol_paths));
+            use_recordings = true(size(curr_recording_paths));
         end
 
         % Package info
         recordings.day = recording_date;
-        recordings.index = find(use_protocols);
-        recordings.protocol = strtok({curr_protocol_paths(use_protocols).name},'Protocol_');
-        recordings.workflow = protocol_workflows(use_protocols);
+        recordings.index = find(use_recordings);
+        recordings.recording = strtok({curr_recording_paths(use_recordings).name},'Recording_');
+        recordings.workflow = recording_workflows(use_recordings);
 
         recordings.mousecam = ...
             cellfun(@(x) any(exist(fullfile(curr_path,x,'mousecam'),'dir')), ...
-            {curr_protocol_paths(use_protocols).name});
+            {curr_recording_paths(use_recordings).name});
         recordings.widefield = ...
             cellfun(@(x) any(exist(fullfile(curr_path,x,'widefield'),'dir')), ...
-            {curr_protocol_paths(use_protocols).name});
+            {curr_recording_paths(use_recordings).name});
 
 
     case 'workflow'
@@ -107,7 +107,7 @@ switch search_type
         recording_days = {animal_dir(recording_day_idx).name};
 
         % Loop through recordings for specified workflow and grab modalities
-        struct_fieldnames = {'day','protocol','mousecam','widefield'};
+        struct_fieldnames = {'day','recording','mousecam','widefield'};
         recordings = cell2struct(cell(length(struct_fieldnames),0), ...
             struct_fieldnames);
 
@@ -115,17 +115,17 @@ switch search_type
 
             curr_path = plab.locations.make_server_filename(animal,recording_days{curr_day});
 
-            % Get protocol folders within day
-            curr_protocol_paths = dir(fullfile(curr_path,'Protocol*'));
+            % Get recording folders within day
+            curr_recording_paths = dir(fullfile(curr_path,'Recording*'));
 
             % Look for matches with specified Bonsai workflow
-            % (and store the workflow name for each protocol)
-            protocol_workflows = cell(size(curr_protocol_paths));
-            use_protocol_paths = false(size(curr_protocol_paths));
-            for curr_path_idx = 1:length(curr_protocol_paths)
+            % (and store the workflow name for each recording)
+            recording_workflows = cell(size(curr_recording_paths));
+            use_recording_paths = false(size(curr_recording_paths));
+            for curr_path_idx = 1:length(curr_recording_paths)
                 curr_bonsai_path = fullfile( ...
-                    curr_protocol_paths(curr_path_idx).folder, ...
-                    curr_protocol_paths(curr_path_idx).name,'bonsai');
+                    curr_recording_paths(curr_path_idx).folder, ...
+                    curr_recording_paths(curr_path_idx).name,'bonsai');
 
                 curr_bonsai_dir = dir(curr_bonsai_path);
                 curr_workflow_idx = [curr_bonsai_dir.isdir] & ...
@@ -133,34 +133,34 @@ switch search_type
 
                 if any(curr_workflow_idx)
                     curr_workflow = curr_bonsai_dir(curr_workflow_idx).name;
-                    protocol_workflows{curr_path_idx} = curr_workflow;
+                    recording_workflows{curr_path_idx} = curr_workflow;
 
                     if ismember(curr_workflow,workflow)
-                        use_protocol_paths(curr_path_idx) = true;
+                        use_recording_paths(curr_path_idx) = true;
                     end
                 end
             end
 
             % If there were Bonsai matches, package info
-            if any(use_protocol_paths)
+            if any(use_recording_paths)
 
                 curr_recording_idx = length(recordings) + 1;
 
                 recordings(curr_recording_idx).day = recording_days{curr_day};
-                recordings(curr_recording_idx).index = find(use_protocol_paths);
-                recordings(curr_recording_idx).protocol = ...
-                    strtok({curr_protocol_paths(use_protocol_paths).name},'Protocol_');
+                recordings(curr_recording_idx).index = find(use_recording_paths);
+                recordings(curr_recording_idx).recording = ...
+                    strtok({curr_recording_paths(use_recording_paths).name},'Recording_');
                 recordings(curr_recording_idx).workflow = ...
-                    protocol_workflows(use_protocol_paths);
+                    recording_workflows(use_recording_paths);
 
                 % Check which modalities were recorded
                 recordings(curr_recording_idx).mousecam = ...
                     cellfun(@(x) any(exist(fullfile(curr_path,x,'mousecam'),'dir')), ...
-                    {curr_protocol_paths(use_protocol_paths).name});
+                    {curr_recording_paths(use_recording_paths).name});
 
                 recordings(curr_recording_idx).widefield = ...
                     cellfun(@(x) any(exist(fullfile(curr_path,x,'widefield'),'dir')), ...
-                    {curr_protocol_paths(use_protocol_paths).name});
+                    {curr_recording_paths(use_recording_paths).name});
             end
         end
 end

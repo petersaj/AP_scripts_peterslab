@@ -138,9 +138,9 @@ for curr_recording = 1:length(recordings)
 
     % Load data
     rec_day = recordings(curr_recording).day;
-    rec_time = recordings(curr_recording).protocol{end};
+    rec_time = recordings(curr_recording).recording{end};
     load_parts.widefield = false;
-    ap.load_experiment;
+    ap.load_recording;
 
     % Get total trials/water
     n_trials_water(curr_recording,:) = [length(trial_events.timestamps), ...
