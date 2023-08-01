@@ -7,20 +7,15 @@
 animal = 'AP005';
 rec_day = '2023-06-22';
 
-% use_workflow = {'lcr_passive'};
-use_workflow = {'lcr_passive_fullscreen'};
-% use_workflow = {'lcr_passive','lcr_passive_fullscreen'};
-% use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
-% use_workflow = 'sparse_noise';
+% workflow = {'lcr_passive'};
+workflow = {'lcr_passive_fullscreen'};
+% workflow = {'lcr_passive','lcr_passive_fullscreen'};
+% workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+% workflow = 'sparse_noise';
 
-recordings = ap.find_recordings(animal,rec_day,use_workflow);
-
-use_rec = find(ismember(recordings.workflow,use_workflow));
-
-rec_time = recordings.protocol{use_rec(end)};
+rec_time = ap.find_recordings(animal,rec_day,workflow).protocol{end};
 
 verbose = true;
-
 ap.load_experiment;
 
 %% Testing MCMS API
