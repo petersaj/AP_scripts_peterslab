@@ -51,7 +51,7 @@ if load_parts.ephys && ...
     ap.load_ephys
 end
 
-if verbose; disp('Finished.'); end;
+if verbose; 
 
 %% Experiment scroller
 
