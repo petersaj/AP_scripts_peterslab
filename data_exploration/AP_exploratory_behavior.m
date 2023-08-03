@@ -118,7 +118,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 %% Behavior across days
 
 animal = 'AP007';
-use_workflow = {'stim_wheel_right_stage1','stim_wheel_right_stage2'};
+use_workflow = {'stim_wheel_right*'};
 recordings = ap.find_recordings(animal,[],use_workflow);
 
 surround_time = [-5,5];
