@@ -66,16 +66,16 @@ end
 
 %% Find and package matching recordings
 
-struct_fieldnames = {'day','index','recording','workflow','mousecam','widefield'};
+struct_fieldnames = {'day','index','recording','workflow','mousecam','widefield','ephys'};
 recordings = cell2struct(cell(length(struct_fieldnames),0),struct_fieldnames);
 
 for curr_day_idx = 1:length(recording_day)
     curr_day = recording_day{curr_day_idx};
 
-    curr_path = plab.locations.make_server_filename(animal,curr_day);
+    curr_day_path = plab.locations.make_server_filename(animal,curr_day);
 
     % Get recording folders within day
-    curr_recording_paths = dir(fullfile(curr_path,'Recording*'));
+    curr_recording_paths = dir(fullfile(curr_day_path,'Recording*'));
 
     % Get bonsai workflows for each recording
     recording_workflows = cell(size(curr_recording_paths));
@@ -113,20 +113,25 @@ for curr_day_idx = 1:length(recording_day)
     end
 
     % Package info
+    % (set index for day)
     recording_idx = length(recordings) + 1;
 
+    % (basic info)
     recordings(recording_idx).day = curr_day;
     recordings(recording_idx).index = find(use_recordings);
     recordings(recording_idx).recording = ...
         strtok({curr_recording_paths(use_recordings).name},'Recording_');
     recordings(recording_idx).workflow = recording_workflows(use_recordings);
 
+    % (recording modalities - note ephys is day-, not recording-specific)
     recordings(recording_idx).mousecam = ...
-        cellfun(@(x) any(exist(fullfile(curr_path,x,'mousecam'),'dir')), ...
+        cellfun(@(x) any(exist(fullfile(curr_day_path,x,'mousecam'),'dir')), ...
         {curr_recording_paths(use_recordings).name});
     recordings(recording_idx).widefield = ...
-        cellfun(@(x) any(exist(fullfile(curr_path,x,'widefield'),'dir')), ...
+        cellfun(@(x) any(exist(fullfile(curr_day_path,x,'widefield'),'dir')), ...
         {curr_recording_paths(use_recordings).name});
+    recordings(recording_idx).ephys = ...
+        any(exist(fullfile(curr_day_path,'ephys'),'dir'));
 
 end
 
