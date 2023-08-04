@@ -5,12 +5,11 @@
 %% Load data
 
 animal = 'AP009';
-rec_day = '2023-07-03';
+rec_day = '2023-06-26';
 
-workflow = {'lcr_passive'};
-% workflow = {'lcr_passive_fullscreen'};
-% workflow = {'lcr_passive','lcr_passive_fullscreen'};
-% workflow = {'stim_wheel_right'};
+% workflow = 'lcr_passive';
+% workflow = 'lcr_passive_fullscreen';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
 rec_time = ap.find_recordings(animal,rec_day,workflow).recording{end};

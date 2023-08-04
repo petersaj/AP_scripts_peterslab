@@ -5,6 +5,7 @@
 
 if contains(bonsai_workflow,'lcr')
     % (L/C/R passive)
+
     align_times_all = stimOn_times;
     align_category_all = vertcat(trial_events.values.TrialStimX);
     % (get only quiescent trials)
@@ -22,7 +23,6 @@ if contains(bonsai_workflow,'lcr')
 
 elseif contains(bonsai_workflow,'stim_wheel')
     % (task)
-    stimOn_times = photodiode_times(1:2:end);
     wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
 
     % (get wheel starts when no stim on screen: not sure this works yet)
@@ -31,7 +31,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
         photodiode_values,wheel_starts,'previous') == 0);
 
     [~,rxn_sort_idx] = sort(stim_to_move);
-    AP_cellraster({stimOn_times,wheel_move_time,wheel_starts_iti,reward_times}, ...
+    AP_cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts_iti,reward_times}, ...
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
