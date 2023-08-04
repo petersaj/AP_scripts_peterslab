@@ -1,6 +1,8 @@
-% Load bonsai data
+% Load Bonsai data
 
 if verbose; disp('Loading Bonsai...'); end
+
+%% Load general Bonsai events
 
 % Get Bonsai workflow
 bonsai_dir = dir(plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai'));
@@ -104,6 +106,7 @@ bonsai_stim_times_relative = ...
 
 % Get stim times depending on Bonsai workflow
 stimOn_times = photodiode_times(photodiode_values == 1);
+
 
 %% Workflow-specific loading
 

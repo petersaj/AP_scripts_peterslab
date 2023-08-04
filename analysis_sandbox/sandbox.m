@@ -4,19 +4,20 @@
 
 %% Load data
 
-animal = 'AP007';
-rec_day = '2023-06-14';
+animal = 'AP009';
+rec_day = '2023-07-03';
 
-% workflow = {'lcr_passive'};
+workflow = {'lcr_passive'};
 % workflow = {'lcr_passive_fullscreen'};
 % workflow = {'lcr_passive','lcr_passive_fullscreen'};
-workflow = {'stim_wheel_right'};
+% workflow = {'stim_wheel_right'};
 % workflow = 'sparse_noise';
 
 rec_time = ap.find_recordings(animal,rec_day,workflow).recording{end};
 
 verbose = true;
 ap.load_recording;
+
 
 %% Testing MCMS API
 
@@ -177,6 +178,43 @@ end
 nte_filename = "P:\Data\AP004\2023-06-22\ephys\AP004_2023-06-22_probe_positions.mat";
 hist_filename = "P:\Data\AP004\histology\slices\probe_ccf.mat";
 
+
+%% Move qMetrics folders into pykilosort
+
+server_path = 'P:\Data';
+animal_paths = dir(server_path);
+
+for animal_idx = 3:length(animal_paths)
+
+    animal_dir = dir(fullfile(server_path,animal_paths(animal_idx).name));
+
+    date_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
+    recording_day_idx = matches({animal_dir.name},date_pattern) & [animal_dir.isdir];
+
+    for day_idx = find(recording_day_idx)
+
+        curr_qmetrics_path = fullfile(animal_dir(day_idx).folder,animal_dir(day_idx).name,'ephys','qMetrics');
+        if exist(curr_qmetrics_path,'dir')
+            new_qmetrics_path = fullfile(animal_dir(day_idx).folder,animal_dir(day_idx).name,'ephys','pykilosort','qMetrics');
+
+            movefile(curr_qmetrics_path,new_qmetrics_path);
+            fprintf('%s --> %s\n',curr_qmetrics_path,new_qmetrics_path);
+        end
+
+
+%         curr_protocols = dir(fullfile(curr_day_path,'Protocol_*'));
+% 
+%         for protocol_idx = 1:length(curr_protocols)
+%             curr_protocol_path = fullfile(curr_protocols(protocol_idx).folder,curr_protocols(protocol_idx).name);
+%             curr_recording_path = strrep(curr_protocol_path,'Protocol','Recording');
+% 
+%             movefile(curr_protocol_path,curr_recording_path);
+%             fprintf('%s --> %s\n',curr_protocol_path,curr_recording_path);
+%         end
+
+    end
+end
+disp('done');
 
 
 

@@ -84,7 +84,7 @@ end
 
 % (spike times: index Open Ephys timestamps rather than assume constant
 % sampling rate as before, this accounts for potentially dropped data)
-spike_templates = readNPY(fullfile(kilosort_path,'spike_templates.npy'))+1; % (convert 0-idx to 1-idx)
+spike_templates = readNPY(fullfile(kilosort_path,'spike_templates.npy')) + 1; % (convert 0-idx to 1-idx)
 templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
 channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
 channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));
@@ -212,9 +212,9 @@ if  exist(qMetrics_path,'dir')
     % Define good units from labels
     % (0 = bad, 1 = good, 2 = multiunit, 3 = axon)
     good_templates = ismember(am_bc_units,[1,2]);
-    if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
+    good_templates_idx = find(good_templates);
 else
-    good_templates = true(size(templates,1),1);
+    good_templates = true(size(templat
 end
 
 % % Load manual Phy sorting (old)
@@ -259,14 +259,16 @@ templateDuration = templateDuration(good_templates);
 templateDuration_us = templateDuration_us(good_templates);
 
 % Throw out all non-good spike data
-good_spikes = ismember(spike_templates,find(good_templates));
+good_spikes = ismember(spike_templates,good_templates_idx);
 spike_templates = spike_templates(good_spikes);
 template_amplitudes = template_amplitudes(good_spikes);
 spike_depths = spike_depths(good_spikes);
 spike_times_timeline = spike_times_timeline(good_spikes);
 
-
-
+% % Re-number remaining spike templates 1:N
+% new_spike_idx = nan(max(spike_templates),1);
+% new_spike_idx(good_templates_idx+1) = 1:length(good_templates_idx);
+% spike_templates = new_spike_idx(spike_templates);
 
 
 

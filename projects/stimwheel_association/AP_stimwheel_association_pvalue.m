@@ -80,9 +80,9 @@ stim_to_move_null(null_use_trials,:) = ...
     cell2mat(cellfun(@(x) datasample(x,n_samples)', ...
     stim_to_move_valid(null_use_trials),'uni',false));
 
-% Get reaction statistic (median)
-rxn_stat = nanmedian(stim_to_move(null_use_trials),1);
-rxn_null_stat = nanmedian(stim_to_move_null(null_use_trials,:),1);
+% Get reaction statistic
+rxn_stat = mad(stim_to_move(null_use_trials),1,1);
+rxn_null_stat = mad(stim_to_move_null(null_use_trials,:),1,1);
 
 rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
 p = rxn_stat_rank(1)./(n_samples+1);
