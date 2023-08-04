@@ -9,14 +9,41 @@ if verbose; disp('Loading Ephys...'); end
 kilosort_top_path = fullfile(ephys_path,'pykilosort');
 kilosort_dir = dir(kilosort_top_path);
 
-if ~any(contains({kilosort_dir.name},'site'))
-    % If no site subfolders, use that top path
+if ~any(contains({kilosort_dir.name},{'site','probe'}))
+    % If no site/probe subfolders, use that top path
     kilosort_path = kilosort_top_path;
     open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
     open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
 
+elseif any(contains({kilosort_dir.name},'probe'))
+    % If 'probe' folders (recordings in parallel), choose last before recording
+    ephys_site_paths = dir(fullfile(kilosort_top_path,'probe_*'));
+    warning('Just o
+    if ~isempty(ephys_site_paths)
+        ephys_site_datetime = NaT(size(ephys_site_paths));
+        for curr_site = 1:length(ephys_site_paths)
+            curr_ephys_settings_file = fullfile( ...
+                ephys_path,ephys_site_paths(curr_site).name, ...
+                'settings.xml');
+            curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
+            ephys_site_datetime(curr_site) = ...
+                datetime(curr_ephys_settings.INFO.DATE, ...
+                'InputFormat','dd MMM yyyy HH:mm:ss');
+        end
+
+        % (add 1 minute leeway to recording time since no seconds)
+        ephys_use_site = find(ephys_site_datetime - ...
+            (rec_datetime + minutes(1)) < 0,1,'last');
+
+        kilosort_path = fullfile(kilosort_top_path, ...
+            ephys_site_paths(ephys_use_site).name);
+        open_ephys_path_dir = dir(fullfile(ephys_path, ...
+            ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));
+        open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+    end
+
 elseif any(contains({kilosort_dir.name},'site'))
-    % If multiple sites (in serial), choose last before recording
+    % If 'site' folders (recordings in serial), choose last before recording
     ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
     if ~isempty(ephys_site_paths)
         ephys_site_datetime = NaT(size(ephys_site_paths));
@@ -84,7 +111,7 @@ end
 
 % (spike times: index Open Ephys timestamps rather than assume constant
 % sampling rate as before, this accounts for potentially dropped data)
-spike_templates = readNPY(fullfile(kilosort_path,'spike_templates.npy')) + 1; % (convert 0-idx to 1-idx)
+spike_templates = readNPY(fullfile(kilosort_path,'spike_templates.npy'))+1; % (convert 0-idx to 1-idx)
 templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
 channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
 channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));
@@ -212,9 +239,9 @@ if  exist(qMetrics_path,'dir')
     % Define good units from labels
     % (0 = bad, 1 = good, 2 = multiunit, 3 = axon)
     good_templates = ismember(am_bc_units,[1,2]);
-    good_templates_idx = find(good_templates);
+    if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
 else
-    good_templates = true(size(templat
+    good_templates = true(size(templates,1),1);
 end
 
 % % Load manual Phy sorting (old)
@@ -259,16 +286,14 @@ templateDuration = templateDuration(good_templates);
 templateDuration_us = templateDuration_us(good_templates);
 
 % Throw out all non-good spike data
-good_spikes = ismember(spike_templates,good_templates_idx);
+good_spikes = ismember(spike_templates,find(good_templates));
 spike_templates = spike_templates(good_spikes);
 template_amplitudes = template_amplitudes(good_spikes);
 spike_depths = spike_depths(good_spikes);
 spike_times_timeline = spike_times_timeline(good_spikes);
 
-% % Re-number remaining spike templates 1:N
-% new_spike_idx = nan(max(spike_templates),1);
-% new_spike_idx(good_templates_idx+1) = 1:length(good_templates_idx);
-% spike_templates = new_spike_idx(spike_templates);
+
+
 
 
 

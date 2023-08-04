@@ -35,10 +35,10 @@ if ~isempty(data_path_dir)
     save_paths = cellfun(@(x) [save_paths{1} filesep x],{data_path_dir.name},'uni',false);
 end
 
-for curr_site = 1:length(data_paths)  
+for curr_data = 1:length(data_paths)  
     
     % Get experiments (if turned off between)
-    curr_data_path = data_paths{curr_site};   
+    curr_data_path = data_paths{curr_data};   
     ephys_exp_paths = dir([curr_data_path filesep 'experiment*']);
        
     for curr_exp = 1:length(ephys_exp_paths)
@@ -48,9 +48,9 @@ for curr_site = 1:length(data_paths)
         
         % Update save path with experiment (only if more than one, legacy)
         if length(ephys_exp_paths) == 1
-            curr_save_path = save_paths{curr_site};
+            curr_save_path = save_paths{curr_data};
         elseif length(ephys_exp_paths) > 1
-            curr_save_path = [save_paths{curr_site} filesep ephys_exp_paths(curr_exp).name];
+            curr_save_path = [save_paths{curr_data} filesep ephys_exp_paths(curr_exp).name];
         end
         
         % Make save path

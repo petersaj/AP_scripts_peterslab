@@ -9,14 +9,22 @@ if verbose; disp('Loading Ephys...'); end
 kilosort_top_path = fullfile(ephys_path,'pykilosort');
 kilosort_dir = dir(kilosort_top_path);
 
-if ~any(contains({kilosort_dir.name},'site'))
-    % If no site subfolders, use that top path
+if ~any(contains({kilosort_dir.name},{'site','probe'}))
+    % If no site/probe subfolders, use that top path
     kilosort_path = kilosort_top_path;
     open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
     open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
 
+elseif any(contains({kilosort_dir.name},'probe'))
+    % If 'probe' folders (recordings in parallel), choose last before recording
+    ephys_site_paths = dir(fullfile(kilosort_top_path,'probe_*'));
+    warning('Multiple probes: just loading probe 1 for now')
+    kilosort_path = fullfile(ephys_site_paths(1).folder,ephys_site_paths(1).name);
+    open_ephys_path_dir = dir(fullfile(ephys_path,ephys_site_paths(1).name,'experiment*','recording*'));
+    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+
 elseif any(contains({kilosort_dir.name},'site'))
-    % If multiple sites (in serial), choose last before recording
+    % If 'site' folders (recordings in serial), choose last before recording
     ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
     if ~isempty(ephys_site_paths)
         ephys_site_datetime = NaT(size(ephys_site_paths));
@@ -79,7 +87,7 @@ else
     spike_times_openephys = open_ephys_timestamps( ...
         readNPY(fullfile(kilosort_path,'spike_times.npy')));
     writeNPY(spike_times_openephys,spike_times_openephys_filename);
-    fprintf('Saved spike times openephys: %s\n',spike_times_openephys_filename);
+    fprintf('Converted and saved Open Ephys spike times: %s\n',spike_times_openephys_filename);
 end
 
 % (spike times: index Open Ephys timestamps rather than assume constant
