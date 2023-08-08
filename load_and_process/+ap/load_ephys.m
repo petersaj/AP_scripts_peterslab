@@ -214,12 +214,11 @@ if  exist(qMetrics_path,'dir')
     [param, qMetric] = bc_loadSavedMetrics(qMetrics_path);
     % (native bombcell labels)
     %  unitType = bc_getQualityUnitType(param, qMetric);
-    % (AM extra bombcell labels)
-    load(fullfile(qMetrics_path, 'am_bc_unit_type.mat'))
+    % (extra metrics & translated bombcell labels)
+    load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
 
     % Define good units from labels
-    % (0 = bad, 1 = good, 2 = multiunit, 3 = axon)
-    good_templates = ismember(am_bc_units,[1,2]);
+    good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
     if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
 else
     warning('No ephys quality metrics available');
