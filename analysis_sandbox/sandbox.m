@@ -221,8 +221,6 @@ disp('done');
 animal = 'AP007';
 day = '2023-06-14';
 
-local_data_path = 'D:\data_temp\bombcell';
-
 % Get ephys recording paths
 % probe_n = multiple probes simultaneously
 % site_n = multiple sites recorded in serial
@@ -240,6 +238,7 @@ for curr_data = 1:length(data_paths)
 
     % Get folders/filenames
     curr_ephys_path = data_paths{curr_data};
+    fprintf('Bombcell: %s\n',curr_ephys_path);
 
     % (recording path as experimentX/recordingX)
     curr_ephys_rec_dir = dir(fullfile(curr_ephys_path, 'experiment*', 'recording*'));
@@ -352,7 +351,7 @@ for curr_data = 1:length(data_paths)
 
 end
 
-
+disp('Finished.');
 
 
 

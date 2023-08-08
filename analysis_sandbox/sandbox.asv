@@ -4,12 +4,12 @@
 
 %% Load data
 
-animal = 'AP009';
-rec_day = '2023-06-26';
+animal = 'AP007';
+rec_day = '2023-06-14';
 
 % workflow = 'lcr_passive';
-% workflow = 'lcr_passive_fullscreen';
-workflow = 'stim_wheel_right*';
+workflow = 'lcr_passive_fullscreen';
+% workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
 rec_time = ap.find_recordings(animal,rec_day,workflow).recording{end};
@@ -216,12 +216,10 @@ for animal_idx = 3:length(animal_paths)
 end
 disp('done');
 
-%% Bombcell
+%% Bombcell and supplemental quality metrics
 
 animal = 'AP007';
 day = '2023-06-14';
-
-local_data_path = 'D:\data_temp\bombcell';
 
 % Get ephys recording paths
 % probe_n = multiple probes simultaneously
@@ -240,6 +238,7 @@ for curr_data = 1:length(data_paths)
 
     % Get folders/filenames
     curr_ephys_path = data_paths{curr_data};
+    fprintf('Bombcell: %s\n',curr_ephys_path);
 
     % (recording path as experimentX/recordingX)
     curr_ephys_rec_dir = dir(fullfile(curr_ephys_path, 'experiment*', 'recording*'));
@@ -338,7 +337,7 @@ for curr_data = 1:length(data_paths)
     am_bc_units = unitType;
     am_bc_units(potential_noise) = 0;
 
-    % Store and save extra quality metrics / unit types
+    % Store and save extra quality metrics / classification
     extra_qmetric = struct;
     extra_qmetric.all_unit_non_zero_corr = all_unit_non_zero_corr;
     extra_qmetric.cutoff_all_unit_non_zero_corr = cutoff_all_unit_non_zero_corr;
@@ -347,28 +346,12 @@ for curr_data = 1:length(data_paths)
     extra_qmetric.all_units_amp_decay = all_units_amp_decay;
     extra_qmetric.cutoff_all_units_amp_decay = cutoff_all_units_amp_decay';
 
-    save(fullfile(savePath, 'am_bc_unit_type.mat'), 'unitType', 'am_bc_units','potential_noise', 'extra_qmetric', '-v7.3')
+    save(fullfile(savePath, 'am_bc_unit_type.mat'), ...
+        'unitType', 'am_bc_units','potential_noise', 'extra_qmetric', '-v7.3')
 
 end
 
-%% view units + quality metrics in GUI
-% % load data for GUI
-%     loadRawTraces = 1;
-%     bc_loadMetricsForGUI;
-%
-%     % GUI guide:
-%     % left/right arrow: toggle between units
-%     % g : go to next good unit
-%     % m : go to next multi-unit
-%     % n : go to next noise unit
-%     % up/down arrow: toggle between time chunks in the raw data
-%     % u: brings up a input dialog to enter the unit you want to go to
-%     unitQualityGuiHandle = bc_unitQualityGUI(memMapData, ephysData, qMetric, forGUI, rawWaveforms, ...
-%         param, probeLocation, unitType, loadRawTraces);
-
-
-
-
+disp('Finished.');
 
 
 

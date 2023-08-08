@@ -222,6 +222,7 @@ if  exist(qMetrics_path,'dir')
     good_templates = ismember(am_bc_units,[1,2]);
     if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
 else
+    warning('No ephys quality metrics available');
     good_templates = true(size(templates,1),1);
 end
 
@@ -258,13 +259,6 @@ end
 %     good_templates_idx = unique(spike_templates_0idx);
 %     good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
 % end
-
-% Throw out all non-good template data
-templates = templates(good_templates,:,:);
-template_depths = template_depths(good_templates);
-waveforms = waveforms(good_templates,:);
-templateDuration = templateDuration(good_templates);
-templateDuration_us = templateDuration_us(good_templates);
 
 % Throw out all non-good spike data
 good_spikes = ismember(spike_templates,find(good_templates));

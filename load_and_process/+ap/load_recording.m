@@ -1,3 +1,16 @@
+%% Check that the necessary parameters are included
+
+if ~exist('animal','var') || isempty(animal)
+    error('Animal not defined')
+end
+if ~exist('rec_day','var') || isempty(animal)
+    error('Recording day (rec_day) not defined')
+end
+if ~exist('rec_time','var') || isempty(animal)
+    error('Recording time (rec_time) not defined');
+end
+
+
 %% Define what to load
 
 if ~exist('verbose','var')

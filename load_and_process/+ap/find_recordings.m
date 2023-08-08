@@ -136,8 +136,10 @@ for curr_day_idx = 1:length(recording_day)
 end
 
 
-
-
+%% If no recordings found, error out
+if isempty(recordings)
+    error('No recordings found: %s [%s] [%s]',animal,strjoin(recording_day,','),strjoin(workflow,','))
+end
 
 
 

@@ -98,27 +98,22 @@ skip_seconds = 60;
 time_bins = wf_times(find(wf_times > skip_seconds,1)):1/sample_rate:wf_times(find(wf_times-wf_times(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-% (to group multiunit by evenly spaced depths)
-n_depths = 6;
-depth_group_edges = round(linspace(0,4000,n_depths+1));
-[depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
-depth_groups_used = unique(depth_group);
-depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+% % (to group multiunit by evenly spaced depths)
+% n_depths = 6;
+% depth_group_edges = round(linspace(0,4000,n_depths+1));
+% [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+% depth_groups_used = unique(depth_group);
+% depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
 
-% % (for manual depth)
-% depth_group_edges = [1000,4000];
-% n_depths = length(depth_group_edges) - 1;
-% [depth_group_n,depth_group] = histcounts(spike_depths,depth_group_edges);
+% (for manual depth)
+depth_group_edges = [500,1200,1500,2200,2700,3500,4000];
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
 
 binned_spikes = zeros(n_depths,length(time_bins)-1);
-for curr_depth = 1:n_depths
-    
-    curr_spike_times = spike_times_timeline(depth_group == curr_depth);
-%     curr_spike_times = spike_times_timeline((depth_group == curr_depth) & ...
-%         ismember(spike_templates,find(msn)));
-    
-    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
-    
+for curr_depth = 1:n_depths   
+    curr_spike_times = spike_times_timeline(depth_group == curr_depth);    
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins); 
 end
 
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
@@ -144,7 +139,7 @@ fVdf_deconv_resample = interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)';
 r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
 
 AP_imscroll(r_px,kernel_frames/wf_framerate);
-caxis([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
 colormap(AP_colormap('BWR'));
 axis image;
 
@@ -152,9 +147,6 @@ axis image;
 % (get max r for each pixel, filter out big ones)
 r_px_max = squeeze(max(r_px,[],3));
 r_px_max(isnan(r_px_max)) = 0;
-% for i = 1:n_depths
-%     r_px_max(:,:,i) = medfilt2(r_px_max(:,:,i),[10,10]);
-% end
 r_px_max_norm = bsxfun(@rdivide,r_px_max, ...
     permute(max(reshape(r_px_max,[],n_depths),[],1),[1,3,2]));
 r_px_max_norm(isnan(r_px_max_norm)) = 0;
@@ -164,7 +156,7 @@ r_px_com = sum(bsxfun(@times,r_px_max_norm,permute(1:n_depths,[1,3,2])),3)./sum(
 r_px_com_col = ind2rgb(round(mat2gray(r_px_com,[1,n_depths])*255),jet(255));
 figure;
 a1 = axes('YDir','reverse');
-imagesc(wf_avg); colormap(gray); caxis([0,prctile(wf_avg(:),99.7)]);
+imagesc(wf_avg); colormap(gray); clim([0,prctile(wf_avg(:),99.7)]);
 axis off; axis image;
 a2 = axes('Visible','off'); 
 p = imagesc(r_px_com_col);
