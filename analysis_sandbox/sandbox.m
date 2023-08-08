@@ -4,8 +4,8 @@
 
 %% Load data
 
-animal = 'AP007';
-rec_day = '2023-06-14';
+animal = 'AP009';
+rec_day = '2023-07-05';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
