@@ -68,17 +68,6 @@ photodiode_flip_idx = find(diff(photodiode_bw_interp) ~= 0 & ...
 photodiode_times = timelite.timestamps(photodiode_flip_idx);
 photodiode_values = photodiode_bw_interp(photodiode_flip_idx);
 
-% % FROM OLD BUG: when Bonsai was full-screen sometimes clicking in/out of
-% % box flicked screen to black. This are always brief, and no way to tell
-% % when it happened, so compensate by removing all flips that happen with
-% % short duration
-% photodiode_flicker = find(diff(photodiode_times) < 0.1);
-% if any(photodiode_flicker)
-%     warning('Photodiode flicker? removing')
-%     photodiode_times(photodiode_flicker+[0,1]) = [];
-%     photodiode_values(photodiode_flicker+[0,1]) = [];
-% end
-
 % Reward times (if on past certain time, valve signal flips rapidly to
 % avoid burnout - take the reward onset as flipping up and staying high for
 % some length of samples)

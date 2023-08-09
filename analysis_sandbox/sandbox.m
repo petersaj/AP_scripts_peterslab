@@ -2,10 +2,10 @@
 %
 % Temporary code
 
-%% Load data
+%% Load data (specific day)
 
 animal = 'AP009';
-rec_day = '2023-07-05';
+rec_day = '2023-06-26';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -16,6 +16,25 @@ rec_time = ap.find_recordings(animal,rec_day,workflow).recording{end};
 
 verbose = true;
 ap.load_recording;
+
+%% Load data (relative day)
+
+animal = 'AP005';
+
+workflow = 'lcr_passive';
+% workflow = 'lcr_passive_fullscreen';
+% workflow = 'stim_wheel_right*';
+% workflow = 'sparse_noise';
+
+use_day = 1;
+
+recordings = ap.find_recordings(animal,[],workflow);
+rec_day = recordings(use_day).day;
+rec_time = recordings(use_day).recording{end};
+
+verbose = true;
+ap.load_recording;
+
 
 
 %% Testing MCMS API

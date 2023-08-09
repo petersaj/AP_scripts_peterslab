@@ -117,7 +117,7 @@ if contains(bonsai_workflow,'stim_wheel')
     % Use only trials with outcome
     n_trials = length([trial_events.timestamps.Outcome]);
 
-    % Find the last move stop before stim on 
+    % Find the last move stop before stim on
     % (sometimes this isn't after the stimulus: Bonsai's quiescence clock
     % isn't very accurate)
     last_prestim_move_stop = cellfun(@(x) ...
@@ -132,6 +132,20 @@ if contains(bonsai_workflow,'stim_wheel')
         num2cell(last_prestim_move_stop));
 
     stim_to_move = stim_move_time - stimOn_times(1:n_trials);
+
+elseif contains(bonsai_workflow,'lcr_passive')
+    % On passive protocol: deal with old bug where screen could flick to
+    % black briefly when clicking on another window. This are always brief,
+    % and no way to tell when it happened, so compensate by removing all
+    % flips that happen with short duration
+    photodiode_flicker = find(diff(photodiode_times) < 0.1);
+    if any(photodiode_flicker)
+        warning('Photodiode flicker? removing')
+        photodiode_times(photodiode_flicker+[0,1]) = [];
+        photodiode_values(photodiode_flicker+[0,1]) = [];
+    end
+
+    stimOn_times = photodiode_times(photodiode_values == 1);
 
 end
 
