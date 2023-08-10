@@ -23,34 +23,34 @@ function recordings = find_recordings(animal,recording_day,workflow)
 % e.g. recording(4).workflow{3}: the 3rd matching workflow from the 4th day
 % containing a matching recording.
 
+%% Validate/default inputs
+arguments 
+
+    animal char {mustBeNonempty}
+    recording_day = {};
+    workflow = {};
+
+end
+
 %% Initialize parameters
 
 % Check day pattern
-if ~isempty(recording_day)
+if ~exist('recording_day','var') || ~isempty(recording_day)
     day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
     if ~matches(recording_day,day_pattern)
         error('Recording day (''%s'') not ''yyyy-mm-dd'' format',recording_day);
     end
 end
 
-% Set workflow empty if not defined
-if ~exist('workflow','var')
-    workflow = [];
-elseif ~isempty(workflow)
-    % If workflow defined and not a cell, make it a cell
-    if ~iscell(workflow)
-        workflow = {workflow};
-    end
+% Ensure workflow and recording_day are cell arrays
+if ~iscell(workflow)
+    workflow = {workflow};
+end
+if ~iscell(recording_day)
+    recording_day = {recording_day};
 end
 
-% Set flag for search type (day and/or workflow)
-if ~isempty(recording_day)
-    search_type = 'day';
-elseif isempty(recording_day) && ~isempty(workflow)
-    search_type = 'workflow';
-end
-
-% Set days to search (all days if empty, specified day(s) if not)
+% If recording days empty: search all days on server
 if isempty(recording_day)
     % Get contents of animal path
     animal_path = fullfile(plab.locations.server_data_path,animal);
@@ -60,8 +60,6 @@ if isempty(recording_day)
     day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
     recording_day_idx = matches({animal_dir.name},day_pattern) & [animal_dir.isdir];
     recording_day = {animal_dir(recording_day_idx).name};
-elseif ~iscell(recording_day)
-    recording_day = {recording_day};
 end
 
 %% Find and package matching recordings

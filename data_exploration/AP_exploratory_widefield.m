@@ -2,24 +2,25 @@
 
 %% Align widefield to event
 
-% (passive)
-align_times_all = photodiode_times(1:2:end);
-align_category_all = vertcat(trial_events.values.TrialStimX);
-% (get only quiescent trials)
-[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-framerate = 30;
-wheel_window = [0,0.5];
-wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-wheel_window_t_peri_event = align_times_all + wheel_window_t;
-event_aligned_move = interp1(timelite.timestamps, ...
-    +wheel_move,wheel_window_t_peri_event,'previous');
-quiescent_trials = ~any(event_aligned_move,2);
-align_times = align_times_all(quiescent_trials);
-align_category = align_category_all(quiescent_trials);
+% % (passive)
+% align_times_all = stimOn_times;
+% align_category_all = vertcat(trial_events.values.TrialStimX);
+% % (get only quiescent trials)
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     1:length(stimOn_times))';
+% align_times = align_times_all(quiescent_trials);
+% align_category = align_category_all(quiescent_trials);
 
 % % (task stim)
-% align_times = photodiode_times(1:2:end);
+% align_times = stimOn_times;
 % align_category = ones(size(align_times));
+
+% (task move)
+align_times = stim_move_time;
+align_category = ones(size(align_times));
 
 % % (task rewards)
 % align_times = reward_times;
@@ -37,7 +38,7 @@ align_category = align_category_all(quiescent_trials);
 % align_category = ones(size(align_times));
 
 
-surround_window = [-0.5,1];
+surround_window = [-1,2];
 
 surround_samplerate = 35;
 t = surround_window(1):1/surround_samplerate:surround_window(2);

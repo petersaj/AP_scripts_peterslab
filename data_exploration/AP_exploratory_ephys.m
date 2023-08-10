@@ -9,13 +9,11 @@ if contains(bonsai_workflow,'lcr')
     align_times_all = stimOn_times;
     align_category_all = vertcat(trial_events.values.TrialStimX);
     % (get only quiescent trials)
-    framerate = 30;
-    wheel_window = [0,0.5];
-    wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-    wheel_window_t_peri_event = align_times_all + wheel_window_t;
-    event_aligned_move = interp1(timelite.timestamps, ...
-        +wheel_move,wheel_window_t_peri_event,'previous');
-    quiescent_trials = ~any(event_aligned_move,2);
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        1:length(stimOn_times));
     align_times = align_times_all(quiescent_trials);
     align_category = align_category_all(quiescent_trials);
 

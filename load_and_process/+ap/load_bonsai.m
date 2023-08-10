@@ -8,7 +8,7 @@ if verbose; disp('Loading Bonsai...'); end
 bonsai_dir = dir(plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai'));
 bonsai_workflow = bonsai_dir([bonsai_dir.isdir] & ~contains({bonsai_dir.name},'.')).name;
 
-% Load Bonsai events
+% Load Bonsai events (should be included in every workflow)
 bonsai_events_fn = plab.locations.make_server_filename( ...
     animal,rec_day,rec_time,'bonsai','bonsai_events.csv');
 
@@ -52,8 +52,53 @@ if exist(bonsai_events_fn,'file')
     end
 end
 
-% Sparse noise: get noise locations and times
-if strcmp(bonsai_workflow,'sparse_noise')
+
+%% Workflow-specific loading
+
+if contains(bonsai_workflow,'stim_wheel')
+    % Task: stim and response times
+
+    % Stim times: when photodiode flips to 1
+    stimOn_times = photodiode_times(photodiode_values == 1);
+
+    % Use only trials with outcome
+    n_trials = length([trial_events.timestamps.Outcome]);
+
+    % Find the last move stop before stim on
+    % (sometimes this isn't after the stimulus: Bonsai's quiescence clock
+    % isn't very accurate)
+    last_prestim_move_stop = cellfun(@(x) ...
+        find(~wheel_move(timelite.timestamps <= x),1,'last') + 1, ...
+        num2cell(stimOn_times(1:n_trials)));
+
+    % Find the first move start after the pre-stim move stop
+    % (usually this is the first post-stim move, sometimes this is before
+    % stim if quiescence clock didn't work)
+    stim_move_time = cellfun(@(x) ...
+        timelite.timestamps((x-1) + find(wheel_move(x:end),1,'first')), ...
+        num2cell(last_prestim_move_stop));
+
+    stim_to_move = stim_move_time - stimOn_times(1:n_trials);
+
+elseif contains(bonsai_workflow,'lcr_passive')
+    % Passive protocol stim on times
+
+    % Photodiode bug (old, now fixed): screen could flick to black briefly
+    % when clicking on another window. This are always brief, and no way to
+    % tell when it happened, so compensate by removing all flips that
+    % happen with short duration
+    photodiode_flicker = find(diff(photodiode_times) < 0.1);
+    if any(photodiode_flicker)
+        warning('Photodiode flicker? removing')
+        photodiode_times(photodiode_flicker+[0,1]) = [];
+        photodiode_values(photodiode_flicker+[0,1]) = [];
+    end
+
+    stimOn_times = photodiode_times(photodiode_values == 1);
+
+elseif strcmp(bonsai_workflow,'sparse_noise')
+    % Sparse noise: get noise locations and times
+
     bonsai_noise_fn = plab.locations.make_server_filename( ...
         animal,rec_day,rec_time,'bonsai','NoiseLocations.bin');
     fid = fopen(bonsai_noise_fn);
@@ -94,60 +139,9 @@ if strcmp(bonsai_workflow,'sparse_noise')
 
     stim_times = interp1(photodiode_stim_idx,photodiode_times, ...
         1:size(noise_locations,3),'linear','extrap')';
-end
-
-
-% (temp: checking photodiode matches)
-bonsai_stimOn_n = length(vertcat(trial_events.timestamps.StimOn));
-bonsai_stim_times_relative = ...
-    seconds(vertcat(trial_events.timestamps.StimOn) - ...
-    trial_events.timestamps(1).StimOn(1)) + ...
-    photodiode_times(1);
-
-% Get stim times depending on Bonsai workflow
-stimOn_times = photodiode_times(photodiode_values == 1);
-
-
-%% Workflow-specific loading
-
-% Task: get time from stim to response (first) movement onset
-% (use parsed wheel from ap.parse_wheel)
-if contains(bonsai_workflow,'stim_wheel')
-
-    % Use only trials with outcome
-    n_trials = length([trial_events.timestamps.Outcome]);
-
-    % Find the last move stop before stim on
-    % (sometimes this isn't after the stimulus: Bonsai's quiescence clock
-    % isn't very accurate)
-    last_prestim_move_stop = cellfun(@(x) ...
-        find(~wheel_move(timelite.timestamps <= x),1,'last') + 1, ...
-        num2cell(stimOn_times(1:n_trials)));
-
-    % Find the first move start after the pre-stim move stop
-    % (usually this is the first post-stim move, sometimes this is before
-    % stim if quiescence clock didn't work)
-    stim_move_time = cellfun(@(x) ...
-        timelite.timestamps((x-1) + find(wheel_move(x:end),1,'first')), ...
-        num2cell(last_prestim_move_stop));
-
-    stim_to_move = stim_move_time - stimOn_times(1:n_trials);
-
-elseif contains(bonsai_workflow,'lcr_passive')
-    % On passive protocol: deal with old bug where screen could flick to
-    % black briefly when clicking on another window. This are always brief,
-    % and no way to tell when it happened, so compensate by removing all
-    % flips that happen with short duration
-    photodiode_flicker = find(diff(photodiode_times) < 0.1);
-    if any(photodiode_flicker)
-        warning('Photodiode flicker? removing')
-        photodiode_times(photodiode_flicker+[0,1]) = [];
-        photodiode_values(photodiode_flicker+[0,1]) = [];
-    end
-
-    stimOn_times = photodiode_times(photodiode_values == 1);
 
 end
+
 
 %% For testing: convert bonsai times to timelite times
 
