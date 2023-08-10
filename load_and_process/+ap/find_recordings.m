@@ -8,8 +8,9 @@ function recordings = find_recordings(animal,recording_day,workflow)
 % workflow - can be multiple (e.g. {'thisone','thatone'}), can include * as
 % wildcard (e.g. 'this*' will return 'thisone'). 
 %
-%  - if day filled and workflow empty: find all recordings within one day
-%  - if workflow filled and day empty: find Bonsai workflow over all days
+%  - if only animal defined: find all recordings across all days
+%  - if animal & day defined: find all recordings within one day
+%  - if animal & workflow defined: find specific workflow over all days
 %
 % Output:
 % recordings (struct: length = n days):
