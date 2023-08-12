@@ -66,21 +66,6 @@ end
 
 if verbose; disp('Finished.'); end;
 
-%% Experiment scroller
-
-% AP_expscroll(wf_U_raw{1},AP_deconv_wf(wf_V_raw{1},[],wf_framerate),wf_t_all{1},mousecam_fn,mousecam_times)
-
-% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1},mousecam_fn,mousecam_times)
-% AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2},mousecam_fn,mousecam_times)
-
-% AP_expscroll(wf_U,wf_Vdf,wf_times,mousecam_fn,mousecam_times)
-
-% AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
-
-% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
-% AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})
-% AP_expscroll(wf_U,wf_Vdf,wf_times)
-% AP_expscroll(wf_U,wf_V,wf_times)
 
 
 

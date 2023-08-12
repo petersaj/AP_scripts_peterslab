@@ -66,9 +66,8 @@ switch align_type
         avg_im = cell(size(wf_days_idx));
         for curr_day_idx = 1:length(wf_days_idx)
             curr_day = recordings(curr_day_idx).day;
-            curr_avg_im_fn = plab.locations.make_server_filename( ...
-                animal,curr_day,[],'widefield','meanImage_blue.npy');
-            avg_im{curr_day_idx} = readNPY(curr_avg_im_fn);
+            curr_avg_im_fn = plab.locations.make_server_filename(animal,rec_day,[],'widefield','meanImage_blue.npy')
+
         end
 
 
