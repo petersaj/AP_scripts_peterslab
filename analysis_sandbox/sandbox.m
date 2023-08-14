@@ -20,16 +20,16 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP005';
+animal = 'AP010';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-% workflow = 'sparse_noise';
+workflow = 'sparse_noise';
 
 use_day = 1;
 
-recordings = ap.find_recordings(animal,[],workflow);
+recordings = plab.find_recordings(animal,[],workflow);
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
 

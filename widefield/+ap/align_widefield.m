@@ -1,5 +1,5 @@
-function im_aligned = align_wf(im_unaligned,animal,day,align_type,master_align)
-% im_aligned = align_wf(im_unaligned,animal,day,align_type,master_align)
+function im_aligned = align_widefield(im_unaligned,animal,day,align_type,master_align)
+% im_aligned = align_widefield(im_unaligned,animal,day,align_type,master_align)
 %
 % Align widefield images across days and animals
 %
@@ -27,13 +27,17 @@ function im_aligned = align_wf(im_unaligned,animal,day,align_type,master_align)
 %% Initialize
 
 % Set path with saved alignments
-alignment_path = 'C:\Users\Andrew\OneDrive for Business\Documents\CarandiniHarrisLab\analysis\widefield_alignment';
+alignment_path = fullfile(plab.locations.server_path,'Users','Andy_Peters','widefield_alignment');
+if ~exist(alignment_path,'dir')
+    mkdir(alignment_path)
+end
 
 % Load transform structure
 wf_tform_fn = [alignment_path filesep 'wf_tform.mat'];
 % (if it doesn't exist yet, create it)
 if ~exist(wf_tform_fn,'file')
-    wf_tform = struct('animal',cell(0),'day',cell(0),'day_tform',cell(0),'ref_size',cell(0),'animal_tform',cell(0),'master_ref_size',cell(0));
+    wf_tform = struct('animal',cell(0),'day',cell(0),'day_tform',cell(0), ...
+        'ref_size',cell(0),'animal_tform',cell(0),'master_ref_size',cell(0));
     save(wf_tform_fn,'wf_tform');
 else
     load(wf_tform_fn);
@@ -52,29 +56,20 @@ switch align_type
         %% Align all days from one animal
         % (only run once for each animal - aligns to iterative average)
 
+        % If no unaligned images, find and load all average images
+        if isempty(im_unaligned)
+            recordings = plab.find_recordings(animal);
+            wf_days_idx = find(cellfun(@(x) x(1),{recordings.widefield})');
 
-
-        %%%%%%%%%%% IN PROCESS: PORTING TO NEW SYSTEM
-
-        % Find all days with widefield for animal
-
-        animal = 'AP010';
-        recordings = ap.find_recordings(animal);
-        wf_days_idx = find(cellfun(@(x) x(1),{recordings.widefield})');
-
-        % Load all average images
-        avg_im = cell(size(wf_days_idx));
-        for curr_day_idx = 1:length(wf_days_idx)
-            curr_day = recordings(curr_day_idx).day;
-            curr_avg_im_fn = plab.locations.make_server_filename( ...
-                animal,curr_day,[],'widefield','meanImage_blue.npy');
-            avg_im{curr_day_idx} = readNPY(curr_avg_im_fn);
+            day = {recordings(wf_days_idx).day};
+            im_unaligned = cell(size(wf_days_idx));
+            for curr_day_idx = 1:length(wf_days_idx)
+                curr_day = recordings(curr_day_idx).day;
+                curr_avg_im_fn = plab.locations.make_server_filename( ...
+                    animal,curr_day,[],'widefield','meanImage_blue.npy');
+                im_unaligned{curr_day_idx} = readNPY(curr_avg_im_fn);
+            end
         end
-
-
-        %%%%%%%%%%%%%%%%%%%%%%%
-
-
         
         % Set output size as the largest image
         [im_y,im_x] = cellfun(@size,im_unaligned);
@@ -466,25 +461,26 @@ switch align_type
         tform_matrix = tformEstimate_affine.T;
         
         figure;
-        subplot(2,2,1);
+        tiledlayout(2,2,'TileSpacing','tight');
+        nexttile;
         imshowpair(master_align,im_unaligned);
         title('Unaligned');
-        subplot(2,2,2);
+        nexttile;
         imshowpair(master_align,im_aligned);
         title('Aligned');
-        subplot(2,2,3);
+        nexttile;
         imagesc(master_align);
         axis image off
-        caxis([-1,1]);
-        colormap(brewermap([],'*RdBu'));
-        AP_reference_outline('ccf_aligned',[0.5,0.5,0.5]);
+        clim([-1,1]);
+        colormap(AP_colormap('BWR'));
+        ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
         title('Master')
-        subplot(2,2,4);
+        nexttile;
         imagesc(im_aligned);
         axis image off
-        caxis([-1,1]);
-        colormap(brewermap([],'*RdBu'));
-        AP_reference_outline('ccf_aligned',[0.5,0.5,0.5]);
+        clim([-1,1]);
+        colormap(AP_colormap('BWR'));
+        ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
         title('Aligned')
         
         % Save transform matrix into structure

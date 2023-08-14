@@ -47,7 +47,6 @@ align_category = ones(size(align_times));
 %     noise_locations(px_y,px_x,2:end) == 0))+1);
 % align_category = ones(size(align_times));
 
-
 surround_window = [-1,2];
 
 surround_samplerate = 35;
@@ -72,128 +71,67 @@ colormap(AP_colormap('PWG'));
 clim(prctile(abs(aligned_px_avg(:)),99.5).*[-1,1]);
 axis image;
 
-%% Sparse noise retinotopy
-% Best SNR comes from using raw blue signal
+%% Sparse noise retinotopy (single day)
 
-surround_window = [0.3,0.5]; % 6s = [0.3,0.5], deconv = [0.05,0.15]
-framerate = 1./nanmean(diff(wf_times));
-surround_samplerate = 1/(framerate*1);
-surround_time = surround_window(1):surround_samplerate:surround_window(2);
-response_n = nan(n_y_squares,n_x_squares);
-response_grid = cell(n_y_squares,n_x_squares);
-for px_y = 1:n_y_squares
-    for px_x = 1:n_x_squares
+ap.wf_retinotopy
 
-        align_times = ...
-            stim_times(find( ...
-            (noise_locations(px_y,px_x,1:end-1) == 128 & ...
-            noise_locations(px_y,px_x,2:end) == 255) | ...
-            (noise_locations(px_y,px_x,1:end-1) == 128 & ...
-            noise_locations(px_y,px_x,2:end) == 0))+1);
+%% Create animal alignment (sparse noise retinotopy: batch, save, align)
 
-        response_n(px_y,px_x) = length(align_times);
+animal = 'AP010';
 
-        % Don't use times that fall outside of imaging
-        align_times(align_times + surround_time(1) < wf_times(2) | ...
-            align_times + surround_time(2) > wf_times(end)) = [];
+workflow = 'sparse_noise';
+recordings = plab.find_recordings(animal,[],workflow);
 
-        % Get stim-aligned responses, 2 choices:
+vfs_all = cell(length(recordings),1);        
+for curr_day = 1:length(recordings)
+    rec_day = recordings(curr_day).day;
+    rec_time = recordings(curr_day).recording{end};
+    verbose = true;
+    ap.load_recording;
 
-        % 1) Interpolate times (slow - but supersamples so better)
-        %         align_surround_times = bsxfun(@plus, align_times, surround_time);
-        %         peri_stim_v = permute(mean(interp1(frame_t,fV',align_surround_times),1),[3,2,1]);
-
-        % 2) Use closest frames to times (much faster - not different)
-        align_surround_times = align_times + surround_time;
-        frame_edges = [wf_times;wf_times(end)+1/framerate];
-        align_frames = discretize(align_surround_times,frame_edges);
-
-        % Get stim-aligned baseline (at stim onset)
-        align_baseline_times = align_times;
-        align_frames_baseline = discretize(align_baseline_times,frame_edges);
-
-        % Don't use NaN frames (delete, dirty)
-        nan_stim = any(isnan(align_frames),2) | isnan(align_frames_baseline);
-        align_frames(nan_stim,:) = [];
-        align_frames_baseline(nan_stim,:) = [];
-
-        % Define the peri-stim V's as subtracting first frame (baseline)
-        peri_stim_v = ...
-            reshape(wf_V_raw{1}(:,align_frames)',size(align_frames,1),size(align_frames,2),[]) - ...
-            nanmean(reshape(wf_V_raw{1}(:,align_frames_baseline)',size(align_frames_baseline,1),size(align_frames_baseline,2),[]),2);
-
-        mean_peri_stim_v = permute(mean(peri_stim_v,2),[3,1,2]);
-
-        % Store V's
-        response_grid{px_y,px_x} = mean_peri_stim_v;
-
-    end
+    ap.wf_retinotopy;
+    vfs_all{curr_day} = vfs;
 end
 
-% Get position preference for every pixel
-U_downsample_factor = 1; %2 if max method
-screen_resize_scale = 1; %3 if max method
-filter_sigma = (screen_resize_scale*2);
+% Save retinotopy from all days
+retinotopy = struct('animal',animal,'day',reshape({recordings.day},[],1),'vfs',vfs);
+alignment_path = fullfile(plab.locations.server_path, ...
+    'Users','Andy_Peters','widefield_alignment');
+retinotopy_path = fullfile(alignment_path,'retinotopy');
+retinotopy_fn = fullfile(retinotopy_path,sprintf('%s_retinotopy.mat',animal));
+save(retinotopy_fn,'retinotopy');
+disp(['Saved ' retinotopy_fn]);
 
-% Downsample U
-[Uy,Ux,nSV] = size(wf_U);
-Ud = imresize(wf_U,1/U_downsample_factor,'bilinear');
-
-% Convert V responses to pixel responses
-use_svs = 1:2000; % de-noises, otherwise size(U,3)
-n_boot = 10;
-
-response_mean_bootstrap = cellfun(@(x) bootstrp(n_boot,@mean,x')',response_grid,'uni',false);
-
-
-
-%%%%%%% Get retinotopy (for each bootstrap)
-use_method = 'com'; % max or com
-vfs_boot = nan(size(Ud,1),size(Ud,2),n_boot);
-for curr_boot = 1:n_boot
-
-    response_mean = cell2mat(cellfun(@(x) x(:,curr_boot),response_mean_bootstrap(:),'uni',false)');
-    stim_im_px = reshape(permute(plab.wf.svd2px(Ud(:,:,use_svs), ...
-        response_mean(use_svs,:)),[3,1,2]),n_y_squares,n_x_squares,[]);
-    gauss_filt = fspecial('gaussian',[n_y_squares,n_x_squares],filter_sigma);
-    stim_im_smoothed = imfilter(imresize(stim_im_px,screen_resize_scale,'bilinear'),gauss_filt);
-
-    switch use_method
-        case 'max'
-            % Upsample each pixel's response map and find maximum
-            [~,mi] = max(reshape(stim_im_smoothed,[],size(stim_im_px,3)),[],1);
-            [m_y,m_x] = ind2sub(size(stim_im_smoothed),mi);
-            m_yr = reshape(m_y,size(Ud,1),size(Ud,2));
-            m_xr = reshape(m_x,size(Ud,1),size(Ud,2));
-
-        case 'com'
-            % Conversely, do COM on original^2
-            [xx,yy] = meshgrid(1:size(stim_im_smoothed,2),1:size(stim_im_smoothed,1));
-            m_xr = reshape(sum(sum(bsxfun(@times,stim_im_smoothed.^2,xx),1),2)./sum(sum(stim_im_smoothed.^2,1),2),size(Ud,1),size(Ud,2));
-            m_yr = reshape(sum(sum(bsxfun(@times,stim_im_smoothed.^2,yy),1),2)./sum(sum(stim_im_smoothed.^2,1),2),size(Ud,1),size(Ud,2));
-    end
-
-    % Calculate and plot sign map (dot product between horz & vert gradient)
-
-    % 1) get gradient direction
-    [~,Vdir] = imgradient(imgaussfilt(m_yr,1));
-    [~,Hdir] = imgradient(imgaussfilt(m_xr,1));
-
-    % 3) get sin(difference in direction) if retinotopic, H/V should be
-    % orthogonal, so the closer the orthogonal the better (and get sign)
-    angle_diff = sind(Vdir-Hdir);
-    angle_diff(isnan(angle_diff)) = 0;
-
-    vfs_boot(:,:,curr_boot) = angle_diff;
+% Align VFS across days
+aligned_vfs = cell(length(retinotopy),1);
+for curr_day = 1:length(retinotopy)
+        aligned_vfs{curr_day} = ap.align_wf(retinotopy(curr_day).vfs, ...
+            retinotopy.animal,retinotopy(curr_day).day,'day_only');
 end
 
-vfs_boot_mean = imgaussfilt(nanmean(vfs_boot,3),2);
-
-figure;
-imagesc(vfs_boot_mean)
+% Plot day-aligned VFS
+AP_imscroll(cat(3,aligned_vfs{:}));
+colormap(AP_colormap('BWR'));clim([-1,1]);
 axis image off;
-colormap(AP_colormap('RWB'));
-title(animal)
+title('Day-aligned VFS')
+
+% Align across-day mean VFS to master animal
+% (TEMPORARY: flip VFS sign, flipped from previous)
+vfs_mean = nanmean(cat(3,aligned_vfs{:}),3);
+ap.align_widefield(-vfs_mean,animal,[],'new_animal');
+
+% Plot master-aligned average VFS with CCF overlay
+master_aligned_vfs = cell(length(retinotopy),1);
+for curr_day = 1:length(retinotopy)
+        master_aligned_vfs{curr_day} = ...
+            ap.align_widefield(retinotopy(curr_day).vfs, ...
+            animal,retinotopy(curr_day).day);
+end
+figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
+colormap(AP_colormap('BWR'));clim([-1,1]);
+axis image off;
+ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
+title('Master-aligned average VFS');
 
 
 %% TESTING BATCH PASSIVE WIDEFIELD

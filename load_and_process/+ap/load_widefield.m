@@ -22,6 +22,9 @@ for curr_wf = 1:length(widefield_colors)
 
 end
 
+% BUG? FOR NOW: if mismatching number of frames/times, cut off ends to match
+wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
+
 % Correct hemodynamics
 V_neuro_hemocorr = plab.wf.hemo_correct( ...
     wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
@@ -38,7 +41,7 @@ wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
 
 % Deconvolve
 wf_framerate = mean(1./diff(wf_t_all{1}));
-wf_Vdf_deconv = ap.deconv_wf(wf_Vdf,wf_framerate);
+wf_Vdf_deconv = ap.deconv_widefield(wf_Vdf,wf_framerate);
 
 % Set final processed widefield variables
 wf_U = wf_U_raw{1};
