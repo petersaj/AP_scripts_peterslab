@@ -8,8 +8,13 @@ Scripts written after opening lab
 - `ap.load_timelite/bonsai/mousecam/widefield/ephys`, based on what's available and workspace structure `load_parts`
 - parses wheel with `ap.parse_wheel` into `wheel velocity` and binary `wheel_move` vectors
 
-#### Ephys preprocessing
+#### Ephys
+##### Preprocessing
 `ap.preprocess_neuropixels(animal,day)` - saves metadata, runs PyKilosort, translates spike times into Open Ephys timestamps
+
+#### Widefield 
+`ap.align_widefield(im_unaligned,animal,day,align_type_master_align)`:
+- create and save new alignment: `ap.align_widefield([],animal,[],'new_days')` (uses all wf days, or specify `im_unaligned/days` for selection)
 
 #### Data exploration
 `ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)` - scroll through widefield and/or mousecam
