@@ -1,7 +1,7 @@
 # AP_scripts_peterslab
 Scripts written after opening lab
 
-Pipelines: 
+## Pipelines: 
 
 #### Loading recordings
 `ap.load_recording` - calls: 
