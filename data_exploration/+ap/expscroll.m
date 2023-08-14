@@ -1,5 +1,5 @@
-function AP_expscroll(U,V,wf_t,mousecam_fn,mousecam_t,trace,trace_t)
-% AP_expscroll(U,V,wf_t,mousecam_fn,mousecam_t,trace,trace_t)
+function expscroll(U,V,wf_t,mousecam_fn,mousecam_t,trace,trace_t)
+% expscroll(U,V,wf_t,mousecam_fn,mousecam_t,trace,trace_t)
 %
 % U = wf U
 % V = wf V

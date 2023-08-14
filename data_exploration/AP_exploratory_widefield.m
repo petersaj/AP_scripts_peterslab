@@ -2,12 +2,12 @@
 
 %% Experiment scroller
 
-% AP_expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
-% AP_expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})
-% AP_expscroll(wf_U,wf_Vdf,wf_times)
-% AP_expscroll(wf_U,wf_V,wf_times)
+% ap.expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
+% ap.expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})
+% ap.expscroll(wf_U,wf_Vdf,wf_times)
+% ap.expscroll(wf_U,wf_V,wf_times)
 
-AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 
 
 %% Align widefield to event
@@ -24,17 +24,17 @@ AP_expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
 % align_times = align_times_all(quiescent_trials);
 % align_category = align_category_all(quiescent_trials);
 
-% % (task stim)
-% align_times = stimOn_times;
-% align_category = ones(size(align_times));
+% (task stim)
+align_times = stimOn_times;
+align_category = ones(size(align_times));
 
 % % (task move)
 % align_times = stim_move_time;
 % align_category = ones(size(align_times));
 
-% (task rewards)
-align_times = reward_times;
-align_category = ones(size(align_times));
+% % (task rewards)
+% align_times = reward_times;
+% align_category = ones(size(align_times));
 
 % % (sparse noise)
 % px_x = 23;
