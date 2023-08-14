@@ -12,7 +12,7 @@ workflow = 'lcr_passive';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
-rec_time = ap.find_recordings(animal,rec_day,workflow).recording{end};
+rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 verbose = true;
 ap.load_recording;
