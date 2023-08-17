@@ -6,20 +6,20 @@
 use_cam = mousecam_fn;
 use_t = mousecam_times;
 
-align_times = stimOn_times;
-align_category = vertcat(trial_events.values.TrialStimX);
+% (passive)
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
 
-% (get only quiescent trials)
-[wheel_velocity,wheel_move] = AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
-framerate = 30;
-wheel_window = [0,0.5];
-wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-wheel_window_t_peri_event = align_times_all + wheel_window_t;
-event_aligned_move = interp1(timelite.timestamps, ...
-    +wheel_move,wheel_window_t_peri_event,'previous');
-quiescent_trials = ~any(event_aligned_move,2);
+align_times = stimOn_times(quiescent_trials);
+align_category_all = vertcat(trial_events.values.TrialStimX);
+align_category = align_category_all(quiescent_trials);
 
 use_align = align_times(align_category == 90 & quiescent_trials);
+
+
 
 surround_frames = 30;
 
@@ -117,18 +117,19 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AP004','AP005','AP006','AP007','AP008','AP009','AM001','AM002'};
+% animals = {'AP004','AP005','AP006','AP007','AP008','AP009','AM001','AM002'};
+animals = {'AP010'};
 
 % Create master tiled layout
 figure;
-t = tiledlayout(1,length(animals));
+t = tiledlayout(1,length(animals),'TileSpacing','tight');
 
 for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
     use_workflow = {'stim_wheel_right*'};
-    recordings = ap.find_recordings(animal,[],use_workflow);
+    recordings = plab.find_recordings(animal,[],use_workflow);
 
     surround_time = [-5,5];
     surround_sample_rate = 100;
@@ -233,7 +234,7 @@ for curr_animal_idx = 1:length(animals)
     clim([0,1]);
     colormap(gca,AP_colormap('WK'));
     set(gca,'YTick',1:length(recordings),'YTickLabel', ...
-        cellfun(@(day,num) sprintf('%s (%d)',day(6:end),num), ...
+        cellfun(@(day,num) sprintf('%d(%s)',num,day(6:end)), ...
         {recordings.day},num2cell(1:length(recordings)),'uni',false));
     xlabel('Time from stim');
     if any(learned_day)

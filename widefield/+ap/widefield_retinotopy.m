@@ -1,13 +1,6 @@
 % wf_retinotopy: run after loading sparse noise experiment with
 % ap.load_experiment
 
-%%%%%%%%%%%%%%%%%% NOTE
-
-% sign is flipped from what it used to be? the noise locations might be
-% loaded in the wrong orientation?
-
-%%%%%%%%%%%%%%
-
 % Use raw blue signal (best SNR)
 surround_window = [0.3,0.5]; % 6s = [0.3,0.5], deconv = [0.05,0.15]
 framerate = 1./nanmean(diff(wf_times));
@@ -80,7 +73,6 @@ n_boot = 10;
 response_mean_bootstrap = cellfun(@(x) bootstrp(n_boot,@mean,x')',response_grid,'uni',false);
 
 %%%%%%% Get retinotopy (for each bootstrap)
-use_method = 'com'; % max or com
 vfs_boot = nan(size(Ud,1),size(Ud,2),n_boot);
 for curr_boot = 1:n_boot
 
@@ -90,20 +82,14 @@ for curr_boot = 1:n_boot
     gauss_filt = fspecial('gaussian',[n_y_squares,n_x_squares],filter_sigma);
     stim_im_smoothed = imfilter(imresize(stim_im_px,screen_resize_scale,'bilinear'),gauss_filt);
 
-    switch use_method
-        case 'max'
-            % Upsample each pixel's response map and find maximum
-            [~,mi] = max(reshape(stim_im_smoothed,[],size(stim_im_px,3)),[],1);
-            [m_y,m_x] = ind2sub(size(stim_im_smoothed),mi);
-            m_yr = reshape(m_y,size(Ud,1),size(Ud,2));
-            m_xr = reshape(m_x,size(Ud,1),size(Ud,2));
+%     % (for troubleshooting: scroll through px stim responses)
+%     AP_imscroll(reshape(permute(stim_im_px,[3,1,2]),size(Ud,1),size(Ud,2),[]));
+%     axis image;clim(max(abs(clim)).*[-1,1]);colormap(AP_colormap('BWR'));
 
-        case 'com'
-            % Conversely, do COM on original^2
-            [xx,yy] = meshgrid(1:size(stim_im_smoothed,2),1:size(stim_im_smoothed,1));
-            m_xr = reshape(sum(sum(bsxfun(@times,stim_im_smoothed.^2,xx),1),2)./sum(sum(stim_im_smoothed.^2,1),2),size(Ud,1),size(Ud,2));
-            m_yr = reshape(sum(sum(bsxfun(@times,stim_im_smoothed.^2,yy),1),2)./sum(sum(stim_im_smoothed.^2,1),2),size(Ud,1),size(Ud,2));
-    end
+    % Get center-of-mass screen response for each widefield pixel
+    [yy,xx] = ndgrid(1:size(stim_im_smoothed,1),1:size(stim_im_smoothed,2));
+    m_xr = reshape(sum(sum(bsxfun(@times,stim_im_smoothed.^2,xx),1),2)./sum(sum(stim_im_smoothed.^2,1),2),size(Ud,1),size(Ud,2));
+    m_yr = reshape(sum(sum(bsxfun(@times,stim_im_smoothed.^2,yy),1),2)./sum(sum(stim_im_smoothed.^2,1),2),size(Ud,1),size(Ud,2));
 
     % Calculate and plot sign map (dot product between horz & vert gradient)
 

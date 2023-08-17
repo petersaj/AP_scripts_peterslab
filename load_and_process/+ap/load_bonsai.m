@@ -111,6 +111,10 @@ elseif strcmp(bonsai_workflow,'sparse_noise')
 
     % Get stim times from photodiode (extrapolate: sparse noise photodiode
     % flips every N stim to give a more robust signal)
+    if ~isfield(trial_events.parameters,'NthPhotodiodeFlip')
+        % (if it wasn't defined, default to flipping on every stim)
+        trial_events.parameters.NthPhotodiodeFlip = 1;
+    end
     photodiode_stim_idx = 1:trial_events.parameters.NthPhotodiodeFlip:size(noise_locations,3);
     % (check that the number of photodiode flips is expected)
     if length(photodiode_stim_idx) ~= length(photodiode_times)

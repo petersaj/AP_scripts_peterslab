@@ -68,11 +68,12 @@ photodiode_flip_idx = find(diff(photodiode_bw_interp) ~= 0 & ...
 photodiode_times = timelite.timestamps(photodiode_flip_idx);
 photodiode_values = photodiode_bw_interp(photodiode_flip_idx);
 
-% Reward times (if on past certain time, valve signal flips rapidly to
-% avoid burnout - take the reward onset as flipping up and staying high for
-% some length of samples)
+% Reward times (valve flips rapidly to avoid burnout, so only use values
+% with minimum spacing to get onset)
 reward_idx = strcmp({timelite.daq_info.channel_name}, 'reward_valve');
 reward_thresh = timelite.data(:,reward_idx) >= ttl_thresh;
-reward_on_pattern = [0,ones(1,3)]; % flip up, be consecutively high
-reward_times = timelite.timestamps(strfind(reward_thresh',reward_on_pattern));
+reward_ups = timelite.timestamps(find(diff(reward_thresh) == 1)+1);
+reward_valve_diff_thresh = 0.5;
+reward_times = reward_ups(diff([-Inf;reward_ups]) > reward_valve_diff_thresh);
+
 

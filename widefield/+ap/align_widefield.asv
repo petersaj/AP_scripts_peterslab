@@ -107,7 +107,7 @@ switch align_type
         % (increasing the PyramidLevels made the biggest improvement)
         disp('Rigid aligning images...')
         im_ref = im_unaligned{1};
-        im_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));       
+        im_rigid_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));       
         tform_matrix = cell(size(im_unaligned));        
         for curr_im = 1:length(im_unaligned)
             tformEstimate_affine = imregtform(im_unaligned{curr_im}, ...
@@ -115,48 +115,116 @@ switch align_type
             curr_im_reg = imwarp(im_unaligned{curr_im}, ...
                 tformEstimate_affine,'Outputview',imref2d(ref_size));
             tform_matrix{curr_im} = tformEstimate_affine.T;
-            im_aligned(:,:,curr_im) = curr_im_reg;
+            im_rigid_aligned(:,:,curr_im) = curr_im_reg;
         end
         
-        % Check and manually align bad alignments by control points
-        while true
-            f = AP_imscroll(im_aligned);
-            clim(prctile(im_aligned(:),[1,99]));
+        %%%%% TO DO: replace this with controlpoint selection on bad ones?
+        cp_flag = true;
+        while cp_flag
+            f = AP_imscroll(im_rigid_aligned);
+            clim(prctile(im_rigid_aligned(:),[1,99]));
             axis image;
-            cp_im = input('Manual align? (#, or empty if good): ');
+            cp_im = input('Manual align? (#, or empty): ');
             close(f)
 
             if isempty(cp_im)
                 break
-            elseif ~ismember(cp_im,1:size(im_aligned,3))
-                fprintf('Invalid image number selected: %d',cp_im);
-                continue
             end
 
             % Select control points for selected image
             [movingPoints,fixedPoints] = cpselect( ...
-                mat2gray(im_aligned(:,:,cp_im)), ...
+                mat2gray(im_rigid_aligned(:,:,cp_im)), ...
                 mat2gray(im_ref),'Wait',true);
             cp_tform = fitgeotform2d(movingPoints,fixedPoints,'similarity');
             cp_rigid_tform = rigidtform2d(cp_tform.RotationAngle,cp_tform.Translation);
 
             % Update image with new transform
-            im_aligned(:,:,cp_im) = ...
-                imwarp(im_aligned(:,:,cp_im), ...
+            im_rigid_aligned(:,:,cp_im) = ...
+                imwarp(im_rigid_aligned(:,:,cp_im), ...
                 cp_rigid_tform,'Outputview',imref2d(ref_size));
 
             % Update combined transform matrix for image
             tform_matrix{cp_im} = tform_matrix{cp_im}*cp_rigid_tform.A;
         end
 
-        % Confirm good alignment
-        f = AP_imscroll(im_aligned, ...
-            cellfun(@(x) ['Final alignment: ' animal ' ' x],day,'uni',false));
-        clim(prctile(im_aligned(:),[1,99]));
-        axis image;
-        confirm_save = input(['Save day transforms for ' animal '? (y/n): '],'s');
-        close(f)
 
+
+        % (change this to just use rotation and translation? exclude
+        % scaling, have to build T matrix from these)
+
+        tformEstimate_affine = imregtform( ...
+            im_rigid_aligned_roi(:,:,curr_im), ...
+            im_ref,'rigid',optimizer,metric,'PyramidLevels',4);
+
+        tform_combine = rigid_tform{curr_im}*cp_tform.A;
+        
+
+        tform_matrix{curr_im} = tform_combine;
+
+        curr_tform = affine2d;
+        curr_tform.T = tform_combine;
+        curr_im_reg = imwarp(im_unaligned{curr_im},curr_tform, ...
+            'Outputview',imref2d(ref_size));
+
+
+
+        % (user draw ROI around most stable area for alignment reference)
+        % (and lower the search radius)
+        draw_roi = true;
+        while draw_roi
+            f = AP_imscroll(im_rigid_aligned, ...
+                repmat({'Draw ROI or double-click to accept'},length(im_unaligned),1));
+            caxis([prctile(im_unaligned_pad_norm(:),1),prctile(im_unaligned_pad_norm(:),99)]);
+            axis image;
+            h = imrect;
+            position = round(wait(h));
+            close(f);
+            
+            % If no ROI drawn, accept and save transform
+            if sum(position(3:4)) == 0
+                tform_matrix = rigid_tform;
+                draw_roi = false; 
+                confirm_save = 'y';
+                continue
+            end
+            
+            im_rigid_aligned_roi = im_rigid_aligned( ...
+                position(2):position(2)+position(4), ...
+                position(1):position(1)+position(3),:);
+
+            disp('Rigid aligning selected ROI...')
+            im_ref = im_rigid_aligned_roi(:,:,1);
+            im_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));
+            tform_matrix = cell(length(im_unaligned),1);
+            for curr_im = 1:length(im_unaligned)
+                tformEstimate_affine = imregtform( ...
+                    im_rigid_aligned_roi(:,:,curr_im), ...
+                    im_ref,'rigid',optimizer,metric,'PyramidLevels',4);
+                
+                tform_combine = rigid_tform{curr_im}*tformEstimate_affine.T;
+                tform_matrix{curr_im} = tform_combine;
+                
+                curr_tform = affine2d;
+                curr_tform.T = tform_combine;
+                curr_im_reg = imwarp(im_unaligned{curr_im},curr_tform, ...
+                    'Outputview',imref2d(ref_size));
+                
+                tform_matrix{curr_im} = tform_combine;
+                im_aligned(:,:,curr_im) = curr_im_reg;
+            end
+            
+            f = AP_imscroll(im_aligned, ...
+                cellfun(@(x) ['Final alignment: ' animal ' ' x],day,'uni',false));
+            caxis([prctile(im_aligned(:),1),prctile(im_aligned(:),99)]);
+            axis image;
+            confirm_save = input(['Save day transforms for ' animal '? (y/n/redo): '],'s');
+            close(f)
+            
+            if ~strcmp(confirm_save,'redo')
+                draw_roi = false;
+            end
+        end
+        
         % Save transform matrix into structure
         if strcmp(confirm_save,'y')
             curr_animal_idx = strcmp(animal,{wf_tform.animal});
