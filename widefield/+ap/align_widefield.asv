@@ -33,7 +33,7 @@ if ~exist(alignment_path,'dir')
 end
 
 % Load transform structure
-wf_tform_fn = fullfile(alignment_path,'wf_tform.mat');
+wf_tform_fn = [alignment_path filesep 'wf_tform.mat'];
 % (if it doesn't exist yet, create it)
 if ~exist(wf_tform_fn,'file')
     wf_tform = struct('animal',cell(0),'day',cell(0),'day_tform',cell(0), ...
@@ -126,12 +126,7 @@ switch align_type
             user_input = input('Manual align? (#,s=save, q=quit): ','s');
             close(f)
 
-            % Convert user input to number if numeric
-            if ~isnan(str2double(user_input))
-                user_input = str2double(user_input);
-            end
-
-            if ischar(user_input) && ismember(user_input,{'s','q'})
+            if isnna(str2dou(user_input) && ismember(user_input,{'s','q'})
                 % User selected save or quit
                 break
 

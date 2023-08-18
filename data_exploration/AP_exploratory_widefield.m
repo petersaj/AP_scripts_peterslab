@@ -141,29 +141,35 @@ set(gcf,'Name',animal);
 % NOTE: need to do day alignment first
 
 animal = 'AP010';
+overwrite_retinotopy = false;
 
-workflow = 'sparse_noise';
-recordings = plab.find_recordings(animal,[],workflow);
-
-vfs_all = cell(length(recordings),1);        
-for curr_day = 1:length(recordings)
-    rec_day = recordings(curr_day).day;
-    rec_time = recordings(curr_day).recording{end};
-    verbose = true;
-    ap.load_recording;
-
-    ap.widefield_retinotopy;
-    vfs_all{curr_day} = vfs;
-end
-
-% Save retinotopy from all days
-retinotopy = struct('animal',animal,'day',reshape({recordings.day},[],1),'vfs',vfs);
+% Check if aligned mean retinotopy is saved, create if not
 alignment_path = fullfile(plab.locations.server_path, ...
     'Users','Andy_Peters','widefield_alignment');
 retinotopy_path = fullfile(alignment_path,'retinotopy');
 retinotopy_fn = fullfile(retinotopy_path,sprintf('%s_retinotopy.mat',animal));
-save(retinotopy_fn,'retinotopy');
-disp(['Saved ' retinotopy_fn]);
+
+if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
+    workflow = 'sparse_noise';
+    recordings = plab.find_recordings(animal,[],workflow);
+
+    vfs_all = cell(length(recordings),1);
+    disp('Creating retinotopy...');
+    for curr_day = 1:length(recordings)
+        rec_day = recordings(curr_day).day;
+        rec_time = recordings(curr_day).recording{end};
+        verbose = true;
+        ap.load_recording;
+
+        ap.widefield_retinotopy;
+        vfs_all{curr_day} = vfs;
+    end
+
+    % Save retinotopy from all days
+    retinotopy = struct('animal',animal,'day',reshape({recordings.day},[],1),'vfs',vfs);
+    save(retinotopy_fn,'retinotopy');
+    fprintf('Saved %s\n',retinotopy_fn);
+end
 
 % Align VFS across days
 aligned_vfs = cell(length(retinotopy),1);
