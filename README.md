@@ -1,8 +1,6 @@
 # AP_scripts_peterslab
 Scripts written after opening lab
 
-## Pipelines: 
-
 #### Loading recordings
 `ap.load_recording` - calls: 
 - `ap.load_timelite/bonsai/mousecam/widefield/ephys`, based on what's available and workspace structure `load_parts`
@@ -18,7 +16,7 @@ Scripts written after opening lab
 - create and save new animal alignment: `ap.align_widefield(day-aligned retinotopy,animal,[],'new_animal')` (aligns day-aligned average animal retinotopy to master retinotopy)
 
 `ap.draw_wf_ccf`: draw CCF borders over aligned widefield
-
+`ap.reflect_widefield`: flips L/R on aligned widefield image
 
 #### Data exploration
 `ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)` - scroll through widefield and/or mousecam
