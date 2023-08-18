@@ -32,11 +32,11 @@ elseif contains(bonsai_workflow,'stim_wheel')
     % Task: align to stim/move/reward
     rewarded_trials = logical([trial_events.values.Outcome]');
 
-    use_trials = rewarded_trials(1:n_trials) & stim_to_move(1:n_trials)<0.2;
+    use_trials = rewarded_trials(1:n_trials);
     align_times = reshape([ ...
         stimOn_times(use_trials), ...
         stim_move_time(use_trials), ...
-        reward_times(1:sum(rewarded_trials))],[],1);
+        reward_times(use_trials)],[],1);
     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
@@ -170,6 +170,9 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
     save(retinotopy_fn,'retinotopy');
     fprintf('Saved %s\n',retinotopy_fn);
 end
+
+% Load pre-saved retinotopy
+load(retinotopy_fn);
 
 % Align VFS across days
 aligned_vfs = cell(length(retinotopy),1);
