@@ -124,7 +124,9 @@ switch align_type
             clim(prctile(im_aligned(:),[1,99]));
             axis image;
             user_input = input('Manual align? (#,s=save, q=quit): ','s');
-            close(f)
+            if ishandle(f)
+                close(f)
+            end
 
             % Convert user input to number if numeric
             if ~isnan(str2double(user_input))
@@ -151,7 +153,7 @@ switch align_type
                     cp_rigid_tform,'Outputview',imref2d(ref_size));
 
                 % Update combined transform matrix for image
-                tform_matrix{user_input} = tform_matrix{user_input}*cp_rigid_tform.A;
+                tform_matrix{user_input} = tform_matrix{user_input}*cp_rigid_tform.T;
 
             elseif isnumeric(user_input) && ~ismember(user_input,1:size(im_aligned,3))
                 % User selected an invalid day number
@@ -539,7 +541,7 @@ switch align_type
         end
             
         % Transform image, cast to input data type
-        tform = affine2d;
+        tform = affinetform2d;
         tform.T = curr_tform;
         im_aligned = cast(imwarp(im_unaligned,tform,'Outputview',imref2d(ref_size)), ...
             class(im_unaligned));

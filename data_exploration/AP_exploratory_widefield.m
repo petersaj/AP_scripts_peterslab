@@ -105,13 +105,13 @@ ap.widefield_retinotopy
 
 %% Create day alignment
 
-animal = 'AP010';
+animal = 'AP005';
 
 ap.align_widefield([],animal,[],'new_days');
 
 %% Check day alignment
 
-animal = 'AP010';
+animal = 'AP004';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -140,7 +140,7 @@ set(gcf,'Name',animal);
 %% Create animal alignment (sparse noise retinotopy: batch, save, align)
 % NOTE: need to do day alignment first
 
-animal = 'AP010';
+animal = 'AP004';
 overwrite_retinotopy = false;
 
 % Check if aligned mean retinotopy is saved, create if not
@@ -209,9 +209,9 @@ title('Master-aligned average VFS');
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP009';
+animal = 'AP010';
 use_workflow = 'lcr_passive';
-recordings = ap.find_recordings(animal,[],use_workflow);
+recordings = plab.find_recordings(animal,[],use_workflow);
 
 % temp: cut out bad days
 % recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
@@ -232,21 +232,18 @@ for curr_recording = 1:length(recordings)
     end
     ap.load_recording;
 
-    % Align to stim and store
-    % (passive)
-    align_times_all = photodiode_times(1:2:end);
+    % Get quiescent trials and stim onsets/ids
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        1:length(stimOn_times))';
+
+    align_times = stimOn_times(quiescent_trials);
     align_category_all = vertcat(trial_events.values.TrialStimX);
-    % (get only quiescent trials)
-    framerate = 30;
-    wheel_window = [0,0.5];
-    wheel_window_t = wheel_window(1):1/framerate:wheel_window(2);
-    wheel_window_t_peri_event = align_times_all + wheel_window_t;
-    event_aligned_move = interp1(timelite.timestamps, ...
-        +wheel_move,wheel_window_t_peri_event,'previous');
-    quiescent_trials = ~any(event_aligned_move,2);
-    align_times = align_times_all(quiescent_trials);
     align_category = align_category_all(quiescent_trials);
 
+    % Align to stim onset
     surround_window = [-0.5,1];
     surround_samplerate = 35;
     t = surround_window(1):1/surround_samplerate:surround_window(2);
@@ -259,13 +256,12 @@ for curr_recording = 1:length(recordings)
     aligned_v_avg = permute(splitapply(@nanmean,aligned_v,align_id),[3,2,1]);
     aligned_v_avg_baselined = aligned_v_avg - nanmean(aligned_v_avg(:,t < 0,:),2);
 
+    % Convert to pixels and package
     aligned_px_avg = plab.wf.svd2px(wf_U,aligned_v_avg_baselined);
-
     wf_px{curr_recording} = aligned_px_avg;
 
+    % Prep for next loop
     AP_print_progress_fraction(curr_recording,length(recordings));
-
-    % Clear vars except pre-load for next loop
     clearvars('-except',preload_vars{:});
 
 end
@@ -275,13 +271,37 @@ surround_samplerate = 35;
 t = surround_window(1):1/surround_samplerate:surround_window(2);
 a = cellfun(@(x) max(x(:,:,t > 0 & t < 0.2,3),[],3), ...
     wf_px(cellfun(@(x) ~isempty(x),wf_px)),'uni',false);
-c = [0,max(cellfun(@(x) max(x(:)),a))];
+c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
 
+figure('Name',animal');
+tiledlayout('flow','TileSpacing','none')
+for i = 1:length(a)
+    nexttile;imagesc(a{i}); axis image off;
+    clim(c); colormap(AP_colormap('PWG'));
+end
+AP_imscroll(cat(3,a{:}));
+axis image;
+clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
+
+a = cellfun(@(x) x-ap.reflect_widefield(x),wf_px,'uni',false);
+b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
+c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
 figure('Name',animal');
 tiledlayout('flow')
 for i = 1:length(a)
-nexttile;imagesc(a{i});clim(c);axis image off;
+    nexttile; imagesc(b{i}); axis image off;
 end
+AP_imscroll(cat(3,b{:}));
+axis image;
+clim(c); colormap(AP_colormap('PWG'));
+
+
+
+
+
+
+
+
 
 
 
