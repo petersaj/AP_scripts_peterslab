@@ -9,7 +9,7 @@ st = loadStructureTree([allen_atlas_path filesep 'structure_tree_safe_2017.csv']
 %% Get animal slice path
 
 % Set paths for histology images and directory to save slice/alignment
-animal = 'AP009';
+animal = 'AP010';
 
 im_path = sprintf('P:\\Data\\%s\\histology',animal);
 slice_path = fullfile(im_path,'slices');
@@ -96,7 +96,6 @@ end
 
 %%%%%% TRY A NEW VERSION: just plot units/rate with areas in background,
 %%%%%% slide up and down
-
 probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
 load(probe_ccf_filename);
 
@@ -130,8 +129,8 @@ for curr_probe = 1:length(probe_ccf)
     yyaxis left;
     image([],(1:size(probe_areas_rgb,1))*10,probe_areas_rgb);
     set(gca,'YTick',trajectory_area_centers_um,'YTickLabels',trajectory_area_labels);
-    set(gca,'XTick',[]);    
-    yline(-4000); % (draw a line to allow panning beyond data - hacky)
+    set(gca,'XTick',[]);
+    title(['Probe ' num2str(curr_probe)]);
     ylim([0,3840]);
 
     % Plot spikes normalized rate by depth
@@ -143,20 +142,27 @@ for curr_probe = 1:length(probe_ccf)
         template_depths(spike_templates_unique),15,'k','filled');
     ylim([0,3840]);
 
-    title(rec_day);
     pan('yon');
 end
+
 
 % Get the probe depths corresponding to the trajectory areas
 trajectory_offset = cellfun(@(x) x(1),ylim(probe_ax));
 
-probe_depths = cellfun(@(coord,offset) ...
-    pdist2(coord,coord(1,:))*10 + offset, ...
-    {probe_ccf.trajectory_coords},num2cell(trajectory_offset)','uni',false);
+probe_trajectory_depths = cellfun(@(coord,offset) ...
+    pdist2(x,x(1,:))*10 + trajectory_offset, ...
+    {probe_ccf.trajectory_coords},num2str(trajectory_offset),'uni',false);
 
-[probe_ccf.probe_depths] = probe_depths{:};
+probe_trajectory_depths = ...
+    pdist2(probe_ccf(use_probe).trajectory_coords, ...
+    probe_ccf(use_probe).trajectory_coords)*10;
 
-save(probe_ccf_filename,'probe_ccf');
+
+probe_depths = gui_data.probe_trajectory_depths - ...
+    gui_data.probe_areas_ax_ylim(1);
+
+probe_ccf(gui_data.use_probe).probe_depths = probe_depths;
+
 
 
 %%%%%%%

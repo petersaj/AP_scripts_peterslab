@@ -22,9 +22,12 @@ if exist(bonsai_events_fn,'file')
     % Load Bonsai CSV file
     bonsai_events_raw = readtable(bonsai_events_fn,bonsai_table_opts);
 
-    % Check for NaT timestamps, throw warning if any
+    % Check for NaT timestamps, throw warning and flag if so
     if any(isnat(bonsai_events_raw.Timestamp))
+        bad_bonsai_csv = true;
         warning('Bonsai file ends improperly: %s',bonsai_events_fn);
+    else
+        bad_bonsai_csv = false;
     end
 
     % Create nested structure for trial events
@@ -95,6 +98,12 @@ elseif contains(bonsai_workflow,'lcr_passive')
     end
 
     stimOn_times = photodiode_times(photodiode_values == 1);
+
+    % If bad Bonsai CSV: truncate stim times to what was recorded
+    if bad_bonsai_csv
+        n_bonsai_stim = vertcat(trial_events.values.TrialStimX);
+        stimOn_times = stimOn_times(1:n_bonsai_stim);
+    end
 
 elseif strcmp(bonsai_workflow,'sparse_noise')
     % Sparse noise: get noise locations and times

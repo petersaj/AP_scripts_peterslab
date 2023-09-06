@@ -88,7 +88,7 @@ axis image;
 %% Widefield/ephys regression maps
 
 % Set upsample value for regression
-upsample_factor = 1;
+upsample_factor = 3;
 sample_rate = (1/mean(diff(wf_times)))*upsample_factor;
 
 % Skip the first/last n seconds to do this
@@ -103,7 +103,10 @@ time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 % depth_groups_used = unique(depth_group);
 % depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
 
-% (for clickable manual depths)
+% (for manual depth)
+depth_group_edges = [0,500,1500,2600,3000,3500,4000];
+
+
 norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
 figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
 axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
@@ -112,10 +115,9 @@ title('Click MUA borders');
 user_click_coords = ginput;
 depth_group_edges = user_click_coords(:,2);
 yline(depth_group_edges,'linewidth',2,'color','r');
-depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
-text(zeros(length(depth_group_centers),1),depth_group_centers, ...
-    num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
-drawnow;
+
+text(0,diff(depth_group_edges)/2,'a')
+
 
 n_depths = length(depth_group_edges) - 1;
 depth_group = discretize(spike_depths,depth_group_edges);

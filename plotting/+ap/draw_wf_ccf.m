@@ -45,7 +45,7 @@ load(ccf_tform_fn);
 um2pixel = 20.6;
 
 % (bregma - hard-code here)
-bregma = [540,44,570];
+bregma = [520,44,570];
 bregma(3) = bregma(3) + 0.5;
 bregma_resize = bregma*(10/um2pixel);
 bregma_wf = [bregma_resize([3,1]),1]*ccf_tform.T;

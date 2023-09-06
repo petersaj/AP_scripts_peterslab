@@ -47,7 +47,8 @@ mousecam_idx_offset = unique( ...
 
 % If there's more than one offset value, something's misaligned
 if length(mousecam_idx_offset) ~= 1
-    error('Mousecam frames misaligned: >1 offset value')
+    warning('Mousecam frames misaligned: >1 offset value')
+    mousecam_idx_offset = mousecam_idx_offset(1);
 end
 
 % Get the corresponding timelite frame times for each mousecam frame

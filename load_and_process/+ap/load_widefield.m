@@ -49,12 +49,14 @@ wf_V = wf_Vdf_deconv;
 wf_times = wf_t_all{1};
 wf_avg = wf_avg_all{1};
 
-% Align widefield (if alignment exists)
-try
-    wf_avg = ap.align_widefield(wf_avg,animal,rec_day);
-    wf_U = ap.align_widefield(wf_U,animal,rec_day);
-    if verbose; disp('Aligned widefield U/avg...');end
-catch  me
+% Align widefield (if alignment exists, and user doesn't turn off)
+if ~isfield(load_parts,'widefield_align') || load_parts.widefield_align
+    try
+        wf_avg = ap.align_widefield(wf_avg,animal,rec_day);
+        wf_U = ap.align_widefield(wf_U,animal,rec_day);
+        if verbose; disp('Aligned widefield U/avg...');end
+    catch  me
+    end
 end
 
 

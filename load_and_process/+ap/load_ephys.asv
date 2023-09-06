@@ -18,29 +18,10 @@ if ~any(contains({kilosort_dir.name},{'site','probe'}))
 elseif any(contains({kilosort_dir.name},'probe'))
     % If 'probe' folders (recordings in parallel), choose last before recording
     ephys_site_paths = dir(fullfile(kilosort_top_path,'probe_*'));
-    warning('Just o
-    if ~isempty(ephys_site_paths)
-        ephys_site_datetime = NaT(size(ephys_site_paths));
-        for curr_site = 1:length(ephys_site_paths)
-            curr_ephys_settings_file = fullfile( ...
-                ephys_path,ephys_site_paths(curr_site).name, ...
-                'settings.xml');
-            curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
-            ephys_site_datetime(curr_site) = ...
-                datetime(curr_ephys_settings.INFO.DATE, ...
-                'InputFormat','dd MMM yyyy HH:mm:ss');
-        end
-
-        % (add 1 minute leeway to recording time since no seconds)
-        ephys_use_site = find(ephys_site_datetime - ...
-            (rec_datetime + minutes(1)) < 0,1,'last');
-
-        kilosort_path = fullfile(kilosort_top_path, ...
-            ephys_site_paths(ephys_use_site).name);
-        open_ephys_path_dir = dir(fullfile(ephys_path, ...
-            ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));
-        open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
-    end
+    warning('Multiple probes: just loading probe 1 for now')
+    kilosort_path = fullfile(ephys_site_paths(1).folder,ephys_site_paths(1).name);
+    open_ephys_path_dir = dir(fullfile(ephys_path,ephys_site_paths(1).name,'experiment*','recording*'));
+    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
 
 elseif any(contains({kilosort_dir.name},'site'))
     % If 'site' folders (recordings in serial), choose last before recording
@@ -75,7 +56,10 @@ ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
-% Load probe position from trajectory explorer (if exists)
+% Load probe position 
+% (from histology, if it exists)
+histology_probe_filename = plab.locations.make_server_filename(animal,[],[],'histology','slices')
+% (or from trajectory explorer, if that exists)
 probe_positions_filename = dir(fullfile( ...
     fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
 if ~isempty(probe_positions_filename)
@@ -106,7 +90,7 @@ else
     spike_times_openephys = open_ephys_timestamps( ...
         readNPY(fullfile(kilosort_path,'spike_times.npy')));
     writeNPY(spike_times_openephys,spike_times_openephys_filename);
-    fprintf('Saved spike times openephys: %s\n',spike_times_openephys_filename);
+    fprintf('Converted and saved Open Ephys spike times: %s\n',spike_times_openephys_filename);
 end
 
 % (spike times: index Open Ephys timestamps rather than assume constant
@@ -172,7 +156,7 @@ flipper_recording_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
 
 % Get recordings included in day
 % (first recording after ephys starts until N recorded recordings)
-day_recordings = ap.find_recordings(animal,rec_day).recording;
+day_recordings = plab.find_recordings(animal,rec_day).recording;
 recording_datetimes = ...
     cellfun(@(x) datetime(strjoin({rec_day,x}),'InputFormat','yyyy-MM-dd HHmm'), ...
     day_recordings);
@@ -233,14 +217,14 @@ if  exist(qMetrics_path,'dir')
     [param, qMetric] = bc_loadSavedMetrics(qMetrics_path);
     % (native bombcell labels)
     %  unitType = bc_getQualityUnitType(param, qMetric);
-    % (AM extra bombcell labels)
-    load(fullfile(qMetrics_path, 'am_bc_unit_type.mat'))
+    % (extra metrics & translated bombcell labels)
+    load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
 
     % Define good units from labels
-    % (0 = bad, 1 = good, 2 = multiunit, 3 = axon)
-    good_templates = ismember(am_bc_units,[1,2]);
+    good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
     if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
 else
+    warning('No ephys quality metrics available');
     good_templates = true(size(templates,1),1);
 end
 
@@ -277,13 +261,6 @@ end
 %     good_templates_idx = unique(spike_templates_0idx);
 %     good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
 % end
-
-% Throw out all non-good template data
-templates = templates(good_templates,:,:);
-template_depths = template_depths(good_templates);
-waveforms = waveforms(good_templates,:);
-templateDuration = templateDuration(good_templates);
-templateDuration_us = templateDuration_us(good_templates);
 
 % Throw out all non-good spike data
 good_spikes = ismember(spike_templates,find(good_templates));

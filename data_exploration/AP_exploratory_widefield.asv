@@ -105,13 +105,13 @@ ap.widefield_retinotopy
 
 %% Create day alignment
 
-animal = 'AP010';
+animal = 'AP005';
 
 ap.align_widefield([],animal,[],'new_days');
 
-%% View aligned days
+%% Check day alignment
 
-animal = 'AP010';
+animal = 'AP004';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -128,9 +128,6 @@ for curr_day = 1:length(wf_recordings)
     avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
     avg_im_aligned{curr_day} = [ap.align_widefield(avg_im_n,animal,day), ...
         ap.align_widefield(avg_im_h,animal,day)];
-
-    % (just violet)
-    avg_im_aligned{curr_day} = ap.align_widefield(avg_im_h,animal,day);
 end
 
 % Plot average
@@ -143,7 +140,7 @@ set(gcf,'Name',animal);
 %% Create animal alignment (sparse noise retinotopy: batch, save, align)
 % NOTE: need to do day alignment first
 
-animal = 'AP005';
+animal = 'AP004';
 overwrite_retinotopy = true;
 
 % Check if aligned mean retinotopy is saved, create if not
@@ -161,11 +158,8 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
     for curr_day = 1:length(recordings)
         rec_day = recordings(curr_day).day;
         rec_time = recordings(curr_day).recording{end};
-
         load_parts.widefield = true;
-        load_parts.widefield_align = false;
         verbose = true;
-
         try
             ap.load_recording;
             ap.widefield_retinotopy;
@@ -177,8 +171,7 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
     % Save retinotopy from all days which have VFS
     use_recordings = cellfun(@(x) ~isempty(x),vfs_all);
     retinotopy = struct('animal',animal,'day', ...
-        reshape({recordings(use_recordings).day},[],1), ...
-        'vfs',vfs_all(use_recordings));
+        reshape({recordings(use_recordings).day},[],1), ...'vfs',vfs_all);
     save(retinotopy_fn,'retinotopy');
     fprintf('Saved %s\n',retinotopy_fn);
 end

@@ -56,13 +56,31 @@ ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
-% Load probe position from trajectory explorer (if exists)
-probe_positions_filename = dir(fullfile( ...
+% Load probe position 
+% (check for histology, then trajectory explorer)
+warning('WORKING ON PROBE LOCATION LOADING')
+% TO DO: maybe just save the edges and names instead of each micron, do
+% that for aligned probe too
+histology_probe_filename = dir(...
+    plab.locations.make_server_filename(animal,[],[], ...
+    'histology','slices','probe_ccf.mat'));
+nte_positions_filename = dir(fullfile( ...
     fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
-if ~isempty(probe_positions_filename)
+if ~isempty(histology_probe_filename)
+    load(fullfile(histology_probe_filename.folder, ...
+        histology_probe_filename.name));
+    probe_histology_day_idx = find(strcmp(rec_day,{probe_ccf.day}));
+    if ~isempty(probe_histology_day_idx)
+        % if matched histology day, use that
+        probe_ccf(probe_histology_day_idx)
+    end
+
+elseif ~isempty(nte_positions_filename)
+    % if trajectory explorer, use that
     probe_positions = load(fullfile( ...
-        probe_positions_filename.folder,probe_positions_filename.name));
+        nte_positions_filename.folder,nte_positions_filename.name));
 end
+
 
 % Load ephys flipper
 flipper_sync_idx = 1;
