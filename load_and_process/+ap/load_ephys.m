@@ -58,29 +58,33 @@ ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
 
 % Load probe position 
 % (check for histology, then trajectory explorer)
+%%% THIS IS IN PROGRESS - NOT WORKING AS IS YET
 warning('WORKING ON PROBE LOCATION LOADING')
 % TO DO: maybe just save the edges and names instead of each micron, do
 % that for aligned probe too
+
+% (load histology positions if available)
 histology_probe_filename = dir(...
     plab.locations.make_server_filename(animal,[],[], ...
     'histology','slices','probe_ccf.mat'));
+if ~isempty(histology_probe_filename)
+   probe_histology = load(fullfile(histology_probe_filename.folder, ...
+        histology_probe_filename.name));
+end
+% (load NTE positions if available)
 nte_positions_filename = dir(fullfile( ...
     fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
 if ~isempty(histology_probe_filename)
-    load(fullfile(histology_probe_filename.folder, ...
-        histology_probe_filename.name));
-    probe_histology_day_idx = find(strcmp(rec_day,{probe_ccf.day}));
-    if ~isempty(probe_histology_day_idx)
-        % if matched histology day, use that
-        probe_ccf(probe_histology_day_idx)
-    end
-
-elseif ~isempty(nte_positions_filename)
-    % if trajectory explorer, use that
-    probe_positions = load(fullfile( ...
-        nte_positions_filename.folder,nte_positions_filename.name));
+    probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end
-
+% (use histology if available and matching day, use NTE if not)
+% if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') && ...
+%         any(find(strcmp(rec_day,{probe_histology.probe_ccf.day})))
+%     probe_histology_day_idx = find(strcmp(rec_day,{probe_histology.probe_ccf.day}));
+%     probe_ccf(probe_histology_day_idx);
+% else
+    probe_positions = probe_nte;
+% end
 
 % Load ephys flipper
 flipper_sync_idx = 1;

@@ -9,7 +9,7 @@ st = loadStructureTree([allen_atlas_path filesep 'structure_tree_safe_2017.csv']
 %% Get animal slice path
 
 % Set paths for histology images and directory to save slice/alignment
-animal = 'AP009';
+animal = 'AM005';
 
 im_path = sprintf('P:\\Data\\%s\\histology',animal);
 slice_path = fullfile(im_path,'slices');

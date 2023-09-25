@@ -152,7 +152,7 @@ end
 
 probe_color = 'b';
 
-[probe_ccf_file,probe_ccf_path] = uigetfile('*.mat','Pick probe NTE file');
+[probe_ccf_file,probe_ccf_path] = uigetfile('*.mat','Pick probe NTE file(s)','MultiSelect','on');
 load(fullfile(probe_ccf_path,probe_ccf_file));
 
 % Loop through probes and draw
