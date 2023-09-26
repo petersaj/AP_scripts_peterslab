@@ -57,12 +57,6 @@ ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
 % Load probe position 
-% (check for histology, then trajectory explorer)
-%%% THIS IS IN PROGRESS - NOT WORKING AS IS YET
-warning('WORKING ON PROBE LOCATION LOADING')
-% TO DO: maybe just save the edges and names instead of each micron, do
-% that for aligned probe too
-
 % (load histology positions if available)
 histology_probe_filename = dir(...
     plab.locations.make_server_filename(animal,[],[], ...
@@ -78,13 +72,13 @@ if ~isempty(histology_probe_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end
 % (use histology if available and matching day, use NTE if not)
-% if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') && ...
-%         any(find(strcmp(rec_day,{probe_histology.probe_ccf.day})))
-%     probe_histology_day_idx = find(strcmp(rec_day,{probe_histology.probe_ccf.day}));
-%     probe_ccf(probe_histology_day_idx);
-% else
-    probe_positions = probe_nte;
-% end
+if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') && ...
+        any(find(strcmp(rec_day,{probe_histology.probe_ccf.day})))
+    probe_histology_day_idx = find(strcmp(rec_day,{probe_histology.probe_ccf.day}));
+    probe_areas = {probe_histology.probe_ccf(probe_histology_day_idx).trajectory_areas};
+else
+    probe_areas = probe_nte.probe_areas;
+end
 
 % Load ephys flipper
 flipper_sync_idx = 1;
@@ -281,6 +275,13 @@ end
 %     good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
 % end
 
+% Throw out all non-good template data
+templates = templates(good_templates,:,:);
+template_depths = template_depths(good_templates);
+waveforms = waveforms(good_templates,:);
+templateDuration = templateDuration(good_templates);
+templateDuration_us = templateDuration_us(good_templates);
+
 % Throw out all non-good spike data
 good_spikes = ismember(spike_templates,find(good_templates));
 spike_templates = spike_templates(good_spikes);
@@ -288,6 +289,8 @@ template_amplitudes = template_amplitudes(good_spikes);
 spike_depths = spike_depths(good_spikes);
 spike_times_timeline = spike_times_timeline(good_spikes);
 
+% Rename the remaining spike templates (1:N, to match index for template)
+[~,spike_templates] = ismember(spike_templates,find(good_templates));
 
 
 

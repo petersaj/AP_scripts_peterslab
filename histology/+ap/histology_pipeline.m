@@ -11,7 +11,7 @@ st = loadStructureTree([allen_atlas_path filesep 'structure_tree_safe_2017.csv']
 % Set paths for histology images and directory to save slice/alignment
 animal = 'AM005';
 
-im_path = sprintf('P:\\Data\\%s\\histology',animal);
+im_path = plab.locations.make_server_filename(animal,[],[],'histology');
 slice_path = fullfile(im_path,'slices');
 
 
@@ -60,13 +60,12 @@ AP_view_aligned_histology_volume(tv,av,st,slice_path,1);
 % Get probe trajectory from histology, convert to CCF coordinates
 AP_get_probe_histology(tv,av,st,slice_path);
 
-%%%%%%% TESTING: 
+% Match trajectories with days
+% (plot NTE/histology days, select corresponding days from list)
+ap.plot_probe_positions(animal);
 
-% Get days with ephys
 recordings = plab.find_recordings(animal);
 ephys_days = {recordings([recordings.ephys]).day};
-
-% Match trajectories with days
 probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
 load(probe_ccf_filename);
 for curr_probe = 1:length(probe_ccf)
@@ -76,31 +75,11 @@ for curr_probe = 1:length(probe_ccf)
 end
 save(probe_ccf_filename,'probe_ccf');
 
-% Align histology to electrophysiology
-probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
-load(probe_ccf_filename);
-for curr_probe = 1:length(probe_ccf)
-    % Load first recording of the day
-    recordings = plab.find_recordings(animal,probe_ccf(curr_probe).day);
-    load_parts.ephys = true;
-    rec_day = recordings.day;
-    rec_time = recordings.recording{1};
-    ap.load_recording;
-
-    % Manually align depth
-    gui_fig = AP_align_probe_histology(st,slice_path, ...
-        spike_times_timeline,spike_templates,template_depths,curr_probe);
-    waitfor(gui_fig);
-end
-
-
-%%%%%% TRY A NEW VERSION: just plot units/rate with areas in background,
-%%%%%% slide up and down
-
+% Align histology depth to recording
 probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
 load(probe_ccf_filename);
 
-figure('Name','Trajectory areas');
+figure('Name',sprintf('%s: Trajectory areas',animal));
 tiledlayout(1,length(probe_ccf));
 probe_ax = gobjects(length(probe_ccf),1);
 
@@ -115,51 +94,51 @@ for curr_probe = 1:length(probe_ccf)
 
     probe_ax(curr_probe) = nexttile;    
 
-    % Plot 
-    trajectory_area_boundaries = ...
-        [1;find(diff(probe_ccf(curr_probe).trajectory_areas) ~= 0)+1; ...
-        length(probe_ccf(curr_probe).trajectory_areas)];    
-    trajectory_area_centers_um = (trajectory_area_boundaries(1:end-1) + ...
-        diff(trajectory_area_boundaries)/2)*10;
-    trajectory_area_labels = ...
-        st.acronym(probe_ccf(curr_probe).trajectory_areas(trajectory_area_boundaries(1:end-1)));
+    % Plot tajectory areas
+    trajectory_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+        probe_ccf(curr_probe).trajectory_areas.color_hex_triplet,'uni',false)),[1,3,2]);
 
-    probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
-        st.color_hex_triplet(probe_ccf(curr_probe).trajectory_areas),'uni',false)),[1,3,2]);
+    trajectory_areas_boundaries = probe_ccf(curr_probe).trajectory_areas.trajectory_depth;
+    trajectory_areas_centers = mean(trajectory_areas_boundaries,2);
+
+    trajectory_areas_image_depth = 0:1:max(trajectory_areas_boundaries,[],'all');
+    trajectory_areas_image_idx = interp1(trajectory_areas_boundaries(:,1), ...
+        1:height(probe_ccf(curr_probe).trajectory_areas),trajectory_areas_image_depth, ...
+        'previous','extrap');
+    trajectory_areas_image = trajectory_areas_rgb(trajectory_areas_image_idx,:,:);
 
     yyaxis left;
-    image([],(1:size(probe_areas_rgb,1))*10,probe_areas_rgb);
-    set(gca,'YTick',trajectory_area_centers_um,'YTickLabels',trajectory_area_labels);
-    set(gca,'XTick',[]);    
+    image([0,1],trajectory_areas_image_depth,trajectory_areas_image);
+    yline(unique(trajectory_areas_boundaries(:)),'color','k','linewidth',1);
+    set(probe_ax(curr_probe),'XTick',[],'YTick',trajectory_areas_centers, ...
+        'YTickLabels',probe_ccf(curr_probe).trajectory_areas.acronym);
     yline(-4000); % (draw a line to allow panning beyond data - hacky)
-    ylim([0,3840]);
+    ylim([0,3840]);    
 
     % Plot spikes normalized rate by depth
     spike_templates_unique = unique(spike_templates);
     norm_template_spike_n = mat2gray(log10(accumarray(spike_templates,1)+1));
     yyaxis right; set(gca,'YDir','reverse'); hold on;
-    ylabel('Depth (/mum)'); xlabel('Normalized spike rate');
+    ylabel('Depth (\mum)'); xlabel('Normalized spike rate');
     scatter(norm_template_spike_n(spike_templates_unique), ...
         template_depths(spike_templates_unique),15,'k','filled');
+    xlim([0,1]);
     ylim([0,3840]);
 
     title(rec_day);
     pan('yon');
+
 end
 
-% Get the probe depths corresponding to the trajectory areas
-trajectory_offset = cellfun(@(x) x(1),ylim(probe_ax));
-
-probe_depths = cellfun(@(coord,offset) ...
-    pdist2(coord,coord(1,:))*10 + offset, ...
-    {probe_ccf.trajectory_coords},num2cell(trajectory_offset)','uni',false);
-
-[probe_ccf.probe_depths] = probe_depths{:};
-
+% Add probe depth information to the trajectory areas from alignment
+for curr_probe = 1:length(probe_ccf)
+    curr_probe_depth = round(ylim(probe_ax(curr_probe)));
+    probe_ccf(curr_probe).trajectory_areas.probe_depth = ...
+        probe_ccf(curr_probe).trajectory_areas.trajectory_depth - ...
+        curr_probe_depth(1);
+end
 save(probe_ccf_filename,'probe_ccf');
 
-
-%%%%%%%
 
 
 %% Unused 
