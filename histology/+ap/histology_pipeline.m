@@ -161,32 +161,38 @@ ccf_points_areas = st(ccf_points_areas,:).safe_name;
 
 %% Plot probe areas
 
-% Plot probe areas
+probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
+load(probe_ccf_filename);
+
 figure('Name','Trajectory areas');
-tiledlayout(1,length(probe_ccf));
-% (load the colormap - located in the repository, find by associated fcn)
-allenCCF_path = fileparts(which('allenCCFbregma'));
-cmap_filename = [allenCCF_path filesep 'allen_ccf_colormap_2017.mat'];
-load(cmap_filename);
-colormap(cmap);
-
+tiledlayout(1,length(probe_ccf),'TileSpacing','compact');
 for curr_probe = 1:length(probe_ccf)
-    nexttile;    
-    trajectory_area_boundaries = ...
-        [1;find(diff(probe_ccf(curr_probe).trajectory_areas) ~= 0);length(probe_ccf(curr_probe).trajectory_areas)];    
-    trajectory_area_centers = trajectory_area_boundaries(1:end-1) + diff(trajectory_area_boundaries)/2;
-    trajectory_area_labels = st.acronym(probe_ccf(curr_probe).trajectory_areas(round(trajectory_area_centers)));
-      
-    image(probe_ccf(curr_probe).trajectory_areas);
     
-    clim([1,size(cmap,1)])
-    set(gca,'YTick',trajectory_area_centers,'YTickLabels',trajectory_area_labels);
-    set(gca,'XTick',[]);
-    title(['Probe ' num2str(curr_probe)]);
+    curr_axes = nexttile;
     
+    trajectory_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+        probe_ccf(curr_probe).trajectory_areas.color_hex_triplet,'uni',false)),[1,3,2]);
+
+    trajectory_areas_boundaries = probe_ccf(curr_probe).trajectory_areas.trajectory_depth;
+    trajectory_areas_centers = mean(trajectory_areas_boundaries,2);
+
+    trajectory_areas_image_depth = 0:0.01:max(trajectory_areas_boundaries,[],'all');
+    trajectory_areas_image_idx = interp1(trajectory_areas_boundaries(:,1), ...
+        1:height(probe_ccf(curr_probe).trajectory_areas),trajectory_areas_image_depth, ...
+        'previous','extrap');
+    trajectory_areas_image = trajectory_areas_rgb(trajectory_areas_image_idx,:,:);
+
+    image([],trajectory_areas_image_depth,trajectory_areas_image);
+    yline(unique(trajectory_areas_boundaries(:)),'color','k','linewidth',1);
+    set(curr_axes,'XTick',[],'YTick',trajectory_areas_centers, ...
+        'YTickLabels',probe_ccf(curr_probe).trajectory_areas.acronym);
+    set(curr_axes,'XTick',[]);
+    if isfield(probe_ccf,'day')
+        title({sprintf('Probe %d',curr_probe),probe_ccf(curr_probe).day});
+    else
+        title(sprintf('Probe %d',curr_probe));
+    end
 end
-
-
 
 
 
