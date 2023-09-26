@@ -20,3 +20,7 @@ Scripts written after opening lab
 
 #### Data exploration
 `ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)` - scroll through widefield and/or mousecam
+
+#### Plotting
+`ccf_outline` - draw CCF flat and 3D views, plot probe trajectories etc.
+`draw_wf_ccf` - draw CCF outline over widefield image
