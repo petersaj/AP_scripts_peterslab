@@ -5,11 +5,11 @@ if verbose; disp('Loading Bonsai...'); end
 %% Load general Bonsai events
 
 % Get Bonsai workflow
-bonsai_dir = dir(plab.locations.make_server_filename(animal,rec_day,rec_time,'bonsai'));
+bonsai_dir = dir(plab.locations.filename('server',animal,rec_day,rec_time,'bonsai'));
 bonsai_workflow = bonsai_dir([bonsai_dir.isdir] & ~contains({bonsai_dir.name},'.')).name;
 
 % Load Bonsai events (should be included in every workflow)
-bonsai_events_fn = plab.locations.make_server_filename( ...
+bonsai_events_fn = plab.locations.filename('server', ...
     animal,rec_day,rec_time,'bonsai','bonsai_events.csv');
 
 if exist(bonsai_events_fn,'file')
@@ -108,7 +108,7 @@ elseif contains(bonsai_workflow,'lcr_passive')
 elseif strcmp(bonsai_workflow,'sparse_noise')
     % Sparse noise: get noise locations and times
 
-    bonsai_noise_fn = plab.locations.make_server_filename( ...
+    bonsai_noise_fn = plab.locations.filename('server', ...
         animal,rec_day,rec_time,'bonsai','NoiseLocations.bin');
     fid = fopen(bonsai_noise_fn);
 

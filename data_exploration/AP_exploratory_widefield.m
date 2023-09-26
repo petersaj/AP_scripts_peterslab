@@ -121,7 +121,7 @@ avg_im_aligned = cell(size(wf_recordings));
 for curr_day = 1:length(wf_recordings)
     day = wf_recordings(curr_day).day;
 
-    img_path = plab.locations.make_server_filename( ...
+    img_path = plab.locations.filename('server', ...
         animal,day,[],'widefield');
 
     avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);

@@ -13,7 +13,7 @@ pykilosort_python_environment = pyenv('Version','C:\Users\petersa\anaconda3\envs
 
 %% Get paths and filenames
 
-ephys_path = plab.locations.make_server_filename(animal,day,[],'ephys');
+ephys_path = plab.locations.filename('server',animal,day,[],'ephys');
 
 ephys_exists = exist(ephys_path,'dir');
 

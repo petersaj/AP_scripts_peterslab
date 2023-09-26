@@ -36,7 +36,7 @@ brain_outline = patch( ...
 %% Draw probes (from Neuropixels Trajectory Explorer)
 
 % Find all saved probe positions
-probe_position_filepattern = plab.locations.make_server_filename(animal,'*',[],'ephys','*probe_positions.mat');
+probe_position_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
 probe_position_fns = dir(probe_position_filepattern);
 
 for curr_recording = 1:length(probe_position_fns)
@@ -63,7 +63,7 @@ end
 %% Draw probes (from histology)
 
 % Find all saved probe positions
-probe_position_filepattern = plab.locations.make_server_filename(animal,[],[],'histology','*','probe_ccf.mat');
+probe_position_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
 probe_position_fn = dir(probe_position_filepattern);
 
 load(fullfile(probe_position_fn.folder,probe_position_fn.name));

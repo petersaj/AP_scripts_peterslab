@@ -6,7 +6,7 @@ if verbose; disp('Loading Timelite...'); end
 ttl_thresh = 2;
 
 % Load timelite
-timelite_fn = plab.locations.make_server_filename(animal,rec_day,rec_time,'timelite.mat');
+timelite_fn = plab.locations.filename('server',animal,rec_day,rec_time,'timelite.mat');
 timelite = load(timelite_fn);
 
 % % Plot data

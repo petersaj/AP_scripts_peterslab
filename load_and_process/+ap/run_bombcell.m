@@ -6,7 +6,7 @@ function run_bombcell(animal,day)
 % Get ephys recording paths
 % probe_n = multiple probes simultaneously
 % site_n = multiple sites recorded in serial
-ephys_path = plab.locations.make_server_filename(animal,day,[],'ephys');
+ephys_path = plab.locations.filename('server',animal,day,[],'ephys');
 ephys_path_dir = ...
     [dir(fullfile(ephys_path, 'probe_*')), ...
     dir(fullfile(ephys_path, 'site_*'))];

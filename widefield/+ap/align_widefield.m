@@ -65,7 +65,7 @@ switch align_type
             im_unaligned = cell(size(wf_days_idx));
             for curr_day_idx = 1:length(wf_days_idx)
                 curr_day = recordings(wf_days_idx(curr_day_idx)).day;
-                curr_avg_im_fn = plab.locations.make_server_filename( ...
+                curr_avg_im_fn = plab.locations.filename('server', ...
                     animal,curr_day,[],'widefield','meanImage_violet.npy');
                 im_unaligned{curr_day_idx} = single(readNPY(curr_avg_im_fn));
             end

@@ -1,6 +1,6 @@
 % Load electrophysiology data
 
-ephys_path = plab.locations.make_server_filename(animal,rec_day,[],'ephys');
+ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
 if verbose; disp('Loading Ephys...'); end
 
 %% Load and prepare Kilosort data
@@ -59,7 +59,7 @@ ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
 % Load probe position 
 % (load histology positions if available)
 histology_probe_filename = dir(...
-    plab.locations.make_server_filename(animal,[],[], ...
+    plab.locations.filename('server',animal,[],[], ...
     'histology','slices','probe_ccf.mat'));
 if ~isempty(histology_probe_filename)
    probe_histology = load(fullfile(histology_probe_filename.folder, ...
