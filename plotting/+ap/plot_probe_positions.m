@@ -3,6 +3,23 @@ function plot_probe_positions(animal)
 %
 % Plot probe positions from Trajectory Explorer and histology
 
+%% Find probe position files (trajectory explorer and histology)
+
+% Trajectory explorer probe position files
+nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
+nte_fns = dir(nte_filepattern);
+
+% Histology probe position files
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
+histology_fn = dir(histology_filepattern);
+
+% Return if no files found
+if isempty(nte_fns) && isempty(histology_fn)
+    fprintf('No probe positions found: %s\n',animal);
+    return;
+end
+
+
 %% Load atlas
 
 allen_atlas_path = fileparts(which('template_volume_10um.npy'));
@@ -35,13 +52,10 @@ brain_outline = patch( ...
 
 %% Draw probes (from Neuropixels Trajectory Explorer)
 
-% Find all saved probe positions
-probe_position_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
-probe_position_fns = dir(probe_position_filepattern);
+for curr_recording = 1:length(nte_fns)
 
-for curr_recording = 1:length(probe_position_fns)
-    load(fullfile(probe_position_fns(curr_recording).folder, ...
-        probe_position_fns(curr_recording).name));
+    load(fullfile(nte_fns(curr_recording).folder, nte_fns(curr_recording).name));
+
     % Loop through probes and draw
     for curr_probe = 1:length(probe_positions_ccf)
         % Draw probe in 3D view
@@ -52,52 +66,53 @@ for curr_recording = 1:length(probe_position_fns)
             'linewidth',2,'color','b')
 
         date_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
-        curr_day = cell2mat(extract(probe_position_fns(curr_recording).folder,date_pattern));
+        curr_day = cell2mat(extract(nte_fns(curr_recording).folder,date_pattern));
         text(probe_positions_ccf{curr_probe}(1,1), ...
             probe_positions_ccf{curr_probe}(3,1), ...
             probe_positions_ccf{curr_probe}(2,1), ...
             curr_day,'color','b');
+
     end
 end
 
 %% Draw probes (from histology)
 
-% Find all saved probe positions
-probe_position_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
-probe_position_fn = dir(probe_position_filepattern);
+if ~isempty(histology_fn)
 
-load(fullfile(probe_position_fn.folder,probe_position_fn.name));
+    load(fullfile(histology_fn.folder,histology_fn.name));
 
-for curr_probe = 1:length(probe_ccf)
+    for curr_probe = 1:length(probe_ccf)
 
-    % Get line of best fit through mean of marked points
-    probe_coords_mean = mean(probe_ccf(curr_probe).points,1);
-    xyz = bsxfun(@minus,probe_ccf(curr_probe).points,probe_coords_mean);
-    [~,~,V] = svd(xyz,0);
-    histology_probe_direction = V(:,1);
+        % Get line of best fit through mean of marked points
+        probe_coords_mean = mean(probe_ccf(curr_probe).points,1);
+        xyz = bsxfun(@minus,probe_ccf(curr_probe).points,probe_coords_mean);
+        [~,~,V] = svd(xyz,0);
+        histology_probe_direction = V(:,1);
 
-    % (make sure the direction goes down in DV - flip if it's going up)
-    if histology_probe_direction(2) < 0
-        histology_probe_direction = -histology_probe_direction;
+        % (make sure the direction goes down in DV - flip if it's going up)
+        if histology_probe_direction(2) < 0
+            histology_probe_direction = -histology_probe_direction;
+        end
+
+        % Evaluate line of best fit (length of probe to deepest point)
+        [~,deepest_probe_idx] = max(probe_ccf(curr_probe).points(:,2));
+        probe_deepest_point = probe_ccf(curr_probe).points(deepest_probe_idx,:);
+        probe_deepest_point_com_dist = pdist2(probe_coords_mean,probe_deepest_point);
+        probe_length_ccf = 3840/10; % mm / ccf voxel size
+
+        probe_line_eval = probe_deepest_point_com_dist - [probe_length_ccf,0];
+        probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
+
+        % Draw probe in 3D view
+        line(ccf_3d_axes,probe_line(:,1),probe_line(:,3),probe_line(:,2), ...
+            'linewidth',2,'color','r');
+
+        text(probe_line(1,1), ...
+            probe_line(1,3), ...
+            probe_line(1,2), ...
+            sprintf('Trajectory %d',curr_probe),'color','r');
+
     end
-
-    % Evaluate line of best fit (length of probe to deepest point)
-    [~,deepest_probe_idx] = max(probe_ccf(curr_probe).points(:,2));
-    probe_deepest_point = probe_ccf(curr_probe).points(deepest_probe_idx,:);
-    probe_deepest_point_com_dist = pdist2(probe_coords_mean,probe_deepest_point);
-    probe_length_ccf = 3840/10; % mm / ccf voxel size
-
-    probe_line_eval = probe_deepest_point_com_dist - [probe_length_ccf,0];
-    probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
-
-    % Draw probe in 3D view
-    line(ccf_3d_axes,probe_line(:,1),probe_line(:,3),probe_line(:,2), ...
-        'linewidth',2,'color','r');
-
-    text(probe_line(1,1), ...
-        probe_line(1,3), ...
-        probe_line(1,2), ...
-        sprintf('Trajectory %d',curr_probe),'color','r');
 
 end
 
