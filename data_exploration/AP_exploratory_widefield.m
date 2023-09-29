@@ -66,7 +66,7 @@ end
 surround_window = [-1,2];
 baseline_window = [-0.5,-0.1];
 
-surround_samplerate = 60;
+surround_samplerate = 35;
 
 t = surround_window(1):1/surround_samplerate:surround_window(2);
 baseline_t = baseline_window(1):1/surround_samplerate:baseline_window(2);
