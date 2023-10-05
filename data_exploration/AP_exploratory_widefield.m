@@ -7,7 +7,36 @@
 % ap.expscroll(wf_U,wf_Vdf,wf_times)
 % ap.expscroll(wf_U,wf_V,wf_times)
 
-ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+% ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
+
+%%% Get correlation of MUA in sliding sindows
+% (build into expscroll?)
+depth_corr_window = 50; % MUA window in microns
+depth_corr_window_spacing = 50; % MUA window spacing in microns
+
+max_depths = 3840; % (hardcode, sometimes kilosort2 drops channels)
+
+depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); ...
+    (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
+depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
+
+spike_binning_t = 0.01; % seconds
+spike_binning_t_edges = min(timelite.timestamps):spike_binning_t:max(timelite.timestamps);
+spike_binning_t_centers = spike_binning_t_edges(1:end-1) + diff(spike_binning_t_edges)/2;
+
+binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
+for curr_depth = 1:size(depth_corr_bins,2)
+    curr_depth_templates_idx = ...
+        find(template_depths >= depth_corr_bins(1,curr_depth) & ...
+        template_depths < depth_corr_bins(2,curr_depth));
+    
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timeline( ...
+        ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
+end
+
+% expscroll w/ ephys
+ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times,binned_spikes_depth',spike_binning_t_centers)
+
 
 
 %% Align widefield to event
