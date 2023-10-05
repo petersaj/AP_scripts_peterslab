@@ -68,7 +68,7 @@ end
 % (load NTE positions if available)
 nte_positions_filename = dir(fullfile( ...
     fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
-if ~isempty(histology_probe_filename)
+if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end
 % (use histology if available and matching day, use NTE if not)

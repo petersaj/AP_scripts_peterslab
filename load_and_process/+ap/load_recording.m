@@ -54,7 +54,7 @@ ap.load_mousecam
 
 % Load widefield
 if load_parts.widefield && ...
-        exist(plab.locations.filename('server',animal,rec_day,[],'widefield'),'dir')
+        exist(plab.locations.filename('server',animal,rec_day,rec_time,'widefield'),'dir')
     ap.load_widefield
 end
 

@@ -132,13 +132,13 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:200;
 kernel_t = [-0.25,0.25];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 10;
+lambda = 20;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
 use_constant = true;
     
-fVdf_deconv_resample = interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)';
+fVdf_deconv_resample = double(interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)');
         
 % TO USE DECONV
 [k,predicted_spikes,explained_var] = ...

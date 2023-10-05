@@ -244,6 +244,10 @@ for curr_data = 1:length(data_paths)
     
 end
 
+%% Run Bombcell
+ap.run_bombcell(animal,day);
+
+%% Print end message
 fprintf('\nDone preprocessing Neuropixels: %s %s\n',animal,day);
 
 

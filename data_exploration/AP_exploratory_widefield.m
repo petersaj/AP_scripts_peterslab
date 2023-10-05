@@ -36,7 +36,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
     align_times = reshape([ ...
         stimOn_times(use_trials), ...
         stim_move_time(use_trials), ...
-        reward_times(use_trials)],[],1);
+        reward_times],[],1);
     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
@@ -105,13 +105,13 @@ ap.widefield_retinotopy
 
 %% Create day alignment
 
-animal = 'AP010';
+animal = 'AP012';
 
 ap.align_widefield([],animal,[],'new_days');
 
 %% View aligned days
 
-animal = 'AP010';
+animal = 'AP012';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -143,7 +143,7 @@ set(gcf,'Name',animal);
 %% Create animal alignment (sparse noise retinotopy: batch, save, align)
 % NOTE: need to do day alignment first
 
-animal = 'AP005';
+animal = 'AP012';
 overwrite_retinotopy = true;
 
 % Check if aligned mean retinotopy is saved, create if not
