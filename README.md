@@ -24,3 +24,4 @@ Scripts written after opening lab
 #### Plotting
 `ccf_outline` - draw CCF flat and 3D views, plot probe trajectories etc.
 `draw_wf_ccf` - draw CCF outline over widefield image
+`plot_probe_positions` - draw all probe positions (NTE and histology) for animal
