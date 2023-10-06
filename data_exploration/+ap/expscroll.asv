@@ -48,6 +48,7 @@ try
     template_depths = evalin('base','template_depths');
 
     % Bin ephys into MUA by depth
+    % (build into expscroll?)
     depth_corr_window = 50; % MUA window in microns
     depth_corr_window_spacing = 50; % MUA window spacing in microns
 
@@ -57,7 +58,7 @@ try
         (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
     depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
 
-    spike_binning_t = 0.005; % seconds
+    spike_binning_t = 0.01; % seconds
     spike_binning_t_edges = min(timelite.timestamps):spike_binning_t:max(timelite.timestamps);
 
     binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
@@ -70,12 +71,8 @@ try
             ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
     end
 
-    % Smooth spikes
-    smooth_size = 10;
-    binned_spikes_depth_smooth = smoothdata(binned_spikes_depth,2,'gaussian',smooth_size);
-
     gui_data.ephys_t = spike_binning_t_edges(1:end-1) + diff(spike_binning_t_edges)/2;
-    gui_data.ephys = binned_spikes_depth_smooth;    
+    gui_data.ephys = binned_spikes_depth;    
 
     gui_data.plot_ephys = true;
 end
@@ -111,7 +108,6 @@ if gui_data.plot_widefield
     gui_data.wf_im = imagesc(gui_data.wf_axis,wf_im);
     axis(gui_data.wf_axis,'off','image');
     clim(gui_data.wf_axis,[-1,1].*median(std(gui_data.wf_V,[],2))*2);
-    colormap(gui_data.wf_axis,AP_colormap('PWG'));
 end
 
 % (ephys)
@@ -120,12 +116,10 @@ if gui_data.plot_ephys
 
     ephys_time_surround = 1; % in seconds
     gui_data.ephys_plot = imagesc(gui_data.ephys_axis, ...
-        gui_data.ephys_t,depth_corr_bin_centers,gui_data.ephys);
+        gui_data.ephys_t,[],gui_data.ephys);
     ephys_xlim = gui_data.t_curr + [-1,1].*ephys_time_surround;
     gui_data.ephys_tmark = xline(gui_data.t_curr,'r');
     xlim(gui_data.ephys_axis,ephys_xlim);
-    clim(gui_data.ephys_axis,[0,max(gui_data.ephys,[],'all')*0.5]);
-    colormap(gui_data.ephys_axis,AP_colormap('WK'));
 end
 
 % Set up scrollbar (use timer function to prevent lag)
@@ -181,16 +175,15 @@ function imgSlider_MouseWheel(currentObject, eventdata, gui_fig)
 gui_data = guidata(gui_fig);
 
 % Update current frame based on mouse wheel
-t_step = 0.05;
+t_step = 0.1;
 mouse_wheel_count = eventdata.VerticalScrollCount;
 t_new = gui_data.t_curr + mouse_wheel_count*t_step;
 
 % Set the slider
-t_prct = t_new/(gui_data.t(1) + diff(gui_data.t));
-set(gui_data.imgSlider,'Value',t_prct);
+set(gui_data.imgSlider,'Value',wf_frame);
 
 % Update the images
-update_im(gui_data,gui_fig,t_new);
+update_im(gui_data,gui_fig,wf_frame);
 
 
 function im_keypress(currentObject, eventdata, gui_fig)

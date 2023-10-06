@@ -1,7 +1,7 @@
 %% Exploratory ephys analysis
 
 
-%% Ephys raster
+%% Cell raster
 
 if contains(bonsai_workflow,'lcr')
     % (L/C/R passive)
@@ -33,8 +33,110 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
+%% MUA PSTH by depth 
 
-%% Ephys sparse noise? 
+% (evenly spaced depths)
+n_depths = 20;
+depth_group_edges = round(linspace(0,3840,n_depths+1));
+[depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+depth_groups_used = unique(depth_group);
+depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+% % (clickable manual depths)
+% norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+% figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
+% axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
+% scatter(norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
+% title('Click MUA borders');
+% user_click_coords = ginput;
+% depth_group_edges = user_click_coords(:,2);
+% yline(depth_group_edges,'linewidth',2,'color','r');
+% depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
+% text(zeros(length(depth_group_centers),1),depth_group_centers, ...
+%     num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
+% drawnow;
+
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% PSTH for all conditions
+if contains(bonsai_workflow,'lcr')
+    % (L/C/R passive)
+    stim_x = vertcat(trial_events.values.TrialStimX);
+    align_times = cellfun(@(x) stimOn_times(stim_x == x),num2cell(unique(stim_x)),'uni',false);
+elseif contains(bonsai_workflow,'stim_wheel')
+    % (task)
+    align_times = {stimOn_times,stim_move_time,reward_times};
+end
+
+depth_psth = nan(n_depths,length(t_bins)-1,2);
+for curr_align = 1:length(align_times)
+    use_align = align_times{curr_align};
+    t_peri_event = bsxfun(@plus,use_align,t_bins);
+    for curr_depth = 1:n_depths        
+        curr_spikes = spike_times_timeline(depth_group == curr_depth);
+        
+        curr_spikes_binned = cell2mat(arrayfun(@(x) ...
+            histcounts(curr_spikes,t_peri_event(x,:)), ...
+            [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
+        curr_mean_psth = mean(curr_spikes_binned,1);
+        
+        depth_psth(curr_depth,:,curr_align) = curr_mean_psth;
+    end
+end
+
+smooth_size = 100;
+depth_psth_smooth = smoothdata(depth_psth,2,'gaussian',smooth_size);
+
+figure; h = tiledlayout(1,length(align_times)+1);
+
+% Plot units and depths
+nexttile; set(gca,'YDir','reverse');hold on;
+if exist('probe_areas','var')
+    probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+        probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
+
+    probe_areas_boundaries = probe_areas{1}.probe_depth;
+    probe_areas_centers = mean(probe_areas_boundaries,2);
+
+    probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
+    probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
+        1:height(probe_areas{1}),probe_areas_image_depth, ...
+        'previous','extrap');
+    probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
+
+    image([0,1],probe_areas_image_depth,probe_areas_image);
+    yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
+    set(gca,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
+end
+norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+scatter(norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
+yline(depth_group_edges,'linewidth',2,'color','r');
+xlim([0,1]);
+
+% Plot MUA
+depth_psth_smooth_norm = reshape(normalize(reshape(depth_psth_smooth, ...
+    size(depth_psth_smooth,1),[]),2,'range'),size(depth_psth_smooth));
+for curr_align = 1:length(align_times)
+    nexttile; set(gca,'YDir','reverse'); hold on;
+
+    curr_stackplot = -200*depth_psth_smooth_norm(:,:,curr_align) + ...
+        depth_group_centers';
+    plot(t_centers,curr_stackplot','k','linewidth',2);
+
+    xline(0,'r');
+end
+
+linkaxes(h.Children,'y')
+
+
+%% Sparse noise? 
 
 stim_screen = discretize(noise_locations,[0,128,129,255],-1:1);
 % Get stim times vector (x,y)

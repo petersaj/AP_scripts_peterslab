@@ -1,7 +1,7 @@
 %% Exploratory ephys analysis
 
 
-%% Ephys raster
+%% Cell raster
 
 if contains(bonsai_workflow,'lcr')
     % (L/C/R passive)
@@ -33,8 +33,74 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
+%% MUA PSTH by depth 
 
-%% Ephys sparse noise? 
+% (for clickable manual depths)
+norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
+axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
+scatter(norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
+title('Click MUA borders');
+user_click_coords = ginput;
+depth_group_edges = user_click_coords(:,2);
+yline(depth_group_edges,'linewidth',2,'color','r');
+depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
+text(zeros(length(depth_group_centers),1),depth_group_centers, ...
+    num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
+drawnow;
+
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% PSTH for all conditions
+depth_psth = nan(n_depths,length(t_bins)-1,2);
+for curr_align = 1:2
+    switch curr_align
+        case 1
+            use_align = stimOn_times;
+        case 2
+            use_align = stim_move_time;
+    end
+    t_peri_event = bsxfun(@plus,use_align,t_bins);
+    for curr_depth = 1:n_depths
+        
+        curr_spikes = spike_times_timeline(depth_group == curr_depth);
+        
+        curr_spikes_binned = cell2mat(arrayfun(@(x) ...
+            histcounts(curr_spikes,t_peri_event(x,:)), ...
+            [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
+        curr_mean_psth = mean(curr_spikes_binned,1);
+        
+        depth_psth(curr_depth,:,curr_align) = curr_mean_psth;
+    end
+end
+
+smooth_size = 100;
+gw = gausswin(smooth_size,3)';
+smWin = gw./sum(gw);
+depth_psth_smooth = convn(depth_psth,smWin,'same');
+
+n_align = size(depth_psth_smooth,3);
+figure; tiledlayout(1,n_align);
+for curr_align = 1:n_align
+    nexttile;
+%     stackedplot(t_centers,depth_psth_smooth(:,:,curr_align)');
+    AP_stackplot(depth_psth_smooth(:,:,curr_align)',t_centers,1);
+    yline(0,'r');
+end
+
+
+
+
+%% Sparse noise? 
 
 stim_screen = discretize(noise_locations,[0,128,129,255],-1:1);
 % Get stim times vector (x,y)
@@ -88,7 +154,7 @@ axis image;
 %% Widefield/ephys regression maps
 
 % Set upsample value for regression
-upsample_factor = 3;
+upsample_factor = 1;
 sample_rate = (1/mean(diff(wf_times)))*upsample_factor;
 
 % Skip the first/last n seconds to do this
@@ -103,10 +169,7 @@ time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 % depth_groups_used = unique(depth_group);
 % depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
 
-% (for manual depth)
-depth_group_edges = [0,500,1500,2600,3000,3500,4000];
-
-
+% (for clickable manual depths)
 norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
 figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
 axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
@@ -115,9 +178,10 @@ title('Click MUA borders');
 user_click_coords = ginput;
 depth_group_edges = user_click_coords(:,2);
 yline(depth_group_edges,'linewidth',2,'color','r');
-
-text(0,diff(depth_group_edges)/2,'a')
-
+depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
+text(zeros(length(depth_group_centers),1),depth_group_centers, ...
+    num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
+drawnow;
 
 n_depths = length(depth_group_edges) - 1;
 depth_group = discretize(spike_depths,depth_group_edges);
@@ -134,13 +198,13 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:200;
 kernel_t = [-0.25,0.25];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 10;
+lambda = 20;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
 use_constant = true;
     
-fVdf_deconv_resample = interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)';
+fVdf_deconv_resample = double(interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)');
         
 % TO USE DECONV
 [k,predicted_spikes,explained_var] = ...
