@@ -118,29 +118,83 @@ title(sprintf('%s, %s',animal,rec_day));
 % Plot CCF areas and coordinates aligned to master retinotopy
 
 % Align retinotopy to CCF 
-[vfs_ccf_aligned,im_tform] = ap.align_widefield(vfs,[],[],'new_animal');
+vfs_ccf_aligned = ap.align_widefield(vfs,[],[],'new_animal');
 close(gcf);
 
-% Apply alignment to average image
-wf_avg_aligned = imwarp(wf_avg,im_tform,'Outputview',imref2d(size(vfs_ccf_aligned)));
-
-figure('color','w');
-tiledlayout('flow','TileSpacing','tight');
-
-% Plot retinotopy with CCF overlay
-h = nexttile;
-imagesc(vfs_ccf_aligned);
+figure;
+imagesc(vfs)
 axis image off;
-colormap(h,AP_colormap('BWR'));
-ap.draw_wf_ccf('ccf_aligned','k');
+colormap(AP_colormap('BWR'))
 
-% Plot average image with retinotopy/CCF/grid overlay
-h = nexttile;
-imagesc(wf_avg_aligned);
-axis image off;
-colormap(h,'gray');
-ap.draw_wf_ccf('ccf_aligned','b');
-% ap.draw_wf_ccf('grid_aligned','y');
+
+% Load master VFS
+master_vfs_fn = ['lilrig_master_vfs.mat'];
+load(master_vfs_fn);
+master_align = master_vfs;
+
+% Align animal image to master image
+ref_size = size(master_align);
+
+[optimizer, metric] = imregconfig('monomodal');
+optimizer = registration.optimizer.OnePlusOneEvolutionary();
+optimizer.MaximumIterations = 200;
+optimizer.GrowthFactor = 1+1e-6;
+optimizer.InitialRadius = 1e-4;
+
+tformEstimate_affine = imregtform(vfs_boot_mean,master_align,'affine',optimizer,metric);
+vfs_aligned = imwarp(vfs_boot_mean,tformEstimate_affine,'Outputview',imref2d(ref_size));
+avg_im_aligned = imwarp(avg_im,tformEstimate_affine,'Outputview',imref2d(ref_size));
+
+% Plot alignment
+figure;
+subplot(1,2,1);
+imshowpair(master_align,vfs_boot_mean);
+title('Unaligned VFS');
+subplot(1,2,2);
+imshowpair(master_align,vfs_aligned);
+title('Aligned VFS');
+
+% Plot average image with CCF overlay
+figure;
+overlay_color = 'b';
+
+ax1 = axes('units','normalized','Position',[0,0,0.5,1]);
+ax2 = axes('units','normalized','Position',[0,0,0.5,1]);
+h1 = imagesc(ax1,avg_im_aligned);
+colormap(ax1,gray);
+caxis(ax1,[0 prctile(avg_im(:),98)]);
+h2 = imagesc(ax2,vfs_aligned);
+axes(ax1); hold on; axis equal off;
+axes(ax2); hold on; axis equal off;
+colormap(ax2,colormap_BlueWhiteRed);
+caxis([-1,1]);
+set(h2,'AlphaData',mat2gray(abs(vfs_aligned))*0.4);
+colormap(ax1,gray);
+title(ax1,'VFS/CCF overlay');
+% (load and plot aligned CCF boundaries)
+hold on;
+load(['lilrig_cortical_area_boundaries_aligned.mat']);
+h = cellfun(@(areas) cellfun(@(outline) ...
+    plot(ax2,outline(:,2),outline(:,1),'color',overlay_color),areas,'uni',false), ...
+    cortical_area_boundaries_aligned,'uni',false);
+
+% Plot average image with grid overlay
+subplot(1,2,2);
+imagesc(avg_im_aligned);
+caxis([0 prctile(avg_im(:),98)]);
+colormap(gca,'gray');
+axis image off
+title('0.5mm grid overlay');
+% (plot grid)
+hold on
+um2pixel = 20.6;
+bregma = [540,0,570] + 0.5;
+ccf_tform_fn = ['lilrig_ccf_tform.mat'];
+load(ccf_tform_fn);
+bregma_resize = bregma*(10/um2pixel);
+bregma_align = [bregma_resize([3,1]),1]*ccf_tform.T;
+bregma_offset_x = bregma_align(1);
+bregma_offset_y = bregma_align(2);
 
 
 

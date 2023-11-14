@@ -56,8 +56,9 @@ if exist(bonsai_events_fn,'file')
 end
 
 
-%% Workflow-specific loading
+%% --- Workflow-specific loading ---
 
+%% Stim wheel (task)
 if contains(bonsai_workflow,'stim_wheel')
     % Task: stim and response times
 
@@ -83,6 +84,7 @@ if contains(bonsai_workflow,'stim_wheel')
 
     stim_to_move = stim_move_time - stimOn_times(1:n_trials);
 
+%% LCR passive
 elseif contains(bonsai_workflow,'lcr_passive')
     % Passive protocol stim on times
 
@@ -101,10 +103,11 @@ elseif contains(bonsai_workflow,'lcr_passive')
 
     % If bad Bonsai CSV: truncate stim times to what was recorded
     if bad_bonsai_csv
-        n_bonsai_stim = vertcat(trial_events.values.TrialStimX);
+        n_bonsai_stim = length(vertcat(trial_events.values.TrialStimX));
         stimOn_times = stimOn_times(1:n_bonsai_stim);
     end
 
+%% Sparse noise
 elseif strcmp(bonsai_workflow,'sparse_noise')
     % Sparse noise: get noise locations and times
 

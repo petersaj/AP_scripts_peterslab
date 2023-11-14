@@ -103,10 +103,14 @@ patch(ccf_3d_axes, ...
 
 %% Draw probes (from AP_histology)
 
-probe_color = 'r';
+animal = 'AP012';
+probe_color = 'b';
 
-[probe_ccf_file,probe_ccf_path] = uigetfile('*.mat','Pick probe histology file');
-load(fullfile(probe_ccf_path,probe_ccf_file));
+% Histology probe position files
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
+histology_fn = dir(histology_filepattern);
+
+load(fullfile(histology_fn.folder,histology_fn.name));
 
 % Loop through probes and draw
 for curr_probe = 1:length(probe_ccf)
@@ -150,10 +154,16 @@ end
 
 %% Draw probes (from Neuropixels Trajectory Explorer)
 
+animal = 'AP011';
 probe_color = 'b';
 
-[probe_ccf_file,probe_ccf_path] = uigetfile('*.mat','Pick probe NTE file(s)','MultiSelect','on');
-load(fullfile(probe_ccf_path,probe_ccf_file));
+% Trajectory explorer probe position files
+nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
+nte_fns = dir(nte_filepattern);
+
+for curr_recording = 1:length(nte_fns)
+
+load(fullfile(nte_fns(curr_recording).folder, nte_fns(curr_recording).name));
 
 % Loop through probes and draw
 for curr_probe = 1:length(probe_positions_ccf)
@@ -178,7 +188,7 @@ for curr_probe = 1:length(probe_positions_ccf)
 
 end
 
-
+end
 
 
 

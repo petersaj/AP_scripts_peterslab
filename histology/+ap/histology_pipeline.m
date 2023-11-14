@@ -9,7 +9,7 @@ st = loadStructureTree([allen_atlas_path filesep 'structure_tree_safe_2017.csv']
 %% Get animal slice path
 
 % Set paths for histology images and directory to save slice/alignment
-animal = 'AP009';
+animal = 'AP008';
 
 im_path = plab.locations.filename('server',animal,[],[],'histology');
 slice_path = fullfile(im_path,'slices');
@@ -85,14 +85,18 @@ probe_ax = gobjects(length(probe_ccf),1);
 
 for curr_probe = 1:length(probe_ccf)
 
+        probe_ax(curr_probe) = nexttile;    
+
     % Load first recording of the day
     recordings = plab.find_recordings(animal,probe_ccf(curr_probe).day);
     load_parts.ephys = true;
     rec_day = recordings.day;
     rec_time = recordings.recording{1};
-    ap.load_recording;
-
-    probe_ax(curr_probe) = nexttile;    
+    try
+        ap.load_recording;
+    catch me
+        continue
+    end
 
     % Plot tajectory areas
     trajectory_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
@@ -125,7 +129,7 @@ for curr_probe = 1:length(probe_ccf)
     xlim([0,1]);
     ylim([0,3840]);
 
-    title(rec_day);
+    title({sprintf('Trajectory %d',curr_probe),rec_day});
     pan('yon');
 
 end

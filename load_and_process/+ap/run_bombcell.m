@@ -50,7 +50,7 @@ for curr_data = 1:length(data_paths)
 
     % Run quality metrics
     [qMetric, unitType] = bc_runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
-        templateWaveforms, templateAmplitudes,pcFeatures,pcFeatureIdx,channelPositions, savePath);
+        templateWaveforms,templateAmplitudes,pcFeatures,pcFeatureIdx,channelPositions, savePath);
 
     % Load raw waveforms to run extra template vs. raw quality metrics
     rawWaveforms.average = readNPY([fullfile(savePath, 'templates._bc_rawWaveforms.npy')]);

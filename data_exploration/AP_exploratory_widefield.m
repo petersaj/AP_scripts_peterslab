@@ -1,20 +1,5 @@
 %% Exploratory widefield analysis
 
-%% Experiment scroller
-
-% ap.expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
-% ap.expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})
-% ap.expscroll(wf_U,wf_Vdf,wf_times)
-% ap.expscroll(wf_U,wf_V,wf_times)
-
-% ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
-
-
-
-% expscroll w/ ephys
-ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times,binned_spikes_depth',spike_binning_t_centers)
-
-
 
 %% Align widefield to event
 
@@ -104,6 +89,18 @@ axis image;
 
 %% Sparse noise retinotopy (single day)
 
+% Load data
+animal = 'AP013';
+rec_day = '2023-11-10';
+workflow = 'sparse_noise';
+
+rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+load_parts.widefield = true;
+
+verbose = true;
+ap.load_recording;
+
+% Get retinotopy
 ap.widefield_retinotopy
 
 
@@ -141,7 +138,7 @@ end
 
 % Plot average
 c = prctile(reshape([avg_im_aligned{:}],[],1),[0,99.9]);
-AP_imscroll(cat(3,avg_im_aligned{:}),{recordings.day});
+AP_imscroll(cat(3,avg_im_aligned{:}),{wf_recordings.day});
 caxis(c);
 axis image;
 set(gcf,'Name',animal);
