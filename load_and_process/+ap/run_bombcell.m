@@ -28,8 +28,10 @@ for curr_data = 1:length(data_paths)
     % (oebin metadata filename)
     ephys_meta_dir = dir(fullfile(curr_ephys_rec_path,'*.oebin'));
     % (AP-band data filename)
-    ap_data_filename = fullfile(curr_ephys_rec_path, ...
-        'continuous', 'Neuropix-3a-100.Neuropix-3a-AP', 'continuous.dat');
+    ap_data_dir = dir(fullfile(curr_ephys_rec_path, ...
+        'continuous', '*-AP', 'continuous.dat'));
+    ap_data_filename = fullfile(ap_data_dir.folder,ap_data_dir.name);
+
     % (kilosort folder)
     curr_kilosort_path = strrep(curr_ephys_path,'ephys',fullfile('ephys','pykilosort'));
 

@@ -222,8 +222,9 @@ end
 
 % Load in the annotated Allen volume and names
 allen_atlas_path = fileparts(which('template_volume_10um.npy'));
-av = readNPY(fullfile(allen_atlas_path, 'annotation_volume_10um_by_index.npy'));
-st = loadStructureTree(fullfile(allen_atlas_path, 'structure_tree_safe_2017.csv'));
+av = readNPY(fullfile(allen_atlas_path filesep 'annotation_volume_10um_by_index.npy']);
+st = loadStructureTree([allen_atlas_path filesep 'structure_tree_safe_2017.csv']);
+bregma = allenCCFbregma;
 
 ccf_rotation = 5; % rotate 5 degrees nose-up
 av_rotated = imrotate3(av,ccf_rotation,[0,1,1],'nearest');
@@ -238,8 +239,7 @@ top_down_annotation = reshape(av_rotated(sub2ind(size(av_rotated),yy(:), ...
 
 % Make separate left hemi top-down annotation
 top_down_annotation_lefthemi = ...
-    top_down_annotation(:,1:size(top_down_annotation,2) <= ...
-    floor(size(av_rotated,3)/2));
+    top_down_annotation(:,1:size(top_down_annotation,2) <= bregma(3));
 
 % Get all labelled areas
 used_areas = unique(top_down_annotation(:));
@@ -260,15 +260,6 @@ for curr_area_idx = 1:length(plot_areas)
     cortical_area_boundaries{curr_area_idx} = bwboundaries(top_down_annotation == plot_areas(curr_area_idx));
     cortical_area_lefthemi_boundaries{curr_area_idx} = bwboundaries(top_down_annotation_lefthemi == plot_areas(curr_area_idx));
 end
-
-% Plot the borders
-figure; tiledlayout('flow');
-nexttile; hold on; axis image; set(gca,'ydir','reverse');
-cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k'),x,'uni',false), ...
-    cortical_area_boundaries,'uni',false);
-nexttile; hold on; axis image; set(gca,'ydir','reverse');
-cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k'),x,'uni',false), ...
-    cortical_area_lefthemi_boundaries,'uni',false);
 
 % Save borders
 save_fn = [alignment_path filesep 'cortical_area_boundaries'];

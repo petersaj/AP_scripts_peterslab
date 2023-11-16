@@ -14,11 +14,8 @@ mousecam_flipper_times = mousecam_header.timestamps(find(diff(mousecam_header.fl
 
 % Check that timelite and mousecam have equal flipper flips
 if length(flipper_times) ~= length(mousecam_flipper_times)
-    warning('Flipper times not matched in timelite and mousecam');
-    min_flipper_n = min(length(flipper_times),length(mousecam_flipper_times));
-    %%% temporary?
-    flipper_times = flipper_times(1:min_flipper_n);
-    mousecam_flipper_times = mousecam_flipper_times(1:min_flipper_n);
+    warning('Flipper not matched timelite/mousecam - not aligning');
+    return
 end
 
 % Get frame time after flips in timeline and mousecam
@@ -27,8 +24,6 @@ mousecam_postflips_idx_tl = arrayfun(@(x) ...
     1:length(flipper_times))';
 
 mousecam_postflips_idx_cam = find(diff(mousecam_header.flipper) ~= 0) + 1;
-% %%% temporary?
-% mousecam_postflips_idx_cam = mousecam_postflips_idx_cam(1:min_flipper_n);
 
 % For sync: only use frames where flip happened in window before frame
 % started (if flip happens during/close to exposure - camera pin state can

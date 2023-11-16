@@ -82,10 +82,13 @@ end
 
 % Load ephys flipper
 flipper_sync_idx = 1;
-open_ephys_ttl_states = readNPY(fullfile(open_ephys_path, ...
-    'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','states.npy'));
-open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_path, ...
-    'events','Neuropix-3a-100.Neuropix-3a-AP','TTL','timestamps.npy'));
+
+open_ephys_ttl_dir = dir(fullfile(open_ephys_path,'events', '*-AP','TTL'));
+open_ephys_ttl_path = cell2mat(unique({open_ephys_ttl_dir.folder}));
+
+open_ephys_ttl_states = readNPY(fullfile(open_ephys_ttl_path,'states.npy'));
+open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_ttl_path,'timestamps.npy'));
+
 open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
 open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
 open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
@@ -98,8 +101,10 @@ spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.n
 if exist(spike_times_openephys_filename,'file')
     spike_times_openephys = readNPY(spike_times_openephys_filename);
 else
-    open_ephys_timestamps = readNPY(fullfile(open_ephys_path, ...
-        'continuous','Neuropix-3a-100.Neuropix-3a-AP','timestamps.npy'));
+    open_ephys_timestamps_dir = dir(fullfile(open_ephys_path, ...
+        'continuous','*-AP','timestamps.npy'));
+    open_ephys_timestamps = readNPY(fullfile(open_ephys_timestamps_dir.folder,...
+        open_ephys_timestamps_dir.name));
     spike_times_openephys = open_ephys_timestamps( ...
         readNPY(fullfile(kilosort_path,'spike_times.npy')));
     writeNPY(spike_times_openephys,spike_times_openephys_filename);

@@ -10,6 +10,10 @@ local_kilosort_path = 'D:\data_temp\kilosort';
 % Path to pykilosort python environment
 pykilosort_python_environment = pyenv('Version','C:\Users\petersa\anaconda3\envs\pyks2\pythonw.exe');
 
+% If no day selected, default to today
+if nargin < 2 || isempty(day)
+    day = char(datetime('today','Format','yyyy-MM-dd'));
+end
 
 %% Get paths and filenames
 
@@ -71,8 +75,9 @@ for curr_data = 1:length(data_paths)
         end
 
         % Get Open Ephys filenames
-        ap_data_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
-            'continuous', 'Neuropix-3a-100.Neuropix-3a-AP', 'continuous.dat');
+        ap_data_dir = dir(fullfile(experiment_dir.folder,experiment_dir.name, ...
+            'continuous', '*-AP', 'continuous.dat'));
+        ap_data_filename = fullfile(ap_data_dir.folder,ap_data_dir.name);
 
 %         % (sync not used - loaded when loading experiment)
 %         sync_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
