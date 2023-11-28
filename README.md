@@ -9,6 +9,8 @@ Scripts written after opening lab
 #### Ephys
 ##### Preprocessing
 `ap.preprocess_neuropixels(animal,day)` - saves metadata, runs PyKilosort, translates spike times into Open Ephys timestamps
+##### Analysis
+`ap.spike_cg` - auto/cross-correlation
 
 #### Widefield 
 `ap.align_widefield(im_unaligned,animal,day,align_type_master_align)`:
