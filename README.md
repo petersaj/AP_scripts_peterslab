@@ -19,7 +19,7 @@ Scripts written after opening lab
 `ap.reflect_widefield`: flips L/R on aligned widefield image
 
 #### Data exploration
-`ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)` - scroll through widefield and/or mousecam
+`ap.expscroll` - scroll through data
 
 #### Plotting
 `ccf_outline` - draw CCF flat and 3D views, plot probe trajectories etc.
