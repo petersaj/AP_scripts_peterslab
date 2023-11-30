@@ -13,12 +13,13 @@ Scripts written after opening lab
 `ap.spike_cg` - auto/cross-correlation
 
 #### Widefield 
-`ap.align_widefield(im_unaligned,animal,day,align_type_master_align)`:
+`ap.wf_align(im_unaligned,animal,day,align_type_master_align)`:
 - create and save new day alignment: `ap.align_widefield([],animal,[],'new_days')` (uses all wf days, or specify `im_unaligned/days` for selection)
 - create and save new animal alignment: `ap.align_widefield(day-aligned retinotopy,animal,[],'new_animal')` (aligns day-aligned average animal retinotopy to master retinotopy)
 
 `ap.draw_wf_ccf`: draw CCF borders over aligned widefield
-`ap.reflect_widefield`: flips L/R on aligned widefield image
+`ap.wf_reflect`: flips L/R on aligned widefield image
+`p.wf_load_raw`: load raw frames
 
 #### Data exploration
 `ap.expscroll` - scroll through data
