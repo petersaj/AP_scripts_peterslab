@@ -103,8 +103,8 @@ patch(ccf_3d_axes, ...
 
 %% Draw probes (from AP_histology)
 
-animal = 'AP012';
-probe_color = 'b';
+animal = 'AP013';
+probe_color = 'r';
 
 % Histology probe position files
 histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
@@ -154,7 +154,7 @@ end
 
 %% Draw probes (from Neuropixels Trajectory Explorer)
 
-animal = 'AP011';
+animal = 'AP013';
 probe_color = 'b';
 
 % Trajectory explorer probe position files

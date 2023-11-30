@@ -1,17 +1,9 @@
-function expscroll(wf_U,wf_V,wf_t,mousecam_fn,mousecam_t,ephys,ephys_t)
-% expscroll(U,V,wf_t,mousecam_fn,mousecam_t,ephys,ephys_t)
+function expscroll
+% expscroll
 %
-% U = wf U
-% V = wf V
-% wf_t = wf frames in timeline time
-%
-% mousecam_fn = filename of mousecam movie
-% mousecam_t = mousecam frames in timelite time
-%
-% ephys = ephys to plot (> 3 ephyss plots as image)
-% ephys_t = ephys times
+% Scroll data (mousecam, widefield, ephys)
 
-disp('Press s to save section of movies');
+fprintf('s: save\np: autoplay\n');
 
 % Pull variables from base workspace
 gui_data = struct;
@@ -37,7 +29,7 @@ end
 try 
     gui_data.wf_U = evalin('base','wf_U');
     gui_data.wf_V = evalin('base','wf_V');
-    gui_data.wf_t = evalin('base','wf_times');
+    gui_data.wf_t = evalin('base','wf_t');
     gui_data.plot_widefield = true;
 end
 
@@ -85,7 +77,7 @@ gui_data.t = prctile(timelite.timestamps,[0,100]);
 gui_data.t_curr = 0;
 
 % Set up plots
-gui_fig = figure; colormap(gray)
+gui_fig = figure('color','w'); colormap(gray)
 set(gui_fig,'WindowScrollWheelFcn',{@imgSlider_MouseWheel, gui_fig});
 set(gui_fig, 'KeyPressFcn', {@im_keypress, gui_fig});
 
@@ -142,7 +134,12 @@ set(gui_data.imgSlider,'SliderStep',[0.01, 0.1]);
 % Set up time title
 gui_data.time_text = uicontrol('Style','text','String', ...
     ['Time: ' num2str(gui_data.t_curr) ,'s'],'FontSize',14,'Units', ...
-    'Normalized','Position',[0.3,0.93,0.4,0.07]);
+    'Normalized','Position',[0.3,0.93,0.4,0.07],'BackgroundColor','w');
+
+% Set up autoplay
+gui_data.autoplay = timer('TimerFcn',{@autoplay,gui_fig}, ...
+            'Period', 0.01, 'ExecutionMode','fixedSpacing', ...
+            'TasksToExecute', inf);
 
 % Update guidata
 guidata(gui_fig, gui_data);
@@ -201,9 +198,17 @@ gui_data = guidata(gui_fig);
 
 switch eventdata.Key
     
-    % Save section of images as movie
+    case 'p'
+        % Toggle auto-play
+        if strcmp(gui_data.autoplay.Running,'off')
+            start(gui_data.autoplay);
+        elseif strcmp(gui_data.autoplay.Running,'on')
+            stop(gui_data.autoplay);
+        end
+
     case 's'
-        
+        % Save section of images as movie
+
         % Get options
         disp('Preparing to make movie:');
         movie_t = input('Start/stop time (e.g. [0 5]): ');
@@ -275,5 +280,23 @@ gui_data.t_curr = t_new;
 guidata(gui_fig, gui_data);
 
 drawnow;
+
+function autoplay(obj,event,gui_fig)
+% Get guidata
+gui_data = guidata(gui_fig);
+
+t_step = 0.05;
+t_new = gui_data.t_curr + t_step;
+
+% Set the slider
+t_prct = t_new/(gui_data.t(1) + diff(gui_data.t));
+set(gui_data.imgSlider,'Value',t_prct);
+
+% Update the images
+update_im(gui_data,gui_fig,t_new);
+
+
+
+
 
 

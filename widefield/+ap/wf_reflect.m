@@ -1,4 +1,4 @@
-function im_reflected = reflect_widefield(im)
+function im_reflected = wf_reflect(im)
 % Reflect image about the midline
 % (currently only uses master alignment)
 % this doesn't work perfectly so something's off - I've spent way too much

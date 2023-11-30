@@ -216,25 +216,73 @@ AP_imscroll(stim_aligned_avg_cat,bins);
 axis image;
 
 
-%% Widefield/ephys regression maps
+%% Widefield/ephys regression maps (MUA)
 
 % Set upsample value for regression
 upsample_factor = 1;
-sample_rate = (1/mean(diff(wf_times)))*upsample_factor;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
 
 % Skip the first/last n seconds to do this
 skip_seconds = 60;
-time_bins = wf_times(find(wf_times > skip_seconds,1)):1/sample_rate:wf_times(find(wf_times-wf_times(end) < -skip_seconds,1,'last'));
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-% % (to group multiunit by evenly spaced depths)
-% n_depths = 6;
-% depth_group_edges = round(linspace(0,4000,n_depths+1));
-% [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
-% depth_groups_used = unique(depth_group);
-% depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+mua_method = 'click'; % depth, click
 
-% (for clickable manual depths)
+switch mua_method
+
+    case 'depth'
+        % (to group multiunit by evenly spaced depths)
+        n_depths = 8;
+        depth_group_edges = round(linspace(0,4000,n_depths+1));
+        [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+        depth_groups_used = unique(depth_group);
+        depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+    case 'click'
+        % (for clickable manual depths)
+        h = figure('units','normalized','position',[0.05,0.2,0.1,0.7]);
+        unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
+
+        if exist('probe_areas','var')
+            probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+                probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
+
+            probe_areas_boundaries = probe_areas{1}.probe_depth;
+            probe_areas_centers = mean(probe_areas_boundaries,2);
+
+            probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
+            probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
+                1:height(probe_areas{1}),probe_areas_image_depth, ...
+                'previous','extrap');
+            probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
+
+            image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
+            yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
+            set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
+        end
+
+        norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+        unit_dots = scatter3( ...
+            norm_spike_n,template_depths(unique(spike_templates)), ...
+            unique(spike_templates),20,'k','filled','ButtonDownFcn',@unit_click);
+        multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
+        xlim(unit_axes,[-0.1,1]);
+        ylim([-50, max(channel_positions(:,2))+50]);
+        ylabel('Depth (\mum)')
+        xlabel('Normalized log rate')
+
+        title('Click MUA borders');
+        user_click_coords = ginput;
+        close(h);
+        depth_group_edges = user_click_coords(:,2);
+        yline(depth_group_edges,'linewidth',2,'color','r');
+        depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
+        text(zeros(length(depth_group_centers),1),depth_group_centers, ...
+            num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
+end
+
+% Draw units and borders
 figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
 unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
 
@@ -266,9 +314,6 @@ ylim([-50, max(channel_positions(:,2))+50]);
 ylabel('Depth (\mum)')
 xlabel('Normalized log rate')
 
-title('Click MUA borders');
-user_click_coords = ginput;
-depth_group_edges = user_click_coords(:,2);
 yline(depth_group_edges,'linewidth',2,'color','r');
 depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
 text(zeros(length(depth_group_centers),1),depth_group_centers, ...
@@ -289,7 +334,7 @@ binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
 use_svs = 1:200;
-kernel_t = [-0.25,0.25];
+kernel_t = [-0.5,0.5];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
 lambda = 20;
 zs = [false,false];
@@ -297,12 +342,13 @@ cvfold = 5;
 return_constant = false;
 use_constant = true;
     
-fVdf_deconv_resample = interp1(wf_times,wf_V(use_svs,:)',time_bin_centers)';
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
         
-% TO USE DECONV
+% Regress cortex to spikes
 [k,predicted_spikes,explained_var] = ...
     AP_regresskernel(fVdf_deconv_resample, ...
-    binned_spikes_std,kernel_frames,lambda,zs,cvfold,return_constant,use_constant);
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
 
 % Convert kernel to pixel space
 r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
@@ -342,14 +388,67 @@ set(c2,'YDir','reverse');
 set(c2,'YTick',linspace(0,1,n_depths));
 set(c2,'YTickLabel',round(linspace(depth_group_edges(1),depth_group_edges(end),n_depths)));
 
+%% Widefield/ephys regression maps (single units)
 
+% Set templates
+use_templates = unique(spike_templates);
 
+% Set upsample value for regression
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
 
+% Skip the first/last n seconds to do this
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
+% Bin spikes
+binned_spikes = zeros(length(use_templates),length(time_bins)-1);
+for curr_unit_idx = 1:length(use_templates)
+    curr_spike_times = spike_times_timeline(spike_templates == use_templates(curr_unit_idx));    
+    binned_spikes(curr_unit_idx,:) = histcounts(curr_spike_times,time_bins); 
+end
 
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
+use_svs = 1:200;
+kernel_t = [-0.2,0.2];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 20;
+zs = [false,false];
+cvfold = 5;
+return_constant = false;
+use_constant = true;
+    
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+        
+% Regress cortex to spikes
+[k,predicted_spikes,explained_var] = ...
+    AP_regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
 
+% Convert kernel to pixel space
+r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
 
+AP_imscroll(r_px,kernel_frames/wf_framerate);
+clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+colormap(AP_colormap('BWR'));
+axis image;
+
+% Combine time, sort by explained variance, plot
+% r_px_timepoint = sqrt(squeeze(sum(r_px.^2,3)));
+r_px_timepoint = squeeze(max(r_px,[],3));
+
+[~,sort_idx] = sort(template_depths);
+% [~,sort_idx] = sort(explained_var.total,'descend');
+plot_templates = explained_var.total > 0;
+plot_templates_sort = sort_idx(plot_templates(sort_idx));
+
+AP_imscroll(r_px_timepoint(:,:,plot_templates_sort),plot_templates_sort);
+axis image;
+clim([0,prctile(r_px_timepoint(:),99.9)]);
 
 
 

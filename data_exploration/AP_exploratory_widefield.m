@@ -24,10 +24,10 @@ elseif contains(bonsai_workflow,'stim_wheel')
     rewarded_trials = logical([trial_events.values.Outcome]');
 
     use_trials = rewarded_trials(1:n_trials);
-    align_times = reshape([ ...
-        stimOn_times(use_trials), ...
-        stim_move_time(use_trials), ...
-        reward_times],[],1);
+    align_times = [
+        stimOn_times(use_trials); ...
+        stim_move_time(use_trials); ...
+        reward_times_task(use_trials)];
     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
@@ -67,7 +67,7 @@ baseline_event_t = reshape(baseline_times,[],1) + reshape(baseline_t,1,[]);
 
 use_U = wf_U;
 use_V = wf_V;
-use_wf_t = wf_times;
+use_wf_t = wf_t;
 
 aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
     length(align_times),length(t),[]);
@@ -91,7 +91,7 @@ axis image;
 
 % Load data
 animal = 'AP013';
-rec_day = '2023-11-10';
+rec_day = '2023-11-17';
 workflow = 'sparse_noise';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
@@ -101,7 +101,7 @@ verbose = true;
 ap.load_recording;
 
 % Get retinotopy
-ap.widefield_retinotopy
+ap.wf_retinotopy
 
 
 %% ~~~~~~~~ ALIGN WIDEFIELD
@@ -133,7 +133,7 @@ for curr_day = 1:length(wf_recordings)
         ap.align_widefield(avg_im_h,animal,day)];
 
     % (just violet)
-    avg_im_aligned{curr_day} = ap.align_widefield(avg_im_h,animal,day);
+    avg_im_aligned{curr_day} = ap.wf_align(avg_im_h,animal,day);
 end
 
 % Plot average
@@ -171,7 +171,7 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
 
         try
             ap.load_recording;
-            ap.widefield_retinotopy;
+            ap.wf_retinotopy;
             vfs_all{curr_day} = vfs;
         catch me
         end
@@ -192,7 +192,7 @@ load(retinotopy_fn);
 % Align VFS across days
 aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
-        aligned_vfs{curr_day} = ap.align_widefield(retinotopy(curr_day).vfs, ...
+        aligned_vfs{curr_day} = ap.wf_align(retinotopy(curr_day).vfs, ...
             retinotopy(1).animal,retinotopy(curr_day).day,'day_only');
 end
 
@@ -210,7 +210,7 @@ ap.align_widefield(vfs_mean,animal,[],'new_animal');
 master_aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
         master_aligned_vfs{curr_day} = ...
-            ap.align_widefield(retinotopy(curr_day).vfs, ...
+            ap.wf_align(retinotopy(curr_day).vfs, ...
             animal,retinotopy(curr_day).day);
 end
 figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
@@ -264,7 +264,7 @@ for curr_recording = 1:length(recordings)
     t = surround_window(1):1/surround_samplerate:surround_window(2);
     peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
 
-    aligned_v = reshape(interp1(wf_times,wf_V',peri_event_t,'previous'), ...
+    aligned_v = reshape(interp1(wf_t,wf_V',peri_event_t,'previous'), ...
         length(align_times),length(t),[]);
 
     align_id = findgroups(align_category);

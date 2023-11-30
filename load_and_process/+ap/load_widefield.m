@@ -19,41 +19,45 @@ for curr_wf = 1:length(widefield_colors)
 
     % Timestamps: assume colors go in order (dictated by Arduino)
     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
-
 end
 
-% BUG? FOR NOW: if mismatching number of frames/times, cut off ends to match
-wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
+% % BUG? FOR NOW: if mismatching number of frames/times, cut off ends to match
+if ~all(cellfun(@(v,t) size(v,2) == length(t),wf_V_raw,wf_t_all))
+%     wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
+%     disp('Widefield: timeline/frame number mismatch, cutting end');
+    error('Widefield: timeline/frame number mismatch');
+end
+
+% Get framerate from timestamps
+wf_framerate = mean(1./diff(wf_t_all{1}));
 
 % Correct hemodynamics
-V_neuro_hemocorr = plab.wf.hemo_correct( ...
+[V_neuro_hemocorr,hemocorr_t] = plab.wf.hemo_correct( ...
     wf_U_raw{1},wf_V_raw{1},wf_t_all{1}, ...
     wf_U_raw{2},wf_V_raw{2},wf_t_all{2});
 
-%%%%% NOTE:
-% some difference from this and the old code in the higher components:
-% e.g. the hemo estimation for component 1500 is totally different.
-% I can't figure out the difference so I'm leaving it for now.
-%%%%%%%%%%%
+% % High-pass filter (causal filter)
+% highpassCutoff = 0.01; % Hz
+% [b100s, a100s] = butter(2, highpassCutoff/(wf_framerate/2), 'high');
+% fV_neuro_hemocorr = filter(b100s,a100s,V_neuro_hemocorr,[],2);
 
 % Get DF/F
 wf_Vdf = plab.wf.svd_dff(wf_U_raw{1},V_neuro_hemocorr,wf_avg_all{1});
 
 % Deconvolve
-wf_framerate = mean(1./diff(wf_t_all{1}));
-wf_Vdf_deconv = ap.deconv_widefield(wf_Vdf,wf_framerate);
+wf_Vdf_deconv = ap.wf_deconv(wf_Vdf,wf_framerate);
 
 % Set final processed widefield variables
 wf_U = wf_U_raw{1};
 wf_V = wf_Vdf_deconv;
-wf_times = wf_t_all{1};
+wf_t = hemocorr_t;
 wf_avg = wf_avg_all{1};
 
 % Align widefield (if alignment exists, and user doesn't turn off)
 if ~isfield(load_parts,'widefield_align') || load_parts.widefield_align
     try
-        wf_avg = ap.align_widefield(wf_avg,animal,rec_day);
-        wf_U = ap.align_widefield(wf_U,animal,rec_day);
+        wf_avg = ap.wf_align(wf_avg,animal,rec_day);
+        wf_U = ap.wf_align(wf_U,animal,rec_day);
         if verbose; disp('Aligned widefield U/avg...');end
     catch  me
     end

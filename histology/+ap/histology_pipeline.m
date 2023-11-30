@@ -1,3 +1,5 @@
+% OBSOLETE: Replaced by AP_histology GUI
+
 %% Load CCF and set paths for slide and slice images
 
 % Load CCF atlas
@@ -60,13 +62,18 @@ AP_view_aligned_histology_volume(tv,av,st,slice_path,1);
 % Get probe trajectory from histology, convert to CCF coordinates
 AP_get_probe_histology(tv,av,st,slice_path);
 
-% Match trajectories with days
+%% Match trajectories with days
 % (plot NTE/histology days, select corresponding days from list)
-ap.plot_probe_positions(animal);
+
+animal = 'AP005';
+
+% ap.plot_probe_positions(animal);
 
 recordings = plab.find_recordings(animal);
 ephys_days = {recordings([recordings.ephys]).day};
-probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
+probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
+    'histology','*','probe_ccf.mat'));
+probe_ccf_filename = fullfile(probe_ccf_dir.folder,probe_ccf_dir.name);
 load(probe_ccf_filename);
 for curr_probe = 1:length(probe_ccf)
     [day_idx,tf] = listdlg('PromptString',sprintf('Select day: Trajectory %d',curr_probe), ...
@@ -74,9 +81,15 @@ for curr_probe = 1:length(probe_ccf)
     probe_ccf(curr_probe).day = ephys_days{day_idx};
 end
 save(probe_ccf_filename,'probe_ccf');
+disp(['Saved ' probe_ccf_filename]);
 
-% Align histology depth to recording
-probe_ccf_filename = fullfile(slice_path,'probe_ccf.mat');
+%% Align histology depth to recording
+
+animal = 'AP005';
+
+probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
+    'histology','*','probe_ccf.mat'));
+probe_ccf_filename = fullfile(probe_ccf_dir.folder,probe_ccf_dir.name);
 load(probe_ccf_filename);
 
 figure('Name',sprintf('%s: Trajectory areas',animal));
@@ -85,7 +98,7 @@ probe_ax = gobjects(length(probe_ccf),1);
 
 for curr_probe = 1:length(probe_ccf)
 
-        probe_ax(curr_probe) = nexttile;    
+    probe_ax(curr_probe) = nexttile;
 
     % Load first recording of the day
     recordings = plab.find_recordings(animal,probe_ccf(curr_probe).day);
@@ -117,7 +130,12 @@ for curr_probe = 1:length(probe_ccf)
     set(probe_ax(curr_probe),'XTick',[],'YTick',trajectory_areas_centers, ...
         'YTickLabels',probe_ccf(curr_probe).trajectory_areas.acronym);
     yline(-4000); % (draw a line to allow panning beyond data - hacky)
-    ylim([0,3840]);    
+
+    % Interpolate depth from lowest DV point, ylim by depth estimate
+    deepest_marked_depth = interp1(probe_ccf(curr_probe).trajectory_coords(:,2), ...
+        probe_ccf(curr_probe).trajectory_areas.trajectory_depth([1,end]), ...
+        max(probe_ccf(curr_probe).points(:,2)));
+    ylim([deepest_marked_depth-3840,deepest_marked_depth]);
 
     % Plot spikes normalized rate by depth
     spike_templates_unique = unique(spike_templates);
@@ -142,10 +160,12 @@ for curr_probe = 1:length(probe_ccf)
         curr_probe_depth(1);
 end
 save(probe_ccf_filename,'probe_ccf');
+fprintf('Saved %s\n',probe_ccf_filename);
 
 
 
-%% Unused 
+
+%% Miscellaneous 
 
 % Extract slices from full-resolution images
 % (not worth it at the moment, each slice is 200 MB)

@@ -1,5 +1,5 @@
-function im_aligned = align_wf(im_unaligned,animal,day,align_type,master_align)
-% im_aligned = align_wf(im_unaligned,animal,day,align_type,master_align)
+function [im_aligned,im_tform] = wf_align(im_unaligned,animal,day,align_type,master_align)
+% im_aligned = align_widefield(im_unaligned,animal,day,align_type,master_align)
 %
 % Align widefield images across days and animals
 %
@@ -27,13 +27,17 @@ function im_aligned = align_wf(im_unaligned,animal,day,align_type,master_align)
 %% Initialize
 
 % Set path with saved alignments
-alignment_path = 'C:\Users\Andrew\OneDrive for Business\Documents\CarandiniHarrisLab\analysis\widefield_alignment';
+alignment_path = fullfile(plab.locations.server_path,'Users','Andy_Peters','widefield_alignment');
+if ~exist(alignment_path,'dir')
+    mkdir(alignment_path)
+end
 
 % Load transform structure
-wf_tform_fn = [alignment_path filesep 'wf_tform.mat'];
+wf_tform_fn = fullfile(alignment_path,'wf_tform.mat');
 % (if it doesn't exist yet, create it)
 if ~exist(wf_tform_fn,'file')
-    wf_tform = struct('animal',cell(0),'day',cell(0),'day_tform',cell(0),'ref_size',cell(0),'animal_tform',cell(0),'master_ref_size',cell(0));
+    wf_tform = struct('animal',cell(0),'day',cell(0),'day_tform',cell(0), ...
+        'ref_size',cell(0),'animal_tform',cell(0),'master_ref_size',cell(0));
     save(wf_tform_fn,'wf_tform');
 else
     load(wf_tform_fn);
@@ -52,28 +56,20 @@ switch align_type
         %% Align all days from one animal
         % (only run once for each animal - aligns to iterative average)
 
+        % If no unaligned images, find and load all average images
+        if isempty(im_unaligned)
+            recordings = plab.find_recordings(animal);
+            wf_days_idx = find(cellfun(@(x) any(x),{recordings.widefield})');
 
-
-        %%%%%%%%%%% IN PROCESS: PORTING TO NEW SYSTEM
-
-        % Find all days with widefield for animal
-
-        animal = 'AP010';
-        recordings = ap.find_recordings(animal);
-        wf_days_idx = find(cellfun(@(x) x(1),{recordings.widefield})');
-
-        % Load all average images
-        avg_im = cell(size(wf_days_idx));
-        for curr_day_idx = 1:length(wf_days_idx)
-            curr_day = recordings(curr_day_idx).day;
-            curr_avg_im_fn = plab.locations.make_server_filename(animal,rec_day,[],'widefield','meanImage_blue.npy')
-
+            day = {recordings(wf_days_idx).day};
+            im_unaligned = cell(size(wf_days_idx));
+            for curr_day_idx = 1:length(wf_days_idx)
+                curr_day = recordings(wf_days_idx(curr_day_idx)).day;
+                curr_avg_im_fn = plab.locations.filename('server', ...
+                    animal,curr_day,[],'widefield','meanImage_violet.npy');
+                im_unaligned{curr_day_idx} = single(readNPY(curr_avg_im_fn));
+            end
         end
-
-
-        %%%%%%%%%%%%%%%%%%%%%%%
-
-
         
         % Set output size as the largest image
         [im_y,im_x] = cellfun(@size,im_unaligned);
@@ -81,102 +77,99 @@ switch align_type
         im_y_max = max(im_y);
         im_x_max = max(im_x);
         ref_size = [im_y_max,im_x_max];
-        
+
         im_unaligned_pad = ...
             cell2mat(reshape(cellfun(@(im) padarray(im, ...
-            [im_y_max - size(im,1),im_x_max - size(im,2)],0,'post'), ...
+            [im_y_max - size(im,1),im_x_max - size(im,2)]./2,0,'both'), ...
             im_unaligned,'uni',false),1,1,[]));
+
+        % Intensity-normalize the image used for alignment
+        im_unaligned_pad_norm = imgaussfilt(im_unaligned_pad,2)./ ...
+            imgaussfilt(im_unaligned_pad,10);
         
-        % (set transform optimizer)
-%         % (for OnePlusOneEvolutionary)
-%         [optimizer, metric] = imregconfig('monomodal');
-%         optimizer = registration.optimizer.OnePlusOneEvolutionary();
-%         optimizer.MaximumIterations = 200; % 200
-%         optimizer.GrowthFactor = 1+1e-6; % 1+1e-6
-%         optimizer.InitialRadius = 5e-5; % 1e-5
-        
-        % (for RegularStepGradientDescent)
+%         (set transform optimizer)
+        % (for OnePlusOneEvolutionary)
         [optimizer, metric] = imregconfig('monomodal');
-        optimizer.GradientMagnitudeTolerance = 1e-7;
-        optimizer.MaximumIterations = 300;
-        optimizer.MaximumStepLength = 1e-3;
-        optimizer.MinimumStepLength = 1e-7;
-        optimizer.RelaxationFactor = 0.6;
+        optimizer = registration.optimizer.OnePlusOneEvolutionary();
+        optimizer.MaximumIterations = 200;
+        optimizer.GrowthFactor = 1+1e-7;
+        optimizer.InitialRadius = 1e-5;
+        
+%         % (for RegularStepGradientDescent)
+%         [optimizer, metric] = imregconfig('monomodal');
+%         optimizer.GradientMagnitudeTolerance = 1e-7;
+%         optimizer.MaximumIterations = 300;
+%         optimizer.MaximumStepLength = 1e-5;
+%         optimizer.MinimumStepLength = 1e-7;
+%         optimizer.RelaxationFactor = 0.6;
         
         % (first pass: rigid transform to day 1)  
         % (increasing the PyramidLevels made the biggest improvement)
         disp('Rigid aligning images...')
         im_ref = im_unaligned{1};
-        im_rigid_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));       
-        rigid_tform = cell(size(im_unaligned));        
+        im_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));       
+        tform_matrix = cell(size(im_unaligned));        
         for curr_im = 1:length(im_unaligned)
-            tformEstimate_affine = imregtform(im_unaligned{curr_im}, ...
+            im_tform = imregtform(im_unaligned{curr_im}, ...
                 im_ref,'rigid',optimizer,metric,'PyramidLevels',5);
             curr_im_reg = imwarp(im_unaligned{curr_im}, ...
-                tformEstimate_affine,'Outputview',imref2d(ref_size));
-            rigid_tform{curr_im} = tformEstimate_affine.T;
-            im_rigid_aligned(:,:,curr_im) = curr_im_reg;
+                im_tform,'Outputview',imref2d(ref_size));
+            tform_matrix{curr_im} = im_tform.T;
+            im_aligned(:,:,curr_im) = curr_im_reg;
         end
         
-        % (user draw ROI around most stable area for alignment reference)
-        % (and lower the search radius)
-        draw_roi = true;
-        while draw_roi
-            f = AP_imscroll(im_rigid_aligned, ...
-                repmat({'Draw ROI or double-click to accept'},length(im_unaligned),1));
-            caxis([prctile(im_unaligned_pad(:),1),prctile(im_unaligned_pad(:),99)]);
+        % Check and manually align bad alignments by control points
+        while true
+            f = AP_imscroll(im_aligned);
+            clim(prctile(im_aligned(:),[1,99]));
             axis image;
-            h = imrect;
-            position = round(wait(h));
-            close(f);
-            
-            % If no ROI drawn, accept and save transform
-            if sum(position(3:4)) == 0
-                tform_matrix = rigid_tform;
-                draw_roi = false; 
-                confirm_save = 'y';
+            user_input = input('Manual align? (#,s=save, q=quit): ','s');
+            if ishandle(f)
+                close(f)
+            end
+
+            % Convert user input to number if numeric
+            if ~isnan(str2double(user_input))
+                user_input = str2double(user_input);
+            end
+
+            if ischar(user_input) && ismember(user_input,{'s','q'})
+                % User selected save or quit
+                break
+
+            elseif isnumeric(user_input) && ismember(user_input,1:size(im_aligned,3))
+                % User selected a day to manually correct
+
+                % Select control points for selected image
+                [movingPoints,fixedPoints] = cpselect( ...
+                    mat2gray(im_aligned(:,:,user_input)), ...
+                    mat2gray(im_ref),'Wait',true);
+                cp_tform = fitgeotform2d(movingPoints,fixedPoints,'similarity');
+                cp_rigid_tform = rigidtform2d(cp_tform.RotationAngle,cp_tform.Translation);
+
+                % Update image with new transform
+                im_aligned(:,:,user_input) = ...
+                    imwarp(im_aligned(:,:,user_input), ...
+                    cp_rigid_tform,'Outputview',imref2d(ref_size));
+
+                % Update combined transform matrix for image
+                tform_matrix{user_input} = tform_matrix{user_input}*cp_rigid_tform.T;
+
+            elseif isnumeric(user_input) && ~ismember(user_input,1:size(im_aligned,3))
+                % User selected an invalid day number
+                fprintf('Invalid day number selected: %d',user_input);
                 continue
-            end
-            
-            im_rigid_aligned_roi = im_rigid_aligned( ...
-                position(2):position(2)+position(4), ...
-                position(1):position(1)+position(3),:);
-                                    
-            disp('Rigid aligning selection...')
-            im_ref = im_rigid_aligned_roi(:,:,1);
-            im_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));
-            tform_matrix = cell(length(im_unaligned),1);
-            for curr_im = 1:length(im_unaligned)
-                tformEstimate_affine = imregtform( ...
-                    im_rigid_aligned_roi(:,:,curr_im), ...
-                    im_ref,'rigid',optimizer,metric,'PyramidLevels',4);
-                
-                tform_combine = rigid_tform{curr_im}*tformEstimate_affine.T;
-                tform_matrix{curr_im} = tform_combine;
-                
-                curr_tform = affine2d;
-                curr_tform.T = tform_combine;
-                curr_im_reg = imwarp(im_unaligned{curr_im},curr_tform, ...
-                    'Outputview',imref2d(ref_size));
-                
-                tform_matrix{curr_im} = tform_combine;
-                im_aligned(:,:,curr_im) = curr_im_reg;
-            end
-            
-            f = AP_imscroll(im_aligned, ...
-                cellfun(@(x) ['Final alignment: ' animal ' ' x],day,'uni',false));
-            caxis([prctile(im_aligned(:),1),prctile(im_aligned(:),99)]);
-            axis image;
-            confirm_save = input(['Save day transforms for ' animal '? (y/n/redo): '],'s');
-            close(f)
-            
-            if ~strcmp(confirm_save,'redo')
-                draw_roi = false;
+
+            else
+                % User selected an invalid character
+                fprintf('Invalid input: %s',user_input);
+                continue
+
             end
         end
-        
-        % Save transform matrix into structure
-        if strcmp(confirm_save,'y')
+
+        % If user selected save, save transform matrix into structure
+        if strcmp(user_input,'s')
             curr_animal_idx = strcmp(animal,{wf_tform.animal});
             if isempty(curr_animal_idx) || ~any(curr_animal_idx)
                 % (if not already extant, make new)
@@ -190,8 +183,8 @@ switch align_type
             
             save(wf_tform_fn,'wf_tform');
             disp(['Saved day transforms for ' animal '.'])
-        else
-            disp('Not saved');
+        elseif strcmp(user_input,'q')
+            disp('Alignment not saved');
         end
         
         
@@ -244,11 +237,11 @@ switch align_type
             
             vfs_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));
             for curr_animal = 1:length(im_unaligned)
-                tformEstimate_affine = imregtform(im_unaligned{curr_animal}, ...
+                im_tform = imregtform(im_unaligned{curr_animal}, ...
                     vfs_ref,'affine',optimizer,metric,'PyramidLevels',5);
                 curr_im_reg = imwarp(im_unaligned{curr_animal}, ...
-                    tformEstimate_affine,'Outputview',imref2d(ref_size));
-                tform_matrix{curr_animal} = tformEstimate_affine.T;
+                    im_tform,'Outputview',imref2d(ref_size));
+                tform_matrix{curr_animal} = im_tform.T;
                 vfs_aligned(:,:,curr_animal) = curr_im_reg;
             end
             
@@ -267,10 +260,10 @@ switch align_type
             
             ref_im_symm = (vfs_ref + side_sign*fliplr(vfs_ref))./2;            
             
-            tformEstimate_affine = imregtform(vfs_ref,ref_im_symm,'rigid', ...
+            im_tform = imregtform(vfs_ref,ref_im_symm,'rigid', ...
                 optimizer,metric,'PyramidLevels',5);
-            curr_im_reg = imwarp(vfs_ref,tformEstimate_affine,'Outputview',imref2d(ref_size));
-            tform_matrix = tformEstimate_affine.T;
+            curr_im_reg = imwarp(vfs_ref,im_tform,'Outputview',imref2d(ref_size));
+            tform_matrix = im_tform.T;
             vfs_ref = curr_im_reg;
             
             ref_reg(:,:,curr_loop) = vfs_ref;
@@ -354,11 +347,11 @@ switch align_type
             
             vfs_aligned = nan(ref_size(1),ref_size(2),length(im_unaligned));
             for curr_animal = 1:length(im_unaligned)
-                tformEstimate_affine = imregtform(im_unaligned{curr_animal}, ...
+                im_tform = imregtform(im_unaligned{curr_animal}, ...
                     vfs_ref,'affine',optimizer,metric,'PyramidLevels',5);
                 curr_im_reg = imwarp(im_unaligned{curr_animal}, ...
-                    tformEstimate_affine,'Outputview',imref2d(ref_size));
-                tform_matrix{curr_animal} = tformEstimate_affine.T;
+                    im_tform,'Outputview',imref2d(ref_size));
+                tform_matrix{curr_animal} = im_tform.T;
                 vfs_aligned(:,:,curr_animal) = curr_im_reg;
             end
             
@@ -377,10 +370,10 @@ switch align_type
             
             ref_im_symm = (vfs_ref + side_sign*fliplr(vfs_ref))./2;
    
-            tformEstimate_affine = imregtform(vfs_ref,ref_im_symm,'rigid', ...
+            im_tform = imregtform(vfs_ref,ref_im_symm,'rigid', ...
                 optimizer,metric,'PyramidLevels',5);
-            curr_im_reg = imwarp(vfs_ref,tformEstimate_affine,'Outputview',imref2d(ref_size));
-            tform_matrix = tformEstimate_affine.T;
+            curr_im_reg = imwarp(vfs_ref,im_tform,'Outputview',imref2d(ref_size));
+            tform_matrix = im_tform.T;
             vfs_ref = curr_im_reg;
             
             ref_reg(:,:,curr_loop) = vfs_ref;
@@ -401,10 +394,10 @@ switch align_type
                master_vfs(:,1:round(size(master_vfs,2)/2))*-1;
         end
                 
-        tformEstimate_affine = imregtform(symm_vfs_mirror_avg, ...
+        im_tform = imregtform(symm_vfs_mirror_avg, ...
             master_vfs,'affine',optimizer,metric,'PyramidLevels',5);
         submaster_vfs = imwarp(symm_vfs_mirror_avg, ...
-            tformEstimate_affine,'Outputview',imref2d(size(master_vfs)));
+            im_tform,'Outputview',imref2d(size(master_vfs)));
         
         % Plot submaster and alignment
         figure; 
@@ -444,7 +437,7 @@ switch align_type
             % Align master VFS by default          
             disp('Aligning animal VFS to master VFS...')
             % Load master VFS
-            master_vfs_fn = [alignment_path filesep 'master_vfs.mat'];
+            master_vfs_fn = fullfile(alignment_path,'master_vfs.mat');
             load(master_vfs_fn);
             master_align = master_vfs;
         else
@@ -458,56 +451,58 @@ switch align_type
         optimizer = registration.optimizer.OnePlusOneEvolutionary();
         optimizer.MaximumIterations = 200;
         optimizer.GrowthFactor = 1+1e-6;
-        optimizer.InitialRadius = 1e-4;
+        optimizer.InitialRadius = 1e-3;
         
-        tformEstimate_affine = imregtform(im_unaligned,master_align,'affine',optimizer,metric);
-        im_aligned = imwarp(im_unaligned,tformEstimate_affine,'Outputview',imref2d(ref_size));
-        tform_matrix = tformEstimate_affine.T;
+        im_tform = imregtform(im_unaligned,master_align,'similarity',optimizer,metric);
+        im_aligned = imwarp(im_unaligned,im_tform,'Outputview',imref2d(ref_size));
         
         figure;
-        subplot(2,2,1);
+        tiledlayout(2,2,'TileSpacing','tight');
+        nexttile;
         imshowpair(master_align,im_unaligned);
         title('Unaligned');
-        subplot(2,2,2);
+        nexttile;
         imshowpair(master_align,im_aligned);
         title('Aligned');
-        subplot(2,2,3);
+        nexttile;
         imagesc(master_align);
         axis image off
-        caxis([-1,1]);
-        colormap(brewermap([],'*RdBu'));
-        AP_reference_outline('ccf_aligned',[0.5,0.5,0.5]);
+        clim([-1,1]);
+        colormap(AP_colormap('BWR'));
+        ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
         title('Master')
-        subplot(2,2,4);
+        nexttile;
         imagesc(im_aligned);
         axis image off
-        caxis([-1,1]);
-        colormap(brewermap([],'*RdBu'));
-        AP_reference_outline('ccf_aligned',[0.5,0.5,0.5]);
+        clim([-1,1]);
+        colormap(AP_colormap('BWR'));
+        ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
         title('Aligned')
         
         % Save transform matrix into structure
-        curr_animal_idx = strcmp(animal,{wf_tform.animal});
-        if isempty(curr_animal_idx) || ~any(curr_animal_idx)
-            % (if not already extant, make new)
-            curr_animal_idx = length(wf_tform) + 1;
-            confirm_save = true;
-        else
-            % (if extant, prompt to overwrite)
-            confirm_save = strcmp(input(['Overwrite animal transform for ' animal '? (y/n): '],'s'),'y');
+        if ~isempty(animal)
+            curr_animal_idx = strcmp(animal,{wf_tform.animal});
+            if isempty(curr_animal_idx) || ~any(curr_animal_idx)
+                % (if not already extant, make new)
+                curr_animal_idx = length(wf_tform) + 1;
+                confirm_save = true;
+            else
+                % (if extant, prompt to overwrite)
+                confirm_save = strcmp(input( ...
+                    ['Overwrite animal transform for ' animal '? (y/n): '], ...
+                    's'),'y');
+            end
+            if confirm_save
+                wf_tform(curr_animal_idx).animal = animal;
+                wf_tform(curr_animal_idx).animal_tform = im_tform.T;
+                wf_tform(curr_animal_idx).master_ref_size = ref_size;
+                save(wf_tform_fn,'wf_tform');
+                disp(['Saved new animal alignment for ' animal '.'])
+            else
+                disp('Not overwriting.')
+            end
         end
-        if confirm_save
-            wf_tform(curr_animal_idx).animal = animal;
-            wf_tform(curr_animal_idx).animal_tform = tform_matrix;
-            wf_tform(curr_animal_idx).master_ref_size = ref_size;
-            save(wf_tform_fn,'wf_tform');
-            disp(['Saved new animal alignment for ' animal '.'])
-        else
-            disp('Not overwriting.')
-        end
-        
-
-        
+                
         
     otherwise
         %% Apply alignments to data
@@ -547,7 +542,7 @@ switch align_type
         end
             
         % Transform image, cast to input data type
-        tform = affine2d;
+        tform = affinetform2d;
         tform.T = curr_tform;
         im_aligned = cast(imwarp(im_unaligned,tform,'Outputview',imref2d(ref_size)), ...
             class(im_unaligned));

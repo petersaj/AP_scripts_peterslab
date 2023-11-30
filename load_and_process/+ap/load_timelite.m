@@ -27,8 +27,12 @@ mousecam_expose_times = timelite.timestamps(find(diff(mousecam_thresh) == 1) + 1
 widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');
 widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
 widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
-% (if stuck high at the end, bad frame: remove)
-if widefield_thresh(end) && ~isempty(widefield_expose_times)
+% (if stuck high at end, long dark exposure as first frame, add first timepoint as timestamp)
+if widefield_thresh(1)
+    widefield_expose_times = [timelite.timestamps(1);widefield_expose_times];
+end
+% (if stuck high at the end, unrecorded bad frame: remove timestamp)
+if widefield_thresh(end)
     widefield_expose_times(end) = [];
 end
 
@@ -73,7 +77,14 @@ photodiode_values = photodiode_bw_interp(photodiode_flip_idx);
 reward_idx = strcmp({timelite.daq_info.channel_name}, 'reward_valve');
 reward_thresh = timelite.data(:,reward_idx) >= ttl_thresh;
 reward_ups = timelite.timestamps(find(diff(reward_thresh) == 1)+1);
-reward_valve_diff_thresh = 0.5;
-reward_times = reward_ups(diff([-Inf;reward_ups]) > reward_valve_diff_thresh);
+reward_downs = timelite.timestamps(find(diff(reward_thresh) == -1)+1);
+reward_valve_flicker_thresh = 0.05;
+reward_times = reward_ups((reward_downs - reward_ups) > reward_valve_flicker_thresh);
+
+
+
+
+
+
 
 

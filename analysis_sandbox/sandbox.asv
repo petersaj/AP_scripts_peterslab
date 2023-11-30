@@ -4,8 +4,8 @@
 
 %% Load data (specific day)
 
-animal = 'AM008';
-rec_day = '2023-11-08';
+animal = 'AM011';
+rec_day = '2023-11-29';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -23,10 +23,10 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP012';
+animal = 'AP013';
 
-workflow = 'lcr_passive';
-% workflow = 'lcr_passive_fullscreen';
+% workflow = 'lcr_passive';
+workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
@@ -190,8 +190,8 @@ end
 
 %% temp histology: combine tiff channels
 
-hist_path = 'P:\Data\AP008\histology\raw';
-save_path = 'P:\Data\AP008\histology';
+hist_path = 'P:\Data\AP013\histology\raw';
+save_path = 'P:\Data\AP013\histology';
 
 im_filenames = dir(fullfile(hist_path,'*.tif'));
 
@@ -341,9 +341,8 @@ plot_ccf_idx = find(cellfun(@(x) contains(x,plot_structure_id), ...
     st.structure_id_path));
 
 % Get structure color and volume
-slice_spacing = 5;
 plot_structure_color = hex2dec(reshape(st.color_hex_triplet{plot_structure},2,[])')./255;
-plot_ccf_volume = ismember(av(1:slice_spacing:end,1:slice_spacing:end,1:slice_spacing:end),plot_ccf_idx);
+plot_ccf_volume = ismember(av,plot_ccf_idx);
 
 % Get top-down structure boundaries
 structure_outline = bwboundaries(squeeze((max(plot_ccf_volume,[],2))));
@@ -351,16 +350,21 @@ structure_outline = bwboundaries(squeeze((max(plot_ccf_volume,[],2))));
 % Transform structure coordinates
 um2pixel = 20.6; % (hardcoded for now - is this necessary?)
 
+alignment_path = fullfile(plab.locations.server_path, ...
+    'Users','Andy_Peters','widefield_alignment');
+ccf_tform_fn = [alignment_path filesep 'ccf_tform.mat'];
+load(ccf_tform_fn);
+
 structure_outline_aligned_x = cellfun(@(coords) ...
-    [fliplr(coords*(10/um2pixel)),ones(size(coords,1),1)]*im_tform.T, ...
+    [fliplr(coords*(10/um2pixel)),ones(size(coords,1),1)]*ccf_tform.T, ...
     structure_outline,'uni',false);
 structure_outline_aligned = cellfun(@(coords) ...
     coords(:,[2,1]),structure_outline_aligned_x,'uni',false);
 
 % Plot 2D structure
 ccf_axes = gca;
-cellfun(@(x) plot(ccf_axes(curr_view),x(:,2)*slice_spacing, ...
-        x(:,1)*slice_spacing,'color',plot_structure_color,'linewidth',2), ...
+cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
+        x(:,1),'color',plot_structure_color,'linewidth',2), ...
         structure_outline_aligned)
 
 

@@ -4,12 +4,12 @@
 
 %% Load data (specific day)
 
-animal = 'AM009';
-rec_day = '2023-11-16';
+animal = 'AM010';
+rec_day = '2023-11-29';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-workflow = 'stim_wheel_right*';
+% workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
@@ -23,10 +23,10 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP012';
+animal = 'AP013';
 
-workflow = 'lcr_passive';
-% workflow = 'lcr_passive_fullscreen';
+% workflow = 'lcr_passive';
+workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
@@ -190,8 +190,8 @@ end
 
 %% temp histology: combine tiff channels
 
-hist_path = 'P:\Data\AP008\histology\raw';
-save_path = 'P:\Data\AP008\histology';
+hist_path = 'P:\Data\AP013\histology\raw';
+save_path = 'P:\Data\AP013\histology';
 
 im_filenames = dir(fullfile(hist_path,'*.tif'));
 

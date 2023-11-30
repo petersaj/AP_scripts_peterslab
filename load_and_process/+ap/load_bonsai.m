@@ -84,6 +84,25 @@ if contains(bonsai_workflow,'stim_wheel')
 
     stim_to_move = stim_move_time - stimOn_times(1:n_trials);
 
+    % Get task/manual reward times
+    % (check that total rewards = task + manual)
+    bonsai_task_reward = vertcat(trial_events.timestamps( ...
+        vertcat(trial_events.values.Outcome) == 1).Outcome);
+    if ~isfield(trial_events.timestamps,'ManualReward')
+        reward_times_task = bonsai_task_reward;
+    elseif isfield(trial_events.timestamps,'ManualReward')
+        bonsai_manual_reward = vertcat(trial_events.timestamps.ManualReward);
+        if length(reward_times) ~= ...
+                (length(bonsai_task_reward) + length(bonsai_manual_reward))
+            error('Total rewards ~= task + manual');
+        end
+        [~,bonsai_reward_sortidx] = sort(vertcat(bonsai_task_reward,bonsai_manual_reward));
+        bonsai_reward_grp = vertcat(1*ones(size(bonsai_task_reward)),2*ones(size(bonsai_manual_reward)));
+        reward_times_task = reward_times(bonsai_reward_grp(bonsai_reward_sortidx) == 1);
+        reward_times_manual = reward_times(bonsai_reward_grp(bonsai_reward_sortidx) == 2);
+    end
+    
+
 %% LCR passive
 elseif contains(bonsai_workflow,'lcr_passive')
     % Passive protocol stim on times

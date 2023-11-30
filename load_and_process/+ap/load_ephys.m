@@ -56,46 +56,7 @@ ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
-% Load probe position 
-% (load histology positions if available)
-histology_probe_filename = dir(...
-    plab.locations.filename('server',animal,[],[], ...
-    'histology','slices','probe_ccf.mat'));
-if ~isempty(histology_probe_filename)
-   probe_histology = load(fullfile(histology_probe_filename.folder, ...
-        histology_probe_filename.name));
-end
-% (load NTE positions if available)
-nte_positions_filename = dir(fullfile( ...
-    fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
-if ~isempty(nte_positions_filename)
-    probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
-end
-% (use histology if available and matching day, use NTE if not)
-if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') && ...
-        any(find(strcmp(rec_day,{probe_histology.probe_ccf.day})))
-    probe_histology_day_idx = find(strcmp(rec_day,{probe_histology.probe_ccf.day}));
-    probe_areas = {probe_histology.probe_ccf(probe_histology_day_idx).trajectory_areas};
-else
-    probe_areas = probe_nte.probe_areas;
-end
-
-% Load ephys flipper
-flipper_sync_idx = 1;
-
-open_ephys_ttl_dir = dir(fullfile(open_ephys_path,'events', '*-AP','TTL'));
-open_ephys_ttl_path = cell2mat(unique({open_ephys_ttl_dir.folder}));
-
-open_ephys_ttl_states = readNPY(fullfile(open_ephys_ttl_path,'states.npy'));
-open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_ttl_path,'timestamps.npy'));
-
-open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
-open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
-open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
-
 % Load kilosort data
-ephys_sample_rate = 30000; % (just hardcoded for now, it never changes)
-
 % (spike times: load open ephys times if available, create if not)
 spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.npy');
 if exist(spike_times_openephys_filename,'file')
@@ -162,8 +123,24 @@ templates_max_signfix = bsxfun(@times,templates_max, ...
     transpose(1:size(templates_max,1)));
 waveform_peak = waveform_peak_rel + waveform_trough;
 
+ephys_sample_rate = 30000; % (just hardcoded for now, it never changes)
 templateDuration = waveform_peak - waveform_trough;
 templateDuration_us = (templateDuration/ephys_sample_rate)*1e6;
+
+%% Convert timestamps to timelite (with flipper)
+
+% Load ephys flipper
+flipper_sync_idx = 1;
+
+open_ephys_ttl_dir = dir(fullfile(open_ephys_path,'events', '*-AP','TTL'));
+open_ephys_ttl_path = cell2mat(unique({open_ephys_ttl_dir.folder}));
+
+open_ephys_ttl_states = readNPY(fullfile(open_ephys_ttl_path,'states.npy'));
+open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_ttl_path,'timestamps.npy'));
+
+open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
+open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
+open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
 
 % Get sync points for alignment
 
@@ -226,6 +203,35 @@ end
 % Get spike times in timeline time
 spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times_openephys,'linear','extrap');
 
+
+%% Load probe position 
+
+% (load histology positions if available)
+histology_probe_filename = dir(...
+    plab.locations.filename('server',animal,[],[], ...
+    'histology','*','probe_ccf.mat'));
+if ~isempty(histology_probe_filename)
+   probe_histology = load(fullfile(histology_probe_filename.folder, ...
+        histology_probe_filename.name));
+end
+
+% (load NTE positions if available)
+nte_positions_filename = dir(fullfile( ...
+    fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
+if ~isempty(nte_positions_filename)
+    probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
+end
+
+% (use histology if available and matching day, use NTE if not)
+if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') && ...
+        any(find(strcmp(rec_day,{probe_histology.probe_ccf.day})))
+    probe_histology_day_idx = find(strcmp(rec_day,{probe_histology.probe_ccf.day}));
+    probe_areas = {probe_histology.probe_ccf(probe_histology_day_idx).trajectory_areas};
+    if verbose; disp('Ephys: Loaded histology positions...'); end
+else
+    probe_areas = probe_nte.probe_areas;
+    if verbose; disp('Ephys: Loaded NTE positions...'); end
+end
 
 %% Remove bad units from quality control
 

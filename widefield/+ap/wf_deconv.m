@@ -1,4 +1,4 @@
-function deconvolved_activity = deconv_widefield(activity,sample_rate)
+function deconvolved_activity = wf_deconv(activity,sample_rate)
 % deconvolved_activity = deconv_widefield(activity,spikes_flag,sample_rate)
 %
 % Deconvolve fluorescence from tetO-GC6s widefield to match spikes

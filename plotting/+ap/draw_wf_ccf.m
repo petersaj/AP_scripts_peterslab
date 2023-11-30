@@ -218,62 +218,68 @@ end
 % save(save_fn,'cortical_area_boundaries','cortical_area_lefthemi_boundaries');
 % disp(['Saved ' save_fn]);
 
-%% Create ROTATED top-down cortical boundaries from CCF (RUN ONCE)
+% %% Create ROTATED top-down cortical boundaries from CCF (RUN ONCE)
+% 
+% % Set save path
+% alignment_path = fullfile(plab.locations.server_path, ...
+%     'Users','Andy_Peters','widefield_alignment');
+% 
+% % Load in the annotated Allen volume and names
+% allen_atlas_path = fileparts(which('template_volume_10um.npy'));
+% av = readNPY(fullfile(allen_atlas_path, 'annotation_volume_10um_by_index.npy'));
+% st = loadStructureTree(fullfile(allen_atlas_path, 'structure_tree_safe_2017.csv'));
+% 
+% ccf_rotation = 5; % rotate 5 degrees nose-up
+% av_rotated = imrotate3(av,ccf_rotation,[0,1,1],'nearest');
+% 
+% % Get first brain pixel from top-down, get annotation at that point
+% [~,top_down_depth] = max(av_rotated>1, [], 2);
+% top_down_depth = squeeze(top_down_depth);
+% 
+% [xx,yy] = meshgrid(1:size(top_down_depth,2), 1:size(top_down_depth,1));
+% top_down_annotation = reshape(av_rotated(sub2ind(size(av_rotated),yy(:), ...
+%     top_down_depth(:),xx(:))), size(av_rotated,1), size(av_rotated,3));
+% 
+% % Make separate left hemi top-down annotation
+% top_down_annotation_lefthemi = ...
+%     top_down_annotation(:,1:size(top_down_annotation,2) <= ...
+%     floor(size(av_rotated,3)/2));
+% 
+% % Get all labelled areas
+% used_areas = unique(top_down_annotation(:));
+% 
+% % Restrict to only cortical areas
+% structure_id_path = cellfun(@(x) textscan(x(2:end),'%d', 'delimiter',{'/'}),st.structure_id_path);
+% 
+% ctx_path = [997,8,567,688,695,315];
+% ctx_idx = find(cellfun(@(id) length(id) > length(ctx_path) & ...
+%     all(id(min(length(id),length(ctx_path))) == ctx_path(min(length(id),length(ctx_path)))),structure_id_path));
+% 
+% plot_areas = intersect(used_areas,ctx_idx);
+% 
+% % Get outlines of all areas (full/left hemi)
+% cortical_area_boundaries = cell(size(plot_areas));
+% cortical_area_lefthemi_boundaries = cell(size(plot_areas));
+% for curr_area_idx = 1:length(plot_areas)
+%     cortical_area_boundaries{curr_area_idx} = bwboundaries(top_down_annotation == plot_areas(curr_area_idx));
+%     cortical_area_lefthemi_boundaries{curr_area_idx} = bwboundaries(top_down_annotation_lefthemi == plot_areas(curr_area_idx));
+% end
+% 
+% % Plot the borders
+% figure; tiledlayout('flow');
+% nexttile; hold on; axis image; set(gca,'ydir','reverse');
+% cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k'),x,'uni',false), ...
+%     cortical_area_boundaries,'uni',false);
+% nexttile; hold on; axis image; set(gca,'ydir','reverse');
+% cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k'),x,'uni',false), ...
+%     cortical_area_lefthemi_boundaries,'uni',false);
+% 
+% % Save borders
+% save_fn = fullfile(alignment_path,'cortical_area_boundaries');
+% save(save_fn,'cortical_area_boundaries_rotated','cortical_area_lefthemi_boundaries_rotated');
+% disp(['Saved ' save_fn]);
 
-% Load in the annotated Allen volume and names
-allen_atlas_path = fileparts(which('template_volume_10um.npy'));
-av = readNPY(fullfile(allen_atlas_path, 'annotation_volume_10um_by_index.npy'));
-st = loadStructureTree(fullfile(allen_atlas_path, 'structure_tree_safe_2017.csv'));
 
-ccf_rotation = 5; % rotate 5 degrees nose-up
-av_rotated = imrotate3(av,ccf_rotation,[0,1,1],'nearest');
-
-% Get first brain pixel from top-down, get annotation at that point
-[~,top_down_depth] = max(av_rotated>1, [], 2);
-top_down_depth = squeeze(top_down_depth);
-
-[xx,yy] = meshgrid(1:size(top_down_depth,2), 1:size(top_down_depth,1));
-top_down_annotation = reshape(av_rotated(sub2ind(size(av_rotated),yy(:), ...
-    top_down_depth(:),xx(:))), size(av_rotated,1), size(av_rotated,3));
-
-% Make separate left hemi top-down annotation
-top_down_annotation_lefthemi = ...
-    top_down_annotation(:,1:size(top_down_annotation,2) <= ...
-    floor(size(av_rotated,3)/2));
-
-% Get all labelled areas
-used_areas = unique(top_down_annotation(:));
-
-% Restrict to only cortical areas
-structure_id_path = cellfun(@(x) textscan(x(2:end),'%d', 'delimiter',{'/'}),st.structure_id_path);
-
-ctx_path = [997,8,567,688,695,315];
-ctx_idx = find(cellfun(@(id) length(id) > length(ctx_path) & ...
-    all(id(min(length(id),length(ctx_path))) == ctx_path(min(length(id),length(ctx_path)))),structure_id_path));
-
-plot_areas = intersect(used_areas,ctx_idx);
-
-% Get outlines of all areas (full/left hemi)
-cortical_area_boundaries = cell(size(plot_areas));
-cortical_area_lefthemi_boundaries = cell(size(plot_areas));
-for curr_area_idx = 1:length(plot_areas)
-    cortical_area_boundaries{curr_area_idx} = bwboundaries(top_down_annotation == plot_areas(curr_area_idx));
-    cortical_area_lefthemi_boundaries{curr_area_idx} = bwboundaries(top_down_annotation_lefthemi == plot_areas(curr_area_idx));
-end
-
-% Plot the borders
-figure; tiledlayout('flow');
-nexttile; hold on; axis image; set(gca,'ydir','reverse');
-cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k'),x,'uni',false), ...
-    cortical_area_boundaries,'uni',false);
-nexttile; hold on; axis image; set(gca,'ydir','reverse');
-cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k'),x,'uni',false), ...
-    cortical_area_lefthemi_boundaries,'uni',false);
-
-% Save borders
-save_fn = [alignment_path filesep 'cortical_area_boundaries'];
-save(save_fn,'cortical_area_boundaries','cortical_area_lefthemi_boundaries');
-disp(['Saved ' save_fn]);
 
 
 

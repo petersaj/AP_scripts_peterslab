@@ -1,7 +1,7 @@
-function pixelCorrelationViewerSVD(U, V)
-% function pixelCorrelationViewerSVD(U, V)
+function wf_corrviewer(U,V)
+% function wf_corrviewer(U,V)
 %
-% Taken from cortex-lab/widefield repo written by Nick (or Kenneth?)
+% Taken from cortex-lab/widefield/pixelCorrelationViewerSVD (Nick/Kenneth)
 %
 % Computes and displays the correlation map of any pixel with all the
 % others
@@ -25,11 +25,14 @@ function pixelCorrelationViewerSVD(U, V)
 % stdPxPy = (varP').^0.5 * varP.^0.5; % P x P
 % corrP = covP./stdPxPy; % P x P
 
+% Set frames to use (use the middle percentile)
+frame_range = round(prctile(1:size(V,2),[12.5,87.5]));
+
 % to compute just the correlation with one pixel and the rest:
 % 1) ahead of time:
 fprintf(1, 'pre-computation...\n');
 Ur = reshape(U, size(U,1)*size(U,2),[]); % P x S
-covV = cov(V'); % S x S % this is the only one that takes some time really
+covV = cov(V(:,frame_range(1):frame_range(2))'); % S x S % this is the only one that takes some time really
 varP = dot((Ur*covV)', Ur'); % 1 x P
 fprintf(1, 'done.\n');
 
@@ -49,6 +52,7 @@ ud.hoverEnable = false;
 
 f = figure;
 corrData.f = f;
+corrData.ax = axes;
 
 set(f, 'UserData', ud);
 set(f, 'KeyPressFcn', @(f,k)pixelCorrCallback(f, k, corrData, ySize, xSize));
@@ -76,9 +80,7 @@ else
 end
 corrMat = covP./stdPxPy; % 1 x P
 
-
-thisAx = subplot(1,1,1);
-ch = get(thisAx, 'Children');
+ch = get(corrData.ax, 'Children');
 [imageExists, ind] = ismember('image', get(ch, 'Type'));
 if imageExists
     h = ch(ind);
@@ -103,7 +105,7 @@ else
     set(h, 'HitTest', 'off');
 end
 % set(gca, 'YDir', 'normal');
-set(thisAx, 'ButtonDownFcn', @(f,k)pixelCorrCallbackClick(f, k, corrData, ySize, xSize));
+set(corrData.ax, 'ButtonDownFcn', @(f,k)pixelCorrCallbackClick(f, k, corrData, ySize, xSize));
 % p = get(corrData.f, 'Position'); UL = p(2)+p(3);
 % truesize(corrData.f, [ySize xSize]);
 % pnew = get(corrData.f, 'Position');
@@ -191,7 +193,6 @@ switch newKey
         varCalcMax = ~varCalcMax;
     case 'h' % enable hovering calculation
         ud.hoverEnable = ~ud.hoverEnable;
-        fprintf(1, 'toggle hover\n');
 end
 
 ud.pixel = pixel;
@@ -206,12 +207,10 @@ ud = get(f, 'UserData');
 if ud.hoverEnable
     ch = get(f, 'Children');
     % assuming there is exactly one axes
-    [~, ind] = ismember('axes', get(ch, 'Type'));
-    ax = ch(ind);
-    set(ax,'unit','pix');
-    axp = get(ax, 'Position');
-    xlm = get(ax,'xlim');
-    ylm = get(ax,'ylim');
+    set(corrData.ax,'unit','pix');
+    axp = get(corrData.ax, 'Position');
+    xlm = get(corrData.ax,'xlim');
+    ylm = get(corrData.ax,'ylim');
     dfx = diff(xlm);
     dfy = diff(ylm);
 
