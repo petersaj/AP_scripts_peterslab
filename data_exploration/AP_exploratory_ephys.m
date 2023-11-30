@@ -227,11 +227,11 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'click'; % depth, click
+mua_method = 'even'; % depth, click
 
 switch mua_method
 
-    case 'depth'
+    case 'even'
         % (to group multiunit by evenly spaced depths)
         n_depths = 8;
         depth_group_edges = round(linspace(0,4000,n_depths+1));

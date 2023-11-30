@@ -4,17 +4,17 @@
 
 %% Load data (specific day)
 
-animal = 'AM010';
-rec_day = '2023-11-29';
+animal = 'AP010';
+rec_day = '2023-08-23';
 
-workflow = 'lcr_passive';
-% workflow = 'lcr_passive_fullscreen';
+% workflow = 'lcr_passive';
+workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
-% load_parts.widefield = true;
+load_parts.widefield = true;
 % load_parts.ephys = true;
 
 verbose = true;
