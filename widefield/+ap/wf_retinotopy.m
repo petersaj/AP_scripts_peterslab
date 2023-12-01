@@ -132,14 +132,14 @@ h = nexttile;
 imagesc(vfs_ccf_aligned);
 axis image off;
 colormap(h,AP_colormap('BWR'));
-ap.wf_draw('ccf_aligned','k');
+ap.wf_draw('ccf','k');
 
 % Plot average image with retinotopy/CCF/grid overlay
 h = nexttile;
 imagesc(wf_avg_aligned);
 axis image off;
 colormap(h,'gray');
-ap.wf_draw('ccf_aligned','b');
+ap.wf_draw('ccf','b');
 % ap.wf_draw('grid_aligned','y');
 
 

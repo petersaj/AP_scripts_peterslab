@@ -9,7 +9,7 @@ function h = wf_draw(type,color,reference_im)
 % bregma
 % grid
 % ccf
-% point, [AP,ML] in microns
+% point, [AP,ML] in mm
 
 if ~exist('color','var')
     color = 'k';
@@ -41,8 +41,7 @@ warning('um/px: needs more accurate measurement');
 % (bregma - hard-code here)
 bregma = [520,44,570];
 bregma(3) = bregma(3) + 0.5;
-bregma_resize = bregma*um2pixel;
-bregma_wf = [bregma_resize([3,1]),1]*ccf_tform.T;
+bregma_wf = [bregma([3,1]),1]*ccf_tform.T;
 
 % (cortical regions)
 load(fullfile(alignment_path,'dorsal_cortex_borders.mat'));
@@ -102,8 +101,8 @@ switch type
 
         [point_ap,point_ml] = deal(color(1),color(2));
 
-        plot(bregma_offset_x+point_ml/um2pixel, ...
-            bregma_offset_y-point_ap/um2pixel,'.y','markersize',20);        
+        plot(bregma_offset_x+point_ml*1000/um2pixel, ...
+            bregma_offset_y-point_ap*1000/um2pixel,'.y','markersize',20);        
         
     case 'ccf'
         % Plot CCF borders aligned to master retinotopy        
