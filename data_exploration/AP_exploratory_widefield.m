@@ -19,15 +19,19 @@ if contains(bonsai_workflow,'lcr')
     baseline_times = stimOn_times(quiescent_trials);
 
 elseif contains(bonsai_workflow,'stim_wheel')
-    
+
     % Task: align to stim/move/reward
     rewarded_trials = logical([trial_events.values.Outcome]');
 
     use_trials = rewarded_trials(1:n_trials);
-    align_times = [
+%     align_times = [ ...
+%         stimOn_times(use_trials); ...
+%         stim_move_time(use_trials); ...
+%         reward_times_task(use_trials)];
+    align_times = [ ...
         stimOn_times(use_trials); ...
         stim_move_time(use_trials); ...
-        reward_times_task(use_trials)];
+        reward_times];
     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
@@ -90,8 +94,8 @@ axis image;
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AP013';
-rec_day = '2023-11-17';
+animal = 'AM012';
+rec_day = '2023-12-01';
 workflow = 'sparse_noise';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
