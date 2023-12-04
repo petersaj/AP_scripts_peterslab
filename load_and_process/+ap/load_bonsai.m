@@ -120,11 +120,13 @@ elseif contains(bonsai_workflow,'lcr_passive')
     end
 
     stimOn_times = photodiode_times(photodiode_values == 1);
+    stimOff_times = photodiode_times(photodiode_values == 0);
 
     % If bad Bonsai CSV: truncate stim times to what was recorded
     if bad_bonsai_csv
         n_bonsai_stim = length(vertcat(trial_events.values.TrialStimX));
         stimOn_times = stimOn_times(1:n_bonsai_stim);
+        stimOff_times = stimOff_times(1:n_bonsai_stim);
     end
 
 %% Sparse noise
