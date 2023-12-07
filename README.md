@@ -17,14 +17,16 @@ Scripts written after opening lab
 - create and save new day alignment: `ap.align_widefield([],animal,[],'new_days')` (uses all wf days, or specify `im_unaligned/days` for selection)
 - create and save new animal alignment: `ap.align_widefield(day-aligned retinotopy,animal,[],'new_animal')` (aligns day-aligned average animal retinotopy to master retinotopy)
 
-`ap.draw_wf_ccf`: draw CCF borders over aligned widefield
+`ap.wf_roi`: grab fluorescence trace in ROI
+`ap.wf_draw`: draw CCF borders/grid/point over aligned widefield
 `ap.wf_reflect`: flips L/R on aligned widefield image
-`p.wf_load_raw`: load raw frames
+`ap.wf_load_raw`: load raw frames
+`ap.wf_corrviewer`: view seed pixel correlations in widefield
+
 
 #### Data exploration
 `ap.expscroll` - scroll through data
 
 #### Plotting
 `ccf_outline` - draw CCF flat and 3D views, plot probe trajectories etc.
-`draw_wf_ccf` - draw CCF outline over widefield image
 `plot_probe_positions` - draw all probe positions (NTE and histology) for animal
