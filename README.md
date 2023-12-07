@@ -20,7 +20,7 @@ Scripts written after opening lab
 `ap.wf_roi`: grab fluorescence trace in ROI
 `ap.wf_draw`: draw CCF borders/grid/point over aligned widefield
 `ap.wf_reflect`: flips L/R on aligned widefield image
-`ap.wf_load_raw`: load raw frames
+`ap.wf_load_raw`: load/scroll raw frames
 `ap.wf_corrviewer`: view seed pixel correlations in widefield
 
 
