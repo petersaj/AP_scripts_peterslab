@@ -4,15 +4,15 @@
 
 %% Load data (specific day)
 
-animal = 'AM011';
-rec_day = '2023-12-01';
+animal = 'AM013';
+rec_day = '2023-12-06';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-workflow = 'sparse_noise';
+% workflow = 'sparse_noise';
 
-rec_time = plab.find_recordings(animal,rec_day,workflow).recording{1};
+rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
 % load_parts.ephys = true;
@@ -24,24 +24,24 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM011';
+animal = 'AM010';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-% workflow = 'sparse_noise';
+workflow = 'sparse_noise';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-use_day = 3;
-% use_day = length(recordings);
+% use_day = 1;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
 
 verbose = true;
 
-load_parts.behavior = true;
+% load_parts.behavior = true;
 % load_parts.widefield = true;
 % load_parts.ephys = true;
 
@@ -318,7 +318,7 @@ ccf_bregma_tform = affine3d(ccf_bregma_tform_matrix);
     a.YData,a.XData,a.ZData);
 
 
-%% Plot aligned areas over widefield image
+%% Plot CCF deep areas over widefield image
 % (fold into ap.ccf_outline eventually)
 
 % Load atlas
@@ -371,7 +371,6 @@ ccf_axes = gca;
 cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         x(:,1),'color',plot_structure_color,'linewidth',2), ...
         structure_outline_aligned)
-
 
 
 

@@ -405,13 +405,13 @@ switch align_type
         imagesc(master_vfs);
         axis image off
         colormap(brewermap([],'*RdBu'));
-        AP_reference_outline('ccf_aligned',[0.5,0.5,0.5]);
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
         title('Master');
         subplot(1,3,2);
         imagesc(submaster_vfs);
         axis image off
         colormap(brewermap([],'*RdBu'));
-        AP_reference_outline('ccf_aligned',[0.5,0.5,0.5]);
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
         title('New aligned submaster');
         subplot(1,3,3);
         imshowpair(abs(master_vfs),abs(submaster_vfs)); 
@@ -469,14 +469,14 @@ switch align_type
         axis image off
         clim([-1,1]);
         colormap(AP_colormap('BWR'));
-        ap.wf_draw('ccf_aligned',[0.5,0.5,0.5]);
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
         title('Master')
         nexttile;
         imagesc(im_aligned);
         axis image off
         clim([-1,1]);
         colormap(AP_colormap('BWR'));
-        ap.wf_draw('ccf_aligned',[0.5,0.5,0.5]);
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
         title('Aligned')
         
         % Save transform matrix into structure
@@ -585,6 +585,7 @@ end
 %     [a_idx,p_idx,pm_idx,rl_idx,lm_idx]))) = 1;
 % 
 % % Select control points for selected image
+% % (reference for alignment: Waters/Thompson, PLoS ONE 2019)
 % vfs_cutoff = 0.05;
 % master_vfs_thresh = zeros(size(master_vfs));
 % master_vfs_thresh(master_vfs < -vfs_cutoff) = -1;
@@ -599,7 +600,7 @@ end
 %     [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,areas,'uni',false), ...
 %     dorsal_cortex_borders,'uni',false);
 % dorsal_cortex_borders_aligned = cellfun(@(areas) cellfun(@(coords) ...
-%     coords(:,[2,1]),areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
+%     coords,areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
 % 
 % % Plot alignment
 % figure;
@@ -613,7 +614,7 @@ end
 % subplot(1,2,2);
 % imagesc(master_vfs_thresh); hold on; axis image off
 % cellfun(@(areas) cellfun(@(outline) ...
-%     plot(outline(:,2),outline(:,1),'color','k'),areas,'uni',false), ...
+%     plot(outline(:,1),outline(:,2),'color','k'),areas,'uni',false), ...
 %     dorsal_cortex_borders_aligned,'uni',false);
 % colormap(AP_colormap('BWR'));
 % 
@@ -629,7 +630,7 @@ end
 % else
 %     disp('Not saved.')
 % end
-% 
+
 
 
 

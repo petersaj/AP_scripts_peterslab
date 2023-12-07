@@ -119,7 +119,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AM008'};
+animals = {'AM011','AM012','AM013'};
 
 % Create master tiled layout
 figure;
@@ -235,7 +235,7 @@ for curr_animal_idx = 1:length(animals)
     clim([0,1]);
     colormap(gca,AP_colormap('WK'));
     set(gca,'YTick',1:length(recordings),'YTickLabel', ...
-        cellfun(@(day,num) sprintf('%d(%s)',num,day(6:end)), ...
+        cellfun(@(day,num) sprintf('%d (%s)',num,day(6:end)), ...
         {recordings.day},num2cell(1:length(recordings)),'uni',false));
     xlabel('Time from stim');
     if any(learned_day)

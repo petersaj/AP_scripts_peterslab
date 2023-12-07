@@ -94,11 +94,20 @@ axis image;
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AM011';
-rec_day = '2023-12-01';
+animal = 'AM010';
 workflow = 'sparse_noise';
 
-rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+% Specific day
+% rec_day = '2023-12-01';
+% rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+
+% Relative day
+recordings = plab.find_recordings(animal,[],workflow);
+% use_day = 1;
+use_day = length(recordings);
+rec_day = recordings(use_day).day;
+rec_time = recordings(use_day).recording{end};
+
 load_parts.widefield = true;
 
 verbose = true;
@@ -114,7 +123,7 @@ ap.wf_retinotopy
 
 animal = 'AP012';
 
-ap.align_widefield([],animal,[],'new_days');
+ap.wf_align([],animal,[],'new_days');
 
 %% View aligned days
 
@@ -133,8 +142,8 @@ for curr_day = 1:length(wf_recordings)
 
     avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
     avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
-    avg_im_aligned{curr_day} = [ap.align_widefield(avg_im_n,animal,day), ...
-        ap.align_widefield(avg_im_h,animal,day)];
+    avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
+        ap.wf_align(avg_im_h,animal,day)];
 
     % (just violet)
     avg_im_aligned{curr_day} = ap.wf_align(avg_im_h,animal,day);

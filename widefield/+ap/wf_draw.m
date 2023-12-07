@@ -36,7 +36,6 @@ load(ccf_tform_fn);
 
 % (hard-code microns per pixel)
 um2pixel = 22.5; % cortexlab: 20.6
-warning('um/px: needs more accurate measurement');
 
 % (bregma - hard-code here)
 bregma = [520,44,570];
@@ -50,7 +49,7 @@ dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
     [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,areas,'uni',false), ...
     dorsal_cortex_borders,'uni',false);
 dorsal_cortex_borders_aligned = cellfun(@(areas) cellfun(@(coords) ...
-    coords(:,[2,1]),areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
+    coords,areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
 
 switch type   
 
@@ -83,6 +82,8 @@ switch type
         ylines_pos = bregma_offset_x + spacing_pixels*(ceil((min(xlim)-bregma_offset_x)./spacing_pixels):floor((max(xlim)-bregma_offset_x)./spacing_pixels));
         
         h = struct;
+        warning('um/px: needs more accurate measurement');
+
         
         for curr_xline = 1:length(xlines_pos)
             h.xlines(curr_xline) = line(xlim,repmat(xlines_pos(curr_xline),1,2),'color',color,'linestyle','-');
@@ -102,12 +103,13 @@ switch type
         [point_ap,point_ml] = deal(color(1),color(2));
 
         plot(bregma_offset_x+point_ml*1000/um2pixel, ...
-            bregma_offset_y-point_ap*1000/um2pixel,'.y','markersize',20);        
+            bregma_offset_y-point_ap*1000/um2pixel,'.y','markersize',20);       
+        warning('um/px: needs more accurate measurement');
         
     case 'ccf'
         % Plot CCF borders aligned to master retinotopy        
         h = cellfun(@(areas) cellfun(@(outline) ...
-            plot(outline(:,2),outline(:,1),'color',color),areas,'uni',false), ...
+            plot(outline(:,1),outline(:,2),'color',color),areas,'uni',false), ...
                 dorsal_cortex_borders_aligned,'uni',false);
 
     otherwise
@@ -116,6 +118,8 @@ switch type
 end
 
 % %% Create top-down cortical boundaries from CCF (tilt CCF) (RUN ONCE)
+% %
+% % NOTE: CCF IN NATIVE FORMAT (NOT SCALED OR ROTATED)
 % 
 % % Set save path
 % alignment_path = fullfile(plab.locations.server_path, ...
@@ -126,16 +130,36 @@ end
 % av = readNPY(fullfile(allen_atlas_path, 'annotation_volume_10um_by_index.npy'));
 % st = loadStructureTree(fullfile(allen_atlas_path, 'structure_tree_safe_2017.csv'));
 % 
-% ccf_rotation = 5; % rotate 5 degrees nose-up
-% av_rotated = imrotate3(av,ccf_rotation,[0,1,1],'nearest');
+% % %%%%%% WORKING HERE
+% % % Transform CCF as the NTE/pinpoint does
+% % % (translation values from our bregma estimate: AP/ML from Paxinos, DV from
+% % % rough MRI estimate)
+% % bregma_ccf = [570.5,520,44]; % [ML,AP,DV]
+% % ccf_translation_tform = eye(4)+[zeros(3,4);-bregma_ccf,0];
+% % 
+% % % (scaling "Toronto MRI transform", reflect AP/ML, convert 10um to 1mm)
+% % scale = [0.952,-1.031,0.885]./100; % [ML,AP,DV]
+% % ccf_scale_tform = eye(4).*[scale,1]';
+% % 
+% % % (rotation values from IBL estimate)
+% % ap_rotation = 5; % tilt the CCF 5 degrees nose-up
+% % ccf_rotation_tform = ...
+% %     [1 0 0 0; ...
+% %     0 cosd(ap_rotation) -sind(ap_rotation) 0; ...
+% %     0 sind(ap_rotation) cosd(ap_rotation) 0; ...
+% %     0 0 0 1];
+% % 
+% % ccf_bregma_tform_matrix = ccf_translation_tform*ccf_scale_tform*ccf_rotation_tform;
+% % ccf_bregma_tform = affine3d(ccf_bregma_tform_matrix);
+% % %%%%%%%%%%%%%
 % 
 % % Get first brain pixel from top-down, get annotation at that point
-% [~,top_down_depth] = max(av_rotated>1, [], 2);
+% [~,top_down_depth] = max(av>1, [], 2);
 % top_down_depth = squeeze(top_down_depth);
 % 
 % [xx,yy] = meshgrid(1:size(top_down_depth,2), 1:size(top_down_depth,1));
-% dorsal_ccf_annotation = reshape(av_rotated(sub2ind(size(av_rotated),yy(:), ...
-%     top_down_depth(:),xx(:))), size(av_rotated,1), size(av_rotated,3));
+% dorsal_ccf_annotation = reshape(av(sub2ind(size(av),yy(:), ...
+%     top_down_depth(:),xx(:))), size(av,1), size(av,3));
 % 
 % % Get all labelled areas
 % used_areas = unique(dorsal_ccf_annotation(:));

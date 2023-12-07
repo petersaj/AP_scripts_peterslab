@@ -4,8 +4,8 @@
 
 %% Load data (specific day)
 
-animal = 'AM011';
-rec_day = '2023-11-29';
+animal = 'AP013';
+rec_day = '2023-11-20';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -16,6 +16,7 @@ rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
 % load_parts.ephys = true;
+% load_parts.mousecam = true;
 
 verbose = true;
 ap.load_recording;
@@ -23,21 +24,25 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP013';
+animal = 'AP010';
 
-% workflow = 'lcr_passive';
-workflow = 'lcr_passive_fullscreen';
+workflow = 'lcr_passive';
+% workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-use_day = length(recordings);
+use_day = 1;
+% use_day = length(recordings);
+
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
 
 verbose = true;
 
+% load_parts.behavior = true;
+load_parts.widefield = true;
 % load_parts.ephys = true;
 
 ap.load_recording;
@@ -313,7 +318,7 @@ ccf_bregma_tform = affine3d(ccf_bregma_tform_matrix);
     a.YData,a.XData,a.ZData);
 
 
-%% Plot aligned areas over widefield image
+%% Plot CCF deep areas over widefield image
 % (fold into ap.ccf_outline eventually)
 
 % Load atlas
@@ -366,6 +371,27 @@ ccf_axes = gca;
 cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         x(:,1),'color',plot_structure_color,'linewidth',2), ...
         structure_outline_aligned)
+
+
+%% Testing retinotopy
+
+figure;
+ax2 = axes;
+ax3 = axes;
+% subplot(1,2,2,ax2);
+% subplot(1,2,2,ax3);
+h1 = imagesc(ax2,wf_avg);
+colormap(ax2,gray);
+caxis(ax2,[0 prctile(wf_avg(:),95)]);
+h2 = imagesc(ax3,vfs);
+colormap(ax3,AP_colormap('BWR'));
+caxis([-1,1]);
+set(ax2,'Visible','off');
+axes(ax2); axis image off;
+set(ax3,'Visible','off');
+axes(ax3); axis image off;
+set(h2,'AlphaData',mat2gray(abs(vfs))*0.5);
+colormap(ax2,gray);
 
 
 
