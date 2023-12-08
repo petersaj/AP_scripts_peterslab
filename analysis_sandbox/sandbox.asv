@@ -4,8 +4,8 @@
 
 %% Load data (specific day)
 
-animal = 'AP013';
-rec_day = '2023-11-20';
+animal = 'AM010';
+rec_day = '2023-12-07';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -24,17 +24,17 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP010';
+animal = 'AM010';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-% workflow = 'sparse_noise';
+workflow = 'sparse_noise';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-use_day = 1;
-% use_day = length(recordings);
+% use_day = 1;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -42,7 +42,7 @@ rec_time = recordings(use_day).recording{end};
 verbose = true;
 
 % load_parts.behavior = true;
-load_parts.widefield = true;
+% load_parts.widefield = true;
 % load_parts.ephys = true;
 
 ap.load_recording;
@@ -373,25 +373,30 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         structure_outline_aligned)
 
 
-%% Testing retinotopy
+%% Flipper xcorr test
 
-figure;
-ax2 = axes;
-ax3 = axes;
-% subplot(1,2,2,ax2);
-% subplot(1,2,2,ax3);
-h1 = imagesc(ax2,wf_avg);
-colormap(ax2,gray);
-caxis(ax2,[0 prctile(wf_avg(:),95)]);
-h2 = imagesc(ax3,vfs);
-colormap(ax3,AP_colormap('BWR'));
-caxis([-1,1]);
-set(ax2,'Visible','off');
-axes(ax2); axis image off;
-set(ax3,'Visible','off');
-axes(ax3); axis image off;
-set(h2,'AlphaData',mat2gray(abs(vfs))*0.5);
-colormap(ax2,gray);
+
+open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
+open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
+open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
+
+% Get sync points for alignment
+
+% Get flipper experiment boundaries by long delays
+flip_diff_thresh = 5; % time between flips to define experiment gap (s)
+flipper_recording_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
+    flip_diff_thresh)+1;length(open_ephys_flipper.timestamps)+1];
+
+% Resample Open Ephys flipper to DAQ sample rate
+open_ephys_flipper_trace = logical(normalize(interp1(open_ephys_flipper.timestamps, ...
+    single(open_ephys_flipper.value), ...
+    open_ephys_flipper.timestamps(1):1/timelite.daq_info(1).rate: ...
+    open_ephys_flipper.timestamps(end),'previous'),'range'));
+
+% Get Open Ephys / timelite flipper delay
+a = finddelay(+flipper_thresh,+open_ephys_flipper_trace);
+
+% 
 
 
 
