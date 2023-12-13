@@ -5,12 +5,14 @@
 %% Load data (specific day)
 
 animal = 'AM010';
-rec_day = '2023-12-07';
+rec_day = '2023-12-11';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
+% workflow = 'black_screen';
+workflow = 'gray_screen';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
@@ -372,37 +374,6 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         x(:,1),'color',plot_structure_color,'linewidth',2), ...
         structure_outline_aligned)
 
-
-%% Flipper xcorr test
-
-
-open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
-open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
-open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
-
-% Get sync points for alignment
-
-% Get flipper experiment boundaries by long delays
-flip_diff_thresh = 5; % time between flips to define experiment gap (s)
-flipper_recording_idx = [1;find(abs(diff(open_ephys_flipper.timestamps)) > ...
-    flip_diff_thresh)+1;length(open_ephys_flipper.timestamps)+1];
-
-% Resample Open Ephys flipper to DAQ sample rate
-open_ephys_flipper_trace = logical(normalize(interp1(open_ephys_flipper.timestamps, ...
-    single(open_ephys_flipper.value), ...
-    open_ephys_flipper.timestamps(1):1/timelite.daq_info(1).rate: ...
-    open_ephys_flipper.timestamps(end),'previous'),'range'));
-
-% Get Open Ephys corresponding to timelite flipper
-% (get lag between timelite and ephys)
-ephys_timelite_flipper_lag = finddelay(+flipper_thresh, ...
-    +open_ephys_flipper_trace)/timelite.daq_info(1).rate + ...
-    open_ephys_flipper.timestamps(1);
-% (get all ephys flips within that timelite window)
-curr_ephys_flipper_idx =  ...
-    open_ephys_flipper.timestamps >= ephys_timelite_flipper_lag & ...
-    open_ephys_flipper.timestamps <= ephys_timelite_flipper_lag + ...
-    length(flipper_thresh)/timelite.daq_info(1).rate;
 
 
 

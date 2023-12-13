@@ -143,8 +143,8 @@ switch align_type
 
                 % Select control points for selected image
                 [movingPoints,fixedPoints] = cpselect( ...
-                    mat2gray(im_aligned(:,:,user_input),prctile(reshape(im_aligned(:,:,user_input),[],1),[0,98])), ...
-                    mat2gray(im_ref,double(prctile(im_ref(:),[0,98]))),'Wait',true);
+                    mat2gray(im_aligned(:,:,user_input),prctile(reshape(im_aligned(:,:,user_input),[],1),[0,95])), ...
+                    mat2gray(im_ref,double(prctile(im_ref(:),[0,95]))),'Wait',true);
                 cp_tform = fitgeotform2d(movingPoints,fixedPoints,'similarity');
                 cp_rigid_tform = rigidtform2d(cp_tform.RotationAngle,cp_tform.Translation);
 

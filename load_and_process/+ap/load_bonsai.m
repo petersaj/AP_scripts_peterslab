@@ -12,7 +12,7 @@ bonsai_workflow = bonsai_dir([bonsai_dir.isdir] & ~contains({bonsai_dir.name},'.
 bonsai_events_fn = plab.locations.filename('server', ...
     animal,rec_day,rec_time,'bonsai','bonsai_events.csv');
 
-if exist(bonsai_events_fn,'file')
+if exist(bonsai_events_fn,'file') && ~isempty(readtable(bonsai_events_fn))
     % Set Bonsai timestamp format
     bonsai_table_opts = detectImportOptions(bonsai_events_fn);
     bonsai_table_opts = setvaropts(bonsai_table_opts,'Timestamp','Type','datetime', ...

@@ -121,13 +121,13 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AP012';
+animal = 'AM010';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% View aligned days
 
-animal = 'AP012';
+animal = 'AM010';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

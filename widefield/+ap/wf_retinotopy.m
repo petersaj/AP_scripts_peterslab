@@ -157,7 +157,7 @@ set(ax_avg,'Visible','off');
 axes(ax_avg); axis image off;
 set(ax_vfs,'Visible','off');
 axes(ax_vfs); axis image off;
-set(h2,'AlphaData',mat2gray(abs(wf_avg_aligned))*0.4);
+set(h2,'AlphaData',mat2gray(abs(vfs_ccf_aligned))*0.5);
 colormap(ax_avg,gray);
 linkaxes([ax_avg,ax_vfs]);
 
