@@ -1,14 +1,5 @@
 %% Exploratory widefield analysis
 
-%% Experiment scroller
-
-% ap.expscroll(wf_U_raw{1},wf_V_raw{1},wf_t_all{1})
-% ap.expscroll(wf_U_raw{2},wf_V_raw{2},wf_t_all{2})
-% ap.expscroll(wf_U,wf_Vdf,wf_times)
-% ap.expscroll(wf_U,wf_V,wf_times)
-
-ap.expscroll(wf_U,wf_V,wf_times,mousecam_fn,mousecam_times)
-
 
 %% Align widefield to event
 
@@ -28,15 +19,19 @@ if contains(bonsai_workflow,'lcr')
     baseline_times = stimOn_times(quiescent_trials);
 
 elseif contains(bonsai_workflow,'stim_wheel')
-    
+
     % Task: align to stim/move/reward
     rewarded_trials = logical([trial_events.values.Outcome]');
 
     use_trials = rewarded_trials(1:n_trials);
-    align_times = reshape([ ...
-        stimOn_times(use_trials), ...
-        stim_move_time(use_trials), ...
-        reward_times(use_trials)],[],1);
+%     align_times = [ ...
+%         stimOn_times(use_trials); ...
+%         stim_move_time(use_trials); ...
+%         reward_times_task(use_trials)];
+    align_times = [ ...
+        stimOn_times(use_trials); ...
+        stim_move_time(use_trials); ...
+        reward_times];
     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
@@ -66,7 +61,7 @@ end
 surround_window = [-1,2];
 baseline_window = [-0.5,-0.1];
 
-surround_samplerate = 60;
+surround_samplerate = 35;
 
 t = surround_window(1):1/surround_samplerate:surround_window(2);
 baseline_t = baseline_window(1):1/surround_samplerate:baseline_window(2);
@@ -76,7 +71,7 @@ baseline_event_t = reshape(baseline_times,[],1) + reshape(baseline_t,1,[]);
 
 use_U = wf_U;
 use_V = wf_V;
-use_wf_t = wf_times;
+use_wf_t = wf_t;
 
 aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
     length(align_times),length(t),[]);
@@ -98,49 +93,42 @@ axis image;
 
 %% Sparse noise retinotopy (single day)
 
-ap.widefield_retinotopy
+% Load data
+animal = 'AM010';
+workflow = 'sparse_noise';
+
+% Specific day
+% rec_day = '2023-12-01';
+% rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+
+% Relative day
+recordings = plab.find_recordings(animal,[],workflow);
+% use_day = 1;
+use_day = length(recordings);
+rec_day = recordings(use_day).day;
+rec_time = recordings(use_day).recording{end};
+
+load_parts.widefield = true;
+
+verbose = true;
+ap.load_recording;
+
+% Get retinotopy
+ap.wf_retinotopy
 
 
 %% ~~~~~~~~ ALIGN WIDEFIELD
 
 %% Create day alignment
 
-animal = 'AP005';
+animal = 'AM010';
 
-ap.align_widefield([],animal,[],'new_days');
-
-%% Check day alignment
-
-animal = 'AP004';
-
-recordings = plab.find_recordings(animal);
-wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
-wf_recordings = recordings(wf_days_idx);
-
-avg_im_aligned = cell(size(wf_recordings));
-for curr_day = 1:length(wf_recordings)
-    day = wf_recordings(curr_day).day;
-
-    img_path = plab.locations.make_server_filename( ...
-        animal,day,[],'widefield');
-
-    avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
-    avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
-    avg_im_aligned{curr_day} = [ap.align_widefield(avg_im_n,animal,day), ...
-        ap.align_widefield(avg_im_h,animal,day)];
-end
-
-% Plot average
-c = prctile(reshape([avg_im_aligned{:}],[],1),[0,99.9]);
-AP_imscroll(cat(3,avg_im_aligned{:}),{recordings.day});
-caxis(c);
-axis image;
-set(gcf,'Name',animal);
+ap.wf_align([],animal,[],'new_days');
 
 %% Create animal alignment (sparse noise retinotopy: batch, save, align)
 % NOTE: need to do day alignment first
 
-animal = 'AP004';
+animal = 'AM010';
 overwrite_retinotopy = true;
 
 % Check if aligned mean retinotopy is saved, create if not
@@ -158,11 +146,14 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
     for curr_day = 1:length(recordings)
         rec_day = recordings(curr_day).day;
         rec_time = recordings(curr_day).recording{end};
+
         load_parts.widefield = true;
+        load_parts.widefield_align = false;
         verbose = true;
+
         try
             ap.load_recording;
-            ap.widefield_retinotopy;
+            ap.wf_retinotopy;
             vfs_all{curr_day} = vfs;
         catch me
         end
@@ -171,7 +162,8 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
     % Save retinotopy from all days which have VFS
     use_recordings = cellfun(@(x) ~isempty(x),vfs_all);
     retinotopy = struct('animal',animal,'day', ...
-        reshape({recordings(use_recordings).day},[],1), ...'vfs',vfs_all);
+        reshape({recordings(use_recordings).day},[],1), ...
+        'vfs',vfs_all(use_recordings));
     save(retinotopy_fn,'retinotopy');
     fprintf('Saved %s\n',retinotopy_fn);
 end
@@ -182,7 +174,7 @@ load(retinotopy_fn);
 % Align VFS across days
 aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
-        aligned_vfs{curr_day} = ap.align_widefield(retinotopy(curr_day).vfs, ...
+        aligned_vfs{curr_day} = ap.wf_align(retinotopy(curr_day).vfs, ...
             retinotopy(1).animal,retinotopy(curr_day).day,'day_only');
 end
 
@@ -194,13 +186,13 @@ title('Day-aligned VFS')
 
 % Align across-day mean VFS to master animal
 vfs_mean = nanmean(cat(3,aligned_vfs{:}),3);
-ap.align_widefield(vfs_mean,animal,[],'new_animal');
+ap.wf_align(vfs_mean,animal,[],'new_animal');
 
 % Plot master-aligned average VFS with CCF overlay
 master_aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
         master_aligned_vfs{curr_day} = ...
-            ap.align_widefield(retinotopy(curr_day).vfs, ...
+            ap.wf_align(retinotopy(curr_day).vfs, ...
             animal,retinotopy(curr_day).day);
 end
 figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
@@ -208,6 +200,40 @@ colormap(AP_colormap('BWR'));clim([-1,1]);
 axis image off;
 ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
 title('Master-aligned average VFS');
+
+%% View aligned days
+
+animal = 'AM010';
+
+recordings = plab.find_recordings(animal);
+wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
+wf_recordings = recordings(wf_days_idx);
+
+avg_im_aligned = cell(size(wf_recordings));
+for curr_day = 1:length(wf_recordings)
+    day = wf_recordings(curr_day).day;
+
+    img_path = plab.locations.filename('server', ...
+        animal,day,[],'widefield');
+
+    avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
+    avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
+
+%     % (to concatenate)
+%     avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
+%         ap.wf_align(avg_im_h,animal,day)];
+
+    % (blue only)
+    avg_im_aligned{curr_day} = ap.wf_align(avg_im_n,animal,day);
+end
+
+% Plot average
+c = prctile(reshape([avg_im_aligned{:}],[],1),[0,98]);
+AP_imscroll(cat(3,avg_im_aligned{:}),{wf_recordings.day});
+caxis(c);
+axis image;
+set(gcf,'Name',animal);
+
 
 %% ~~~~~~~~ BATCH
 
@@ -254,7 +280,7 @@ for curr_recording = 1:length(recordings)
     t = surround_window(1):1/surround_samplerate:surround_window(2);
     peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
 
-    aligned_v = reshape(interp1(wf_times,wf_V',peri_event_t,'previous'), ...
+    aligned_v = reshape(interp1(wf_t,wf_V',peri_event_t,'previous'), ...
         length(align_times),length(t),[]);
 
     align_id = findgroups(align_category);
