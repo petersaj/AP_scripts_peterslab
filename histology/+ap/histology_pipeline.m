@@ -65,7 +65,7 @@ AP_get_probe_histology(tv,av,st,slice_path);
 %% Match trajectories with days
 % (plot NTE/histology days, select corresponding days from list)
 
-animal = 'AP005';
+animal = 'AM010';
 
 % ap.plot_probe_positions(animal);
 
@@ -85,7 +85,7 @@ disp(['Saved ' probe_ccf_filename]);
 
 %% Align histology depth to recording
 
-animal = 'AP005';
+animal = 'AM010';
 
 probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
     'histology','*','probe_ccf.mat'));
@@ -104,7 +104,7 @@ for curr_probe = 1:length(probe_ccf)
     recordings = plab.find_recordings(animal,probe_ccf(curr_probe).day);
     load_parts.ephys = true;
     rec_day = recordings.day;
-    rec_time = recordings.recording{1};
+    rec_time = recordings.recording{end};
     try
         ap.load_recording;
     catch me

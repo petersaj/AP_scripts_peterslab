@@ -121,14 +121,14 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM010';
+animal = 'AM011';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Create animal alignment (sparse noise retinotopy: batch, save, align)
 % NOTE: need to do day alignment first
 
-animal = 'AM010';
+animal = 'AM011';
 overwrite_retinotopy = false;
 
 % Check if aligned mean retinotopy is saved, create if not
@@ -198,7 +198,7 @@ end
 figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
 colormap(AP_colormap('BWR'));clim([-1,1]);
 axis image off;
-ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
 title('Master-aligned average VFS');
 
 %% View aligned days
@@ -240,7 +240,7 @@ set(gcf,'Name',animal);
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP010';
+animal = 'AM011';
 use_workflow = 'lcr_passive';
 recordings = plab.find_recordings(animal,[],use_workflow);
 
@@ -261,6 +261,8 @@ for curr_recording = 1:length(recordings)
     if ~recordings(curr_recording).widefield(end)
         continue
     end
+
+    load_parts.widefield = true;
     ap.load_recording;
 
     % Get quiescent trials and stim onsets/ids
@@ -314,17 +316,18 @@ AP_imscroll(cat(3,a{:}));
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 
-a = cellfun(@(x) x-ap.reflect_widefield(x),wf_px,'uni',false);
-b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
-c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
-figure('Name',animal');
-tiledlayout('flow')
-for i = 1:length(a)
-    nexttile; imagesc(b{i}); axis image off;
-end
-AP_imscroll(cat(3,b{:}));
-axis image;
-clim(c); colormap(AP_colormap('PWG'));
+% (reflect widefield - taken out for now)
+% a = cellfun(@(x) x-ap.wf_reflect(x),wf_px,'uni',false);
+% b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
+% c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
+% figure('Name',animal');
+% tiledlayout('flow')
+% for i = 1:length(a)
+%     nexttile; imagesc(b{i}); axis image off;
+% end
+% AP_imscroll(cat(3,b{:}));
+% axis image;
+% clim(c); colormap(AP_colormap('PWG'));
 
 
 

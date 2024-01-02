@@ -41,6 +41,24 @@ axis tight;
 colormap(AP_colormap('WK'));
 linkaxes(get(h,'Children'),'x');
 
+% % Draw stim times (if stim presented)
+% if isfield(trial_events.values,'TrialStimX')
+%     stim_azimuth = vertcat(trial_events.values.TrialStimX);
+%     xline(stimOn_times(stim_azimuth == -90),'b');
+%     xline(stimOn_times(stim_azimuth == 0),'k');
+%     xline(stimOn_times(stim_azimuth == 90),'r');
+% end
+
+%% Bin unit firing by widefield frames
+
+% (not totally sure this is right yet - is wf_t start of frame?)
+spike_binning_t_edges = [wf_t;wf_t(end)+1/wf_framerate];
+
+use_unit = 18;
+
+binned_unit_spikes = histcounts(spike_times_timeline( ...
+    ismember(spike_templates,use_unit)),spike_binning_t_edges);
+
 
 %% Cell raster
 
@@ -74,7 +92,56 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
-%% MUA PSTH by depth 
+%% PSTH - units
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% PSTH for all conditions
+if contains(bonsai_workflow,'lcr')
+    % (L/C/R passive)
+    stim_x = vertcat(trial_events.values.TrialStimX);
+    align_times = cellfun(@(x) stimOn_times(stim_x == x),num2cell(unique(stim_x)),'uni',false);
+elseif contains(bonsai_workflow,'stim_wheel')
+    % (task)
+    align_times = {stimOn_times,stim_move_time,reward_times};
+end
+
+n_units = size(templates,1);
+unit_psth = nan(n_units,length(t_bins)-1,2);
+for curr_align = 1:length(align_times)
+    use_align = align_times{curr_align};
+    t_peri_event = bsxfun(@plus,use_align,t_bins);
+    for curr_unit = 1:n_units        
+        curr_spikes = spike_times_timeline(spike_templates == curr_unit);
+        
+        curr_spikes_binned = cell2mat(arrayfun(@(x) ...
+            histcounts(curr_spikes,t_peri_event(x,:)), ...
+            [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
+        curr_mean_psth = mean(curr_spikes_binned,1);
+        
+        unit_psth(curr_unit,:,curr_align) = curr_mean_psth;
+    end
+end
+
+smooth_size = 100;
+unit_psth_smooth = smoothdata(unit_psth,2,'gaussian',smooth_size);
+
+% Normalize to baseline
+unit_baseline = nanmean(nanmean(unit_psth(:,t_bins(2:end) < 0,:),2),3);
+unit_psth_smooth_norm = (unit_psth_smooth-unit_baseline)./(unit_baseline+1);
+
+% Plot depth-sorted
+[~,sort_idx] = sort(template_depths);
+AP_imscroll(unit_psth_smooth_norm(sort_idx,:,:));
+clim([-2,2]);
+colormap(AP_colormap('BWR'));
+
+
+%% PSTH - MUA by depth 
 
 % % (evenly spaced depths)
 % n_depths = 20;
@@ -268,7 +335,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % depth, click
+mua_method = 'click'; % depth, click
 
 switch mua_method
 
@@ -429,7 +496,7 @@ set(c2,'YDir','reverse');
 set(c2,'YTick',linspace(0,1,n_depths));
 set(c2,'YTickLabel',round(linspace(depth_group_edges(1),depth_group_edges(end),n_depths)));
 
-%% Widefield/ephys regression maps (single units)
+%% Widefield/ephys regression maps (all single units)
 
 % Set templates
 use_templates = unique(spike_templates);
@@ -474,7 +541,8 @@ fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
 r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
 
 AP_imscroll(r_px,kernel_frames/wf_framerate);
-clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+% clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)]) % (takes too long)
+clim([-0.002,0.002]);
 colormap(AP_colormap('BWR'));
 axis image;
 

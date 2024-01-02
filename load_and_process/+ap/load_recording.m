@@ -1,3 +1,7 @@
+% ap.load_recording
+%
+% Load and prepare all/selected parts of a recording
+
 %% Check that the necessary parameters are included
 
 if ~exist('animal','var') || isempty(animal)

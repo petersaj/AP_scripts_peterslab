@@ -199,6 +199,13 @@ for curr_recording = 1:length(ephys_recordings)
 end
 
 
+%% TESTING
+ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
+kilosort_top_path = fullfile(ephys_path,'pykilosort');
+kilosort_dir = dir(kilosort_top_path);
+
+
+
 
 
 
