@@ -54,7 +54,9 @@ ap.load_timelite
 ap.load_bonsai
 
 % Load mousecam
-ap.load_mousecam
+if load_parts.mousecam
+    ap.load_mousecam
+end
 
 % Load widefield
 if load_parts.widefield && ...

@@ -98,15 +98,15 @@ animal = 'AM010';
 workflow = 'sparse_noise';
 
 % Specific day
-% rec_day = '2023-12-01';
-% rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+rec_day = '2023-12-06';
+rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
-% Relative day
-recordings = plab.find_recordings(animal,[],workflow);
-% use_day = 1;
-use_day = length(recordings);
-rec_day = recordings(use_day).day;
-rec_time = recordings(use_day).recording{end};
+% % Relative day
+% recordings = plab.find_recordings(animal,[],workflow);
+% % use_day = 1;
+% use_day = length(recordings);
+% rec_day = recordings(use_day).day;
+% rec_time = recordings(use_day).recording{end};
 
 load_parts.widefield = true;
 
@@ -121,15 +121,15 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM010';
+animal = 'AM011';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Create animal alignment (sparse noise retinotopy: batch, save, align)
 % NOTE: need to do day alignment first
 
-animal = 'AM010';
-overwrite_retinotopy = true;
+animal = 'AM011';
+overwrite_retinotopy = false;
 
 % Check if aligned mean retinotopy is saved, create if not
 alignment_path = fullfile(plab.locations.server_path, ...
@@ -198,12 +198,12 @@ end
 figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
 colormap(AP_colormap('BWR'));clim([-1,1]);
 axis image off;
-ap.draw_wf_ccf('ccf_aligned',[0.5,0.5,0.5]);
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
 title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AM010';
+animal = 'AP005';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -250,7 +250,7 @@ recordings = plab.find_recordings(animal,[],use_workflow);
 
 wf_px = cell(size(recordings));
 
-for curr_recording = 1:length(recordings)
+for curr_recording = 6:length(recordings)
     
     % Grab pre-load vars
     preload_vars = who;
@@ -261,6 +261,8 @@ for curr_recording = 1:length(recordings)
     if ~recordings(curr_recording).widefield(end)
         continue
     end
+
+    load_parts.widefield = true;
     ap.load_recording;
 
     % Get quiescent trials and stim onsets/ids
@@ -314,17 +316,18 @@ AP_imscroll(cat(3,a{:}));
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 
-a = cellfun(@(x) x-ap.reflect_widefield(x),wf_px,'uni',false);
-b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
-c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
-figure('Name',animal');
-tiledlayout('flow')
-for i = 1:length(a)
-    nexttile; imagesc(b{i}); axis image off;
-end
-AP_imscroll(cat(3,b{:}));
-axis image;
-clim(c); colormap(AP_colormap('PWG'));
+% (reflect widefield - taken out for now)
+% a = cellfun(@(x) x-ap.wf_reflect(x),wf_px,'uni',false);
+% b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
+% c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
+% figure('Name',animal');
+% tiledlayout('flow')
+% for i = 1:length(a)
+%     nexttile; imagesc(b{i}); axis image off;
+% end
+% AP_imscroll(cat(3,b{:}));
+% axis image;
+% clim(c); colormap(AP_colormap('PWG'));
 
 
 

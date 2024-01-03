@@ -203,7 +203,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AM010';
+animal = 'AM013';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -240,7 +240,7 @@ set(gcf,'Name',animal);
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AM011';
+animal = 'AP010';
 use_workflow = 'lcr_passive';
 recordings = plab.find_recordings(animal,[],use_workflow);
 
@@ -313,6 +313,12 @@ for i = 1:length(a)
     clim(c); colormap(AP_colormap('PWG'));
 end
 AP_imscroll(cat(3,a{:}));
+axis image;
+clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
+
+a = cat(5,wf_px{:});
+b = squeeze(a(:,:,:,3,:));
+AP_imscroll(b);
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 

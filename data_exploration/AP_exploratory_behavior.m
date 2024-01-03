@@ -6,21 +6,18 @@
 use_cam = mousecam_fn;
 use_t = mousecam_times;
 
-% % (passive)
-% stim_window = [0,0.5];
-% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-%     1:length(stimOn_times))';
-% 
-% align_times = stimOn_times(quiescent_trials);
-% align_category_all = vertcat(trial_events.values.TrialStimX);
-% align_category = align_category_all(quiescent_trials);
-% 
-% use_align = align_times(align_category == 90 & quiescent_trials);
+% (passive)
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
 
-% (task)
-use_align = stimOn_times;
+stim_x = vertcat(trial_events.values.TrialStimX);
+use_align = stimOn_times(stim_x == 90 & quiescent_trials);
+
+% % (task)
+% use_align = stimOn_times;
 
 
 surround_frames = 30;
@@ -119,7 +116,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AM009'};
+animals = {'AP010'};
 
 % Create master tiled layout
 figure;

@@ -47,20 +47,12 @@ end
 
 % Get fluorescence across session in ROIs
 if exist('V','var') && ~isempty(V)
-    % OLD
-    %     roi_trace = nan(size(roi_mask,3),size(V,2));
-    %     U_reshape = reshape(U,[],size(U,3));
-    %     roi_mask_reshape = reshape(roi_mask,[],size(roi_mask,3));
-    %     for curr_roi = 1:size(roi_mask,3)
-    %         curr_roi_px = roi_mask_reshape(:,curr_roi) ~= 0;
-    %         U_roi = bsxfun(@times,U_reshape(curr_roi_px,:),roi_mask_reshape(curr_roi_px,curr_roi));
-    %         roi_trace(curr_roi,:) = nanmean(U_roi*V);
-    %     end
-    
-    % NEW: should be valid to weight U_roi first (faster, less memory)
     V_size = size(V);
     
+    % Weight and sum pixels in U
     U_roi = transpose(reshape(U,[],size(U,3))'*reshape(roi_mask,[],size(roi_mask,3)));            
+
+    % Reconstruct ROI trace
     roi_trace = reshape(U_roi*reshape(V,size(V,1),[]),[size(U_roi,1),V_size(2:end)]);
     
     % If mask was binary, divide by n pixels to make trace ROI average
