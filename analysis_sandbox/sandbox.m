@@ -383,12 +383,3 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 
 
 
-
-
-
-
-
-
-
-
-

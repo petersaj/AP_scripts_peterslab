@@ -203,7 +203,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AP005';
+animal = 'AM013';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -250,7 +250,7 @@ recordings = plab.find_recordings(animal,[],use_workflow);
 
 wf_px = cell(size(recordings));
 
-for curr_recording = 6:length(recordings)
+for curr_recording = 1:length(recordings)
     
     % Grab pre-load vars
     preload_vars = who;
@@ -313,6 +313,12 @@ for i = 1:length(a)
     clim(c); colormap(AP_colormap('PWG'));
 end
 AP_imscroll(cat(3,a{:}));
+axis image;
+clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
+
+a = cat(5,wf_px{:});
+b = squeeze(a(:,:,:,3,:));
+AP_imscroll(b);
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 

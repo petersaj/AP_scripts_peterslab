@@ -4,15 +4,15 @@
 
 %% Load data (specific day)
 
-animal = 'AM010';
-rec_day = '2023-12-11';
+animal = 'AP005';
+rec_day = '2023-06-21';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
-workflow = 'gray_screen';
+% workflow = 'gray_screen';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
@@ -26,17 +26,17 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM012';
+animal = 'AM006';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-workflow = 'stim_wheel_right*';
+% workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-use_day = 4;
-% use_day = length(recordings)-2;
+% use_day = 2;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -197,10 +197,13 @@ end
 
 %% temp histology: combine tiff channels
 
-hist_path = 'P:\Data\AP013\histology\raw';
-save_path = 'P:\Data\AP013\histology';
+hist_path = 'P:\Data\AM010\histology\raw';
+save_path = 'P:\Data\AM010\histology\raw_combined';
 
 im_filenames = dir(fullfile(hist_path,'*.tif'));
+if ~exist(save_path,'dir')
+    mkdir(save_path)
+end
 
 slice_name_split = regexp({im_filenames.name},'_','split');
 slice_name_split_cat = vertcat(slice_name_split{:});
@@ -377,13 +380,34 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 
 
 
+%%
 
 
+surround_window = [-1,2];
+baseline_window = [-0.5,-0.1];
+
+surround_samplerate = 35;
+
+t = surround_window(1):1/surround_samplerate:surround_window(2);
+baseline_t = baseline_window(1):1/surround_samplerate:baseline_window(2);
+
+peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
+baseline_event_t = reshape(baseline_times,[],1) + reshape(baseline_t,1,[]);
+
+use_U = wf_U;
+use_V = wf_V;
+use_wf_t = wf_t;
+
+aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
+    length(align_times),length(t),[]);
+aligned_baseline_v = nanmean(reshape(interp1(use_wf_t,use_V',baseline_event_t,'previous'), ...
+    length(baseline_times),length(baseline_t),[]),2);
 
 
+align_frame = arrayfun(@(x) find(wf_t >= align_times(x),1),1:length(align_times));
+grab_frames = align_frame' + [-10:30];
 
-
-
+x = reshape(wf_V(:,grab_frames),size(wf_V,1),[],length(align_frame));
 
 
 
