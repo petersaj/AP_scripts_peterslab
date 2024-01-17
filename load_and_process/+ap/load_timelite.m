@@ -63,6 +63,10 @@ photodiode_bw_thresh = [0.2,2.8]; % [black,white]
 photodiode_bw = nan(size(photodiode_trace));
 photodiode_bw(photodiode_trace < photodiode_bw_thresh(1)) = 0;
 photodiode_bw(photodiode_trace > photodiode_bw_thresh(2)) = 1;
+% (if all intermediate photodiode, set to zero)
+if all(isnan(photodiode_bw))
+    photodiode_bw(:) = 0;
+end
 photodiode_bw_interp = interp1(find(~isnan(photodiode_bw)), ...
     photodiode_bw(~isnan(photodiode_bw)), ...
     1:length(photodiode_bw),'next','extrap')';

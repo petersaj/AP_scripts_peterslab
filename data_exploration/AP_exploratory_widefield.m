@@ -58,7 +58,7 @@ elseif contains(bonsai_workflow,'sparse_noise')
 
 end
 
-surround_window = [-1,2];
+surround_window = [-1,4];
 baseline_window = [-0.5,-0.1];
 
 surround_samplerate = 35;

@@ -59,7 +59,7 @@ try
     wf_U = ap.wf_align(wf_U,animal,rec_day);
     if verbose; disp('Aligned widefield U/avg...');end
 catch  me
-    warning('Widefield: %s',me.message);
+    warning(me.identifier,'Widefield: %s',me.message);
 end
 
 

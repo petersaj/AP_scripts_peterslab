@@ -28,7 +28,7 @@ end
 % (widefield)
 try 
     gui_data.wf_U = evalin('base','wf_U');
-    gui_data.wf_V = evalin('base','wf_V');
+    gui_data.wf_V = evalin('base','wf_Vdf');
     gui_data.wf_t = evalin('base','wf_t');
     gui_data.plot_widefield = true;
 end
@@ -181,6 +181,14 @@ gui_data = guidata(gui_fig);
 t_step = 0.05;
 mouse_wheel_count = eventdata.VerticalScrollCount;
 t_new = gui_data.t_curr + mouse_wheel_count*t_step;
+
+% Set limit within t bounds
+if t_new < gui_data.t(1)
+    t_new = gui_data.t(1);
+end
+if t_new > gui_data.t(2)
+    t_new = gui_data.t(2);
+end
 
 % Set the slider
 t_prct = t_new/(gui_data.t(1) + diff(gui_data.t));

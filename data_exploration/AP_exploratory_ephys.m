@@ -143,14 +143,62 @@ colormap(AP_colormap('BWR'));
 
 %% PSTH - MUA by depth 
 
-% % (evenly spaced depths)
-% n_depths = 20;
-% depth_group_edges = round(linspace(0,3840,n_depths+1))';
-% [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
-% depth_groups_used = unique(depth_group);
-% depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+mua_method = 'even'; % depth, click
 
-% (for clickable manual depths)
+switch mua_method
+
+    case 'even'
+        % (to group multiunit by evenly spaced depths)
+        n_depths = 8;
+        depth_group_edges = round(linspace(0,4000,n_depths+1));
+        [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+        depth_groups_used = unique(depth_group);
+        depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+    case 'click'
+        % (for clickable manual depths)
+        h = figure('units','normalized','position',[0.05,0.2,0.1,0.7]);
+        unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
+
+        if exist('probe_areas','var')
+            probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+                probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
+
+            probe_areas_boundaries = probe_areas{1}.probe_depth;
+            probe_areas_centers = mean(probe_areas_boundaries,2);
+
+            probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
+            probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
+                1:height(probe_areas{1}),probe_areas_image_depth, ...
+                'previous','extrap');
+            probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
+
+            image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
+            yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
+            set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
+        end
+
+        norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+        unit_dots = scatter3( ...
+            norm_spike_n,template_depths(unique(spike_templates)), ...
+            unique(spike_templates),20,'k','filled','ButtonDownFcn',@unit_click);
+        multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
+        xlim(unit_axes,[-0.1,1]);
+        ylim([-50, max(channel_positions(:,2))+50]);
+        ylabel('Depth (\mum)')
+        xlabel('Normalized log rate')
+
+        title('Click MUA borders');
+        user_click_coords = ginput;
+        close(h);
+        depth_group_edges = user_click_coords(:,2);
+        yline(depth_group_edges,'linewidth',2,'color','r');
+        depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
+        text(zeros(length(depth_group_centers),1),depth_group_centers, ...
+            num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
+end
+
+% Draw units and borders
 figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
 unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
 
@@ -181,15 +229,6 @@ xlim(unit_axes,[-0.1,1]);
 ylim([-50, max(channel_positions(:,2))+50]);
 ylabel('Depth (\mum)')
 xlabel('Normalized log rate')
-
-title('Click MUA borders');
-user_click_coords = ginput;
-depth_group_edges = user_click_coords(:,2);
-yline(depth_group_edges,'linewidth',2,'color','r');
-depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
-text(zeros(length(depth_group_centers),1),depth_group_centers, ...
-    num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
-drawnow;
 
 % Make depth groups
 n_depths = length(depth_group_edges) - 1;
@@ -263,7 +302,7 @@ for curr_align = 1:length(align_times)
     nexttile; set(gca,'YDir','reverse'); hold on;
 
     curr_stackplot = -200*depth_psth_smooth_norm(:,:,curr_align) + ...
-        depth_group_centers;
+        reshape(depth_group_centers,[],1);
     plot(t_centers,curr_stackplot','k','linewidth',2);
 
     xline(0,'r');

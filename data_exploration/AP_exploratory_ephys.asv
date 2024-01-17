@@ -51,7 +51,13 @@ linkaxes(get(h,'Children'),'x');
 
 %% Bin unit firing by widefield frames
 
-time_bins = [wf_t;wf_t(end)+1/wf_framerate];
+% (not totally sure this is right yet - is wf_t start of frame?)
+spike_binning_t_edges = [wf_t;wf_t(end)+1/wf_framerate];
+
+use_unit = 18;
+
+binned_unit_spikes = histcounts(spike_times_timeline( ...
+    ismember(spike_templates,use_unit)),spike_binning_t_edges);
 
 
 %% Cell raster
@@ -86,7 +92,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
-%% Unit PSTH
+%% PSTH - units
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -135,7 +141,7 @@ clim([-2,2]);
 colormap(AP_colormap('BWR'));
 
 
-%% MUA PSTH by depth 
+%% PSTH - MUA by depth 
 
 % % (evenly spaced depths)
 % n_depths = 20;
