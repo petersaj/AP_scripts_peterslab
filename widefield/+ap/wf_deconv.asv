@@ -54,6 +54,8 @@ kernel_resample_t = -kernel_resample_t_range:1/frame_rate:kernel_resample_t_rang
 kernel_resample = interp1(gcamp6s_kernel.regression_t,kernel_mean,kernel_resample_t);
 kernel = kernel_resample./norm(kernel_resample);
 
+a = resample(double(kernel_cat'),gcamp6s_kernel.regression_t,frame_rate);
+
 
 %% Convolve with deconvolution filter
 % (zero nans and pad edges)
