@@ -28,7 +28,7 @@ end
 % (widefield)
 try 
     gui_data.wf_U = evalin('base','wf_U');
-    gui_data.wf_V = evalin('base','wf_Vdf');
+    gui_data.wf_V = evalin('base','wf_V');
     gui_data.wf_t = evalin('base','wf_t');
     gui_data.plot_widefield = true;
 end

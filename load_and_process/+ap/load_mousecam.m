@@ -14,7 +14,9 @@ if load_parts.mousecam && exist(mousecam_fn,'file')
 
     if mousecam_expose_times(1) > flipper_times(1)
         % If the first exposure time starts after flipper, use 1:N exposure times
-
+        % (usually a few more exposure times than frames, possibly because
+        % turning acquisition off via trigger mode lets a few exposures
+        % slip through that are discarded)
         mousecam_times = mousecam_expose_times(1:min(length(mousecam_expose_times), ...
             length(mousecam_header.timestamps)));
 

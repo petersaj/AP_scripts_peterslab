@@ -4,8 +4,8 @@
 
 %% Load data (specific day)
 
-animal = 'AM015';
-rec_day = '2024-01-17';
+animal = 'AP013';
+rec_day = '2023-11-20';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -26,7 +26,7 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM012';
+animal = 'AP014';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -35,8 +35,8 @@ workflow = 'lcr_passive';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-use_day = 7;
-% use_day = length(recordings);
+% use_day = 7;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -44,8 +44,8 @@ rec_time = recordings(use_day).recording{end};
 verbose = true;
 
 % load_parts.behavior = true;
-% load_parts.widefield = true;
-load_parts.ephys = true;
+load_parts.widefield = true;
+% load_parts.ephys = true;
 
 ap.load_recording;
 
@@ -378,7 +378,9 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         structure_outline_aligned)
 
 
+%% Neuropixels preprocessing
 
+ap.preprocess_neuropixels('AM014','2024-01-25');
 
 
 

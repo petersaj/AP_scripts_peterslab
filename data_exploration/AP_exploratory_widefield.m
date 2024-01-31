@@ -94,19 +94,19 @@ axis image;
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AM010';
+animal = 'AP015';
 workflow = 'sparse_noise';
 
-% Specific day
-rec_day = '2023-12-06';
-rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+% % Specific day
+% rec_day = '2023-12-06';
+% rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
-% % Relative day
-% recordings = plab.find_recordings(animal,[],workflow);
-% % use_day = 1;
-% use_day = length(recordings);
-% rec_day = recordings(use_day).day;
-% rec_time = recordings(use_day).recording{end};
+% Relative day
+recordings = plab.find_recordings(animal,[],workflow);
+% use_day = 1;
+use_day = length(recordings);
+rec_day = recordings(use_day).day;
+rec_time = recordings(use_day).recording{end};
 
 load_parts.widefield = true;
 
@@ -203,7 +203,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AM013';
+animal = 'AP005';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
