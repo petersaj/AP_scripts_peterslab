@@ -237,7 +237,8 @@ end
 % Load Bombcell quality metrics (if exist)
 qMetrics_path = fullfile(kilosort_path,'qMetrics');
 if  exist(qMetrics_path,'dir')
-    [param, qMetric] = bc_loadSavedMetrics(qMetrics_path);
+    % Bombcell function to load all metrics, only used for troubleshooting
+%     [param, qMetric] = bc_loadSavedMetrics(qMetrics_path);
     % (native bombcell labels)
     %  unitType = bc_getQualityUnitType(param, qMetric);
     % (extra metrics & translated bombcell labels)
