@@ -94,7 +94,7 @@ axis image;
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AP015';
+animal = 'AM016';
 workflow = 'sparse_noise';
 
 % % Specific day

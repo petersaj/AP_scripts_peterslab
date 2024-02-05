@@ -1,29 +1,34 @@
-function h = wf_draw(type,color,reference_im)
+function h = wf_draw(type,color,manual_bregma)
 % h = wf_draw(type,color,reference_im)
 %
 % Draw CCF areas on aligned widefield image
 %
-% If a reference image is provided, bregma is defined there
 % Type: 
-% scalebar
-% bregma
-% grid
-% ccf
-% point, [AP,ML] in mm
+% - scalebar
+% - bregma
+% - grid
+% - ccf
+% - point, [AP,ML] in mm
+%
+% Color: color of overlay
+%
+% manual_bregma: false (default) if aligned image, true to manually select
 
 if ~exist('color','var')
     color = 'k';
 end
 
+if ~exist('manual_bregma','var')
+    manual_bregma = false;
+end
+
+
 %% Define bregma
 
-if exist('reference_im','var') && ~isempty(reference_im)
-    temp_f = figure;
-    imagesc(reference_im);
-    colormap(gray);
-    axis off image;
+if manual_bregma
     [bregma_offset_x,bregma_offset_y] = ginput(1);
-    close(temp_f);
+else 
+    [bregma_offset_x,bregma_offset_y] = deal(bregma_wf(1),bregma_wf(2));
 end
 
 hold on;
@@ -62,19 +67,11 @@ switch type
 
     case 'bregma'
         % Plot bregma on aligned widefield
-
-        % Get bregma from aligned
-        bregma_offset_x = bregma_wf(1);
-        bregma_offset_y = bregma_wf(2);
         h.bregma = plot(bregma_offset_x,bregma_offset_y,'.','color',color,'MarkerSize',15);
     
     case 'grid'
-        % Plot mm grid for widefield
-        
-        % Get bregma from aligned
-        bregma_offset_x = bregma_wf(1);
-        bregma_offset_y = bregma_wf(2);
-        
+        % Plot 500um spaced grid
+                
         spacing_um = 500;
         spacing_pixels = spacing_um/um2pixel;
         
@@ -96,10 +93,7 @@ switch type
         h.bregma = plot(bregma_offset_x,bregma_offset_y,'xr','MarkerSize',10);
 
     case 'point'
-        % Get bregma from aligned
-        bregma_offset_x = bregma_wf(1);
-        bregma_offset_y = bregma_wf(2);
-
+        % Plot a point at specific coordinates
         [point_ap,point_ml] = deal(color(1),color(2));
 
         plot(bregma_offset_x+point_ml*1000/um2pixel, ...

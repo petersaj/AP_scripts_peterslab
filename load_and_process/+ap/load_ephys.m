@@ -234,57 +234,62 @@ end
 
 %% Remove bad units from quality control
 
-% Load Bombcell quality metrics (if exist)
-qMetrics_path = fullfile(kilosort_path,'qMetrics');
-if  exist(qMetrics_path,'dir')
-    % Bombcell function to load all metrics, only used for troubleshooting
-%     [param, qMetric] = bc_loadSavedMetrics(qMetrics_path);
-    % (native bombcell labels)
-    %  unitType = bc_getQualityUnitType(param, qMetric);
-    % (extra metrics & translated bombcell labels)
-    load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
+ephys_qc_type = 'phy';
 
-    % Define good units from labels
-    good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
-    if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
-else
-    warning('No ephys quality metrics available');
-    good_templates = true(size(templates,1),1);
+if strcmp(ephys_qc_type,'bombcell')
+    % Load Bombcell quality metrics (if exist)
+    qMetrics_path = fullfile(kilosort_path,'qMetrics');
+    if  exist(qMetrics_path,'dir')
+        % Bombcell function to load all metrics, only used for troubleshooting
+        %     [param, qMetric] = bc_loadSavedMetrics(qMetrics_path);
+        % (native bombcell labels)
+        %  unitType = bc_getQualityUnitType(param, qMetric);
+        % (extra metrics & translated bombcell labels)
+        load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
+
+        % Define good units from labels
+        good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
+        if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
+    else
+        warning('No ephys quality metrics available');
+        good_templates = true(size(templates,1),1);
+    end
+
+elseif strcmp(ephys_qc_type,'phy')
+    % Load manual Phy sorting (old)
+    cluster_filepattern = [kilosort_path filesep 'cluster_group*'];
+    cluster_filedir = dir(cluster_filepattern);
+    if ~isempty(cluster_filedir)
+        cluster_filename = [kilosort_path filesep cluster_filedir.name];
+        fid = fopen(cluster_filename);
+        cluster_groups = textscan(fid,'%d%s','HeaderLines',1);
+        fclose(fid);
+    end
+    % Get "good" templates from labels if quality control selected and
+    % manual labels exist
+    if exist('cluster_groups','var')
+        % If there's a manual classification
+        if verbose; disp('Keeping manually labelled good units...'); end
+
+        % Check that all used spike templates have a label
+        spike_templates_unique_0idx = unique(spike_templates)-1;
+        if ~all(ismember(spike_templates_unique_0idx,uint32(cluster_groups{1}))) || ...
+                ~all(ismember(cluster_groups{2},{'good','mua','noise'}))
+            warning([animal ' ' day ': not all templates labeled']);
+        end
+
+        % Define good units from labels
+        good_templates_idx = uint32(cluster_groups{1}( ...
+            strcmp(cluster_groups{2},'good') | strcmp(cluster_groups{2},'mua')));
+        good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
+    else
+        % If no cluster groups at all, keep all
+        warning([animal ' ' rec_day ' - no ephys quality control']);
+        if verbose; disp('No ephys quality control, keeping all and re-indexing'); end
+        good_templates_idx = unique(spike_templates_0idx);
+        good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
+    end
 end
-
-% % Load manual Phy sorting (old)
-% cluster_filepattern = [kilosort_path filesep 'cluster_group*'];
-% cluster_filedir = dir(cluster_filepattern);
-% if ~isempty(cluster_filedir)
-%     cluster_filename = [kilosort_path filesep cluster_filedir.name];
-%     fid = fopen(cluster_filename);
-%     cluster_groups = textscan(fid,'%d%s','HeaderLines',1);
-%     fclose(fid);
-% end
-% % Get "good" templates from labels if quality control selected and
-% % manual labels exist
-% if ephys_quality_control && exist('cluster_groups','var')
-%     % If there's a manual classification
-%     if verbose; disp('Keeping manually labelled good units...'); end
-% 
-%     % Check that all used spike templates have a label
-%     spike_templates_0idx_unique = unique(spike_templates_0idx);
-%     if ~all(ismember(spike_templates_0idx_unique,uint32(cluster_groups{1}))) || ...
-%             ~all(ismember(cluster_groups{2},{'good','mua','noise'}))
-%         warning([animal ' ' day ': not all templates labeled']);
-%     end
-% 
-%     % Define good units from labels
-%     good_templates_idx = uint32(cluster_groups{1}( ...
-%         strcmp(cluster_groups{2},'good') | strcmp(cluster_groups{2},'mua')));
-%     good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
-% else
-%     % If no cluster groups at all, keep all
-%     warning([animal ' ' rec_day ' - no ephys quality control']);
-%     if verbose; disp('No ephys quality control, keeping all and re-indexing'); end
-%     good_templates_idx = unique(spike_templates_0idx);
-%     good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
-% end
 
 % Throw out all non-good template data
 templates = templates(good_templates,:,:);
