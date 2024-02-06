@@ -234,7 +234,7 @@ end
 
 %% Remove bad units from quality control
 
-ephys_qc_type = 'phy';
+ephys_qc_type = 'bombcell';
 
 if strcmp(ephys_qc_type,'bombcell')
     % Load Bombcell quality metrics (if exist)

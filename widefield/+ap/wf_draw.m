@@ -23,15 +23,7 @@ if ~exist('manual_bregma','var')
 end
 
 
-%% Define bregma
-
-if manual_bregma
-    [bregma_offset_x,bregma_offset_y] = ginput(1);
-else 
-    [bregma_offset_x,bregma_offset_y] = deal(bregma_wf(1),bregma_wf(2));
-end
-
-hold on;
+%% Load alignments and scale, define bregma
 
 % Load alignment and perform CCF-widefield alignment
 alignment_path = fullfile(plab.locations.server_path, ...
@@ -39,15 +31,22 @@ alignment_path = fullfile(plab.locations.server_path, ...
 ccf_tform_fn = fullfile(alignment_path,'ccf_tform.mat');
 load(ccf_tform_fn);
 
-% (hard-code microns per pixel)
+% Set microns per pixel scale (hard-coded)
 um2pixel = 22.5; % cortexlab: 20.6
 
-% (bregma - hard-code here)
+% Define CCF bregma (hard-coded)
 bregma = [520,44,570];
 bregma(3) = bregma(3) + 0.5;
 bregma_wf = [bregma([3,1]),1]*ccf_tform.T;
 
-% (cortical regions)
+% Set bregma to use (click if manual, use aligned if not)
+if manual_bregma
+    [bregma_offset_x,bregma_offset_y] = ginput(1);
+else 
+    [bregma_offset_x,bregma_offset_y] = deal(bregma_wf(1),bregma_wf(2));
+end
+
+% Load top-down cortical regions
 load(fullfile(alignment_path,'dorsal_cortex_borders.mat'));
 
 dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
@@ -55,6 +54,12 @@ dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
     dorsal_cortex_borders,'uni',false);
 dorsal_cortex_borders_aligned = cellfun(@(areas) cellfun(@(coords) ...
     coords,areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
+
+
+%% Draw object
+
+% Ensure image is held
+hold on;
 
 switch type   
 

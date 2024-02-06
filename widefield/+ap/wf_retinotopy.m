@@ -149,7 +149,7 @@ ax_avg = axes;
 ax_vfs = axes;
 h1 = imagesc(ax_avg,wf_avg_aligned);
 colormap(ax_avg,gray);
-clim(ax_avg,prctile(wf_avg(:),[50,99]));
+clim(ax_avg,prctile(wf_avg(:),[20,99]));
 h2 = imagesc(ax_vfs,vfs_ccf_aligned);
 colormap(ax_vfs,AP_colormap('BWR'));
 clim(ax_vfs,[-1,1]);
