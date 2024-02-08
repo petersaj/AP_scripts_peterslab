@@ -26,7 +26,7 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM010';
+animal = 'AM017';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -44,8 +44,8 @@ rec_time = recordings(use_day).recording{end};
 verbose = true;
 
 % load_parts.behavior = true;
-load_parts.widefield = true;
-% load_parts.ephys = true;
+% load_parts.widefield = true;
+load_parts.ephys = true;
 
 ap.load_recording;
 
