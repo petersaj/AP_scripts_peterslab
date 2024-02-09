@@ -4,8 +4,8 @@
 
 %% Load data (specific day)
 
-animal = 'AM010';
-rec_day = '2023-12-08';
+animal = 'AM014';
+rec_day = '2024-01-24';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -17,7 +17,7 @@ workflow = 'lcr_passive';
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
-% load_parts.ephys = true;
+load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
@@ -35,7 +35,7 @@ workflow = 'lcr_passive';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-% use_day = 7;
+% use_day = 1;
 use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
@@ -381,6 +381,135 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 %% Neuropixels preprocessing
 
 ap.preprocess_neuropixels('AM014','2024-01-25');
+
+%% Load raw data snippet
+
+% animal = 'AM016';
+% day = '2024-02-08';
+% 
+% ap_dir = dir(plab.locations.filename('server',animal,day,[],'ephys','**','*-AP','continuous.dat'));
+% ap_filename = fullfile(ap_dir.folder,ap_dir.name);
+% fid = fopen(ap_filename, 'r');
+% fseek(fid,(30000*60*20*384),'bof');
+% dat = fread(fid, [384 chunkSize], '*int16');
+
+ap_filename = 'D:\data_temp\kilosort\continuous.dat';
+ap_car_filename = 'D:\data_temp\kilosort\continuous_car.dat';
+
+% Choose data chunk size
+chunkSize = 1000000;
+
+n_chan = 384;
+
+ap_filename_dir = dir(ap_filename);
+nSampsTotal = ap_filename_dir.bytes/n_chan/2;
+nChunksTotal = ceil(nSampsTotal/chunkSize);
+
+% Get channel index across ADCs (16 ADCs, 12 channels each, same-index
+% channels sampled together e.g. ADC1/Ch1 + ADC2/Ch1...)
+% (https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Neuropixels-CAR.html)
+ch_adc_idx = reshape(reshape(1:384,2,[])',12,[]);
+
+% Open original file for reading, and new file for writing
+fid_raw = fopen(ap_filename, 'r');
+fid_car = fopen(ap_car_filename, 'w');
+
+% Loop through data chunks and apply common average referencing
+chunkInd = 1;
+while 1
+
+    % Load in current data chunk
+    curr_data = fread(fid_raw, [384 chunkSize], '*int16');
+
+    if ~isempty(curr_data)
+
+        % Subtract median across channels
+        curr_data_centered = curr_data - median(curr_data,2);
+
+        % Loop through ADC channel indicies
+        curr_data_car = zeros(size(curr_data),'int16');
+        for curr_adc_idx = 1:size(ch_adc_idx,1)
+            % Get same-index channels across ADCs
+            curr_channels = ch_adc_idx(curr_adc_idx,:);
+
+            % Get median signal across channels
+            curr_data_adc_median = median(curr_data_centered(curr_channels,:),1);
+
+            % Get scaling factor of median for each channel
+            curr_data_adc_median_scale = ...
+                sum(curr_data_centered(curr_channels,:).*curr_data_adc_median,2)./ ...
+                sum(curr_data_adc_median.^2);
+            curr_data_adc_median_scaled = int16(curr_data_adc_median_scale.* ...
+                double(curr_data_adc_median));
+
+            % Subtract scaled median from data
+            curr_data_car(curr_channels,:) = curr_data_centered(curr_channels,:) - ...
+                curr_data_adc_median_scaled;
+        end
+
+        fwrite(fid_car, curr_data_car, 'int16');
+
+    else
+        break
+    end
+
+    AP_print_progress_fraction(chunkInd,nChunksTotal);
+    chunkInd = chunkInd+1;
+
+end
+
+% Close files
+fclose(fid_raw);
+fclose(fid_car);
+
+disp('Finished CAR');
+
+
+        
+
+%% Testing Kilosort 2
+
+ap_sample_rate = 30000;
+ap_clean_filename = 'D:\data_temp\kilosort\continuous_car.dat';
+
+ssd_kilosort_path = 'D:\data_temp\kilosort\kilosort2';
+t_range = [0,Inf];
+
+AP_run_kilosort2(ap_clean_filename,ap_sample_rate,ssd_kilosort_path,t_range);
+
+% errored "EIG did not converge", probably needs downgrade: 
+% https://github.com/cortex-lab/KiloSort/issues/260
+
+%% Testing pykilosort
+
+local_kilosort_path = 'D:\data_temp\kilosort\';
+apband_local_filename = fullfile(local_kilosort_path,'continuous_car.dat');
+
+% Path to pykilosort python environment
+pykilosort_python_environment = pyenv('Version','C:\Users\petersa\anaconda3\envs\pyks2\pythonw.exe');
+
+% Set up python
+% (add pykilosort environment paths to windows system path)
+pre_pykilosort_syspath = getenv('PATH');
+py_env_paths = {
+    fullfile(char(pykilosort_python_environment.Home),'Library','bin'); ...
+    fullfile(char(pykilosort_python_environment.Home),'Scripts')};
+run_pykilosort_syspath = strjoin( ...
+    unique(cat(1,py_env_paths, ...
+    split(pre_pykilosort_syspath,pathsep)),'stable'),pathsep);
+setenv('PATH',run_pykilosort_syspath);
+
+% Run pykilosort (does common average referencing by default)
+pykilosort_output_path = fullfile(local_kilosort_path,'pykilosort');
+pyrunfile('AP_run_pykilosort.py', ...
+    data_filename = apband_local_filename, ...
+    pykilosort_output_path = pykilosort_output_path);
+
+% Revert system paths to pre-pykilosort
+% (just in case alternate python environments used elsewhere)
+setenv('PATH',pre_pykilosort_syspath);
+
+
 
 
 

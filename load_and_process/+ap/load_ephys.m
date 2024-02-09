@@ -234,7 +234,7 @@ end
 
 %% Remove bad units from quality control
 
-ephys_qc_type = 'bombcell';
+ephys_qc_type = 'none';
 
 if strcmp(ephys_qc_type,'bombcell')
     % Load Bombcell quality metrics (if exist)
@@ -251,8 +251,8 @@ if strcmp(ephys_qc_type,'bombcell')
         good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
         if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
     else
-        warning('No ephys quality metrics available');
-        good_templates = true(size(templates,1),1);
+        warning('Bombcell metrics not available');
+        return
     end
 
 elseif strcmp(ephys_qc_type,'phy')
@@ -284,12 +284,14 @@ elseif strcmp(ephys_qc_type,'phy')
         good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
     else
         % If no cluster groups at all, keep all
-        warning([animal ' ' rec_day ' - no ephys quality control']);
-        if verbose; disp('No ephys quality control, keeping all and re-indexing'); end
-        good_templates_idx = unique(spike_templates_0idx);
-        good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
+        warning('Phy labels not available');
+        return
     end
+else
+    return
 end
+
+% If good templates were selected above, throw out not-good data:
 
 % Throw out all non-good template data
 templates = templates(good_templates,:,:);

@@ -103,7 +103,7 @@ if gui_data.plot_widefield
     gui_data.wf_im = imagesc(gui_data.wf_axis,wf_im);
     axis(gui_data.wf_axis,'off','image');
     clim(gui_data.wf_axis,[-1,1].*median(std(gui_data.wf_V,[],2))*2);
-    colormap(gui_data.wf_axis,AP_colormap('PWG'));
+    colormap(gui_data.wf_axis,ap.colormap('PWG'));
 end
 
 % (ephys)
