@@ -56,6 +56,18 @@ elseif contains(bonsai_workflow,'sparse_noise')
         noise_locations(px_y,px_x,2:end) == 0))+1);
     align_category = ones(size(align_times));
 
+elseif contains(bonsai_workflow,'visual_conditioning')
+
+    % Only use completed (rewarded) trials
+    n_trials = length(reward_times);
+
+    % Visual conditioning: stim and reward
+    align_times = [ ...
+        stimOn_times(1:n_trials); ...
+        reward_times(1:n_trials)];
+    align_category = reshape(ones(n_trials,2).*[1,2],[],1);
+    baseline_times = repmat(stimOn_times(1:n_trials),2,1);
+
 end
 
 surround_window = [-1,4];

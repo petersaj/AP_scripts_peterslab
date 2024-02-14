@@ -64,11 +64,14 @@ AP_get_probe_histology(tv,av,st,slice_path);
 
 %% Match trajectories with days
 % (plot NTE/histology days, select corresponding days from list)
+%
+% RUN THIS LINE BY LINE
 
+% Set animal and plot probe positions
 animal = 'AM010';
+ap.plot_probe_positions(animal);
 
-% ap.plot_probe_positions(animal);
-
+% Day selection for each histology trajectory
 recordings = plab.find_recordings(animal);
 ephys_days = {recordings([recordings.ephys]).day};
 probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
@@ -80,6 +83,8 @@ for curr_probe = 1:length(probe_ccf)
         'ListString',ephys_days,'SelectionMode','single');
     probe_ccf(curr_probe).day = ephys_days{day_idx};
 end
+
+% Save
 save(probe_ccf_filename,'probe_ccf');
 disp(['Saved ' probe_ccf_filename]);
 

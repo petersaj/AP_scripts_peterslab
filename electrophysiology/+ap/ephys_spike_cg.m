@@ -1,4 +1,4 @@
-function spike_cg(template_1,template_2)
+function ephys_spike_cg(template_1,template_2)
 % Calculate and plot spike Auto/crosscorrelogram
 
 % Grab data from workspace

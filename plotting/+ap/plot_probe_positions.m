@@ -9,6 +9,9 @@ arguments
     plot_histology logical = true;
 end
 
+warning('dot plots not working at the moment - fix area depth')
+
+
 %% Find probe position files (trajectory explorer and histology)
 
 % Trajectory explorer probe position files
@@ -169,7 +172,7 @@ for curr_recording = 1:length(ephys_recordings)
         probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
             probe_areas{use_probe}.color_hex_triplet,'uni',false)),[1,3,2]);
 
-        probe_areas_boundaries = probe_areas{use_probe}.probe_depth;
+        probe_areas_boundaries = probe_areas{use_probe}.trajectory_depth;
         probe_areas_centers = mean(probe_areas_boundaries,2);
 
         probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
@@ -181,6 +184,7 @@ for curr_recording = 1:length(ephys_recordings)
         image(probe_ax,[0,1],probe_areas_image_depth,probe_areas_image);
         yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
         set(probe_ax,'YTick',probe_areas_centers,'YTickLabels',probe_areas{use_probe}.acronym);
+        ylim([0,3840]);
     end
 
     % Plot spikes normalized rate by depth

@@ -104,8 +104,8 @@ if contains(bonsai_workflow,'stim_wheel')
     end
     
 
-%% LCR passive
-elseif contains(bonsai_workflow,'lcr_passive')
+%% LCR passive, visual conditioning
+elseif contains(bonsai_workflow,{'lcr_passive','visual_conditioning'})
     % Passive protocol stim on times
 
     % Photodiode bug (old, now fixed): screen could flick to black briefly
@@ -178,7 +178,11 @@ elseif strcmp(bonsai_workflow,'sparse_noise')
     stim_times = interp1(photodiode_stim_idx,photodiode_times, ...
         1:size(noise_locations,3),'linear','extrap')';
 
+
+%% End
+
 end
+
 
 
 %% For testing: convert bonsai times to timelite times
@@ -200,11 +204,6 @@ end
 % event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
 %
 % event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
-
-
-
-
-
 
 
 

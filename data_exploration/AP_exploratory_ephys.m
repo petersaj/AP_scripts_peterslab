@@ -269,7 +269,7 @@ end
 smooth_size = 100;
 depth_psth_smooth = smoothdata(depth_psth,2,'gaussian',smooth_size);
 
-figure; h = tiledlayout(1,length(align_times)+1);
+figure; h = tiledlayout(1,2);
 
 % Plot units and depths
 nexttile; set(gca,'YDir','reverse');hold on;
@@ -298,12 +298,13 @@ xlim([0,1]);
 % Plot MUA
 depth_psth_smooth_norm = reshape(normalize(reshape(depth_psth_smooth, ...
     size(depth_psth_smooth,1),[]),2,'range'),size(depth_psth_smooth));
+nexttile; set(gca,'YDir','reverse'); hold on;
+align_col = lines(length(align_times));
 for curr_align = 1:length(align_times)
-    nexttile; set(gca,'YDir','reverse'); hold on;
 
     curr_stackplot = -200*depth_psth_smooth_norm(:,:,curr_align) + ...
         reshape(depth_group_centers,[],1);
-    plot(t_centers,curr_stackplot','k','linewidth',2);
+    plot(t_centers,curr_stackplot','color',align_col(curr_align,:),'linewidth',2);
 
     xline(0,'r');
 end

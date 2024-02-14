@@ -1,6 +1,6 @@
 function preprocess_neuropixels(animal,day)
 % preprocess_neuropixels(animal,day)
-% Currently assumes Neuropixels Phase 3A recorded with Open Ephys
+% Currently assumes Neuropixels 3A or 1.0 recorded with Open Ephys
 
 %% Set user locations
 
@@ -165,6 +165,10 @@ for curr_data = 1:length(data_paths)
 
         copyfile(ap_data_filename, apband_local_filename);
         disp('Done');
+            
+        % Run common average referencing (CAR)
+        apband_car_local_filename = strrep(apband_local_filename,'.dat','_car.dat');
+        ap.ephys_car(apband_local_filename,apband_car_local_filename)
         
         % Set up python
         % (add pykilosort environment paths to windows system path)
@@ -177,10 +181,10 @@ for curr_data = 1:length(data_paths)
             split(pre_pykilosort_syspath,pathsep)),'stable'),pathsep);
         setenv('PATH',run_pykilosort_syspath);
 
-        % Run pykilosort (does common average referencing by default)
+        % Run pykilosort
         pykilosort_output_path = fullfile(local_kilosort_path,'pykilosort');
         pyrunfile('AP_run_pykilosort.py', ...
-            data_filename = apband_local_filename, ...
+            data_filename = apband_car_local_filename, ...
             pykilosort_output_path = pykilosort_output_path);
 
         % Revert system paths to pre-pykilosort
@@ -234,6 +238,15 @@ for curr_data = 1:length(data_paths)
         % Save open ephys spike times into kilosort output folder
         spike_times_openephys_filename = fullfile(pykilosort_results_path,'spike_times_openephys.npy');
         writeNPY(spike_times_openephys,spike_times_openephys_filename);
+
+        %% Run bombcell (using CAR data)
+
+        % Get metadata filename
+        ephys_meta_dir = dir(fullfile(curr_data_path,'**','*.oebin'));
+        ephys_meta_fn = fullfile(ephys_meta_dir.folder,ephys_meta_dir.name);
+
+        % Run bombcell
+        ap.run_bombcell(apband_car_local_filename,pykilosort_results_path,ephys_meta_fn);
         
         %% Copy kilosort results to server
                 
@@ -248,9 +261,6 @@ for curr_data = 1:length(data_paths)
     end
     
 end
-
-%% Run Bombcell
-ap.run_bombcell(animal,day);
 
 %% Print end message
 fprintf('\nDone preprocessing Neuropixels: %s %s\n',animal,day);

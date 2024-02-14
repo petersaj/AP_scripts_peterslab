@@ -13,11 +13,12 @@ workflow = 'lcr_passive';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
+% workflow = 'visual_conditioning_right';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
-load_parts.ephys = true;
+% load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
@@ -26,12 +27,13 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM017';
+animal = 'AP018';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
+workflow = 'visual_conditioning_right';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
@@ -43,9 +45,9 @@ rec_time = recordings(use_day).recording{end};
 
 verbose = true;
 
-% load_parts.behavior = true;
+% load_parts.mousecam = true;
 % load_parts.widefield = true;
-load_parts.ephys = true;
+% load_parts.ephys = true;
 
 ap.load_recording;
 
@@ -382,7 +384,7 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 
 ap.preprocess_neuropixels('AM014','2024-01-25');
 
-%% Load raw data snippet
+%% CAR testing
 
 % animal = 'AM016';
 % day = '2024-02-08';
@@ -479,6 +481,8 @@ AP_run_kilosort2(ap_clean_filename,ap_sample_rate,ssd_kilosort_path,t_range);
 
 % errored "EIG did not converge", probably needs downgrade: 
 % https://github.com/cortex-lab/KiloSort/issues/260
+
+% trying again - downgraded cuda to 11.2 (known works with r2022a)
 
 %% Testing pykilosort
 
