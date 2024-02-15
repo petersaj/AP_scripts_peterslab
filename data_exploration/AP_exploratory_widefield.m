@@ -102,7 +102,6 @@ colormap(AP_colormap('PWG'));
 clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
 
-
 %% Sparse noise retinotopy (single day)
 
 % Load data

@@ -92,6 +92,9 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
+set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
+
+
 %% PSTH - units
 
 % Set times for PSTH
