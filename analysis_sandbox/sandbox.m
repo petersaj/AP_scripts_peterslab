@@ -4,7 +4,7 @@
 
 %% Load data (specific day)
 
-animal = 'AP018';
+animal = 'AP016';
 rec_day = '2024-02-19';
 
 % workflow = 'lcr_passive';
@@ -19,7 +19,7 @@ rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
 % load_parts.ephys = true;
-load_parts.mousecam = true;
+% load_parts.mousecam = true;
 
 verbose = true;
 ap.load_recording;

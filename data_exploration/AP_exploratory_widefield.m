@@ -12,6 +12,8 @@ if contains(bonsai_workflow,'lcr')
         timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
         1:length(stimOn_times))';
 
+    quiescent_trials(70:end) = false;
+
     align_times = stimOn_times(quiescent_trials);
     align_category_all = vertcat(trial_events.values.TrialStimX);
     align_category = align_category_all(quiescent_trials);
