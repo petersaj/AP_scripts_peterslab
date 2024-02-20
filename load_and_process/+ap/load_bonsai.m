@@ -124,9 +124,8 @@ elseif contains(bonsai_workflow,{'lcr_passive','visual_conditioning'})
 
     % If bad Bonsai CSV: truncate stim times to what was recorded
     if bad_bonsai_csv
-        n_bonsai_stim = length(vertcat(trial_events.values.TrialStimX));
-        stimOn_times = stimOn_times(1:n_bonsai_stim);
-        stimOff_times = stimOff_times(1:n_bonsai_stim);
+        stimOn_times = stimOn_times(1:sum(vertcat(trial_events.values.StimOn) == 1));
+        stimOff_times = stimOff_times(1:sum(vertcat(trial_events.values.StimOn) == 0));
     end
 
 %% Sparse noise

@@ -5,7 +5,7 @@
 %% Load data (specific day)
 
 animal = 'AP018';
-rec_day = '2024-02-11';
+rec_day = '2024-02-19';
 
 % workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -27,17 +27,17 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP018';
+animal = 'AM011';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
-workflow = 'visual_conditioning_right';
+% workflow = 'visual_conditioning_right';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-% use_day = 1;
+% use_day = 5+3-1;
 use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
@@ -47,7 +47,7 @@ verbose = true;
 
 % load_parts.mousecam = true;
 % load_parts.widefield = true;
-% load_parts.ephys = true;
+load_parts.ephys = true;
 
 ap.load_recording;
 
@@ -380,17 +380,21 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         structure_outline_aligned)
 
 
-%% Re-kilosort AM016
+%% Re-kilosort AM mice
 
-animal = 'AM016';
-recordings = plab.find_recordings(animal);
-ephys_days = {recordings(vertcat(recordings.ephys)).day};
+% AM014/5/6/7 (AM016 done already)
+animals = {'AM014','AM015','AM017'};
 
-for curr_day = 1:length(ephys_days)
-    AP_print_progress_fraction(curr_day,length(ephys_days));
-    ap.preprocess_neuropixels(animal,ephys_days{curr_day});
+for curr_animal_idx = 1:length(animals)
+    animal = animals{curr_animal_idx};
+    recordings = plab.find_recordings(animal);
+    ephys_days = {recordings(vertcat(recordings.ephys)).day};
+    disp(animal);
+    for curr_day = 1:length(ephys_days)
+        AP_print_progress_fraction(curr_day,length(ephys_days));
+        ap.preprocess_neuropixels(animal,ephys_days{curr_day});
+    end
 end
-
 
 
 

@@ -118,14 +118,14 @@ unit_psth = nan(n_units,length(t_bins)-1,2);
 for curr_align = 1:length(align_times)
     use_align = align_times{curr_align};
     t_peri_event = bsxfun(@plus,use_align,t_bins);
-    for curr_unit = 1:n_units        
+    for curr_unit = 1:n_units
         curr_spikes = spike_times_timeline(spike_templates == curr_unit);
-        
+
         curr_spikes_binned = cell2mat(arrayfun(@(x) ...
             histcounts(curr_spikes,t_peri_event(x,:)), ...
             [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
         curr_mean_psth = mean(curr_spikes_binned,1);
-        
+
         unit_psth(curr_unit,:,curr_align) = curr_mean_psth;
     end
 end
@@ -144,7 +144,7 @@ clim([-2,2]);
 colormap(AP_colormap('BWR'));
 
 
-%% PSTH - MUA by depth 
+%% PSTH - MUA by depth
 
 mua_method = 'even'; % depth, click
 
@@ -201,38 +201,6 @@ switch mua_method
             num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
 end
 
-% Draw units and borders
-figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
-unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
-
-if exist('probe_areas','var')
-    probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
-        probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
-
-    probe_areas_boundaries = probe_areas{1}.probe_depth;
-    probe_areas_centers = mean(probe_areas_boundaries,2);
-
-    probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
-    probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
-        1:height(probe_areas{1}),probe_areas_image_depth, ...
-        'previous','extrap');
-    probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
-
-    image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
-    yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
-    set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
-end
-
-norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
-unit_dots = scatter3( ...
-    norm_spike_n,template_depths(unique(spike_templates)), ...
-    unique(spike_templates),20,'k','filled','ButtonDownFcn',@unit_click);
-multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
-xlim(unit_axes,[-0.1,1]);
-ylim([-50, max(channel_positions(:,2))+50]);
-ylabel('Depth (\mum)')
-xlabel('Normalized log rate')
-
 % Make depth groups
 n_depths = length(depth_group_edges) - 1;
 depth_group = discretize(spike_depths,depth_group_edges);
@@ -257,14 +225,14 @@ depth_psth = nan(n_depths,length(t_bins)-1,2);
 for curr_align = 1:length(align_times)
     use_align = align_times{curr_align};
     t_peri_event = bsxfun(@plus,use_align,t_bins);
-    for curr_depth = 1:n_depths        
+    for curr_depth = 1:n_depths
         curr_spikes = spike_times_timeline(depth_group == curr_depth);
-        
+
         curr_spikes_binned = cell2mat(arrayfun(@(x) ...
             histcounts(curr_spikes,t_peri_event(x,:)), ...
             [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
         curr_mean_psth = mean(curr_spikes_binned,1);
-        
+
         depth_psth(curr_depth,:,curr_align) = curr_mean_psth;
     end
 end
@@ -316,7 +284,7 @@ linkaxes(h.Children,'y');
 ylim([0,3840]);
 
 
-%% Sparse noise? 
+%% Sparse noise?
 
 stim_screen = discretize(noise_locations,[0,128,129,255],-1:1);
 % Get stim times vector (x,y)
@@ -324,7 +292,7 @@ nY = size(stim_screen,1);
 nX = size(stim_screen,2);
 stim_times_grid = cell(nY,nX);
 for x = 1:nX
-    for y = 1:nY      
+    for y = 1:nY
         align_stims = (stim_screen(y,x,1:end-1) == 0) & ...
             (stim_screen(y,x,2:end) == 0);
         align_times = stim_times(find(align_stims)+1);
@@ -350,16 +318,16 @@ smooth_size = 2;
 gw = gausswin(smooth_size,3)';
 smWin = gw./sum(gw);
 for x = 1:nX
-    for y = 1:nY      
-        
+    for y = 1:nY
+
         psth_bin_size = 0.01;
         [psth,bins,rasterX,rasterY,spikeCounts] = psthAndBA( ...
             use_spikes,stim_times_grid{y,x}, ...
             raster_window, psth_bin_size);
-        
+
         psth_smooth = conv2(psth,smWin,'same');
         stim_aligned_avg{y,x} = psth_smooth;
-        
+
     end
 end
 stim_aligned_avg_cat = cell2mat(cellfun(@(x) permute(x,[1,3,2]),stim_aligned_avg,'uni',false));
@@ -434,7 +402,7 @@ switch mua_method
 end
 
 % Draw units and borders
-figure('units','normalized','position',[0.05,0.2,0.1,0.7]); 
+figure('units','normalized','position',[0.05,0.2,0.1,0.7]);
 unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
 
 if exist('probe_areas','var')
@@ -476,9 +444,9 @@ n_depths = length(depth_group_edges) - 1;
 depth_group = discretize(spike_depths,depth_group_edges);
 
 binned_spikes = zeros(n_depths,length(time_bins)-1);
-for curr_depth = 1:n_depths   
-    curr_spike_times = spike_times_timeline(depth_group == curr_depth);    
-    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins); 
+for curr_depth = 1:n_depths
+    curr_spike_times = spike_times_timeline(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
 end
 
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
@@ -492,9 +460,9 @@ zs = [false,false];
 cvfold = 5;
 return_constant = false;
 use_constant = true;
-    
+
 fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
-        
+
 % Regress cortex to spikes
 [k,predicted_spikes,explained_var] = ...
     AP_regresskernel(fVdf_deconv_resample, ...
@@ -524,11 +492,11 @@ figure;
 a1 = axes('YDir','reverse');
 imagesc(wf_avg); colormap(gray); clim([0,prctile(wf_avg(:),99.7)]);
 axis off; axis image;
-a2 = axes('Visible','off'); 
+a2 = axes('Visible','off');
 p = imagesc(r_px_com_col);
 axis off; axis image;
 set(p,'AlphaData',mat2gray(max(r_px_max_norm,[],3), ...
-     [0,double(prctile(reshape(max(r_px_max_norm,[],3),[],1),95))]));
+    [0,double(prctile(reshape(max(r_px_max_norm,[],3),[],1),95))]));
 set(gcf,'color','w');
 
 c1 = colorbar('peer',a1,'Visible','off');
@@ -556,8 +524,8 @@ time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 % Bin spikes
 binned_spikes = zeros(length(use_templates),length(time_bins)-1);
 for curr_unit_idx = 1:length(use_templates)
-    curr_spike_times = spike_times_timeline(spike_templates == use_templates(curr_unit_idx));    
-    binned_spikes(curr_unit_idx,:) = histcounts(curr_spike_times,time_bins); 
+    curr_spike_times = spike_times_timeline(spike_templates == use_templates(curr_unit_idx));
+    binned_spikes(curr_unit_idx,:) = histcounts(curr_spike_times,time_bins);
 end
 
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
@@ -571,9 +539,9 @@ zs = [false,false];
 cvfold = 5;
 return_constant = false;
 use_constant = true;
-    
+
 fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
-        
+
 % Regress cortex to spikes
 [k,predicted_spikes,explained_var] = ...
     AP_regresskernel(fVdf_deconv_resample, ...
@@ -601,6 +569,125 @@ plot_templates_sort = sort_idx(plot_templates(sort_idx));
 AP_imscroll(r_px_timepoint(:,:,plot_templates_sort),plot_templates_sort);
 axis image;
 clim([0,prctile(r_px_timepoint(:),99.9)]);
+
+%% ~~~~~~~~ BATCH
+
+
+%% TESTING BATCH DEPTH MUA
+
+% AM longitudinal mice: 
+% AP009, AM014 (short), AM015 (short), AM016 (off-target days 1-2?), AM017
+% (off-target days 1-2?)
+
+animal = 'AM008';
+use_workflow = 'lcr_passive';
+recordings = plab.find_recordings(animal,[],use_workflow);
+recording_idx = find([recordings.ephys])-3;
+recordings = recordings([recordings.ephys]);
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% Set depth groups
+n_depths = 8;
+depth_group_edges = round(linspace(0,4000,n_depths+1));
+
+day_mua = nan(n_depths,length(t_centers),3,length(recordings));
+
+for curr_recording = 1:length(recordings)
+
+    % Grab pre-load vars
+    preload_vars = who;
+
+    % Load data
+    rec_day = recordings(curr_recording).day;
+    rec_time = recordings(curr_recording).recording{end};
+   
+    load_parts.ephys = true;
+    ap.load_recording;
+
+    % Make depth groups
+    [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+    depth_groups_used = unique(depth_group);
+    depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+    n_depths = length(depth_group_edges) - 1;
+    depth_group = discretize(spike_depths,depth_group_edges);
+
+    % Stim times (quiescent trials only)
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        1:length(stimOn_times))';
+
+    stim_x = vertcat(trial_events.values.TrialStimX);
+    % temp - what happened here, not all trials shown?
+    stim_x = stim_x(1:length(stimOn_times));
+
+    align_times = cellfun(@(x) stimOn_times(stim_x == x & quiescent_trials), ...
+        num2cell(unique(stim_x)),'uni',false);
+
+    depth_psth = nan(n_depths,length(t_bins)-1,2);
+    for curr_align = 1:length(align_times)
+        use_align = align_times{curr_align};
+        t_peri_event = bsxfun(@plus,use_align,t_bins);
+        for curr_depth = 1:n_depths
+            curr_spikes = spike_times_timeline(depth_group == curr_depth);
+
+            curr_spikes_binned = cell2mat(arrayfun(@(x) ...
+                histcounts(curr_spikes,t_peri_event(x,:)), ...
+                [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
+            curr_mean_psth = mean(curr_spikes_binned,1);
+
+            depth_psth(curr_depth,:,curr_align) = curr_mean_psth;
+        end
+    end
+
+    smooth_size = 100;
+    depth_psth_smooth = smoothdata(depth_psth,2,'gaussian',smooth_size);
+
+    depth_psth_smooth_baseline = nanmean(nanmean(depth_psth_smooth(:,t_centers<0,:),2),3);
+
+    softnorm = 150;
+    depth_psth_smooth_norm = (depth_psth_smooth - depth_psth_smooth_baseline)./ ...
+        (depth_psth_smooth_baseline+softnorm);
+
+    % Store MUA
+    day_mua(:,:,:,curr_recording) = depth_psth_smooth_norm;
+
+    % Prep for next loop
+    AP_print_progress_fraction(curr_recording,length(recordings));
+    clearvars('-except',preload_vars{:});
+
+end
+
+plot_mua = squeeze(day_mua(:,:,3,:));
+
+figure;
+tiledlayout('flow');
+
+nexttile;
+imagesc(nanmean(plot_mua,3))
+
+nexttile;
+plot(t_centers,nanmean(nanmean(plot_mua,3),1));
+xline(0);
+xlabel('Time');ylabel('Avg response across days');
+
+nexttile;
+col = copper(size(plot_mua,3));
+hold on; set(gca,'ColorOrder',col);
+plot(t_centers,squeeze(nanmean(plot_mua)));
+xlabel('Time');ylabel('Avg response');
+
+nexttile;
+use_t = t_centers > 0 & t_centers < 0.2;
+plot(recording_idx,squeeze(nanmean(nanmean(plot_mua(:,use_t,:),1),2)),'.-');
+xlabel('Day');ylabel('Max response');
 
 
 

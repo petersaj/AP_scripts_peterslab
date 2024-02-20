@@ -103,11 +103,11 @@ patch(ccf_3d_axes, ...
 
 %% Draw probes (from AP_histology)
 
-animal = 'AP013';
+animal = 'AP009';
 probe_color = 'r';
 
 % Histology probe position files
-histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','probe_ccf.mat');
 histology_fn = dir(histology_filepattern);
 
 load(fullfile(histology_fn.folder,histology_fn.name));
