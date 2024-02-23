@@ -4,21 +4,21 @@
 
 %% Load data (specific day)
 
-animal = 'AP016';
-rec_day = '2024-02-19';
+animal = 'AP015';
+rec_day = '2024-02-23';
 
 % workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
-workflow = 'visual_conditioning_right';
+% workflow = 'visual_conditioning_right';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
-% load_parts.ephys = true;
+load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
@@ -27,18 +27,18 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM011';
+animal = 'AM008';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'visual_conditioning_right';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-% use_day = 5+3-1;
-use_day = length(recordings);
+use_day = 3;
+% use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -382,8 +382,9 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 
 %% Re-kilosort AM mice
 
-% AM014/5/6/7 (AM016 done already)
-animals = {'AM014','AM015','AM017'};
+% AM014/5/6/7
+% now doing 11/12
+animals = {'AM011','AM012'};
 
 for curr_animal_idx = 1:length(animals)
     animal = animals{curr_animal_idx};

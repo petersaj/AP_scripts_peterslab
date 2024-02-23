@@ -575,10 +575,6 @@ clim([0,prctile(r_px_timepoint(:),99.9)]);
 
 %% TESTING BATCH DEPTH MUA
 
-% AM longitudinal mice: 
-% AP009, AM014 (short), AM015 (short), AM016 (off-target days 1-2?), AM017
-% (off-target days 1-2?)
-
 animal = 'AM008';
 use_workflow = 'lcr_passive';
 recordings = plab.find_recordings(animal,[],use_workflow);

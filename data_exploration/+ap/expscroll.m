@@ -117,7 +117,7 @@ if gui_data.plot_ephys
     gui_data.ephys_tmark = xline(gui_data.t_curr,'r');
     xlim(gui_data.ephys_axis,ephys_xlim);
     clim(gui_data.ephys_axis,[0,max(gui_data.ephys,[],'all')*0.5]);
-    colormap(gui_data.ephys_axis,AP_colormap('WK'));
+    colormap(gui_data.ephys_axis,ap.colormap('WK'));
 end
 
 % Set up scrollbar (use timer function to prevent lag)
