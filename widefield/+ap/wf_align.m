@@ -26,21 +26,16 @@ function [im_aligned,im_tform] = wf_align(im_unaligned,animal,day,align_type,mas
 
 %% Initialize
 
-% Set path with saved alignments
+% Set filename for saved alignments
 alignment_path = fullfile(plab.locations.server_path,'Users','Andy_Peters','widefield_alignment');
+alignment_path_animal = fullfile(alignment_path,'animal_alignment');
+alignment_filename = fullfile(alignment_path_animal,sprintf('wf_alignment_%s.mat',animal));
+
 if ~exist(alignment_path,'dir')
     mkdir(alignment_path)
 end
-
-% Load transform structure
-wf_tform_fn = fullfile(alignment_path,'wf_tform.mat');
-% (if it doesn't exist yet, create it)
-if ~exist(wf_tform_fn,'file')
-    wf_tform = struct('animal',cell(0),'day',cell(0),'day_tform',cell(0), ...
-        'ref_size',cell(0),'animal_tform',cell(0),'master_ref_size',cell(0));
-    save(wf_tform_fn,'wf_tform');
-else
-    load(wf_tform_fn);
+if ~exist(alignment_path_animal,'dir')
+    mkdir(alignment_path_animal)
 end
 
 % Set empty align_type if unassigned
@@ -48,12 +43,10 @@ if ~exist('align_type','var')
     align_type = '';
 end
 
-%% Apply or create alignment
-
 switch align_type
     
     case 'new_days'
-        %% Align all days from one animal
+        %% Create across-day alignments for animal
         % (only run once for each animal - aligns to iterative average)
 
         % If no unaligned images, find and load all average images
@@ -70,7 +63,7 @@ switch align_type
                 im_unaligned{curr_day_idx} = single(readNPY(curr_avg_im_fn));
             end
         end
-        
+      
         % Set output size as the largest image
         [im_y,im_x] = cellfun(@size,im_unaligned);
         
@@ -171,18 +164,13 @@ switch align_type
 
         % If user selected save, save transform matrix into structure
         if strcmp(user_input,'s')
-            curr_animal_idx = strcmp(animal,{wf_tform.animal});
-            if isempty(curr_animal_idx) || ~any(curr_animal_idx)
-                % (if not already extant, make new)
-                curr_animal_idx = length(wf_tform) + 1;
-                wf_tform(curr_animal_idx).animal = animal;
-            end
+            wf_tform = struct;
+            wf_tform.animal = animal;
+            wf_tform.day = reshape(day,[],1);
+            wf_tform.day_tform = tform_matrix;
+            wf_tform.ref_size = ref_size;
             
-            wf_tform(curr_animal_idx).day = reshape(day,[],1);
-            wf_tform(curr_animal_idx).day_tform = tform_matrix;
-            wf_tform(curr_animal_idx).ref_size = ref_size;
-            
-            save(wf_tform_fn,'wf_tform');
+            save(alignment_filename,'wf_tform');
             disp(['Saved day transforms for ' animal '.'])
         elseif strcmp(user_input,'q')
             disp('Alignment not saved');
@@ -301,7 +289,7 @@ switch align_type
         end
         
     case 'create_submaster'
-        %% Make submaster for new type, aligned to master
+        %% Make submaster for new type, aligned to master VFS
         
         disp('Creating new submaster VFS...')
         
@@ -432,7 +420,7 @@ switch align_type
         
 
     case 'new_animal'
-        %% Align animal to master VFS
+        %% Create across-animal alignment for animal to master VFS
         
         if ~exist('master_align') || isempty(master_align)
             % Align master VFS by default          
@@ -480,65 +468,62 @@ switch align_type
         ap.wf_draw('ccf',[0.5,0.5,0.5]);
         title('Aligned')
         
-        % Save transform matrix into structure
-        if ~isempty(animal)
-            curr_animal_idx = strcmp(animal,{wf_tform.animal});
-            if isempty(curr_animal_idx) || ~any(curr_animal_idx)
-                % (if not already extant, make new)
-                curr_animal_idx = length(wf_tform) + 1;
-                confirm_save = true;
-            else
-                % (if extant, prompt to overwrite)
-                confirm_save = strcmp(input( ...
-                    ['Overwrite animal transform for ' animal '? (y/n): '], ...
-                    's'),'y');
-            end
-            if confirm_save
-                wf_tform(curr_animal_idx).animal = animal;
-                wf_tform(curr_animal_idx).animal_tform = im_tform.T;
-                wf_tform(curr_animal_idx).master_ref_size = ref_size;
-                save(wf_tform_fn,'wf_tform');
-                disp(['Saved new animal alignment for ' animal '.'])
-            else
-                disp('Not overwriting.')
-            end
+        % Save transform matrix into previously saved alignment file
+        if ~exist(alignment_filename,'file')
+            error('%s: no day alignments saved',animal);
         end
-                
+
+        load(alignment_filename);
+
+        confirm_save = strcmp(input( ...
+            ['Save animal alignment for ' animal '? (y/n): '], ...
+            's'),'y');     
+        if confirm_save
+            wf_tform.animal_tform = im_tform.T;
+            wf_tform.master_ref_size = ref_size;
+            save(alignment_filename,'wf_tform');
+            disp(['Saved new animal alignment for ' animal '.'])
+        else
+            disp('Not overwriting.')
+        end
+
         
     otherwise
         %% Apply alignments to data
-        
-        % Find animal and day index within wf_tform structure
-        curr_animal_idx = strcmp(animal,{wf_tform.animal});
-        if ~any(curr_animal_idx)
-           error(['No alignments found for ' animal]);
+
+        % Load animal alignment
+        if exist(alignment_filename,'file')
+            load(alignment_filename)
+        else 
+            error('No alignments found for %s', animal);
         end
-        
-        curr_day_idx = strcmp(day,wf_tform(curr_animal_idx).day);
+
+        % Check for day alignment
+        curr_day_idx = strcmp(day,wf_tform.day);
         if ~any(curr_day_idx) && ~strcmp(align_type,'animal_only')
-           error(['No ' animal ' alignment found for ' day]);
+            error('No %s alignment found for %s',animal,day);
         end
              
         switch align_type
             case 'day_only'
                 % Align day only (ignore animal, even if present)
-                curr_tform = wf_tform(curr_animal_idx).day_tform{curr_day_idx};
-                ref_size = wf_tform(curr_animal_idx).ref_size;
+                curr_tform = wf_tform.day_tform{curr_day_idx};
+                ref_size = wf_tform.ref_size;
             case 'animal_only'
                 % Align animal only (used if already day-aligned)
-                curr_tform = wf_tform(curr_animal_idx).animal_tform;
-                ref_size = wf_tform(curr_animal_idx).master_ref_size;
+                curr_tform = wf_tform.animal_tform;
+                ref_size = wf_tform.master_ref_size;
             otherwise
                 % Apply both day and animal alignments (if available)
-                curr_day_tform = wf_tform(curr_animal_idx).day_tform{curr_day_idx};
-                if ~isempty(wf_tform(curr_animal_idx).animal_tform)
-                    curr_animal_tform = wf_tform(curr_animal_idx).animal_tform;
+                curr_day_tform = wf_tform.day_tform{curr_day_idx};
+                if ~isempty(wf_tform.animal_tform)
+                    curr_animal_tform = wf_tform.animal_tform;
                     curr_tform = curr_day_tform*curr_animal_tform;
-                    ref_size = wf_tform(curr_animal_idx).master_ref_size;
+                    ref_size = wf_tform.master_ref_size;
                 else
                     warning([animal ' ' day ': No animal alignment']);
                     curr_tform = curr_day_tform;
-                    ref_size = wf_tform(curr_animal_idx).ref_size;
+                    ref_size = wf_tform.ref_size;
                 end               
         end
             

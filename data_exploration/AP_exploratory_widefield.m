@@ -26,10 +26,10 @@ elseif contains(bonsai_workflow,'stim_wheel')
     rewarded_trials = logical([trial_events.values.Outcome]');
 
     use_trials = rewarded_trials(1:n_trials);
-%     align_times = [ ...
-%         stimOn_times(use_trials); ...
-%         stim_move_time(use_trials); ...
-%         reward_times_task(use_trials)];
+    %     align_times = [ ...
+    %         stimOn_times(use_trials); ...
+    %         stim_move_time(use_trials); ...
+    %         reward_times_task(use_trials)];
     align_times = [ ...
         stimOn_times(use_trials); ...
         stim_move_time(use_trials); ...
@@ -37,13 +37,13 @@ elseif contains(bonsai_workflow,'stim_wheel')
     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
-%     use_trials = rewarded_trials(1:n_trials);
-%     align_times = reshape([ ...
-%         stimOn_times(use_trials), ...
-%         stim_move_time(use_trials), ...
-%         reward_times(1:sum(rewarded_trials))],[],1);
-%     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
-%     baseline_times = repmat(stimOn_times(use_trials),3,1);
+    %     use_trials = rewarded_trials(1:n_trials);
+    %     align_times = reshape([ ...
+    %         stimOn_times(use_trials), ...
+    %         stim_move_time(use_trials), ...
+    %         reward_times(1:sum(rewarded_trials))],[],1);
+    %     align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
+    %     baseline_times = repmat(stimOn_times(use_trials),3,1);
 
 elseif contains(bonsai_workflow,'sparse_noise')
 
@@ -134,23 +134,22 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM011';
+animal = 'AP016';
 
 ap.wf_align([],animal,[],'new_days');
 
-%% Create animal alignment (sparse noise retinotopy: batch, save, align)
-% NOTE: need to do day alignment first
+%% Batch sparse noise retinotopy
 
-animal = 'AM011';
-overwrite_retinotopy = false;
+% animals = {'AP014','AP015'};
 
-% Check if aligned mean retinotopy is saved, create if not
-alignment_path = fullfile(plab.locations.server_path, ...
-    'Users','Andy_Peters','widefield_alignment');
-retinotopy_path = fullfile(alignment_path,'retinotopy');
-retinotopy_fn = fullfile(retinotopy_path,sprintf('%s_retinotopy.mat',animal));
+animals = {'AP016'};
 
-if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
+for curr_animal = 1:length(animals)
+
+    preload_vars = who;
+
+    animal = animals{curr_animal};
+
     workflow = 'sparse_noise';
     recordings = plab.find_recordings(animal,[],workflow);
 
@@ -163,32 +162,58 @@ if overwrite_retinotopy || ~exist(retinotopy_fn,'file')
         load_parts.widefield = true;
         load_parts.widefield_align = false;
         verbose = true;
-
         try
             ap.load_recording;
             ap.wf_retinotopy;
             vfs_all{curr_day} = vfs;
         catch me
+            % If there's an error, skip to next day
+            continue
         end
     end
 
     % Save retinotopy from all days which have VFS
+    retinotopy_fn = fullfile(plab.locations.server_path, ...
+        'Users','Andy_Peters','widefield_alignment','retinotopy', ...
+        sprintf('retinotopy_%s.mat',animal));
+
     use_recordings = cellfun(@(x) ~isempty(x),vfs_all);
-    retinotopy = struct('animal',animal,'day', ...
-        reshape({recordings(use_recordings).day},[],1), ...
-        'vfs',vfs_all(use_recordings));
+
+    retinotopy = struct;
+    retinotopy.animal = animal;
+    retinotopy.day = {recordings(use_recordings).day};
+    retinotopy.vfs = vfs_all;
+
     save(retinotopy_fn,'retinotopy');
     fprintf('Saved %s\n',retinotopy_fn);
+
+    % Clear variables for next loop
+    clearvars -except preload_vars
+
 end
 
+
+%% Create animal alignment (sparse noise retinotopy: batch, save, align)
+% NOTE: need to do day alignment first
+
+animal = 'AP016';
+
 % Load pre-saved retinotopy
-load(retinotopy_fn);
+retinotopy_fn = fullfile(plab.locations.server_path, ...
+    'Users','Andy_Peters','widefield_alignment','retinotopy', ...
+    sprintf('retinotopy_%s.mat',animal));
+
+if exist(retinotopy_fn,'file')
+    load(retinotopy_fn);
+else
+    error('No retinotopy saved: %s',animal);
+end
 
 % Align VFS across days
 aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
-        aligned_vfs{curr_day} = ap.wf_align(retinotopy(curr_day).vfs, ...
-            retinotopy(1).animal,retinotopy(curr_day).day,'day_only');
+    aligned_vfs{curr_day} = ap.wf_align(retinotopy(curr_day).vfs, ...
+        retinotopy(1).animal,retinotopy(curr_day).day,'day_only');
 end
 
 % Plot day-aligned VFS
@@ -204,9 +229,9 @@ ap.wf_align(vfs_mean,animal,[],'new_animal');
 % Plot master-aligned average VFS with CCF overlay
 master_aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
-        master_aligned_vfs{curr_day} = ...
-            ap.wf_align(retinotopy(curr_day).vfs, ...
-            animal,retinotopy(curr_day).day);
+    master_aligned_vfs{curr_day} = ...
+        ap.wf_align(retinotopy(curr_day).vfs, ...
+        animal,retinotopy(curr_day).day);
 end
 figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
 colormap(AP_colormap('BWR'));clim([-1,1]);
@@ -216,7 +241,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AP005';
+animal = 'AP016';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -232,20 +257,93 @@ for curr_day = 1:length(wf_recordings)
     avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
     avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
 
-%     % (to concatenate)
-%     avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
-%         ap.wf_align(avg_im_h,animal,day)];
+    %     % (to concatenate)
+    %     avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
+    %         ap.wf_align(avg_im_h,animal,day)];
 
     % (blue only)
     avg_im_aligned{curr_day} = ap.wf_align(avg_im_n,animal,day);
 end
 
 % Plot average
-c = prctile(reshape([avg_im_aligned{:}],[],1),[0,98]);
+c = prctile(reshape([avg_im_aligned{:}],[],1),[0,99.9]);
 AP_imscroll(cat(3,avg_im_aligned{:}),{wf_recordings.day});
 caxis(c);
 axis image;
 set(gcf,'Name',animal);
+
+%% Regression task > widefield
+
+% Parameters for regression
+regression_params.use_svs = 1:100;
+regression_params.skip_seconds = 20;
+regression_params.upsample_factor = 1;
+regression_params.kernel_t = [-0.1,0.1];
+regression_params.zs = [false,false];
+regression_params.cvfold = 5;
+regression_params.use_constant = true;
+
+% Get time points to bin
+time_bin_centers = wf_t;
+time_bins = [wf_t;wf_t(end)+1/wf_framerate];
+
+% Regressors
+stim_regressors = histcounts(stimOn_times,time_bins);
+reward_regressors = histcounts(reward_times,time_bins);
+
+% stim_move_regressors = histcounts(stim_move_time,time_bins);
+% nonstim_move_times = ...
+%     setdiff(timelite.timestamps(find(diff(wheel_move) == 1)+1), ...
+%     stim_move_regressors);
+% nonstim_move_regressors = histcounts(nonstim_move_times,time_bins);
+
+
+% Concatenate selected regressors, set parameters
+% task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
+% task_regressor_labels = {'Stim','Reward','Stim move','Nonstim move'};
+% 
+% task_t_shifts = { ...
+%     [-0.2,2]; ... % stim
+%     [-0.2,2];  ... % outcome
+%     [-0.2,2];  ... % nonstim move
+%     [-0.2,2]};    % stim move
+
+task_regressors = {stim_regressors;reward_regressors};
+task_regressor_labels = {'Stim','Reward'};
+
+task_t_shifts = { ...
+    [-0.2,2]; ... % stim
+    [-0.2,2]};    % reward
+
+task_regressor_sample_shifts = cellfun(@(x) round(x(1)*(wf_framerate)): ...
+    round(x(2)*(wf_framerate)),task_t_shifts,'uni',false);
+lambda = 0;
+zs = [false,false];
+cvfold = 5;
+use_constant = true;
+return_constant = false;
+use_svs = 100;
+
+[fluor_taskpred_k,fluor_taskpred_long,fluor_taskpred_expl_var,fluor_taskpred_reduced_long] = ...
+    AP_regresskernel(task_regressors,wf_V(1:use_svs,:),task_regressor_sample_shifts, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+% 
+% fluor_taskpred = ...
+%     interp1(time_bin_centers,fluor_taskpred_long',t_peri_event);
+% 
+% fluor_taskpred_reduced = cell2mat(arrayfun(@(x) ...
+%     interp1(time_bin_centers,fluor_taskpred_reduced_long(:,:,x)', ...
+%     t_peri_event),permute(1:length(task_regressors),[1,3,4,2]),'uni',false));
+
+
+
+a = cellfun(@(x) plab.wf.svd2px(wf_U(:,:,1:use_svs), ...
+    permute(x,[3,2,1])),fluor_taskpred_k,'uni',false);
+
+AP_imscroll(cat(4,a{:}));
+axis image;
+clim(max(abs(clim)).*[-1,1]); 
+colormap(AP_colormap('PWG'));
 
 
 %% ~~~~~~~~ BATCH
@@ -264,7 +362,7 @@ recordings = plab.find_recordings(animal,[],use_workflow);
 wf_px = cell(size(recordings));
 
 for curr_recording = 1:length(recordings)
-    
+
     % Grab pre-load vars
     preload_vars = who;
 
