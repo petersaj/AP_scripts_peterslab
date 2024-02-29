@@ -115,50 +115,52 @@ title(sprintf('%s, %s',animal,rec_day));
 
 
 %% Align retinotopy to master retinotopy
-% Plot CCF areas and coordinates aligned to master retinotopy
+% (TURNING THIS OFF)
+% % Plot CCF areas and coordinates aligned to master retinotopy
+% 
+% % Align retinotopy to CCF 
+% [vfs_ccf_aligned,im_tform] = ap.wf_align(vfs,[],[],'new_animal');
+% close(gcf);
+% 
+% % Apply alignment to average image
+% wf_avg_aligned = imwarp(wf_avg,im_tform,'Outputview',imref2d(size(vfs_ccf_aligned)));
+% 
+% figure('color','w');
+% tiledlayout('flow','TileSpacing','tight');
+% 
+% % Plot retinotopy with CCF overlay
+% h = nexttile;
+% imagesc(vfs_ccf_aligned);
+% axis image off;
+% colormap(h,AP_colormap('BWR'));
+% ap.wf_draw('ccf','k');
+% 
+% % Plot average image with retinotopy/CCF/grid overlay
+% h = nexttile;
+% imagesc(wf_avg_aligned);
+% axis image off;
+% colormap(h,'gray');
+% ap.wf_draw('ccf','b');
+% % ap.wf_draw('grid_aligned','y');
 
-% Align retinotopy to CCF 
-[vfs_ccf_aligned,im_tform] = ap.wf_align(vfs,[],[],'new_animal');
-close(gcf);
-
-% Apply alignment to average image
-wf_avg_aligned = imwarp(wf_avg,im_tform,'Outputview',imref2d(size(vfs_ccf_aligned)));
-
-figure('color','w');
-tiledlayout('flow','TileSpacing','tight');
-
-% Plot retinotopy with CCF overlay
-h = nexttile;
-imagesc(vfs_ccf_aligned);
-axis image off;
-colormap(h,AP_colormap('BWR'));
-ap.wf_draw('ccf','k');
-
-% Plot average image with retinotopy/CCF/grid overlay
-h = nexttile;
-imagesc(wf_avg_aligned);
-axis image off;
-colormap(h,'gray');
-ap.wf_draw('ccf','b');
-% ap.wf_draw('grid_aligned','y');
 
 %% Plot average/VFS overlay
-
-figure;
-ax_avg = axes;
-ax_vfs = axes;
-h1 = imagesc(ax_avg,wf_avg_aligned);
-colormap(ax_avg,gray);
-clim(ax_avg,prctile(wf_avg(:),[20,99]));
-h2 = imagesc(ax_vfs,vfs_ccf_aligned);
-colormap(ax_vfs,AP_colormap('BWR'));
-clim(ax_vfs,[-1,1]);
-set(ax_avg,'Visible','off');
-axes(ax_avg); axis image off;
-set(ax_vfs,'Visible','off');
-axes(ax_vfs); axis image off;
-set(h2,'AlphaData',mat2gray(abs(vfs_ccf_aligned))*0.5);
-colormap(ax_avg,gray);
-linkaxes([ax_avg,ax_vfs]);
+% (TURNING THIS OFF)
+% figure;
+% ax_avg = axes;
+% ax_vfs = axes;
+% h1 = imagesc(ax_avg,wf_avg_aligned);
+% colormap(ax_avg,gray);
+% clim(ax_avg,prctile(wf_avg(:),[20,99]));
+% h2 = imagesc(ax_vfs,vfs_ccf_aligned);
+% colormap(ax_vfs,AP_colormap('BWR'));
+% clim(ax_vfs,[-1,1]);
+% set(ax_avg,'Visible','off');
+% axes(ax_avg); axis image off;
+% set(ax_vfs,'Visible','off');
+% axes(ax_vfs); axis image off;
+% set(h2,'AlphaData',mat2gray(abs(vfs_ccf_aligned))*0.5);
+% colormap(ax_avg,gray);
+% linkaxes([ax_avg,ax_vfs]);
 
 

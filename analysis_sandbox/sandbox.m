@@ -5,12 +5,12 @@
 %% Load data (specific day)
 
 animal = 'AP016';
-rec_day = '2024-02-09';
+rec_day = '2024-02-29';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-workflow = 'sparse_noise';
+% workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
 % workflow = 'visual_conditioning_right';
@@ -19,7 +19,7 @@ rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
 % load_parts.ephys = true;
-load_parts.mousecam = true;
+% load_parts.mousecam = true;
 
 verbose = true;
 ap.load_recording;
@@ -29,16 +29,16 @@ ap.load_recording;
 
 animal = 'AP016';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-% workflow = 'sparse_noise';
+workflow = 'sparse_noise';
 % workflow = 'visual_conditioning_right';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-use_day = 3;
-% use_day = length(recordings)-5;
+% use_day = 3;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};

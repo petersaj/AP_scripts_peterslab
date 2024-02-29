@@ -152,16 +152,17 @@ for curr_animal = 1:length(animals)
 
     workflow = 'sparse_noise';
     recordings = plab.find_recordings(animal,[],workflow);
+    recordings_wf = recordings([recordings.widefield]);
 
-    vfs_all = cell(length(recordings),1);
+    vfs_all = cell(length(recordings_wf),1);
     disp('Creating retinotopy...');
-    for curr_day = 1:length(recordings)
-        rec_day = recordings(curr_day).day;
-        rec_time = recordings(curr_day).recording{end};
+    for curr_day = 1:length(recordings_wf)
+        rec_day = recordings_wf(curr_day).day;
+        rec_time = recordings_wf(curr_day).recording{end};
 
         load_parts.widefield = true;
         load_parts.widefield_align = false;
-        verbose = true;
+        verbose = false;
         try
             ap.load_recording;
             ap.wf_retinotopy;
@@ -193,7 +194,7 @@ for curr_animal = 1:length(animals)
 end
 
 
-%% Create animal alignment (sparse noise retinotopy: batch, save, align)
+%% Create animal alignment (animal average VFS to master VFS)
 % NOTE: need to do day alignment first
 
 animal = 'AP016';
@@ -210,10 +211,10 @@ else
 end
 
 % Align VFS across days
-aligned_vfs = cell(length(retinotopy),1);
-for curr_day = 1:length(retinotopy)
-    aligned_vfs{curr_day} = ap.wf_align(retinotopy(curr_day).vfs, ...
-        retinotopy(1).animal,retinotopy(curr_day).day,'day_only');
+aligned_vfs = cell(length(retinotopy.vfs),1);
+for curr_day = 1:length(retinotopy.vfs)
+    aligned_vfs{curr_day} = ap.wf_align(retinotopy.vfs{curr_day}, ...
+        retinotopy.animal,retinotopy.day{curr_day},'day_only');
 end
 
 % Plot day-aligned VFS
@@ -230,8 +231,8 @@ ap.wf_align(vfs_mean,animal,[],'new_animal');
 master_aligned_vfs = cell(length(retinotopy),1);
 for curr_day = 1:length(retinotopy)
     master_aligned_vfs{curr_day} = ...
-        ap.wf_align(retinotopy(curr_day).vfs, ...
-        animal,retinotopy(curr_day).day);
+        ap.wf_align(retinotopy.vfs{curr_day}, ...
+        animal,retinotopy.day{curr_day});
 end
 figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
 colormap(AP_colormap('BWR'));clim([-1,1]);
