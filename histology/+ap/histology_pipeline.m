@@ -68,7 +68,7 @@ AP_get_probe_histology(tv,av,st,slice_path);
 % RUN THIS LINE BY LINE
 
 % Set animal and plot probe positions
-animal = 'AM010';
+animal = 'AP014';
 ap.plot_probe_positions(animal);
 
 % Day selection for each histology trajectory
@@ -90,7 +90,7 @@ disp(['Saved ' probe_ccf_filename]);
 
 %% Align histology depth to recording
 
-animal = 'AM010';
+animal = 'AP014';
 
 probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
     'histology','*','probe_ccf.mat'));
@@ -157,7 +157,7 @@ for curr_probe = 1:length(probe_ccf)
 
 end
 
-% Add probe depth information to the trajectory areas from alignment
+% Save probe depth
 for curr_probe = 1:length(probe_ccf)
     curr_probe_depth = round(ylim(probe_ax(curr_probe)));
     probe_ccf(curr_probe).trajectory_areas.probe_depth = ...
@@ -223,7 +223,16 @@ for curr_probe = 1:length(probe_ccf)
     end
 end
 
+%% Testing: depth alignment tool 
 
+allen_atlas_path = fileparts(which('template_volume_10um.npy'));
+st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
+
+slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP014\histology\processed';
+
+use_probe = 1;
+AP_align_probe_histology(st,slice_path, ...
+    spike_times_timeline,spike_templates,template_depths,1);
 
 
 

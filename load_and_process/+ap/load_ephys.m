@@ -6,7 +6,7 @@ if verbose; disp('Loading Ephys...'); end
 %% Load and prepare Kilosort data
 
 % Get path for raw data and kilosort for given recording
-kilosort_top_path = fullfile(ephys_path,'pykilosort');
+kilosort_top_path = fullfile(ephys_path,'kilosort4');
 kilosort_dir = dir(kilosort_top_path);
 
 if ~any(contains({kilosort_dir.name},{'site','probe'}))
@@ -74,7 +74,7 @@ end
 
 % (spike times: index Open Ephys timestamps rather than assume constant
 % sampling rate as before, this accounts for potentially dropped data)
-spike_templates = readNPY(fullfile(kilosort_path,'spike_templates.npy'))+1; % (convert 0-idx to 1-idx)
+spike_templates = readNPY(fullfile(kilosort_path,'spike_clusters.npy'))+1; % (convert 0-idx to 1-idx)
 templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
 channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
 channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));

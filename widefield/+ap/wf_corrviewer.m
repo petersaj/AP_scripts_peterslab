@@ -101,7 +101,7 @@ else
     % cax = caxis();
     % caxis([-max(abs(cax)) max(abs(cax))]);
     colorbar
-    colormap(AP_colormap('BWR',[],3));
+    colormap(ap.colormap('BWR',[],3));
     set(h, 'HitTest', 'off');
 end
 % set(gca, 'YDir', 'normal');

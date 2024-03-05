@@ -49,15 +49,38 @@ linkaxes(get(h,'Children'),'x');
 %     xline(stimOn_times(stim_azimuth == 90),'r');
 % end
 
-%% Bin unit firing by widefield frames
+%% MUA correlelogram
 
-% (not totally sure this is right yet - is wf_t start of frame?)
-spike_binning_t_edges = [wf_t;wf_t(end)+1/wf_framerate];
+% Get correlation of MUA in sliding sindows
+depth_corr_window = 50; % MUA window in microns
+depth_corr_window_spacing = 10; % MUA window spacing in microns
 
-use_unit = 18;
+max_depths = 3840; % (hardcode, sometimes kilosort2 drops channels)
 
-binned_unit_spikes = histcounts(spike_times_timeline( ...
-    ismember(spike_templates,use_unit)),spike_binning_t_edges);
+depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); ...
+    (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
+depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
+
+spike_binning_t = 0.01; % seconds
+spike_binning_t_edges = nanmin(spike_times_timeline):spike_binning_t:nanmax(spike_times_timeline);
+
+binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
+for curr_depth = 1:size(depth_corr_bins,2)
+    curr_depth_templates_idx = ...
+        find(template_depths >= depth_corr_bins(1,curr_depth) & ...
+        template_depths < depth_corr_bins(2,curr_depth));
+    
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timeline( ...
+        ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
+end
+
+mua_corr = corrcoef(binned_spikes_depth');
+
+figure;
+imagesc(mua_corr);
+axis image;
+clim([-1,1].*0.5);
+colormap(ap.colormap('BWR'))
 
 
 %% Cell raster
@@ -346,7 +369,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % depth, click
+mua_method = 'click'; % depth, click
 
 switch mua_method
 

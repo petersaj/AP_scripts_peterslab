@@ -18,17 +18,19 @@ savePath = fullfile(kilosort_path,'qMetrics');
 % Is this even necessary? what's it used for?)
 ephys_meta_dir = dir(meta_filename);
 
+% Load data
+[spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, ...
+    pcFeatureIdx, channelPositions] = bc_loadEphysData(kilosort_path);
+
 % Set parameters (load default, overwrite custom)
 param = bc_qualityParamValues(ephys_meta_dir, ap_band_filename);
-param.nChannels = 384;
+param.nChannels = size(templateWaveforms,3);
+param.spikeWidth = size(templateWaveforms,2);
 param.nSyncChannels = 0;
 param.extractRaw = 1;
 param.plotGlobal = false;
 param.plotDetails = false;
-
-% Load data
-[spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, ...
-    pcFeatureIdx, channelPositions] = bc_loadEphysData(kilosort_path);
+param.maxWvBaselineFraction = Inf;
 
 % Run quality metrics
 [qMetric, unitType] = bc_runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
