@@ -1,7 +1,9 @@
 % Load electrophysiology data
 
 ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
-if verbose; disp('Loading Ephys...'); end
+kilosort_folder = 'kilosort4';
+
+if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
 
 %% Load and prepare Kilosort data
 
@@ -79,7 +81,7 @@ templates_whitened = readNPY(fullfile(kilosort_path,'templates.npy'));
 channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
 channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));
 winv = readNPY(fullfile(kilosort_path,'whitening_mat_inv.npy'));
-template_amplitudes = readNPY(fullfile(kilosort_path,'amplitudes.npy'));
+template_amplitudes = double(readNPY(fullfile(kilosort_path,'amplitudes.npy')));
 
 % Default channel map/positions are from end: make from surface
 % (hardcode this: kilosort2 drops channels)
@@ -249,7 +251,7 @@ if strcmp(ephys_qc_type,'bombcell')
 
         % Define good units from labels
         good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
-        if verbose; disp('Ephys: applying Bombcell quality metrics...'); end
+        if verbose; fprintf('Ephys: Applying Bombcell quality metrics...'); end
     else
         warning('Bombcell metrics not available');
         return
@@ -269,7 +271,7 @@ elseif strcmp(ephys_qc_type,'phy')
     % manual labels exist
     if exist('cluster_groups','var')
         % If there's a manual classification
-        if verbose; disp('Keeping manually labelled good units...'); end
+        if verbose; disp('Ephys: Keeping manually labelled good units...'); end
 
         % Check that all used spike templates have a label
         spike_templates_unique_0idx = unique(spike_templates)-1;
@@ -309,6 +311,9 @@ spike_times_timeline = spike_times_timeline(good_spikes);
 
 % Rename the remaining spike templates (1:N, to match index for template)
 [~,spike_templates] = ismember(spike_templates,find(good_templates));
+
+if verbose; fprintf('kept %d/%d "good" units...\n',sum(good_templates),length(good_templates)); end
+
 
 
 

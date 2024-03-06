@@ -251,12 +251,12 @@ for curr_animal_idx = 1:length(animals)
     if any(learned_day)
         AP_errorfill(surround_time_points,frac_move_stimalign(learned_day,:)', ...
             0.02,[0,1,0],0.1,false);
+        
+        % Store learned day across animals
+        learned_day_all(curr_animal_idx) = find(learned_day,1);
     end
 
     drawnow;
-
-    % Store learned day across animals
-    learned_day_all(curr_animal_idx) = find(learned_day,1);
 
 end
 

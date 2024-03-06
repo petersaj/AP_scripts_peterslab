@@ -27,11 +27,11 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM010';
+animal = 'AP016';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'visual_conditioning_right';
 
@@ -45,9 +45,9 @@ rec_time = recordings(use_day).recording{end};
 
 verbose = true;
 
-% load_parts.mousecam = true;
+load_parts.mousecam = true;
 % load_parts.widefield = true;
-load_parts.ephys = true;
+% load_parts.ephys = true;
 
 ap.load_recording;
 
@@ -322,7 +322,7 @@ ccf_bregma_tform = affine3d(ccf_bregma_tform_matrix);
 
 % (transform points, a = gco);
 [ml,ap,dv] = transformPointsForward(ccf_bregma_tform, ...
-    a.YData,a.XData,a.ZData);
+    probe.YData,probe.XData,probe.ZData);
 
 
 %% Plot CCF deep areas over widefield image
@@ -396,6 +396,31 @@ for curr_animal_idx = 1:length(animals)
         ap.preprocess_neuropixels(animal,ephys_days{curr_day});
     end
 end
+
+%% Cambridge Neurotech code read
+
+txt = fileread("C:\Users\petersa\Desktop\ASSY-276-E-1.json");
+% txt = fileread("C:\Users\petersa\Desktop\ASSY-158-H8.json");
+probe = jsondecode(txt);
+
+[a,b,c] = unique(probe.probes.shank_ids);
+m = lines(length(a));
+x = probe.probes.contact_positions;
+figure;scatter(x(:,1),x(:,2),20,m(c,:),'filled')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

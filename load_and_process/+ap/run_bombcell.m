@@ -24,21 +24,30 @@ ephys_meta_dir = dir(meta_filename);
 
 % Set parameters (load default, overwrite custom)
 param = bc_qualityParamValues(ephys_meta_dir, ap_band_filename);
-param.nChannels = size(templateWaveforms,3);
+param.nChannels = 384;
 param.spikeWidth = size(templateWaveforms,2);
 param.nSyncChannels = 0;
 param.extractRaw = 1;
 param.plotGlobal = false;
 param.plotDetails = false;
-param.maxWvBaselineFraction = Inf;
+
+% Kilosort4: baseline is a different window than <4
+kilosort4_flag = contains(kilosort_path,'kilosort4');
+if kilosort4_flag
+    param.waveformBaselineWindowStart = 1;
+    param.waveformBaselineWindowStop = 10;
+end
 
 % Run quality metrics
 [qMetric, unitType] = bc_runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
     templateWaveforms,templateAmplitudes,pcFeatures,pcFeatureIdx,channelPositions, savePath);
 
 % Load raw waveforms to run extra template vs. raw quality metrics
-rawWaveforms.average = readNPY([fullfile(savePath, 'templates._bc_rawWaveforms.npy')]);
-rawWaveforms.peakChan = readNPY([fullfile(savePath, 'templates._bc_rawWaveformPeakChannels.npy')]);
+% (load channel map to use only channels used by kilosort)
+channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'))+1; % 0-idx > 1-idx
+
+rawWaveforms.average_full = readNPY([fullfile(savePath, 'templates._bc_rawWaveforms.npy')]);
+rawWaveforms.average = rawWaveforms.average_full(:,channel_map,:);
 
 % Correlate template/raw waveforms concatenated across non-zero channels
 new_raw_waveforms = permute(rawWaveforms.average, [1 3 2]);
@@ -50,8 +59,7 @@ for unit_idx=1:size(new_raw_waveforms, 1)
 
     [template_max_amplitude, template_max_channel] = max(max(abs(templateWaveforms(unit_idx, :, :)), [], 2), [], 3);
 
-    zero_channel_idx = arrayfun(@(X) all(temp_template_waveforms(:,X) < 0.05* template_max_amplitude...
-        & temp_template_waveforms(:,X) > -0.05* template_max_amplitude), [1:param.nChannels]);
+    zero_channel_idx = all(abs(temp_template_waveforms) < 0.05.*template_max_amplitude,1);
 
     non_zero_template_waveforms = temp_template_waveforms(:, ~zero_channel_idx);
 
