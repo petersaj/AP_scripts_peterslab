@@ -369,7 +369,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'click'; % depth, click
+mua_method = 'even'; % even, click
 
 switch mua_method
 

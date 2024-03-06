@@ -7,9 +7,9 @@
 animal = 'AP014';
 rec_day = '2024-02-21';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
@@ -18,7 +18,7 @@ workflow = 'lcr_passive';
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
-load_parts.ephys = true;
+% load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
