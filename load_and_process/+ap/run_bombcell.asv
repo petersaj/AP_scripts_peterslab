@@ -7,8 +7,6 @@ function run_bombcell(ap_band_filename,kilosort_path,meta_filename)
 % kilosort_path - path with kilosort output
 % meta_filename - filename for recording metadata
 
-%% Run bombcell 
-
 % Get folders/filenames
 disp('Running bombcell...');
 
@@ -71,29 +69,31 @@ end
 %     param, probeLocation, unitType, loadRawTraces);
 
 
-%% Extra quality metric: threshold correlation between template v. average
-
 % Load raw waveforms to run extra template vs. raw quality metrics
 % (load channel map to use only channels used by kilosort)
 channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'))+1; % 0-idx > 1-idx
+
 rawWaveforms.average_full = readNPY([fullfile(savePath, 'templates._bc_rawWaveforms.npy')]);
 rawWaveforms.average = rawWaveforms.average_full(:,channel_map,:);
 
-% Get full-probe correlation between template and raw waveform
+% Extra quality metric: threshold correlation between template v. average
+% (correlate full-probe template and average)
 template_waveform_flat = normalize(reshape(permute(templateWaveforms,[2,3,1]),[],n_templates),'center');
 raw_waveform_flat = normalize(reshape(permute(rawWaveforms.average,[3,2,1]),[],n_templates),'center');
+
 template_raw_waveform_corr = sum( ...
     (template_waveform_flat./vecnorm(template_waveform_flat,2,1)).* ...
     (raw_waveform_flat./vecnorm(raw_waveform_flat,2,1)),1);
 
-% Set and apply threshold, set bad units in final unitType
 template_raw_waveform_corr_thresh = 0.3;
+
 bad_waveform_corr = template_raw_waveform_corr < template_raw_waveform_corr_thresh;
+
+%%%%%%%%%%%%%%%%
+
 
 unitType_extra_qc = unitType;
 unitType_extra_qc(bad_waveform_corr) = 0;
-
-%% Get labels and save
 
 % Set names for numbered unit types
 unit_type_labels = { ...
@@ -106,10 +106,10 @@ unit_type_labels = { ...
 template_qc_labels = unit_type_labels(unitType_idx,2);
 
 % Save extra quality metrics and final template quality control labels
+save(fullfile(savePath, 'extra_qmetric.mat'),'extra_qmetric');
 save(fullfile(savePath, 'template_qc_labels.mat'),'template_qc_labels');
 
 disp('Finished.');
-
 
 
 

@@ -7,8 +7,11 @@ function preprocess_neuropixels(animal,day)
 % Path to copy and sort locally
 local_kilosort_path = 'D:\data_temp\kilosort';
 
-% Path to pykilosort python environment
-pykilosort_python_environment = pyenv('Version','C:\Users\petersa\anaconda3\envs\pyks2\pythonw.exe');
+% Path to kilosort python environment
+system_path = split(getenv("Path"),';');
+anaconda_path = system_path{endsWith(system_path,'anaconda3')};
+kilosort_environment_path = fullfile(anaconda_path,'envs','kilosort','pythonw.exe');
+kilosort_python_environment = pyenv('Version',kilosort_environment_path,'ExecutionMode','OutOfProcess');
 
 % If no day selected, default to today
 if nargin < 2 || isempty(day)
@@ -25,7 +28,7 @@ if ~ephys_exists
     error([animal ' ' day ': No ephys data found']);
 end
 
-save_paths = {[ephys_path filesep 'pykilosort']};
+save_paths = {[ephys_path filesep 'kilosort4']};
 data_paths = {ephys_path};
 
 % Get ephys recording paths
@@ -67,7 +70,7 @@ for curr_data = 1:length(data_paths)
 
         % If more than one recording, error out at the moment
         % (multiple recordings = record stopped/started, preview continuous)
-        % (in future, could manually concatenate them - pykilosort allows
+        % (in future, could manually concatenate them - kilosort allows
         % for py.lists of filenames, but it assumes chronic so performs
         % some chronic drift correction which is broken)
         if length(experiment_dir) > 1
@@ -79,77 +82,7 @@ for curr_data = 1:length(data_paths)
             'continuous', '*-AP', 'continuous.dat'));
         ap_data_filename = fullfile(ap_data_dir.folder,ap_data_dir.name);
 
-%         % (sync not used - loaded when loading experiment)
-%         sync_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
-%             'events', 'Neuropix-3a-100.Neuropix-3a-AP', 'TTL', 'states.npy');
-%         sync_timestamps_filename = fullfile(experiment_dir.folder,experiment_dir.name, ...
-%             'events', 'Neuropix-3a-100.Neuropix-3a-AP', 'TTL', 'timestamps.npy');
-        
 
-        %% Get and save recording parameters
-        
-        % The gains and filter cuts aren't recorded anymore?!
-        ap_gain = {500};
-        lfp_gain = {125};
-        filter_cut = {300};
-        
-        % (0.195x for int16 to uV? how's this change with gain, just another x?)
-        
-        % Hard-coded parameters
-        n_channels = 384;
-        ap_sample_rate = 30000;
-        lfp_sample_rate = 2500;
-        
-        params = {'raw_path',['''' curr_data_path '''']; ...
-            'n_channels',num2str(n_channels); ...
-            'ap_sample_rate',num2str(ap_sample_rate); ... % this should be 30000 AP, 2500 LFP
-            'lfp_sample_rate',num2str(lfp_sample_rate);
-            'ap_gain',num2str(ap_gain{1}); ...
-            'lfp_gain',num2str(lfp_gain{1})
-            'filter_cutoff',num2str(filter_cut{1})};
-        
-        param_filename = [curr_save_path filesep 'dat_params.txt'];
-        
-        formatSpec = '%s = %s\r\n';
-        fid = fopen(param_filename,'w');
-        for curr_param = 1:size(params,1)
-            fprintf(fid,formatSpec,params{curr_param,:});
-        end
-        fclose(fid);
-
-        %% Get and save digital input events
-        
-%         %%%%%%%%%%%%%%%%%%%%%%%%%%% 
-% 
-%         Obsolete: original values loaded in loading script
-% 
-%         %%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 
-%         % NOTE: open ephys gives timestamps relative to start of PREVIEW,
-%         % kilosort only gives timestamps relative to beginning of RECORD.
-%         % This means that to match up kilosort (t(1) = 0) to OE (t(1) =
-%         % arbitrary), the sync timestamps are saved as sync_timestamps -
-%         % ap_timestamps(1)
-%               
-%         % Load spike timestamps
-%         ap_timestamps_filename = fullfile(fileparts(ap_data_filename),'timestamps.npy');
-%         ap_timestamps = readNPY(ap_timestamps_filename);
-%                     
-%         % Load digital input event times
-%         sync_data = readNPY(sync_filename);
-%         sync_timestamps = readNPY(sync_timestamps_filename);
-%         
-%         sync_channels = unique(abs(sync_data));
-%         open_ephys_ttl = struct('timestamps',cell(size(sync_channels)),'values',cell(size(sync_channels)));
-%         for curr_sync = 1:length(sync_channels)
-%             sync_events = abs(sync_data) == (sync_channels(curr_sync));
-%             open_ephys_ttl(curr_sync).timestamps = sync_timestamps(sync_events);
-%             open_ephys_ttl(curr_sync).values = sign(sync_data(sync_events)) == 1;
-%         end
-%         
-%         sync_save_filename = [curr_save_path filesep 'open_ephys_ttl.mat'];
-%         save(sync_save_filename,'open_ephys_ttl');
-        
         %% Run kilosort
         
         % Clear out local kilosort directories
@@ -169,35 +102,12 @@ for curr_data = 1:length(data_paths)
         % Run common average referencing (CAR)
         apband_car_local_filename = strrep(apband_local_filename,'.dat','_car.dat');
         ap.ephys_car(apband_local_filename,apband_car_local_filename)
-        
-        % Set up python
-        % (add pykilosort environment paths to windows system path)
-        pre_pykilosort_syspath = getenv('PATH');
-        py_env_paths = {
-            fullfile(char(pykilosort_python_environment.Home),'Library','bin'); ...
-            fullfile(char(pykilosort_python_environment.Home),'Scripts')};
-        run_pykilosort_syspath = strjoin( ...
-            unique(cat(1,py_env_paths, ...
-            split(pre_pykilosort_syspath,pathsep)),'stable'),pathsep);
-        setenv('PATH',run_pykilosort_syspath);
 
-        % Run pykilosort
-        pykilosort_output_path = fullfile(local_kilosort_path,'pykilosort');
-        pyrunfile('AP_run_pykilosort.py', ...
+        % Run Kilsort 4
+        kilosort_output_path = fullfile(local_kilosort_path,'kilosort_output');
+        pyrunfile('AP_run_kilosort4.py', ...
             data_filename = apband_car_local_filename, ...
-            pykilosort_output_path = pykilosort_output_path);
-
-        % Revert system paths to pre-pykilosort
-        % (just in case alternate python environments used elsewhere)
-        setenv('PATH',pre_pykilosort_syspath);
-
-        % Grab the path with results (pykilosort makes this)
-        pykilosort_results_path = fullfile(pykilosort_output_path,'output');
-
-        % Delete TSV files (KSLabel, group, ContamPct, Amplitude), these
-        % cluster groups are not used and would otherwise be loaded by
-        % default into Phy
-        delete(fullfile(pykilosort_results_path,'*.tsv'))
+            kilosort_output_path = kilosort_output_path);
 
         %% Convert spike times to Open Ephys timestamps
         % This has two advantages: 
@@ -210,7 +120,7 @@ for curr_data = 1:length(data_paths)
 
         % Convert kilosort spike time ouput (as sample index) into open
         % ephys timestamp (in seconds)
-        spike_times_kilosort_filename = fullfile(pykilosort_results_path,'spike_times.npy');
+        spike_times_kilosort_filename = fullfile(kilosort_output_path,'spike_times.npy');
         spike_times_kilosort = readNPY(spike_times_kilosort_filename);
 
         % NOTE: sometimes kilsort outputs indicies of spike times which are
@@ -236,7 +146,7 @@ for curr_data = 1:length(data_paths)
         end
 
         % Save open ephys spike times into kilosort output folder
-        spike_times_openephys_filename = fullfile(pykilosort_results_path,'spike_times_openephys.npy');
+        spike_times_openephys_filename = fullfile(kilosort_output_path,'spike_times_openephys.npy');
         writeNPY(spike_times_openephys,spike_times_openephys_filename);
 
         %% Run bombcell (using CAR data)
@@ -246,12 +156,12 @@ for curr_data = 1:length(data_paths)
         ephys_meta_fn = fullfile(ephys_meta_dir.folder,ephys_meta_dir.name);
 
         % Run bombcell
-        ap.run_bombcell(apband_car_local_filename,pykilosort_results_path,ephys_meta_fn);
+        ap.run_bombcell(apband_car_local_filename,kilosort_output_path,ephys_meta_fn);
         
         %% Copy kilosort results to server
                 
         disp('Copying sorted data to server...');
-        copyfile(pykilosort_results_path,curr_save_path);
+        copyfile(kilosort_output_path,curr_save_path);
         
         %% Delete all temporary local data
         

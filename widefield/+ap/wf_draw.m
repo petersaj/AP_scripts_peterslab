@@ -1,5 +1,5 @@
 function h = wf_draw(type,color,manual_bregma)
-% h = wf_draw(type,color,reference_im)
+% h = wf_draw(type,color,manual_bregma)
 %
 % Draw CCF areas on aligned widefield image
 %

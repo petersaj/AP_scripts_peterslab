@@ -1,7 +1,7 @@
 % Load electrophysiology data
 
 ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
-kilosort_folder = 'kilosort4';
+kilosort_folder = 'pykilsoort';
 
 if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
 
