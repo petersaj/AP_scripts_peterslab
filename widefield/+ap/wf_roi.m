@@ -20,14 +20,12 @@ if ~exist('roi_mask','var') || isempty(roi_mask)
         axis image off;
         colormap(ax_guide_im, gray);
         caxis(ax_guide_im, [prctile(guide_im(:),0.5) prctile(guide_im(:),99.5)]);
-    elseif ischar(guide_im) && strcmp(guide_im,'master')        
-        imagesc(ax_guide_im,ones(size(U(:,:,1))));
-        colormap(gray);
+    elseif ischar(guide_im) && strcmp(guide_im,'master')
+        ap.wf_draw('retinotopy');
+        ap.wf_draw('ccf','k');  
         axis image off;
-        caxis([0,1])
-        set(gca,'YDir','Reverse');        
-        AP_reference_outline('retinotopy','r');
-        AP_reference_outline('ccf_aligned','k');        
+        set(gca,'YDir','Reverse');
+        colormap(gray);            
     end
     if exist('overlay','var') && ~isempty(overlay) && all(size(overlay) == size(guide_im))
         ax_overlay = axes;

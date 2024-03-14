@@ -111,6 +111,12 @@ switch type
             plot(outline(:,1),outline(:,2),'color',color),areas,'uni',false), ...
                 dorsal_cortex_borders_aligned,'uni',false);
 
+    case 'retinotopy'
+        % Show the master retinotopy
+        master_vfs_fn = fullfile(alignment_path,'master_vfs.mat');
+        load(master_vfs_fn);
+        imagesc(master_vfs);
+
     otherwise
         warning('Invalid reference: %s',type);
         

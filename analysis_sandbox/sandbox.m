@@ -4,22 +4,22 @@
 
 %% Load data (specific day)
 
-animal = 'AP014';
-rec_day = '2024-02-21';
+animal = 'AP008';
+rec_day = '2023-07-11';
 
-% workflow = 'lcr_passive';
-workflow = 'lcr_passive_fullscreen';
+workflow = 'lcr_passive';
+% workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
 % workflow = 'visual_conditioning_right';
 
-rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+rec_time = plab.find_recordings(animal,rec_day,workflow).recording{4};
 
 % load_parts.widefield = true;
 load_parts.ephys = true;
-% load_parts.mousecam = true;
+load_parts.mousecam = true;
 
 verbose = true;
 ap.load_recording;
@@ -27,25 +27,27 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP016';
+animal = 'AP014';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-workflow = 'stim_wheel_right*';
+% workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'visual_conditioning_right';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
+recordings = recordings(~[recordings.ephys]);
+
 % use_day = 3;
-use_day = length(recordings)-1;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
 
 verbose = true;
 
-load_parts.mousecam = true;
+% load_parts.mousecam = true;
 % load_parts.widefield = true;
 % load_parts.ephys = true;
 
@@ -380,11 +382,9 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
         structure_outline_aligned)
 
 
-%% Re-kilosort AM mice
+%% Re-kilosort (e.g. kilosort 4)
 
-% AM014/5/6/7
-% now doing 11/12
-animals = {'AM011','AM012'};
+animals = {'AP009'};
 
 for curr_animal_idx = 1:length(animals)
     animal = animals{curr_animal_idx};
@@ -392,6 +392,13 @@ for curr_animal_idx = 1:length(animals)
     ephys_days = {recordings(vertcat(recordings.ephys)).day};
     disp(animal);
     for curr_day = 1:length(ephys_days)
+
+        % Check for kilosort 4, skip if found
+        kilosort4_path = plab.locations.filename('server',animal,ephys_days{curr_day},[],'ephys','kilosort4');
+        if exist(kilosort4_path,'dir')
+            continue
+        end
+
         AP_print_progress_fraction(curr_day,length(ephys_days));
         ap.preprocess_neuropixels(animal,ephys_days{curr_day});
     end

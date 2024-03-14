@@ -1,9 +1,7 @@
 function im_reflected = wf_reflect(im)
 % Reflect image about the midline
 % (currently only uses master alignment)
-% this doesn't work perfectly so something's off - I've spent way too much
-% time on it and it's too close to be worth not just running with at the
-% moment
+error('wf_reflect doesn''t work at all at the moment');
 
 % Load bregma and master CCF tform
 bregma = allenCCFbregma;

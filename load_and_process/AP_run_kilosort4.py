@@ -5,7 +5,7 @@ from kilosort import run_kilosort
 download_probes()
 
 # Print pykilosort starting notice
-print('Running pykilosort: ', data_filename)
+print('PYTHON: Running kilosort 4 ', data_filename)
 
 # Set settings
 # NOTE: 'n_chan_bin' is a required setting, and should reflect the total number
@@ -17,4 +17,4 @@ ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate = \
     run_kilosort(settings=settings, results_dir=kilosort_output_path ,probe_name='neuropixPhase3B2_kilosortChanMap.mat')
 
 # Print pykilosort ending notice
-print('Finished pykilosort: ', kilosort_output_path)
+print('PYTHON: Finished kilosort 4: ', kilosort_output_path)

@@ -102,6 +102,15 @@ colormap(AP_colormap('PWG'));
 clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
 
+i = 100;
+r2 = nan(404,384,176,i,'single');
+for ii = 1:i
+    r = reshape(bootstrp(1,@mean,aligned_v_baselinesub(align_id == 3,:,:)),length(t),[])';
+    r2(:,:,:,ii) = plab.wf.svd2px(use_U,r);
+    disp(ii);
+end
+
+
 
 %% Sparse noise retinotopy (single day)
 
@@ -133,13 +142,15 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AP018';
+animal = 'AP016';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-animals = {'AP017','AP018'};
+% animals = {'AP014','AP015'};
+
+animals = {'AP016'};
 
 for curr_animal = 1:length(animals)
 
@@ -186,15 +197,15 @@ for curr_animal = 1:length(animals)
     fprintf('Saved %s\n',retinotopy_fn);
 
     % Clear variables for next loop
-    clearvars('-except',preload_vars{:});
+    clearvars -except preload_vars
 
 end
 
 
 %% Create animal alignment (animal average VFS to master VFS)
-% NOTE: need day alignment and retinotopy
+% NOTE: need to do day alignment first
 
-animal = 'AP018';
+animal = 'AP016';
 
 % Load pre-saved retinotopy
 retinotopy_fn = fullfile(plab.locations.server_path, ...
@@ -236,7 +247,6 @@ colormap(AP_colormap('BWR'));clim([-1,1]);
 axis image off;
 ap.wf_draw('ccf',[0.5,0.5,0.5]);
 title('Master-aligned average VFS');
-
 
 %% View aligned days
 

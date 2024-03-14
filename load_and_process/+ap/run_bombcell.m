@@ -80,6 +80,7 @@ rawWaveforms.average_full = readNPY([fullfile(savePath, 'templates._bc_rawWavefo
 rawWaveforms.average = rawWaveforms.average_full(:,channel_map,:);
 
 % Get full-probe correlation between template and raw waveform
+n_templates = size(templateWaveforms,1);
 template_waveform_flat = normalize(reshape(permute(templateWaveforms,[2,3,1]),[],n_templates),'center');
 raw_waveform_flat = normalize(reshape(permute(rawWaveforms.average,[3,2,1]),[],n_templates),'center');
 template_raw_waveform_corr = sum( ...
