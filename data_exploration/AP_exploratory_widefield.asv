@@ -102,15 +102,6 @@ colormap(AP_colormap('PWG'));
 clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
 
-i = 100;
-r2 = nan(404,384,176,i,'single');
-for ii = 1:i
-    r = reshape(bootstrp(1,@mean,aligned_v_baselinesub(align_id == 3,:,:)),length(t),[])';
-    r2(:,:,:,ii) = plab.wf.svd2px(use_U,r);
-    disp(ii);
-end
-
-
 
 %% Sparse noise retinotopy (single day)
 
@@ -142,15 +133,13 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AP016';
+animal = 'AP018';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-% animals = {'AP014','AP015'};
-
-animals = {'AP016'};
+animals = {'AP017','AP018'};
 
 for curr_animal = 1:length(animals)
 
@@ -197,15 +186,15 @@ for curr_animal = 1:length(animals)
     fprintf('Saved %s\n',retinotopy_fn);
 
     % Clear variables for next loop
-    clearvars -except preload_vars
+    clearvars('-except',preload_vars{:});
 
 end
 
 
 %% Create animal alignment (animal average VFS to master VFS)
-% NOTE: need to do day alignment first
+% NOTE: need day alignment and retinotopy
 
-animal = 'AP016';
+animal = 'AP018';
 
 % Load pre-saved retinotopy
 retinotopy_fn = fullfile(plab.locations.server_path, ...
@@ -247,6 +236,7 @@ colormap(AP_colormap('BWR'));clim([-1,1]);
 axis image off;
 ap.wf_draw('ccf',[0.5,0.5,0.5]);
 title('Master-aligned average VFS');
+
 
 %% View aligned days
 
@@ -360,13 +350,17 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP010';
-use_workflow = 'lcr_passive';
-recordings = plab.find_recordings(animal,[],use_workflow);
+animal = 'AP016';
+passive_workflow = 'lcr_passive';
+recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 
-% temp: cut out bad days
-% recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
-% recordings(ismember({recordings.day},{'2023-05-08'})) = [];
+training_workflow = 'visual_conditioning*';
+recordings_all = plab.find_recordings(animal,[],passive_workflow);
+
+
+recordings = recordings_all( ...
+    cellfun(@any,{recordings_all.widefield}) & ...
+    ~[recordings_all.ephys]);
 
 wf_px = cell(size(recordings));
 
@@ -442,7 +436,7 @@ AP_imscroll(b);
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 
-% (reflect widefield - taken out for now)
+% % (reflect widefield - taken out for now)
 % a = cellfun(@(x) x-ap.wf_reflect(x),wf_px,'uni',false);
 % b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
 % c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;

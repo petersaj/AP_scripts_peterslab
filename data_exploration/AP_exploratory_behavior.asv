@@ -20,7 +20,7 @@ use_align = stimOn_times(stim_x == 90 & quiescent_trials);
 % use_align = stimOn_times;
 
 
-surround_frames = 30;
+surround_frames = 60;
 
 % Initialize video reader, get average and average difference
 vr = VideoReader(use_cam);
@@ -116,11 +116,14 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AM016'};
+animals = {'AP016'};
 
 % Create master tiled layout
 figure;
 t = tiledlayout(1,length(animals),'TileSpacing','tight');
+
+% Grab learning day for each mouse
+learned_day_all = nan(size(animals));
 
 for curr_animal_idx = 1:length(animals)
 
@@ -147,6 +150,7 @@ for curr_animal_idx = 1:length(animals)
         % Load data
         rec_day = recordings(curr_recording).day;
         rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
         load_parts.behavior = true;
         ap.load_recording;
 
@@ -182,8 +186,8 @@ for curr_animal_idx = 1:length(animals)
 
     end
 
-    % Define learned day from reaction stat p-value
-    learned_day = rxn_stat_p < 0.05;
+    % Define learned day from reaction stat p-value and reaction time
+    learned_day = rxn_stat_p < 0.05 & rxn_med < 2;
 
     relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
     nonrecorded_day = setdiff(1:length(recordings),relative_day);
@@ -248,6 +252,9 @@ for curr_animal_idx = 1:length(animals)
     if any(learned_day)
         AP_errorfill(surround_time_points,frac_move_stimalign(learned_day,:)', ...
             0.02,[0,1,0],0.1,false);
+        
+        % Store learned day across animals
+        learned_day_all(curr_animal_idx) = find(learned_day,1);
     end
 
     drawnow;

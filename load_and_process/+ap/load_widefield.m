@@ -4,14 +4,14 @@ if verbose; disp('Loading Widefield...'); end
 
 % Load widefield data for all colors
 widefield_colors = {'blue','violet'};
+wf_day_path = plab.locations.filename('server',animal,rec_day,[],'widefield');
+wf_rec_path = plab.locations.filename('server',animal,rec_day,rec_time,'widefield');
+
 [wf_avg_all,wf_U_raw,wf_V_raw,wf_t_all] = deal(cell(length(widefield_colors),1));
 for curr_wf = 1:length(widefield_colors)
-    mean_image_fn = plab.locations.filename('server',animal,rec_day,[], ...
-        'widefield',sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
-    svdU_fn = plab.locations.filename('server',animal,rec_day,[], ...
-        'widefield',sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
-    svdV_fn = plab.locations.filename('server',animal,rec_day,rec_time, ...
-        'widefield',sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
+    mean_image_fn = fullfile(wf_day_path,sprintf('meanImage_%s.npy',widefield_colors{curr_wf}));
+    svdU_fn = fullfile(wf_day_path,sprintf('svdSpatialComponents_%s.npy',widefield_colors{curr_wf}));
+    svdV_fn = fullfile(wf_rec_path,sprintf('svdTemporalComponents_%s.npy',widefield_colors{curr_wf}));
 
     wf_avg_all{curr_wf} = readNPY(mean_image_fn);
     wf_U_raw{curr_wf} = readNPY(svdU_fn);
@@ -21,11 +21,17 @@ for curr_wf = 1:length(widefield_colors)
     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
 end
 
-% % BUG? FOR NOW: if mismatching number of frames/times, cut off ends to match
-if ~all(cellfun(@(v,t) size(v,2) == length(t),wf_V_raw,wf_t_all))
-%     wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
-%     disp('Widefield: timeline/frame number mismatch, cutting end');
-    error('Widefield: timeline/frame number mismatch');
+% Check for timelite missed exposures
+if any(cellfun(@(v,t) size(v,2) > length(t),wf_V_raw,wf_t_all))
+    warning('Widefield: timelite missed exposures, cutting from end')
+    wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
+end
+
+% Check for dropped frames
+if any(cellfun(@(v,t) size(v,2) < length(t),wf_V_raw,wf_t_all))
+    error('Widefield: dropped frames, currently unusable');
+%     % At the moment: dropped frames unusable because light order switches
+%     plab.wf.find_dropped_frames(animal,rec_day,rec_time)
 end
 
 % Get framerate from timestamps

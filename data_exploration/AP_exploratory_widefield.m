@@ -54,7 +54,8 @@ elseif contains(bonsai_workflow,'sparse_noise')
         noise_locations(px_y,px_x,2:end) == 255) | ...
         (noise_locations(px_y,px_x,1:end-1) == 128 & ...
         noise_locations(px_y,px_x,2:end) == 0))+1);
-    align_category = ones(size(align_times));
+
+    baseline_times = align_times;
 
 elseif contains(bonsai_workflow,'visual_conditioning')
 
@@ -240,7 +241,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AP016';
+animal = 'AP014';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -350,13 +351,18 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP010';
-use_workflow = 'lcr_passive';
-recordings = plab.find_recordings(animal,[],use_workflow);
+animal = 'AP016';
+passive_workflow = 'lcr_passive';
+recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 
-% temp: cut out bad days
-% recordings(ismember({recordings.day},{'2023-05-04','2023-05-05'})) = [];
-% recordings(ismember({recordings.day},{'2023-05-08'})) = [];
+% training_workflow = 'stim_wheel*';
+training_workflow = 'visual_conditioning*';
+recordings_training = plab.find_recordings(animal,[],training_workflow);
+
+recordings = recordings_passive( ...
+    cellfun(@any,{recordings_passive.widefield}) & ...
+    ~[recordings_passive.ephys] & ...
+    ismember({recordings_passive.day},{recordings_training.day}));
 
 wf_px = cell(size(recordings));
 
@@ -372,8 +378,14 @@ for curr_recording = 1:length(recordings)
         continue
     end
 
+    try
     load_parts.widefield = true;
     ap.load_recording;
+    catch me
+        warning('%s %s %s: load error, skipping \n >> %s', ...
+            animal,rec_day,rec_time,me.message)
+        continue
+    end
 
     % Get quiescent trials and stim onsets/ids
     stim_window = [0,0.5];
@@ -432,7 +444,7 @@ AP_imscroll(b);
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 
-% (reflect widefield - taken out for now)
+% % (reflect widefield - taken out for now)
 % a = cellfun(@(x) x-ap.wf_reflect(x),wf_px,'uni',false);
 % b = cellfun(@(x) mean(x(:,:,t > 0.05 & t < 0.15,3),3),a,'uni',false);
 % c = (max(cellfun(@(x) max(x(:)),a)).*[-1,1])/2;
@@ -446,7 +458,7 @@ clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 % clim(c); colormap(AP_colormap('PWG'));
 
 
-
+b = squeeze(mean(a(:,:,t > 0 & t < 0.2,:),3));
 
 
 

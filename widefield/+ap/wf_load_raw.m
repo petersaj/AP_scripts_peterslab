@@ -26,6 +26,9 @@ fclose(curr_metadata_fid);
 % Get image info
 n_frames = size(curr_metadata,2);
 im_size = reshape(curr_metadata(1:2,1),1,[]);
+frame_timestamps = datetime( ...
+    curr_metadata(4,:),curr_metadata(5,:),curr_metadata(6,:), ...
+    curr_metadata(7,:),curr_metadata(8,:),curr_metadata(9,:));
 
 %% Load images (if frames specified)
 
