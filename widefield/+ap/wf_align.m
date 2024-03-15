@@ -247,7 +247,7 @@ switch align_type
     case 'create_master'
         %% Create master VFS
         % Whenever this is run, any dependent analysis must be re-run
-        error('Really create new master? Manually override');
+%         error('Really create new master? Manually override');
 
         disp('Creating new master VFS...')
 
@@ -335,22 +335,18 @@ switch align_type
         figure;
         imagesc(master_vfs);
         axis image off
-        colormap(brewermap([],'*RdBu'));
-        caxis([-1,1]);
+        colormap(ap.colormap('RWB'));
+        clim([-1,1]);
         title('Master VFS');
 
         % Save the master
-        confirm_save = input(['Save new master VFS? (y/n): '],'s');
+        confirm_save = input('Save new master VFS? (y/n): ','s');
         if strcmp(confirm_save,'y')
             [master_vfs_filename,master_vfs_path] = ...
                 uiputfile([alignment_path filesep '*.mat'],'Save master VFS');
-            master_vfs_fn = [master_vfs_path master_vfs_filename];
+            master_vfs_fn = fullfile(master_vfs_path,master_vfs_filename);
             save(master_vfs_fn,'master_vfs');
             disp(['Saved new master VFS: ' master_vfs_fn]);
-            confirm_align_ccf = strcmp(input(['Align CCF to new master VFS? (y/n): '],'s'),'y');
-            if confirm_align_ccf
-                AP_vfs_ccf_align;
-            end
         else
             disp('Not saved.')
         end

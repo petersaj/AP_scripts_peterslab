@@ -2,6 +2,21 @@
 %
 % dev/test code
 
+%% Creating master VFS
+
+vfs_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Users\Andy_Peters\widefield_alignment\retinotopy';
+vfs_files = dir(fullfile(vfs_path,'*.mat'));
+
+all_vfs = cell(size(vfs_files));
+for curr_animal = 1:length(vfs_files)
+    curr_fn = fullfile(vfs_path,vfs_files(curr_animal).name);
+    load(curr_fn);
+    all_vfs{curr_animal} = retinotopy.vfs{end};
+end
+
+ap.wf_align(all_vfs,[],[],'create_master');
+
+
 %% Load data (specific day)
 
 animal = 'AP016';

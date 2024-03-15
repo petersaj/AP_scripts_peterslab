@@ -140,7 +140,7 @@ ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-animals = {'AP017','AP018'};
+animals = {'AM016','AM017'};
 
 for curr_animal = 1:length(animals)
 
@@ -150,7 +150,7 @@ for curr_animal = 1:length(animals)
 
     workflow = 'sparse_noise';
     recordings = plab.find_recordings(animal,[],workflow);
-    recordings_wf = recordings([recordings.widefield]);
+    recordings_wf = recordings(cellfun(@any,{recordings.widefield}));
 
     vfs_all = cell(length(recordings_wf),1);
     disp('Creating retinotopy...');
