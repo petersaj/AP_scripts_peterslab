@@ -530,93 +530,96 @@ switch align_type
 
 end
 
-%% Align CCF to VFS (RUN ONCE)
-
-alignment_path = fullfile(plab.locations.server_path,'Users','Andy_Peters','widefield_alignment');
-
-% Load master VFS
-master_vfs_fn = fullfile(alignment_path,'master_vfs.mat');
-load(master_vfs_fn);
-master_align = master_vfs;
-
-% Load CCF structure tree
-allen_atlas_path = fileparts(which('template_volume_10um.npy'));
-st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
-
-% Load dorsal CCF areas
-load(fullfile(alignment_path,'dorsal_cortex_borders.mat'));
-
-% Color visual areas by VFS by Zhuang/Waters eLife 2017 Fig 3c
-dorsal_areas_unique = unique(dorsal_ccf_annotation(dorsal_ccf_annotation ~= 0));
-a_idx = find(cellfun(@(name) contains(name,'Anterior area'),st.safe_name(dorsal_areas_unique)));
-al_idx = find(cellfun(@(name) contains(name,'Anterolateral visual area'),st.safe_name(dorsal_areas_unique)));
-am_idx = find(cellfun(@(name) contains(name,'Anteromedial visual area'),st.safe_name(dorsal_areas_unique)));
-lm_idx = find(cellfun(@(name) contains(name,'Lateral visual area'),st.safe_name(dorsal_areas_unique)));
-v1_idx = find(cellfun(@(name) contains(name,'Primary visual area'),st.safe_name(dorsal_areas_unique)));
-p_idx = find(cellfun(@(name) contains(name,'Posterolateral visual area'),st.safe_name(dorsal_areas_unique)));
-pm_idx = find(cellfun(@(name) contains(name,'posteromedial visual area'),st.safe_name(dorsal_areas_unique)));
-li_idx = find(cellfun(@(name) contains(name,'Laterointermediate area'),st.safe_name(dorsal_areas_unique)));
-rl_idx = find(cellfun(@(name) contains(name,'Rostrolateral area'),st.safe_name(dorsal_areas_unique)));
-
-ccf_vfs = zeros(size(dorsal_ccf_annotation));
-ccf_vfs(ismember(dorsal_ccf_annotation,dorsal_areas_unique( ...
-    [v1_idx,am_idx,al_idx,li_idx]))) = -1;
-ccf_vfs(ismember(dorsal_ccf_annotation,dorsal_areas_unique( ...
-    [a_idx,p_idx,pm_idx,rl_idx,lm_idx]))) = 1;
-
-% Threshold VFS
-% (reference for alignment: Waters/Thompson, PLoS ONE 2019)
-vfs_cutoff = 0.05;
-master_vfs_thresh = zeros(size(master_vfs));
-master_vfs_thresh(master_vfs < -vfs_cutoff) = -1;
-master_vfs_thresh(master_vfs > vfs_cutoff) = 1;
-
-% % (auto-align)
-% [optimizer, metric] = imregconfig('monomodal');
-% optimizer = registration.optimizer.OnePlusOneEvolutionary();
-% optimizer.MaximumIterations = 200;
-% optimizer.GrowthFactor = 1+1e-3;
-% optimizer.InitialRadius = 1e-6;
-% ccf_tform = imregtform(ccf_vfs,master_vfs_thresh,'affine',optimizer,metric,'PyramidLevels',5);
-% (control point align)
-[movingPoints,fixedPoints] = cpselect( ...
-    mat2gray(ccf_vfs),mat2gray(master_vfs_thresh),'Wait',true);
-ccf_tform = fitgeotform2d(movingPoints,fixedPoints,'affine');
-
-dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
-    [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,areas,'uni',false), ...
-    dorsal_cortex_borders,'uni',false);
-dorsal_cortex_borders_aligned = cellfun(@(areas) cellfun(@(coords) ...
-    coords,areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
-
-% Plot alignment
-figure;
-subplot(1,2,1);
-imagesc(ccf_vfs); hold on; axis image off
-cellfun(@(areas) cellfun(@(outline) ...
-    plot(outline(:,2),outline(:,1),'color','k'),areas,'uni',false), ...
-    dorsal_cortex_borders,'uni',false);
-colormap(AP_colormap('BWR'));
-
-subplot(1,2,2);
-imagesc(master_vfs_thresh); hold on; axis image off
-cellfun(@(areas) cellfun(@(outline) ...
-    plot(outline(:,1),outline(:,2),'color','k'),areas,'uni',false), ...
-    dorsal_cortex_borders_aligned,'uni',false);
-colormap(AP_colormap('BWR'));
-
-% Save master alignment
-confirm_save = input('Overwrite CCF to master VFS alignment? (y/n): ','s');
-if strcmp(confirm_save,'y')
-    save_ccf_fn = fullfile(alignment_path,'dorsal_cortex_borders_aligned');
-    save_ccf_tform_fn = fullfile(alignment_path,'ccf_tform.mat');
-
-    save(save_ccf_fn,'dorsal_cortex_borders_aligned');
-    save(save_ccf_tform_fn,'ccf_tform');
-    disp('Saved CCF to master VFS alignment.')
-else
-    disp('Not saved.')
-end
+% %% Align CCF to VFS (RUN ONCE)
+% 
+% alignment_path = fullfile(plab.locations.server_path,'Users','Andy_Peters','widefield_alignment');
+% 
+% % Load master VFS
+% master_vfs_fn = fullfile(alignment_path,'master_vfs.mat');
+% load(master_vfs_fn);
+% master_align = master_vfs;
+% 
+% % Load CCF structure tree
+% allen_atlas_path = fileparts(which('template_volume_10um.npy'));
+% st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
+% 
+% % Load dorsal CCF areas
+% load(fullfile(alignment_path,'dorsal_cortex_borders.mat'));
+% 
+% % Color visual areas by VFS by Zhuang/Waters eLife 2017 Fig 3c
+% dorsal_areas_unique = unique(dorsal_ccf_annotation(dorsal_ccf_annotation ~= 0));
+% a_idx = find(cellfun(@(name) contains(name,'Anterior area'),st.safe_name(dorsal_areas_unique)));
+% al_idx = find(cellfun(@(name) contains(name,'Anterolateral visual area'),st.safe_name(dorsal_areas_unique)));
+% am_idx = find(cellfun(@(name) contains(name,'Anteromedial visual area'),st.safe_name(dorsal_areas_unique)));
+% lm_idx = find(cellfun(@(name) contains(name,'Lateral visual area'),st.safe_name(dorsal_areas_unique)));
+% v1_idx = find(cellfun(@(name) contains(name,'Primary visual area'),st.safe_name(dorsal_areas_unique)));
+% p_idx = find(cellfun(@(name) contains(name,'Posterolateral visual area'),st.safe_name(dorsal_areas_unique)));
+% pm_idx = find(cellfun(@(name) contains(name,'posteromedial visual area'),st.safe_name(dorsal_areas_unique)));
+% li_idx = find(cellfun(@(name) contains(name,'Laterointermediate area'),st.safe_name(dorsal_areas_unique)));
+% rl_idx = find(cellfun(@(name) contains(name,'Rostrolateral area'),st.safe_name(dorsal_areas_unique)));
+% 
+% ccf_vfs = zeros(size(dorsal_ccf_annotation));
+% ccf_vfs(ismember(dorsal_ccf_annotation,dorsal_areas_unique( ...
+%     [v1_idx,am_idx,al_idx,li_idx]))) = -1;
+% ccf_vfs(ismember(dorsal_ccf_annotation,dorsal_areas_unique( ...
+%     [a_idx,p_idx,pm_idx,rl_idx,lm_idx]))) = 1;
+% 
+% % Threshold VFS
+% % (reference for alignment: Waters/Thompson, PLoS ONE 2019)
+% vfs_cutoff = 0.05;
+% master_vfs_thresh = zeros(size(master_vfs));
+% master_vfs_thresh(master_vfs < -vfs_cutoff) = -1;
+% master_vfs_thresh(master_vfs > vfs_cutoff) = 1;
+% 
+% % % (auto-align)
+% % [optimizer, metric] = imregconfig('monomodal');
+% % optimizer = registration.optimizer.OnePlusOneEvolutionary();
+% % optimizer.MaximumIterations = 200;
+% % optimizer.GrowthFactor = 1+1e-3;
+% % optimizer.InitialRadius = 1e-6;
+% % ccf_tform = imregtform(ccf_vfs,master_vfs_thresh,'affine',optimizer,metric,'PyramidLevels',5);
+% % (control point align)
+% [movingPoints,fixedPoints] = cpselect( ...
+%     mat2gray(ccf_vfs),mat2gray(master_vfs_thresh),'Wait',true);
+% ccf_tform = fitgeotform2d(movingPoints,fixedPoints,'similarity');
+% 
+% % Force rotatation to be 0
+% ccf_tform.RotationAngle = 0;
+% 
+% dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
+%     [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,areas,'uni',false), ...
+%     dorsal_cortex_borders,'uni',false);
+% dorsal_cortex_borders_aligned = cellfun(@(areas) cellfun(@(coords) ...
+%     coords,areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
+% 
+% % Plot alignment
+% figure;
+% subplot(1,2,1);
+% imagesc(ccf_vfs); hold on; axis image off
+% cellfun(@(areas) cellfun(@(outline) ...
+%     plot(outline(:,2),outline(:,1),'color','k'),areas,'uni',false), ...
+%     dorsal_cortex_borders,'uni',false);
+% colormap(AP_colormap('BWR'));
+% 
+% subplot(1,2,2);
+% imagesc(master_vfs_thresh); hold on; axis image off
+% cellfun(@(areas) cellfun(@(outline) ...
+%     plot(outline(:,1),outline(:,2),'color','k'),areas,'uni',false), ...
+%     dorsal_cortex_borders_aligned,'uni',false);
+% colormap(AP_colormap('BWR'));
+% 
+% % Save master alignment
+% confirm_save = input('Overwrite CCF to master VFS alignment? (y/n): ','s');
+% if strcmp(confirm_save,'y')
+%     save_ccf_fn = fullfile(alignment_path,'dorsal_cortex_borders_aligned');
+%     save_ccf_tform_fn = fullfile(alignment_path,'ccf_tform.mat');
+% 
+%     save(save_ccf_fn,'dorsal_cortex_borders_aligned');
+%     save(save_ccf_tform_fn,'ccf_tform');
+%     disp('Saved CCF to master VFS alignment.')
+% else
+%     disp('Not saved.')
+% end
 
 
 

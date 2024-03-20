@@ -134,13 +134,13 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AP018';
+animal = 'AM019';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-animals = {'AM016','AM017'};
+animals = {'AM018','AM019'};
 
 for curr_animal = 1:length(animals)
 
@@ -195,7 +195,7 @@ end
 %% Create animal alignment (animal average VFS to master VFS)
 % NOTE: need day alignment and retinotopy
 
-animal = 'AP018';
+animal = 'AM019';
 
 % Load pre-saved retinotopy
 retinotopy_fn = fullfile(plab.locations.server_path, ...
@@ -351,7 +351,7 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP016';
+animal = 'AP018';
 passive_workflow = 'lcr_passive';
 recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 
@@ -359,10 +359,22 @@ recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 training_workflow = 'visual_conditioning*';
 recordings_training = plab.find_recordings(animal,[],training_workflow);
 
+% (use recordings on training days)
+% recordings = recordings_passive( ...
+%     cellfun(@any,{recordings_passive.widefield}) & ...
+%     ~[recordings_passive.ephys] & ...
+%     ismember({recordings_passive.day},{recordings_training.day}));
+
+% (use recordings on or before last training day)
 recordings = recordings_passive( ...
     cellfun(@any,{recordings_passive.widefield}) & ...
     ~[recordings_passive.ephys] & ...
-    ismember({recordings_passive.day},{recordings_training.day}));
+    days(datetime({recordings_passive.day}) - datetime(recordings_training(end).day)) <= 0);
+
+% (use all passive recordings)
+% recordings = recordings_passive( ...
+%     cellfun(@any,{recordings_passive.widefield}) & ...
+%     ~[recordings_passive.ephys]);
 
 wf_px = cell(size(recordings));
 
@@ -457,8 +469,9 @@ clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 % axis image;
 % clim(c); colormap(AP_colormap('PWG'));
 
-
-b = squeeze(mean(a(:,:,t > 0 & t < 0.2,:),3));
+a = cat(5,wf_px{:});
+b = squeeze(a(:,:,:,3,:));
+b2 = squeeze(mean(b(:,:,t > 0 & t < 0.2,:),3));
 
 
 

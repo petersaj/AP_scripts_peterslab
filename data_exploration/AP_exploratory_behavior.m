@@ -57,12 +57,50 @@ surround_t = [-surround_frames:surround_frames]./vr.FrameRate;
 AP_imscroll(cam_align_diff_avg,surround_t(2:end))
 axis image;
 
-% Plot difference within window
-use_t = [0,0.2];
-use_t_idx = surround_t >= use_t(1) & surround_t <= use_t(2);
-figure;
-imagesc(nanmean(cam_align_diff_avg(:,:,use_t_idx(2:end)),3));
-axis image off;
+%% Aligned mousecam shuffle
+%%%% working on this: shift the trace to valid alternate q times
+
+
+use_cam = mousecam_fn;
+use_t = mousecam_times;
+
+% (task)
+use_align = stimOn_times;
+
+surround_frames = 60;
+
+% Initialize video reader, get average and average difference
+vr = VideoReader(use_cam);
+cam_im1 = read(vr,1);
+
+cam_align_diff_avg = zeros(size(cam_im1,1),size(cam_im1,2), ...
+    surround_frames*2,length(use_align),'int8');
+
+quiescence_range = trial_events.parameters.QuiescenceTimes;
+
+for curr_align = 1:length(use_align)
+
+    % Find closest camera frame to timepoint
+    curr_frame = interp1(mousecam_times,1:length(mousecam_times), ...
+        use_align(curr_align),'nearest');
+
+    % Pull surrounding frames
+    curr_surround_frames = curr_frame + [-surround_frames,surround_frames];
+    curr_clip = squeeze(read(vr,curr_surround_frames));
+    curr_clip_diff = abs(diff(curr_clip,[],3));
+
+    cam_align_diff_avg(:,:,:,curr_align) = curr_clip_diff;
+
+    AP_print_progress_fraction(curr_align,length(use_align));
+end
+
+
+surround_t = [-surround_frames:surround_frames]./vr.FrameRate;
+AP_imscroll(cam_align_diff_avg,surround_t(2:end))
+axis image;
+
+
+
 
 
 %% Align wheel to event
@@ -116,7 +154,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AP014'};
+animals = {'AP015'};
 
 % Create master tiled layout
 figure;

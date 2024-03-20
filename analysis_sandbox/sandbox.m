@@ -2,25 +2,11 @@
 %
 % dev/test code
 
-%% Creating master VFS
-
-vfs_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Users\Andy_Peters\widefield_alignment\retinotopy';
-vfs_files = dir(fullfile(vfs_path,'*.mat'));
-
-all_vfs = cell(size(vfs_files));
-for curr_animal = 1:length(vfs_files)
-    curr_fn = fullfile(vfs_path,vfs_files(curr_animal).name);
-    load(curr_fn);
-    all_vfs{curr_animal} = retinotopy.vfs{end};
-end
-
-ap.wf_align(all_vfs,[],[],'create_master');
-
 
 %% Load data (specific day)
 
-animal = 'AP016';
-rec_day = '2024-02-14';
+animal = 'AM018';
+rec_day = '2024-03-19';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -28,7 +14,7 @@ workflow = 'lcr_passive';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
-% workflow = 'visual_conditioning_right';
+% workflow = 'visual_conditioning*';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
@@ -42,7 +28,7 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP014';
+animal = 'AM019';
 
 % workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -55,7 +41,7 @@ recordings = plab.find_recordings(animal,[],workflow);
 recordings = recordings(~[recordings.ephys]);
 
 use_day = 1;
-% use_day = length(recordings);
+% use_day = length(recordings)-2;
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -399,7 +385,7 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 
 %% Re-kilosort (e.g. kilosort 4)
 
-animals = {'AP009'};
+animals = {'AM018'};
 
 for curr_animal_idx = 1:length(animals)
     animal = animals{curr_animal_idx};
@@ -431,22 +417,94 @@ x = probe.probes.contact_positions;
 figure;scatter(x(:,1),x(:,2),20,m(c,:),'filled')
 
 
+%% Haron poster figs
 
+data_path = 'C:\Users\petersa\Desktop\haron_poster_data';
 
+surround_window = [-0.5,1];
+surround_samplerate = 35;
+t = surround_window(1):1/surround_samplerate:surround_window(2);
 
+% wf = cellfun(@(x,y) cat(4,x(:,:,:,3),y(:,:,:,3)),ap014,ap015,'uni',false);
 
+ap016{6} = nan(450,426,53,3,'single');
+min_days = 13;
+% wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3)), ...
+%     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
+% wf = cellfun(@(x,y,z) cat(4,y(:,:,:,3),z(:,:,:,3)), ...
+%     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
+wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3),y(:,:,:,3),z(:,:,:,3)), ...
+    ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
 
+% Plot pre/post learn averages 
+habituation = cat(4,wf{1:3});
+prelearn = cat(4,wf{4:6});
+postlearn = cat(4,wf{end-2:end});
 
+t_use = t > 0.05 & t < 0.15;
+c = [-0.005,0.005];
 
+figure;
+tiledlayout(1,3,"TileSpacing",'compact');
 
+nexttile;
+imagesc(mean(habituation(:,:,t_use,:),[3,4],'omitnan'));
+axis image off; clim(c);
+colormap(ap.colormap('PWG'));
+title('Habituation')
+ap.wf_draw('ccf','k');
 
+nexttile;
+imagesc(mean(prelearn(:,:,t_use,:),[3,4],'omitnan'));
+axis image off; clim(c);
+colormap(ap.colormap('PWG'));
+title('Pre-learn')
+ap.wf_draw('ccf','k');
 
+nexttile;
+imagesc(mean(postlearn(:,:,t_use,:),[3,4],'omitnan'));
+axis image off; clim(c);
+colormap(ap.colormap('PWG'));
+title('Post-learn')
+ap.wf_draw('ccf','k');
 
+% Plot ROI across days
+[~,v1_roi] = ap.wf_roi([],[],'master');
+[~,mpfc_roi] = ap.wf_roi([],[],'master');
 
+v1_trace = cellfun(@(x) permute(pagemtimes(+v1_roi(:)', ...
+    reshape(x,[],size(t,2),size(x,4)))./sum(v1_roi(:)),[2,3,1]),wf,'uni',false);
+mpfc_trace = cellfun(@(x) permute(pagemtimes(+mpfc_roi(:)', ...
+    reshape(x,[],size(t,2),size(x,4)))./sum(mpfc_roi(:)),[2,3,1]),wf,'uni',false);
 
+figure; tiledlayout(1,2,'TileSpacing','compact');colormap(ap.colormap('WG'))
+nexttile;
+imagesc(t,[],cell2mat(cellfun(@(x) mean(x,2),v1_trace,'uni',false))');
+clim([0,max(clim)]);
+ylabel('Day');
+xlabel('Time from stim (s)');
+title('V1');
+xline(0);
+nexttile;
+imagesc(t,[],cell2mat(cellfun(@(x) mean(x,2),mpfc_trace,'uni',false))');
+clim([0,max(clim)]);
+ylabel('Day');
+xlabel('Time from stim (s)');
+title('mPFC');
+xline(0);
 
-
-
+t_use = t > 0.05 & t < 0.2;
+figure; tiledlayout(1,2,'TileSpacing','compact');
+nexttile;
+plot(cell2mat(cellfun(@(x) mean(x(t_use,:),1),v1_trace','uni',false)),'linewidth',2);
+ylabel('\DeltaF/F');
+xlabel('Day');
+title('V1');
+nexttile;
+plot(cell2mat(cellfun(@(x) mean(x(t_use,:),1),mpfc_trace','uni',false)),'linewidth',2);
+ylabel('\DeltaF/F');
+xlabel('Day');
+title('mPFC');
 
 
 

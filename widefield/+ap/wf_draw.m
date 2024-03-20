@@ -9,6 +9,7 @@ function h = wf_draw(type,color,manual_bregma)
 % - grid
 % - ccf
 % - point, [AP,ML] in mm
+% - point_aligned, [AP,ML] in mm tranformed via CCF alignment
 %
 % Color: color of overlay
 %
@@ -98,12 +99,22 @@ switch type
         h.bregma = plot(bregma_offset_x,bregma_offset_y,'xr','MarkerSize',10);
 
     case 'point'
-        % Plot a point at specific coordinates
+        % Plot a point at specific coordinates (in um/px)
         [point_ap,point_ml] = deal(color(1),color(2));
 
         plot(bregma_offset_x+point_ml*1000/um2pixel, ...
-            bregma_offset_y-point_ap*1000/um2pixel,'.y','markersize',20);       
+            bregma_offset_y-point_ap*1000/um2pixel,'oy','markersize',20);       
         warning('um/px: needs more accurate measurement');
+
+    case 'point_aligned'
+        % Plot a point at specific coordinates (in CCF-aligned transform)
+        point_ml_ap = fliplr(color);
+
+        point_ccf = bregma([3,1]) + point_ml_ap*100.*[1,-1];
+        point_ccf_aligned = [point_ccf,1]*ccf_tform.T;
+        
+        plot(point_ccf_aligned(1),point_ccf_aligned(2), ...
+            '.y','markersize',20);
         
     case 'ccf'
         % Plot CCF borders aligned to master retinotopy        
