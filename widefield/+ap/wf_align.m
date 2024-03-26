@@ -539,6 +539,10 @@ end
 % load(master_vfs_fn);
 % master_align = master_vfs;
 % 
+% % Load master blue image
+% master_blue_fn = fullfile(alignment_path,'master_blue.mat');
+% load(master_blue_fn);
+% 
 % % Load CCF structure tree
 % allen_atlas_path = fileparts(which('template_volume_10um.npy'));
 % st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
@@ -564,12 +568,21 @@ end
 % ccf_vfs(ismember(dorsal_ccf_annotation,dorsal_areas_unique( ...
 %     [a_idx,p_idx,pm_idx,rl_idx,lm_idx]))) = 1;
 % 
+% % Overlay area boundaries on VFS
+% dorsal_boundary_mask = boundarymask(dorsal_ccf_annotation,4);
+% ccf_vfs_overlay = imoverlay(mat2gray(ccf_vfs),dorsal_boundary_mask,'b');
+% 
 % % Threshold VFS
 % % (reference for alignment: Waters/Thompson, PLoS ONE 2019)
 % vfs_cutoff = 0.05;
 % master_vfs_thresh = zeros(size(master_vfs));
 % master_vfs_thresh(master_vfs < -vfs_cutoff) = -1;
 % master_vfs_thresh(master_vfs > vfs_cutoff) = 1;
+% 
+% % Overlay VFS and average image
+% vfs_im_overlay = repmat(mat2gray(master_blue),1,1,3);
+% vfs_im_overlay(:,:,1) = vfs_im_overlay(:,:,1) + max(master_vfs,0)*0.5;
+% vfs_im_overlay(:,:,3) = vfs_im_overlay(:,:,3) - min(master_vfs,0)*0.5;
 % 
 % % % (auto-align)
 % % [optimizer, metric] = imregconfig('monomodal');
@@ -580,7 +593,7 @@ end
 % % ccf_tform = imregtform(ccf_vfs,master_vfs_thresh,'affine',optimizer,metric,'PyramidLevels',5);
 % % (control point align)
 % [movingPoints,fixedPoints] = cpselect( ...
-%     mat2gray(ccf_vfs),mat2gray(master_vfs_thresh),'Wait',true);
+%     ccf_vfs_overlay,vfs_im_overlay,'Wait',true);
 % ccf_tform = fitgeotform2d(movingPoints,fixedPoints,'similarity');
 % 
 % % Force rotatation to be 0

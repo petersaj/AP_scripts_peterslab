@@ -19,7 +19,7 @@ workflow = 'lcr_passive';
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
-% load_parts.ephys = true;
+load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
@@ -28,20 +28,20 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM019';
+animal = 'AP017';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
 % workflow = 'stim_wheel_right*';
-workflow = 'sparse_noise';
+% workflow = 'sparse_noise';
 % workflow = 'visual_conditioning*';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-recordings = recordings(~[recordings.ephys]);
+% recordings = recordings([recordings.ephys]);
 
 use_day = 1;
-% use_day = length(recordings)-2;
+% use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -405,6 +405,7 @@ for curr_animal_idx = 1:length(animals)
     end
 end
 
+
 %% Cambridge Neurotech code read
 
 txt = fileread("C:\Users\petersa\Desktop\ASSY-276-E-1.json");
@@ -417,94 +418,123 @@ x = probe.probes.contact_positions;
 figure;scatter(x(:,1),x(:,2),20,m(c,:),'filled')
 
 
-%% Haron poster figs
 
-data_path = 'C:\Users\petersa\Desktop\haron_poster_data';
 
-surround_window = [-0.5,1];
-surround_samplerate = 35;
-t = surround_window(1):1/surround_samplerate:surround_window(2);
+%% Generate random possible stim times (for testing conditioning)
 
-% wf = cellfun(@(x,y) cat(4,x(:,:,:,3),y(:,:,:,3)),ap014,ap015,'uni',false);
 
-ap016{6} = nan(450,426,53,3,'single');
-min_days = 13;
-% wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3)), ...
-%     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
-% wf = cellfun(@(x,y,z) cat(4,y(:,:,:,3),z(:,:,:,3)), ...
-%     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
-wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3),y(:,:,:,3),z(:,:,:,3)), ...
-    ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
+% Only look at completed trials
+n_trials = length([trial_events.timestamps.Outcome]);
 
-% Plot pre/post learn averages 
-habituation = cat(4,wf{1:3});
-prelearn = cat(4,wf{4:6});
-postlearn = cat(4,wf{end-2:end});
+% Get quiescence range from Bonsai parameters
+quiescence_range = trial_events.parameters.QuiescenceTimes;
 
-t_use = t > 0.05 & t < 0.15;
-c = [-0.005,0.005];
+% Loop through trials, get possible valid stim times
+stimOn_times_valid = cell(n_trials,1);
+for curr_trial = 1:n_trials
 
-figure;
-tiledlayout(1,3,"TileSpacing",'compact');
+    % Old bug: before trial 1 delay, sometimes first trial quiescence
+    % wasn't saved properly. If no trial quiescence, skip trial.
+    if isempty(trial_events.values(curr_trial).TrialQuiescence)
+        continue
+    end
 
-nexttile;
-imagesc(mean(habituation(:,:,t_use,:),[3,4],'omitnan'));
-axis image off; clim(c);
-colormap(ap.colormap('PWG'));
-title('Habituation')
-ap.wf_draw('ccf','k');
+    % NOTE: this is only using alternate quiescence periods, not alternate
+    % ITIs. No quiescence clock during ITI means no direct Bonsai measure
+    % of would-be quiescence resets, and they're not accurately estimatable
+    % from NIDAQ because of timing/precision differences. This means that
+    % there's fewer "valid" stim times, so less statistical power, and may
+    % err on the side of missing learned days.
 
-nexttile;
-imagesc(mean(prelearn(:,:,t_use,:),[3,4],'omitnan'));
-axis image off; clim(c);
-colormap(ap.colormap('PWG'));
-title('Pre-learn')
-ap.wf_draw('ccf','k');
+    % Get quiescence durations
+    curr_quiescence_resets = vertcat(...
+        trial_events.timestamps(curr_trial).QuiescenceStart, ... % start of quiescence period
+        trial_events.timestamps(curr_trial).QuiescenceReset, ... % all quiescence resets
+        trial_events.timestamps(curr_trial).Outcome);    
 
-nexttile;
-imagesc(mean(postlearn(:,:,t_use,:),[3,4],'omitnan'));
-axis image off; clim(c);
-colormap(ap.colormap('PWG'));
-title('Post-learn')
-ap.wf_draw('ccf','k');
+    curr_quiescence_durations = seconds(diff(curr_quiescence_resets));
 
-% Plot ROI across days
-[~,v1_roi] = ap.wf_roi([],[],'master');
-[~,mpfc_roi] = ap.wf_roi([],[],'master');
+    % Get valid quiescence times that would yield same response movement
+    % (i.e. last quiescence duration was first over-threshold)
+    quiescence_overthresh_grid = curr_quiescence_durations > quiescence_range';
+    valid_quiescence_times = quiescence_range( ...
+        (sum(quiescence_overthresh_grid,1) == 1) & quiescence_overthresh_grid(end,:));
 
-v1_trace = cellfun(@(x) permute(pagemtimes(+v1_roi(:)', ...
-    reshape(x,[],size(t,2),size(x,4)))./sum(v1_roi(:)),[2,3,1]),wf,'uni',false);
-mpfc_trace = cellfun(@(x) permute(pagemtimes(+mpfc_roi(:)', ...
-    reshape(x,[],size(t,2),size(x,4)))./sum(mpfc_roi(:)),[2,3,1]),wf,'uni',false);
+    % Get valid stim offsets (timelite/phodiode)
+    % (get offsets between actual and valid quiescence times, apply to
+    % actual stim times to get all valid stim times)
+    valid_quiescence_offsets =  ...
+        valid_quiescence_times - trial_events.values(curr_trial).TrialQuiescence;
 
-figure; tiledlayout(1,2,'TileSpacing','compact');colormap(ap.colormap('WG'))
-nexttile;
-imagesc(t,[],cell2mat(cellfun(@(x) mean(x,2),v1_trace,'uni',false))');
-clim([0,max(clim)]);
-ylabel('Day');
-xlabel('Time from stim (s)');
-title('V1');
-xline(0);
-nexttile;
-imagesc(t,[],cell2mat(cellfun(@(x) mean(x,2),mpfc_trace,'uni',false))');
-clim([0,max(clim)]);
-ylabel('Day');
-xlabel('Time from stim (s)');
-title('mPFC');
-xline(0);
+    stimOn_times_valid{curr_trial} = stimOn_times(curr_trial) + valid_quiescence_offsets;
 
-t_use = t > 0.05 & t < 0.2;
-figure; tiledlayout(1,2,'TileSpacing','compact');
-nexttile;
-plot(cell2mat(cellfun(@(x) mean(x(t_use,:),1),v1_trace','uni',false)),'linewidth',2);
-ylabel('\DeltaF/F');
-xlabel('Day');
-title('V1');
-nexttile;
-plot(cell2mat(cellfun(@(x) mean(x(t_use,:),1),mpfc_trace','uni',false)),'linewidth',2);
-ylabel('\DeltaF/F');
-xlabel('Day');
-title('mPFC');
+end
+
+n_samples = 1;
+x = cell2mat(cellfun(@(x) datasample(x,n_samples)',stimOn_times_valid,'uni',false));
+
+
+%% Load/average/align to create master average blue/violet image
+
+
+retinotopy_dir = dir(fullfile('\\qnap-ap001.dpag.ox.ac.uk\APlab\Users\Andy_Peters\widefield_alignment\retinotopy','*.mat'));
+
+animals = cellfun(@(x) x(end-8:end-4),{retinotopy_dir.name},'uni',false);
+
+avg_im_all = cell(length(animals),2);
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+
+    recordings = plab.find_recordings(animal);
+    wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
+    wf_recordings = recordings(wf_days_idx);
+
+    avg_im_aligned = cell(length(wf_recordings),2);
+    for curr_day = 1:length(wf_recordings)
+        try
+        day = wf_recordings(curr_day).day;
+
+        img_path = plab.locations.filename('server', ...
+            animal,day,[],'widefield');
+
+        avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
+        avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
+
+        avg_im_aligned{curr_day,1} = ap.wf_align(avg_im_n,animal,day);
+        avg_im_aligned{curr_day,2} = ap.wf_align(avg_im_h,animal,day);
+        catch me
+            continue
+        end
+    end
+
+    avg_im_all{curr_animal,1} = nanmean(cat(3,avg_im_aligned{:,1}),3);
+    avg_im_all{curr_animal,2} = nanmean(cat(3,avg_im_aligned{:,2}),3);
+
+    AP_print_progress_fraction(curr_animal,length(animals));
+
+end
+
+blue_avg = nanmean(cat(3,avg_im_all{:,1}),3);
+violet_avg = nanmean(cat(3,avg_im_all{:,2}),3);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

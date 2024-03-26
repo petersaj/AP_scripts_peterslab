@@ -58,21 +58,23 @@ ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
+% Load Open Ephys metadata
+oe_metadata_fn = fullfile(open_ephys_path,'structure.oebin');
+oe_metadata = jsondecode(fileread(oe_metadata_fn));
+
 % Load kilosort data
-% (spike times: load open ephys times if available, create if not)
+% (spike times: load open ephys times - create if not yet created)
 spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.npy');
-if exist(spike_times_openephys_filename,'file')
-    spike_times_openephys = readNPY(spike_times_openephys_filename);
-else
-    open_ephys_timestamps_dir = dir(fullfile(open_ephys_path, ...
-        'continuous','*-AP','timestamps.npy'));
-    open_ephys_timestamps = readNPY(fullfile(open_ephys_timestamps_dir.folder,...
-        open_ephys_timestamps_dir.name));
-    spike_times_openephys = open_ephys_timestamps( ...
-        readNPY(fullfile(kilosort_path,'spike_times.npy')));
-    writeNPY(spike_times_openephys,spike_times_openephys_filename);
-    fprintf('Converted and saved Open Ephys spike times: %s\n',spike_times_openephys_filename);
+if ~exist(spike_times_openephys_filename,'file')
+    ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
+
+    oe_samples_dir = dir(fullfile(open_ephys_path,'continuous','*-AP','sample_numbers.npy'));
+    oe_samples_fn = fullfile(oe_samples_dir.folder,oe_samples_dir.name);
+
+    plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_samples_fn, ...
+        oe_metadata(1).continuous(1).sample_rate);
 end
+spike_times_openephys = readNPY(spike_times_openephys_filename);
 
 % (spike times: index Open Ephys timestamps rather than assume constant
 % sampling rate as before, this accounts for potentially dropped data)
@@ -132,13 +134,16 @@ templateDuration_us = (templateDuration/ephys_sample_rate)*1e6;
 %% Convert timestamps to timelite (with flipper)
 
 % Load ephys flipper
+% (use sample numbers as accurate, convert into timestamps -
+% 'timestamps.npy' are recomputed across recording and not always accurate)
 flipper_sync_idx = 1;
 
 open_ephys_ttl_dir = dir(fullfile(open_ephys_path,'events', '*-AP','TTL'));
 open_ephys_ttl_path = cell2mat(unique({open_ephys_ttl_dir.folder}));
 
 open_ephys_ttl_states = readNPY(fullfile(open_ephys_ttl_path,'states.npy'));
-open_ephys_ttl_timestamps = readNPY(fullfile(open_ephys_ttl_path,'timestamps.npy'));
+open_ephys_ttl_sample_numbers = readNPY(fullfile(open_ephys_ttl_path,'sample_numbers.npy'));
+open_ephys_ttl_timestamps = double(open_ephys_ttl_sample_numbers)/oe_metadata(1).continuous(1).sample_rate;
 
 open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
 open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));

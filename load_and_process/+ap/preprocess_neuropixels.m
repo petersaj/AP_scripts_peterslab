@@ -111,53 +111,21 @@ for curr_data = 1:length(data_paths)
             kilosort_output_path = kilosort_output_path);
 
         %% Convert spike times to Open Ephys timestamps
-        % This has two advantages: 
-        % - sync timestamps can be used as-is without applying offset
-        % - compensates for dropped samples
-
-        % Load AP-band timestamps
-        openephys_ap_timestamps_filename = fullfile(fileparts(ap_data_filename),'timestamps.npy');
-        openephys_ap_timestamps = readNPY(openephys_ap_timestamps_filename);
-
-        % Convert kilosort spike time ouput (as sample index) into open
-        % ephys timestamp (in seconds)
-        spike_times_kilosort_filename = fullfile(kilosort_output_path,'spike_times.npy');
-        spike_times_kilosort = readNPY(spike_times_kilosort_filename);
-
-        % NOTE: sometimes kilsort outputs indicies of spike times which are
-        % not in the range of recording?! Give a warning and calculate
-        % those times with the sample rate
-        spike_times_kilosort_validtime = ...
-            spike_times_kilosort >= 1 & ...
-            spike_times_kilosort <= length(openephys_ap_timestamps);
-
-        if all(spike_times_kilosort_validtime)
-            spike_times_openephys = openephys_ap_timestamps(spike_times_kilosort);
-        else
-            ap_sample_time = median(diff(openephys_ap_timestamps));
-            warning('Kilosort %s %s: %d spike times out of time range of data, interpolating', ....
-                animal,day,sum(~spike_times_kilosort_validtime));
-            spike_times_openephys = nan(size(spike_times_kilosort));
-            spike_times_openephys(spike_times_kilosort_validtime) = ...
-                openephys_ap_timestamps(spike_times_kilosort(spike_times_kilosort_validtime));
-
-            % (interpolate from first and last sample times given rate)
-            spike_times_openephys(~spike_times_kilosort_validtime) = ...
-                interp1([0,1,length(openephys_ap_timestamps),length(openephys_ap_timestamps)+1], ...
-                sort(reshape([openephys_ap_timestamps([1,end]),openephys_ap_timestamps([1,end])+([-1;1].*ap_sample_time)],1,[])), ...
-                double(spike_times_kilosort(~spike_times_kilosort_validtime)),'linear','extrap');
-        end
-
-        % Save open ephys spike times into kilosort output folder
-        spike_times_openephys_filename = fullfile(kilosort_output_path,'spike_times_openephys.npy');
-        writeNPY(spike_times_openephys,spike_times_openephys_filename);
-
-        %% Run bombcell (using CAR data)
 
         % Get metadata filename
         ephys_meta_dir = dir(fullfile(experiment_dir.folder,experiment_dir.name,'**','*.oebin'));
         ephys_meta_fn = fullfile(ephys_meta_dir.folder,ephys_meta_dir.name);
+        ephys_metadata = jsondecode(fileread(ephys_meta_fn));
 
+        % Convert kilosort "spike times" (samples) into timestamps
+        ks_spike_times_fn = fullfile(kilosort_output_path,'spike_times.npy');
+        oe_ap_samples_fn = fullfile(fileparts(ap_data_filename),'sample_numbers.npy');
+
+        plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_ap_samples_fn, ...
+            ephys_metadata(1).continuous(1).sample_rate);
+        
+        %% Run bombcell (using CAR data)
+   
         % Run bombcell
         ap.run_bombcell(apband_car_local_filename,kilosort_output_path,ephys_meta_fn);
         

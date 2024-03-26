@@ -57,15 +57,23 @@ surround_t = [-surround_frames:surround_frames]./vr.FrameRate;
 AP_imscroll(cam_align_diff_avg,surround_t(2:end))
 axis image;
 
-%% Aligned mousecam shuffle
-%%%% working on this: shift the trace to valid alternate q times
-
+%% Align mousecam ROI to event
 
 use_cam = mousecam_fn;
 use_t = mousecam_times;
 
+% (passive)
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
+
+stim_x = vertcat(trial_events.values.TrialStimX);
+use_align = stimOn_times(stim_x == 90 & quiescent_trials);
+
 % (task)
-use_align = stimOn_times;
+% use_align = stimOn_times;
 
 surround_frames = 60;
 
@@ -73,11 +81,15 @@ surround_frames = 60;
 vr = VideoReader(use_cam);
 cam_im1 = read(vr,1);
 
-cam_align_diff_avg = zeros(size(cam_im1,1),size(cam_im1,2), ...
-    surround_frames*2,length(use_align),'int8');
+% Draw ROI
+h = figure;imagesc(cam_im1);axis image; 
+roi_mask = roipoly;
+close(h);
 
-quiescence_range = trial_events.parameters.QuiescenceTimes;
+cam_roi_diff_align = nan(length(use_align),surround_frames*2);
 
+% (would probably be way faster and reasonable to just load in the entire
+% movie?)
 for curr_align = 1:length(use_align)
 
     % Find closest camera frame to timepoint
@@ -86,21 +98,26 @@ for curr_align = 1:length(use_align)
 
     % Pull surrounding frames
     curr_surround_frames = curr_frame + [-surround_frames,surround_frames];
-    curr_clip = squeeze(read(vr,curr_surround_frames));
-    curr_clip_diff = abs(diff(curr_clip,[],3));
+    if any(curr_surround_frames < 0) || any(curr_surround_frames > vr.NumFrames)
+        continue
+    end
 
-    cam_align_diff_avg(:,:,:,curr_align) = curr_clip_diff;
+    curr_clip_diff_flat = reshape(abs(diff(double(squeeze( ...
+        read(vr,curr_surround_frames))),[],3)),[],surround_frames*2);
+
+    cam_roi_diff_align(curr_align,:) = ...
+        ((roi_mask(:))'*curr_clip_diff_flat)./sum(roi_mask,'all');
 
     AP_print_progress_fraction(curr_align,length(use_align));
 end
 
 
 surround_t = [-surround_frames:surround_frames]./vr.FrameRate;
-AP_imscroll(cam_align_diff_avg,surround_t(2:end))
-axis image;
 
-
-
+figure;imagesc(surround_t(2:end),[],cam_roi_diff_align);
+figure; hold on;
+plot(surround_t(2:end),nanmean(cam_roi_diff_align,1));
+plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 
 
 %% Align wheel to event
@@ -154,7 +171,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AP015'};
+animals = {'AP016'};
 
 % Create master tiled layout
 figure;

@@ -134,13 +134,13 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM019';
+animal = 'AP020';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-animals = {'AM018','AM019'};
+animals = {'AP020'};
 
 for curr_animal = 1:length(animals)
 
@@ -195,7 +195,7 @@ end
 %% Create animal alignment (animal average VFS to master VFS)
 % NOTE: need day alignment and retinotopy
 
-animal = 'AM019';
+animal = 'AP020';
 
 % Load pre-saved retinotopy
 retinotopy_fn = fullfile(plab.locations.server_path, ...
@@ -241,7 +241,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AP014';
+animal = 'AP017';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -257,9 +257,9 @@ for curr_day = 1:length(wf_recordings)
     avg_im_n = readNPY([img_path filesep 'meanImage_blue.npy']);
     avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
 
-    %     % (to concatenate)
-    %     avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
-    %         ap.wf_align(avg_im_h,animal,day)];
+%         % (to concatenate)
+%         avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
+%             ap.wf_align(avg_im_h,animal,day)];
 
     % (blue only)
     avg_im_aligned{curr_day} = ap.wf_align(avg_im_n,animal,day);
@@ -291,29 +291,29 @@ time_bins = [wf_t;wf_t(end)+1/wf_framerate];
 stim_regressors = histcounts(stimOn_times,time_bins);
 reward_regressors = histcounts(reward_times,time_bins);
 
-% stim_move_regressors = histcounts(stim_move_time,time_bins);
-% nonstim_move_times = ...
-%     setdiff(timelite.timestamps(find(diff(wheel_move) == 1)+1), ...
-%     stim_move_regressors);
-% nonstim_move_regressors = histcounts(nonstim_move_times,time_bins);
+stim_move_regressors = histcounts(stim_move_time,time_bins);
+nonstim_move_times = ...
+    setdiff(timelite.timestamps(find(diff(wheel_move) == 1)+1), ...
+    stim_move_regressors);
+nonstim_move_regressors = histcounts(nonstim_move_times,time_bins);
 
 
 % Concatenate selected regressors, set parameters
-% task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
-% task_regressor_labels = {'Stim','Reward','Stim move','Nonstim move'};
-% 
-% task_t_shifts = { ...
-%     [-0.2,2]; ... % stim
-%     [-0.2,2];  ... % outcome
-%     [-0.2,2];  ... % nonstim move
-%     [-0.2,2]};    % stim move
-
-task_regressors = {stim_regressors;reward_regressors};
-task_regressor_labels = {'Stim','Reward'};
+task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
+task_regressor_labels = {'Stim','Reward','Stim move','Nonstim move'};
 
 task_t_shifts = { ...
     [-0.2,2]; ... % stim
-    [-0.2,2]};    % reward
+    [-0.2,2];  ... % outcome
+    [-0.2,2];  ... % nonstim move
+    [-0.2,2]};    % stim move
+
+% task_regressors = {stim_regressors;reward_regressors};
+% task_regressor_labels = {'Stim','Reward'};
+% 
+% task_t_shifts = { ...
+%     [-0.2,2]; ... % stim
+%     [-0.2,2]};    % reward
 
 task_regressor_sample_shifts = cellfun(@(x) round(x(1)*(wf_framerate)): ...
     round(x(2)*(wf_framerate)),task_t_shifts,'uni',false);
@@ -351,7 +351,7 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP018';
+animal = 'AP020';
 passive_workflow = 'lcr_passive';
 recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 

@@ -5,16 +5,16 @@
 
 %% Load data (specific day)
 
-animal = 'AP016';
-rec_day = '2024-02-14';
+animal = 'AM018';
+rec_day = '2024-03-25';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
-% workflow = 'visual_conditioning_right';
+% workflow = 'visual_conditioning*';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
@@ -28,7 +28,7 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AP014';
+animal = 'AM019';
 
 workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
@@ -38,10 +38,10 @@ workflow = 'lcr_passive';
 
 recordings = plab.find_recordings(animal,[],workflow);
 
-recordings = recordings(~[recordings.ephys]);
+% recordings = recordings([recordings.ephys]);
 
-use_day = 1;
-% use_day = length(recordings);
+% use_day = 1;
+use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -385,7 +385,7 @@ cellfun(@(x) plot(ccf_axes(curr_view),x(:,2), ...
 
 %% Re-kilosort (e.g. kilosort 4)
 
-animals = {'AP009'};
+animals = {'AM018'};
 
 for curr_animal_idx = 1:length(animals)
     animal = animals{curr_animal_idx};
@@ -404,6 +404,7 @@ for curr_animal_idx = 1:length(animals)
         ap.preprocess_neuropixels(animal,ephys_days{curr_day});
     end
 end
+
 
 %% Cambridge Neurotech code read
 
@@ -427,14 +428,14 @@ t = surround_window(1):1/surround_samplerate:surround_window(2);
 
 % wf = cellfun(@(x,y) cat(4,x(:,:,:,3),y(:,:,:,3)),ap014,ap015,'uni',false);
 
-ap016{6} = nan(450,426,53,3);
+ap016{6} = nan(450,426,53,3,'single');
 min_days = 13;
 % wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3)), ...
 %     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
 % wf = cellfun(@(x,y,z) cat(4,y(:,:,:,3),z(:,:,:,3)), ...
 %     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
-% wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3),y(:,:,:,3),z(:,:,:,3)), ...
-%     ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
+wf = cellfun(@(x,y,z) cat(4,x(:,:,:,3),y(:,:,:,3),z(:,:,:,3)), ...
+    ap016(1:min_days),ap017(1:min_days),ap018(1:min_days),'uni',false);
 
 % Plot pre/post learn averages 
 habituation = cat(4,wf{1:3});
@@ -472,10 +473,10 @@ ap.wf_draw('ccf','k');
 [~,v1_roi] = ap.wf_roi([],[],'master');
 [~,mpfc_roi] = ap.wf_roi([],[],'master');
 
-v1_trace = cellfun(@(x) squeeze(pagemtimes(+v1_roi(:)', ...
-    reshape(x,[],size(t,2),size(x,4)))./sum(v1_roi(:))),wf,'uni',false);
-mpfc_trace = cellfun(@(x) squeeze(pagemtimes(+mpfc_roi(:)', ...
-    reshape(x,[],size(t,2),size(x,4)))./sum(mpfc_roi(:))),wf,'uni',false);
+v1_trace = cellfun(@(x) permute(pagemtimes(+v1_roi(:)', ...
+    reshape(x,[],size(t,2),size(x,4)))./sum(v1_roi(:)),[2,3,1]),wf,'uni',false);
+mpfc_trace = cellfun(@(x) permute(pagemtimes(+mpfc_roi(:)', ...
+    reshape(x,[],size(t,2),size(x,4)))./sum(mpfc_roi(:)),[2,3,1]),wf,'uni',false);
 
 figure; tiledlayout(1,2,'TileSpacing','compact');colormap(ap.colormap('WG'))
 nexttile;
@@ -506,5 +507,59 @@ ylabel('\DeltaF/F');
 xlabel('Day');
 title('mPFC');
 
+
+
+%% Generate random possible stim times (for testing conditioning)
+
+
+% Only look at completed trials
+n_trials = length([trial_events.timestamps.Outcome]);
+
+% Get quiescence range from Bonsai parameters
+quiescence_range = trial_events.parameters.QuiescenceTimes;
+
+% Loop through trials, get possible valid stim times
+stimOn_times_valid = cell(n_trials,1);
+for curr_trial = 1:n_trials
+
+    % Old bug: before trial 1 delay, sometimes first trial quiescence
+    % wasn't saved properly. If no trial quiescence, skip trial.
+    if isempty(trial_events.values(curr_trial).TrialQuiescence)
+        continue
+    end
+
+    % NOTE: this is only using alternate quiescence periods, not alternate
+    % ITIs. No quiescence clock during ITI means no direct Bonsai measure
+    % of would-be quiescence resets, and they're not accurately estimatable
+    % from NIDAQ because of timing/precision differences. This means that
+    % there's fewer "valid" stim times, so less statistical power, and may
+    % err on the side of missing learned days.
+
+    % Get quiescence durations
+    curr_quiescence_resets = vertcat(...
+        trial_events.timestamps(curr_trial).QuiescenceStart, ... % start of quiescence period
+        trial_events.timestamps(curr_trial).QuiescenceReset, ... % all quiescence resets
+        trial_events.timestamps(curr_trial).Outcome);    
+
+    curr_quiescence_durations = seconds(diff(curr_quiescence_resets));
+
+    % Get valid quiescence times that would yield same response movement
+    % (i.e. last quiescence duration was first over-threshold)
+    quiescence_overthresh_grid = curr_quiescence_durations > quiescence_range';
+    valid_quiescence_times = quiescence_range( ...
+        (sum(quiescence_overthresh_grid,1) == 1) & quiescence_overthresh_grid(end,:));
+
+    % Get valid stim offsets (timelite/phodiode)
+    % (get offsets between actual and valid quiescence times, apply to
+    % actual stim times to get all valid stim times)
+    valid_quiescence_offsets =  ...
+        valid_quiescence_times - trial_events.values(curr_trial).TrialQuiescence;
+
+    stimOn_times_valid{curr_trial} = stimOn_times(curr_trial) + valid_quiescence_offsets;
+
+end
+
+n_samples = 1;
+x = cell2mat(cellfun(@(x) datasample(x,n_samples)',stimOn_times_valid,'uni',false));
 
 
