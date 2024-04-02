@@ -14,7 +14,7 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
     1:length(stimOn_times))';
 
 stim_x = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
+use_align = stimOn_times(stim_x == 4000 & quiescent_trials);
 
 % % (task)
 % use_align = stimOn_times;
@@ -32,7 +32,7 @@ cam_align_diff_avg = zeros(size(cam_im1,1),size(cam_im1,2), ...
     surround_frames*2);
 
 frame_t_offset = nan(size(use_align));
-for curr_align = 2:length(use_align)
+for curr_align = 1:length(use_align)
 
     % Find closest camera frame to timepoint
     [frame_t_offset(curr_align),curr_frame] = ...
@@ -171,7 +171,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AP020','AP021','AP022'};
+animals = {'AP016'};
 
 % Create master tiled layout
 figure;
@@ -184,7 +184,7 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    use_workflow = {'stim_wheel*'};
+    use_workflow = {'*no_change*'};
     recordings = plab.find_recordings(animal,[],use_workflow);
 
     surround_time = [-5,5];

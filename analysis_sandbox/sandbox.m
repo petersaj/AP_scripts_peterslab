@@ -5,21 +5,23 @@
 
 %% Load data (specific day)
 
-animal = 'AM018';
-rec_day = '2024-03-19';
+animal = 'AP019';
+rec_day = '2024-03-28';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
 % workflow = 'visual_conditioning*';
+% workflow = 'stim_wheel_right_stage2_audio_no_change';
+% workflow = 'hml_passive_audio';
 
 rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
 % load_parts.widefield = true;
-load_parts.ephys = true;
+% load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
@@ -202,8 +204,8 @@ end
 
 %% temp histology: combine tiff channels
 
-hist_path = plab.locations.filename('server','AP014',[],[],'histology','raw');
-save_path = plab.locations.filename('server','AP014',[],[],'histology','raw_combined');
+hist_path = plab.locations.filename('server','AM019',[],[],'histology','raw');
+save_path = plab.locations.filename('server','AM019',[],[],'histology','raw_combined');
 
 im_filenames = dir(fullfile(hist_path,'*.tif'));
 if ~exist(save_path,'dir')

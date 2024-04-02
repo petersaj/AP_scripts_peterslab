@@ -59,7 +59,7 @@ else
 end
 % (discretize into black/NaN/white, interpolate across NaN/intermediate)
 % (e.g. simulate instantaneous flips and ignore intermediate values)
-photodiode_bw_thresh = [0.2,2.8]; % [black,white]
+photodiode_bw_thresh = [0.5,2.8]; % [black,white]
 photodiode_bw = nan(size(photodiode_trace));
 photodiode_bw(photodiode_trace < photodiode_bw_thresh(1)) = 0;
 photodiode_bw(photodiode_trace > photodiode_bw_thresh(2)) = 1;

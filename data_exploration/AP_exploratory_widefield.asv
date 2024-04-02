@@ -134,7 +134,7 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM019';
+animal = 'AM015';
 
 ap.wf_align([],animal,[],'new_days');
 
@@ -193,9 +193,9 @@ end
 
 
 %% Create animal alignment (animal average VFS to master VFS)
-% (first need day alignment and retinotopy)
+% NOTE: need day alignment and retinotopy
 
-animal = 'AM019';
+animal = 'AM018';
 
 % Load pre-saved retinotopy
 retinotopy_fn = fullfile(plab.locations.server_path, ...
@@ -241,7 +241,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AM019';
+animal = 'AM014';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
