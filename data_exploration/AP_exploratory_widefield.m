@@ -13,7 +13,11 @@ if contains(bonsai_workflow,'passive')
         1:length(stimOn_times))';
 
     align_times = stimOn_times(quiescent_trials);
-    align_category_all = vertcat(trial_events.values.TrialStimX);
+    if isfield(trial_events.values,'TrialStimX')
+        align_category_all = vertcat(trial_events.values.TrialStimX);
+    elseif isfield(trial_events.values,'StimFrequence')
+        align_category_all = vertcat(trial_events.values.StimFrequence);
+    end
     align_category = align_category_all(quiescent_trials);
 
     baseline_times = stimOn_times(quiescent_trials);
@@ -102,12 +106,12 @@ AP_imscroll(aligned_px_avg,t);
 colormap(AP_colormap('PWG'));
 clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
-
+set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AP014';
+animal = 'AM021';
 workflow = 'sparse_noise';
 
 % % Specific day
@@ -134,13 +138,13 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM019';
+animal = 'AM022';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-animals = {'AP020'};
+animals = {'AM022'};
 
 for curr_animal = 1:length(animals)
 
@@ -195,7 +199,7 @@ end
 %% Create animal alignment (animal average VFS to master VFS)
 % (first need day alignment and retinotopy)
 
-animal = 'AM019';
+animal = 'AM022';
 
 % Load pre-saved retinotopy
 retinotopy_fn = fullfile(plab.locations.server_path, ...
@@ -241,7 +245,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AM019';
+animal = 'AM022';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

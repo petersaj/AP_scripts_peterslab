@@ -10,7 +10,7 @@ widefield_colors = {'blue','violet'};
 wf_day_path = plab.locations.filename('server',animal,rec_day,[],'widefield');
 wf_rec_path = plab.locations.filename('server',animal,rec_day,rec_time,'widefield');
 
-% %%%%%%% TESTING 
+%%%%%%% TESTING 
 % widefield_colors = {'color1','color2'};
 % 
 % wf_day_path = fullfile('D:\widefield_test','1color');
@@ -57,10 +57,6 @@ end
 %     wf_t_all{curr_wf} = widefield_expose_times(curr_wf:length(widefield_colors):end);
 % end
 % 
-% % Correct hemodynamics
-% [V_neuro_hemocorr,hemocorr_t] = plab.wf.hemo_correct( ...
-%     wf_U_raw{1},wf_V_raw{1}(:,1:2:end),wf_t_all{1}(1:2:end), ...
-%     wf_U_raw{1},wf_V_raw{1}(:,2:2:end),wf_t_all{1}(2:2:end));
 % 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -82,27 +78,32 @@ if any(cellfun(@(v,t) size(v,2) < length(t),wf_V_raw,wf_t_all))
 %     plab.wf.find_dropped_frames(animal,rec_day,rec_time)
 end
 
-%%%%%%%%%% TESTING HEMO
-
-% U_neuro = wf_U_raw{1};
-% V_neuro = wf_V_raw{1};
-% t_neuro = wf_t_all{1};
+% %%%%%%%%%% TESTING HEMO
 % 
-% U_hemo = wf_U_raw{2};
-% V_hemo = wf_V_raw{2};
-% t_hemo = wf_t_all{2};
-
-
-U_neuro = wf_U_raw{1};
-V_neuro = wf_V_raw{1}(:,1:2:end);
-t_neuro = wf_t_all{1}(1:2:end);
-
-U_hemo = wf_U_raw{1};
-V_hemo = wf_V_raw{1}(:,2:2:end);
-t_hemo = wf_t_all{1}(2:2:end);
-
-
-%%%%%%%%%%%%%%
+% % U_neuro = wf_U_raw{1};
+% % V_neuro = wf_V_raw{1};
+% % t_neuro = wf_t_all{1};
+% % 
+% % U_hemo = wf_U_raw{2};
+% % V_hemo = wf_V_raw{2};
+% % t_hemo = wf_t_all{2};
+% 
+% 
+% U_neuro = wf_U_raw{1};
+% V_neuro = wf_V_raw{1}(:,1:2:end);
+% t_neuro = wf_t_all{1}(1:2:end);
+% 
+% U_hemo = wf_U_raw{1};
+% V_hemo = wf_V_raw{1}(:,2:2:end);
+% t_hemo = wf_t_all{1}(2:2:end);
+% 
+% % Correct hemodynamics
+% [V_neuro_hemocorr,hemocorr_t] = plab.wf.hemo_correct( ...
+%     wf_U_raw{1},wf_V_raw{1}(:,1:2:end),wf_t_all{1}(1:2:end), ...
+%     wf_U_raw{1},wf_V_raw{1}(:,2:2:end),wf_t_all{1}(2:2:end));
+% 
+% 
+% %%%%%%%%%%%%%%
 
 
 

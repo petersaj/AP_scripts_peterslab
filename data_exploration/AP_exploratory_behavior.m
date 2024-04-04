@@ -6,18 +6,18 @@
 use_cam = mousecam_fn;
 use_t = mousecam_times;
 
-% (passive)
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    1:length(stimOn_times))';
-
-stim_x = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
+% % (passive)
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     1:length(stimOn_times))';
+% 
+% stim_x = vertcat(trial_events.values.StimFrequence);
+% use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
 
 % % (task)
-% use_align = stimOn_times;
+use_align = stimOn_times;
 
 
 surround_frames = 60;
@@ -171,7 +171,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AP020','AP021','AP022'};
+animals = {'AP019'};
 
 % Create master tiled layout
 figure;
@@ -204,7 +204,7 @@ for curr_animal_idx = 1:length(animals)
 
         % Load data
         rec_day = recordings(curr_recording).day;
-        rec_time = recordings(curr_recording).recording{end};
+        rec_time = recordings(curr_recording).recording{1};
         load_parts = struct;
         load_parts.behavior = true;
         ap.load_recording;

@@ -594,10 +594,7 @@ end
 % % (control point align)
 % [movingPoints,fixedPoints] = cpselect( ...
 %     ccf_vfs_overlay,vfs_im_overlay,'Wait',true);
-% ccf_tform = fitgeotform2d(movingPoints,fixedPoints,'similarity');
-% 
-% % Force rotatation to be 0
-% ccf_tform.RotationAngle = 0;
+% ccf_tform = fitgeotform2d(movingPoints,fixedPoints,'affine');
 % 
 % dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
 %     [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,areas,'uni',false), ...
