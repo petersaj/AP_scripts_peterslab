@@ -84,7 +84,7 @@ for curr_boot = 1:n_boot
 
     %     % (for troubleshooting: scroll through px stim responses)
     %     AP_imscroll(reshape(permute(stim_im_px,[3,1,2]),size(Ud,1),size(Ud,2),[]));
-    %     axis image;clim(max(abs(clim)).*[-1,1]);colormap(AP_colormap('BWR'));
+    %     axis image;clim(max(abs(clim)).*[-1,1]);colormap(ap.colormap('BWR'));
 
     % Get center-of-mass screen response for each widefield pixel
     [yy,xx] = ndgrid(1:size(stim_im_smoothed,1),1:size(stim_im_smoothed,2));
@@ -110,7 +110,7 @@ vfs = imgaussfilt(nanmean(vfs_boot,3),2);
 figure;
 imagesc(vfs)
 axis image off;
-colormap(AP_colormap('BWR'));
+colormap(ap.colormap('BWR'));
 title(sprintf('%s, %s',animal,rec_day));
 
 
@@ -132,7 +132,7 @@ title(sprintf('%s, %s',animal,rec_day));
 % h = nexttile;
 % imagesc(vfs_ccf_aligned);
 % axis image off;
-% colormap(h,AP_colormap('BWR'));
+% colormap(h,ap.colormap('BWR'));
 % ap.wf_draw('ccf','k');
 % 
 % % Plot average image with retinotopy/CCF/grid overlay
@@ -153,7 +153,7 @@ title(sprintf('%s, %s',animal,rec_day));
 % colormap(ax_avg,gray);
 % clim(ax_avg,prctile(wf_avg(:),[20,99]));
 % h2 = imagesc(ax_vfs,vfs_ccf_aligned);
-% colormap(ax_vfs,AP_colormap('BWR'));
+% colormap(ax_vfs,ap.colormap('BWR'));
 % clim(ax_vfs,[-1,1]);
 % set(ax_avg,'Visible','off');
 % axes(ax_avg); axis image off;

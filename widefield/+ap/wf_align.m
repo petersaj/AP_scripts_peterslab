@@ -1,5 +1,5 @@
 function [im_aligned,im_tform] = wf_align(im_unaligned,animal,day,align_type,master_align)
-% im_aligned = align_widefield(im_unaligned,animal,day,align_type,master_align)
+% im_aligned = wf_align(im_unaligned,animal,day,align_type,master_align)
 %
 % Align widefield images across days and animals
 %

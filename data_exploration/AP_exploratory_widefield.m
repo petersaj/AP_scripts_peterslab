@@ -138,13 +138,13 @@ ap.wf_retinotopy
 
 %% Create day alignment
 
-animal = 'AM022';
+animal = 'AP013';
 
 ap.wf_align([],animal,[],'new_days');
 
 %% Batch sparse noise retinotopy
 
-animals = {'AM022'};
+animals = {'AP022'};
 
 for curr_animal = 1:length(animals)
 
@@ -245,7 +245,7 @@ title('Master-aligned average VFS');
 
 %% View aligned days
 
-animal = 'AM022';
+animal = 'AP020';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
