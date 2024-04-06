@@ -89,13 +89,13 @@ end
 % t_hemo = wf_t_all{2};
 
 
-U_neuro = wf_U_raw{1};
-V_neuro = wf_V_raw{1}(:,1:2:end);
-t_neuro = wf_t_all{1}(1:2:end);
-
-U_hemo = wf_U_raw{1};
-V_hemo = wf_V_raw{1}(:,2:2:end);
-t_hemo = wf_t_all{1}(2:2:end);
+% U_neuro = wf_U_raw{1};
+% V_neuro = wf_V_raw{1}(:,1:2:end);
+% t_neuro = wf_t_all{1}(1:2:end);
+% 
+% U_hemo = wf_U_raw{1};
+% V_hemo = wf_V_raw{1}(:,2:2:end);
+% t_hemo = wf_t_all{1}(2:2:end);
 % 
 % % Correct hemodynamics
 % [V_neuro_hemocorr,hemocorr_t] = plab.wf.hemo_correct( ...

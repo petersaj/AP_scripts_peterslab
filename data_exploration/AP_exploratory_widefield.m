@@ -136,116 +136,23 @@ ap.wf_retinotopy
 
 %% ~~~~~~~~ ALIGN WIDEFIELD
 
-%% Create day alignment
+%% Create alignments
 
-animal = 'AP013';
+animal = 'AP020';
 
-ap.wf_align([],animal,[],'new_days');
+% Create across-day alignments
+plab.wf.wf_align([],animal,[],'new_days');
 
-%% Batch sparse noise retinotopy
+% Get and save VFS maps for animal
+plab.wf.retinotopy_vfs_batch(animal);
 
-animals = {'AP022'};
-
-for curr_animal = 1:length(animals)
-
-    preload_vars = who;
-
-    animal = animals{curr_animal};
-
-    workflow = 'sparse_noise';
-    recordings = plab.find_recordings(animal,[],workflow);
-    recordings_wf = recordings(cellfun(@any,{recordings.widefield}));
-
-    vfs_all = cell(length(recordings_wf),1);
-    disp('Creating retinotopy...');
-    for curr_day = 1:length(recordings_wf)
-        rec_day = recordings_wf(curr_day).day;
-        rec_time = recordings_wf(curr_day).recording{end};
-
-        load_parts.widefield = true;
-        load_parts.widefield_align = false;
-        verbose = false;
-        try
-            ap.load_recording;
-            ap.wf_retinotopy;
-            vfs_all{curr_day} = vfs;
-        catch me
-            % If there's an error, skip to next day
-            continue
-        end
-    end
-
-    % Save retinotopy from all days which have VFS
-    retinotopy_fn = fullfile(plab.locations.server_path, ...
-        'Users','Andy_Peters','widefield_alignment','retinotopy', ...
-        sprintf('retinotopy_%s.mat',animal));
-
-    use_recordings = cellfun(@(x) ~isempty(x),vfs_all);
-
-    retinotopy = struct;
-    retinotopy.animal = animal;
-    retinotopy.day = {recordings(use_recordings).day};
-    retinotopy.vfs = vfs_all;
-
-    save(retinotopy_fn,'retinotopy');
-    fprintf('Saved %s\n',retinotopy_fn);
-
-    % Clear variables for next loop
-    clearvars('-except',preload_vars{:});
-
-end
-
-
-%% Create animal alignment (animal average VFS to master VFS)
-% (first need day alignment and retinotopy)
-
-animal = 'AM022';
-
-% Load pre-saved retinotopy
-retinotopy_fn = fullfile(plab.locations.server_path, ...
-    'Users','Andy_Peters','widefield_alignment','retinotopy', ...
-    sprintf('retinotopy_%s.mat',animal));
-
-if exist(retinotopy_fn,'file')
-    load(retinotopy_fn);
-else
-    error('No retinotopy saved: %s',animal);
-end
-
-% Align VFS across days
-aligned_vfs = cell(length(retinotopy.vfs),1);
-for curr_day = 1:length(retinotopy.vfs)
-    aligned_vfs{curr_day} = ap.wf_align(retinotopy.vfs{curr_day}, ...
-        retinotopy.animal,retinotopy.day{curr_day},'day_only');
-end
-
-% Plot day-aligned VFS
-AP_imscroll(cat(3,aligned_vfs{:}));
-colormap(AP_colormap('BWR'));clim([-1,1]);
-axis image off;
-title('Day-aligned VFS')
-
-% Align across-day mean VFS to master animal
-vfs_mean = nanmean(cat(3,aligned_vfs{:}),3);
-ap.wf_align(vfs_mean,animal,[],'new_animal');
-
-% Plot master-aligned average VFS with CCF overlay
-master_aligned_vfs = cell(length(retinotopy),1);
-for curr_day = 1:length(retinotopy)
-    master_aligned_vfs{curr_day} = ...
-        ap.wf_align(retinotopy.vfs{curr_day}, ...
-        animal,retinotopy.day{curr_day});
-end
-figure;imagesc(nanmean(cat(3,master_aligned_vfs{:}),3));
-colormap(AP_colormap('BWR'));clim([-1,1]);
-axis image off;
-ap.wf_draw('ccf',[0.5,0.5,0.5]);
-title('Master-aligned average VFS');
+% Create across-animal alignments
+plab.wf.wf_align([],animal,[],'new_animal');
 
 
 %% View aligned days
 
-animal = 'AP020';
+animal = 'AP021';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -262,11 +169,11 @@ for curr_day = 1:length(wf_recordings)
     avg_im_h = readNPY([img_path filesep 'meanImage_violet.npy']);
 
 %         % (to concatenate)
-%         avg_im_aligned{curr_day} = [ap.wf_align(avg_im_n,animal,day), ...
-%             ap.wf_align(avg_im_h,animal,day)];
+%         avg_im_aligned{curr_day} = [plab.wf.wf_align(avg_im_n,animal,day), ...
+%             plab.wf.wf_align(avg_im_h,animal,day)];
 
     % (blue only)
-    avg_im_aligned{curr_day} = ap.wf_align(avg_im_n,animal,day);
+    avg_im_aligned{curr_day} = plab.wf.wf_align(avg_im_n,animal,day);
 end
 
 % Plot average
