@@ -22,7 +22,7 @@ for curr_depth = 1:size(depth_corr_bins,2)
         find(template_depths >= depth_corr_bins(1,curr_depth) & ...
         template_depths < depth_corr_bins(2,curr_depth));
 
-    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timeline( ...
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
 end
 
@@ -52,8 +52,8 @@ linkaxes(get(h,'Children'),'x');
 %% MUA correlelogram
 
 % Get correlation of MUA in sliding sindows
-depth_corr_window = 100; % MUA window in microns
-depth_corr_window_spacing = 20; % MUA window spacing in microns
+depth_corr_window = 200; % MUA window in microns
+depth_corr_window_spacing = 50; % MUA window spacing in microns
 
 max_depths = 3840; % (hardcode, sometimes kilosort drops channels)
 
@@ -62,7 +62,7 @@ depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); .
 depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
 
 spike_binning_t = 0.01; % seconds
-spike_binning_t_edges = nanmin(spike_times_timeline):spike_binning_t:nanmax(spike_times_timeline);
+spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spike_times_timelite);
 
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
 for curr_depth = 1:size(depth_corr_bins,2)
@@ -70,7 +70,7 @@ for curr_depth = 1:size(depth_corr_bins,2)
         find(template_depths >= depth_corr_bins(1,curr_depth) & ...
         template_depths < depth_corr_bins(2,curr_depth));
     
-    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timeline( ...
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
 end
 
@@ -142,7 +142,7 @@ for curr_align = 1:length(align_times)
     use_align = align_times{curr_align};
     t_peri_event = bsxfun(@plus,use_align,t_bins);
     for curr_unit = 1:n_units
-        curr_spikes = spike_times_timeline(spike_templates == curr_unit);
+        curr_spikes = spike_times_timelite(spike_templates == curr_unit);
 
         curr_spikes_binned = cell2mat(arrayfun(@(x) ...
             histcounts(curr_spikes,t_peri_event(x,:)), ...
@@ -249,7 +249,7 @@ for curr_align = 1:length(align_times)
     use_align = align_times{curr_align};
     t_peri_event = bsxfun(@plus,use_align,t_bins);
     for curr_depth = 1:n_depths
-        curr_spikes = spike_times_timeline(depth_group == curr_depth);
+        curr_spikes = spike_times_timelite(depth_group == curr_depth);
 
         curr_spikes_binned = cell2mat(arrayfun(@(x) ...
             histcounts(curr_spikes,t_peri_event(x,:)), ...
@@ -329,9 +329,9 @@ stim_positions = cellfun(@(x,y,times) repmat([y,x],length(times),1), ...
     num2cell(stim_x),num2cell(stim_y),stim_times_grid,'uni',false);
 
 % Pick unit
-% use_spikes = spike_times_timeline(spike_templates == 276);
-use_spikes = spike_times_timeline(spike_templates == 229);
-% use_spikes = spike_times_timeline(ismember(spike_templates, ...
+% use_spikes = spike_times_timelite(spike_templates == 276);
+use_spikes = spike_times_timelite(spike_templates == 229);
+% use_spikes = spike_times_timelite(ismember(spike_templates, ...
 %     find(template_depths > 1700 & template_depths < 2300)));
 
 % Get stim times vector (x,y)
@@ -369,7 +369,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % even, click
+mua_method = 'click'; % even, click
 
 switch mua_method
 
@@ -468,7 +468,7 @@ depth_group = discretize(spike_depths,depth_group_edges);
 
 binned_spikes = zeros(n_depths,length(time_bins)-1);
 for curr_depth = 1:n_depths
-    curr_spike_times = spike_times_timeline(depth_group == curr_depth);
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
     binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
 end
 
@@ -476,9 +476,9 @@ binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
 use_svs = 1:100;
-kernel_t = [-0.2,0.2];
+kernel_t = [-0.5,0.5];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 50;
+lambda = 20;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -547,7 +547,7 @@ time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 % Bin spikes
 binned_spikes = zeros(length(use_templates),length(time_bins)-1);
 for curr_unit_idx = 1:length(use_templates)
-    curr_spike_times = spike_times_timeline(spike_templates == use_templates(curr_unit_idx));
+    curr_spike_times = spike_times_timelite(spike_templates == use_templates(curr_unit_idx));
     binned_spikes(curr_unit_idx,:) = histcounts(curr_spike_times,time_bins);
 end
 
@@ -598,7 +598,7 @@ clim([0,prctile(r_px_timepoint(:),99.9)]);
 
 %% TESTING BATCH DEPTH MUA
 
-animal = 'AP009';
+animal = 'AM022';
 use_workflow = 'lcr_passive';
 recordings = plab.find_recordings(animal,[],use_workflow);
 recording_idx = find([recordings.ephys])-3;
@@ -655,7 +655,7 @@ for curr_recording = 1:length(recordings)
         use_align = align_times{curr_align};
         t_peri_event = bsxfun(@plus,use_align,t_bins);
         for curr_depth = 1:n_depths
-            curr_spikes = spike_times_timeline(depth_group == curr_depth);
+            curr_spikes = spike_times_timelite(depth_group == curr_depth);
 
             curr_spikes_binned = cell2mat(arrayfun(@(x) ...
                 histcounts(curr_spikes,t_peri_event(x,:)), ...
@@ -684,7 +684,7 @@ for curr_recording = 1:length(recordings)
 
 end
 
-plot_mua = squeeze(day_mua(:,:,3,:));
+plot_mua = squeeze(day_mua(3:5,:,3,:));
 
 figure;
 tiledlayout('flow');

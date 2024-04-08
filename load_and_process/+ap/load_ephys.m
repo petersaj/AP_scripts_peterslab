@@ -171,43 +171,43 @@ flipper_flip_times_ephys = open_ephys_flipper.timestamps(curr_ephys_flipper_idx)
 
 % Pick flipper times to use for alignment
 if length(flipper_flip_times_ephys) == length(flipper_times)
-    % If same number of flips in ephys/timeline, use all
-    sync_timeline = flipper_times;
+    % If same number of flips in ephys/timelite, use all
+    sync_timelite = flipper_times;
     sync_ephys = flipper_flip_times_ephys;
 
 elseif length(flipper_flip_times_ephys) < length(flipper_times)
     warning('%s %s flips: %d ephys/%d timelite, using first/last for now', ...
         animal, rec_day, length(flipper_flip_times_ephys),length(flipper_times));
-    sync_timeline = flipper_times([1,end]);
+    sync_timelite = flipper_times([1,end]);
     sync_ephys = flipper_flip_times_ephys([1,end]);
 
-    %         sync_timeline = flipper_times;
+    %         sync_timelite = flipper_times;
     %         sync_ephys = flipper_flip_times_ephys;
     %
     %         % Remove flips by flip interval until same number
     %         ephys_missed_flips_n = length(flipper_times) - length(flipper_flip_times_ephys);
     %         missed_flip_t_thresh = 0.1;
-    %         while length(sync_ephys) ~= length(sync_timeline)
+    %         while length(sync_ephys) ~= length(sync_timelite)
     %             curr_missed_flip = ...
     %                 find(abs(diff(sync_ephys) - ...
-    %                 diff(sync_timeline(1:length(sync_ephys)))) > ...
+    %                 diff(sync_timelite(1:length(sync_ephys)))) > ...
     %                 missed_flip_t_thresh,1);
-    %             sync_timeline(curr_missed_flip) = [];
+    %             sync_timelite(curr_missed_flip) = [];
     %         end
     %
     %         % Remove remaining flips with mismatching flip intervals
     %         remove_flips = abs(diff(sync_ephys) - ...
-    %             diff(sync_timeline(1:length(sync_ephys)))) > missed_flip_t_thresh;
-    %         sync_timeline(remove_flips) = [];
+    %             diff(sync_timelite(1:length(sync_ephys)))) > missed_flip_t_thresh;
+    %         sync_timelite(remove_flips) = [];
     %         sync_ephys(remove_flips) = [];
 
 elseif length(flipper_flip_times_ephys) > length(flipper_times)
-    % If more flips in ephys than timeline, screwed
+    % If more flips in ephys than timelite, screwed
     error([animal ' ' rec_day ': flips ephys > timelite'])
 end
 
-% Get spike times in timeline time
-spike_times_timeline = interp1(sync_ephys,sync_timeline,spike_times_openephys,'linear','extrap');
+% Get spike times in timelite time
+spike_times_timelite = interp1(sync_ephys,sync_timelite,spike_times_openephys,'linear','extrap');
 
 
 %% Load probe position 
@@ -238,7 +238,7 @@ if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') &&
     probe_histology_day_idx = find(strcmp(rec_day,{probe_histology.probe_ccf.day}));
     probe_areas = {probe_histology.probe_ccf(probe_histology_day_idx).trajectory_areas};
     if verbose; disp('Ephys: Loaded histology positions...'); end
-else
+elseif exist('probe_nte','var')
     probe_areas = probe_nte.probe_areas;
     if verbose; disp('Ephys: Loaded NTE positions...'); end
 end
@@ -316,7 +316,7 @@ good_spikes = ismember(spike_templates,find(good_templates));
 spike_templates = spike_templates(good_spikes);
 template_amplitudes = template_amplitudes(good_spikes);
 spike_depths = spike_depths(good_spikes);
-spike_times_timeline = spike_times_timeline(good_spikes);
+spike_times_timelite = spike_times_timelite(good_spikes);
 
 % Rename the remaining spike templates (1:N, to match index for template)
 [~,spike_templates] = ismember(spike_templates,find(good_templates));
