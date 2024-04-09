@@ -10,7 +10,7 @@ function cellraster(align_times,align_groups)
 % templates (output from kilosort)
 % channel_positions (output from kilosort)
 % template_depths (calculated from center-of-mass or otherwise)
-% spike_times_timeline (spike_times aligned to timeline)
+% spike_times_timelite (spike_times aligned to timelite)
 % spike_templates (output from kilosort+1)
 % template_amplitudes (output from kilosort)
 %
@@ -70,7 +70,7 @@ try
 templates = evalin('base','templates');
 channel_positions = evalin('base','channel_positions');
 template_depths = evalin('base','template_depths');
-spike_times = evalin('base','spike_times_timeline');
+spike_times = evalin('base','spike_times_timelite');
 spike_templates = evalin('base','spike_templates');
 template_amplitudes = evalin('base','template_amplitudes');
 catch me
