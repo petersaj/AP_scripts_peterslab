@@ -262,25 +262,25 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP020';
+animal = 'AM021';
 passive_workflow = 'lcr_passive';
 recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 
-% training_workflow = 'stim_wheel*';
-training_workflow = 'visual_conditioning*';
+training_workflow = 'stim_wheel*';
+% training_workflow = 'visual_conditioning*';
 recordings_training = plab.find_recordings(animal,[],training_workflow);
 
 % (use recordings on training days)
+recordings = recordings_passive( ...
+    cellfun(@any,{recordings_passive.widefield}) & ...
+    [recordings_passive.ephys] & ...
+    ismember({recordings_passive.day},{recordings_training.day}));
+
+% % (use recordings on or before last training day)
 % recordings = recordings_passive( ...
 %     cellfun(@any,{recordings_passive.widefield}) & ...
 %     ~[recordings_passive.ephys] & ...
-%     ismember({recordings_passive.day},{recordings_training.day}));
-
-% (use recordings on or before last training day)
-recordings = recordings_passive( ...
-    cellfun(@any,{recordings_passive.widefield}) & ...
-    ~[recordings_passive.ephys] & ...
-    days(datetime({recordings_passive.day}) - datetime(recordings_training(end).day)) <= 0);
+%     days(datetime({recordings_passive.day}) - datetime(recordings_training(end).day)) <= 0);
 
 % (use all passive recordings)
 % recordings = recordings_passive( ...
