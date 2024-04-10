@@ -35,17 +35,20 @@ if ~iscell(align_times)
 end
 align_times = reshape(cellfun(@(x) reshape(x,[],1),align_times,'uni',false),1,[]);
 
-% Initiate align_groups
-
-% (if no align groups specified, create one group for each alignment)
-if ~exist('align_groups','var') || isempty(align_groups)
-   align_groups =  cellfun(@(x) ones(size(x,1),1),align_times,'uni',false);
-end
-
-% (put groups into cell array if it isn't already)
-if ~iscell(align_groups)
+% Initialize align_groups
+if exist ('align_groups','var') && ~iscell(align_groups)
+    % (make a cell array if it's a vector)
     align_groups = {align_groups};
+elseif ~exist('align_groups','var')
+    % (create a grouping array of all 1's if it doesn't exist)
+    align_groups = cellfun(@(x) ones(size(x,1),1),align_times,'uni',false);
+elseif any(cellfun(@isempty,align_groups))
+    % (if there are empty groups, set to all 1's)
+    empty_groups = cellfun(@isempty,align_groups);
+    align_groups(empty_groups) = cellfun(@(x) ones(size(x,1),1), ...
+        align_times(empty_groups),'uni',false);
 end
+% (ensure row array)
 align_groups = reshape(align_groups,1,[]);
 
 % (replicate for each align_times if only one)
@@ -57,9 +60,6 @@ end
 
 % (check group against time dimensions, orient align times x groups)
 group_dim = cellfun(@(align,group) find(ismember(size(group),length(align))),align_times,align_groups,'uni',false);
-if any(cellfun(@isempty,group_dim))
-    error('Mismatching times/groups within align set')
-end
 align_groups = cellfun(@(groups,dim) shiftdim(groups,dim-1),align_groups,group_dim,'uni',false);
 
 % (if there isn't an all ones category first, make one)

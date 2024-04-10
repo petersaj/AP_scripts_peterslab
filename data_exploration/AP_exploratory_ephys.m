@@ -51,7 +51,7 @@ linkaxes(get(h,'Children'),'x');
 
 %% MUA correlelogram
 
-% Get correlation of MUA in sliding sindows
+% Get correlation of MUA in sliding windows
 depth_corr_window = 200; % MUA window in microns
 depth_corr_window_spacing = 50; % MUA window spacing in microns
 
@@ -99,7 +99,7 @@ if contains(bonsai_workflow,'lcr')
     align_times = align_times_all(quiescent_trials);
     align_category = align_category_all(quiescent_trials);
 
-    AP_cellraster(align_times,align_category);
+    ap.cellraster(align_times,align_category);
 
 elseif contains(bonsai_workflow,'stim_wheel')
     % (task)
@@ -111,7 +111,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
         photodiode_values,wheel_starts,'previous') == 0);
 
     [~,rxn_sort_idx] = sort(stim_to_move);
-    AP_cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts_iti,reward_times}, ...
+    ap.cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts_iti,reward_times}, ...
         {rxn_sort_idx,rxn_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
@@ -314,14 +314,19 @@ stim_screen = discretize(noise_locations,[0,128,129,255],-1:1);
 nY = size(stim_screen,1);
 nX = size(stim_screen,2);
 stim_times_grid = cell(nY,nX);
-for x = 1:nX
-    for y = 1:nY
-        align_stims = (stim_screen(y,x,1:end-1) == 0) & ...
-            (stim_screen(y,x,2:end) == 0);
-        align_times = stim_times(find(align_stims)+1);
-        stim_times_grid{y,x} = align_times;
+for px_x = 1:nX
+    for px_y = 1:nY
+        align_times = ...
+            stim_times(find( ...
+            (noise_locations(px_y,px_x,1:end-1) == 128 & ...
+            noise_locations(px_y,px_x,2:end) == 255) | ...
+            (noise_locations(px_y,px_x,1:end-1) == 128 & ...
+            noise_locations(px_y,px_x,2:end) == 0))+1);
+
+        stim_times_grid{px_y,px_x} = align_times;
     end
-end
+end       
+
 
 % Vectorize stim times by y,x position
 [stim_x,stim_y] = meshgrid(1:nX,1:nY);
@@ -330,13 +335,13 @@ stim_positions = cellfun(@(x,y,times) repmat([y,x],length(times),1), ...
 
 % Pick unit
 % use_spikes = spike_times_timelite(spike_templates == 276);
-use_spikes = spike_times_timelite(spike_templates == 229);
-% use_spikes = spike_times_timelite(ismember(spike_templates, ...
-%     find(template_depths > 1700 & template_depths < 2300)));
+% use_spikes = spike_times_timelite(spike_templates == 180);
+use_spikes = spike_times_timelite(ismember(spike_templates, ...
+    find(template_depths > 1500 & template_depths < 2500)));
 
 % Get stim times vector (x,y)
 stim_aligned_avg = cell(nY,nX);
-raster_window = [-0.05,0.2];
+raster_window = [-0.05,0.4];
 smooth_size = 2;
 gw = gausswin(smooth_size,3)';
 smWin = gw./sum(gw);

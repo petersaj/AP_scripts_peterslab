@@ -118,18 +118,23 @@ template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./
 spike_depths = template_depths(spike_templates);
 
 % Get trough-to-peak time for each template
-templates_max_signfix = bsxfun(@times,templates_max, ...
-    sign(abs(min(templates_max,[],2)) - abs(max(templates_max,[],2))));
-
 [~,waveform_trough] = min(templates_max,[],2);
 [~,waveform_peak_rel] = arrayfun(@(x) ...
     max(templates_max(x,waveform_trough(x):end),[],2), ...
     transpose(1:size(templates_max,1)));
-waveform_peak = waveform_peak_rel + waveform_trough;
+waveform_peak = waveform_peak_rel + waveform_trough - 1;
 
 ephys_sample_rate = 30000; % (just hardcoded for now, it never changes)
-templateDuration = waveform_peak - waveform_trough;
-templateDuration_us = (templateDuration/ephys_sample_rate)*1e6;
+waveform_duration_peaktrough = ...
+    1e6*(waveform_peak - waveform_trough)/ephys_sample_rate;
+
+% Get width of spike (full width at half max)
+[~,~,waveform_duration_fwhm] = arrayfun(@(x) ...
+    findpeaks(-templates_max(x,:), ...
+    ((1:size(templates_max,2))/30000)*1e6, ...
+    'NPeaks',1,'WidthReference','halfheight'), ...
+    (1:size(templates,1))');
+
 
 %% Convert timestamps to timelite (with flipper)
 
@@ -308,8 +313,8 @@ end
 templates = templates(good_templates,:,:);
 template_depths = template_depths(good_templates);
 waveforms = waveforms(good_templates,:);
-templateDuration = templateDuration(good_templates);
-templateDuration_us = templateDuration_us(good_templates);
+waveform_duration_peaktrough = waveform_duration_peaktrough(good_templates);
+waveform_duration_fwhm = waveform_duration_fwhm(good_templates);
 
 % Throw out all non-good spike data
 good_spikes = ismember(spike_templates,find(good_templates));
