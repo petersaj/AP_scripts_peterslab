@@ -1,4 +1,4 @@
-function run_bombcell(ap_band_filename,kilosort_path,meta_filename)
+function run_bombcell(ap_band_filename,kilosort_path,meta_filename,kilosort_version)
 % run_bombcell(ap_band_filename,kilosort_path,meta_filename)
 %
 % Run Bombcell (JF quality metrics) and supplemental metrics
@@ -16,29 +16,26 @@ disp('Running bombcell...');
 savePath = fullfile(kilosort_path,'qMetrics');
 
 % Get file info of metadata
-% (This should be changed in bc_qualityParamValues: just ask for filename.
-% Is this even necessary? what's it used for?)
 ephys_meta_dir = dir(meta_filename);
+
+% Grab bit-volts from metadata
+ephys_metadata = jsondecode(fileread(meta_filename));
+bit_volts = unique([ephys_metadata.continuous(1).channels.bit_volts]);
+if length(bit_volts) ~= 1
+    error('More than 1 unique bit-volt value');
+end
 
 % Load data
 [spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, ...
     pcFeatureIdx, channelPositions] = bc_loadEphysData(kilosort_path);
 
 % Set parameters (load default, overwrite custom)
-param = bc_qualityParamValues(ephys_meta_dir, ap_band_filename, kilosort_path);
+param = bc_qualityParamValues(ephys_meta_dir,ap_band_filename,kilosort_path,bit_volts,kilosort_version);
 param.nChannels = 384;
-param.spikeWidth = size(templateWaveforms,2);
 param.nSyncChannels = 0;
 param.extractRaw = 1;
 param.plotGlobal = false;
 param.plotDetails = false;
-
-% Kilosort4: baseline is a different window than <4
-kilosort4_flag = param.spikeWidth == 61;
-if kilosort4_flag
-    param.waveformBaselineWindowStart = 1;
-    param.waveformBaselineWindowStop = 10;
-end
 
 % Run quality metrics
 rerun = 0;

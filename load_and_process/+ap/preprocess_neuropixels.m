@@ -127,7 +127,8 @@ for curr_data = 1:length(data_paths)
         %% Run bombcell (using CAR data)
    
         % Run bombcell
-        ap.run_bombcell(apband_car_local_filename,kilosort_output_path,ephys_meta_fn);
+        kilosort_version = 4;
+        ap.run_bombcell(apband_car_local_filename,kilosort_output_path,ephys_meta_fn,kilosort_version);
         
         %% Copy kilosort results to server
                 
