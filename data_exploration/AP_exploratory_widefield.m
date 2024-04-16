@@ -262,18 +262,20 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AM021';
-passive_workflow = 'lcr_passive';
+animal = 'AP021';
+% passive_workflow = 'lcr_passive';
+passive_workflow = 'hml_passive_audio';
 recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 
-training_workflow = 'stim_wheel*';
+% training_workflow = 'stim_wheel*';
 % training_workflow = 'visual_conditioning*';
+training_workflow = '*audio_volume*';
 recordings_training = plab.find_recordings(animal,[],training_workflow);
 
 % (use recordings on training days)
 recordings = recordings_passive( ...
     cellfun(@any,{recordings_passive.widefield}) & ...
-    [recordings_passive.ephys] & ...
+    ~[recordings_passive.ephys] & ...
     ismember({recordings_passive.day},{recordings_training.day}));
 
 % % (use recordings on or before last training day)
@@ -318,7 +320,8 @@ for curr_recording = 1:length(recordings)
         1:length(stimOn_times))';
 
     align_times = stimOn_times(quiescent_trials);
-    align_category_all = vertcat(trial_events.values.TrialStimX);
+%     align_category_all = vertcat(trial_events.values.TrialStimX);
+    align_category_all = vertcat(trial_events.values.StimFrequence);
     align_category = align_category_all(quiescent_trials);
 
     % Align to stim onset

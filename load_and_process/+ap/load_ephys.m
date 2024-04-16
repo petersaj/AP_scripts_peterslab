@@ -1,15 +1,28 @@
 % Load electrophysiology data
 
+% Set parent ephys path
 ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
-kilosort_folder = 'kilosort4';
 
-if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
+% Find latest kilosort version
+kilosort_versions = ["kilosort4","pykilosort"];
+for curr_kilosort_version = kilosort_versions
+    if exist(fullfile(ephys_path,curr_kilosort_version),'dir')
+        kilosort_folder = curr_kilosort_version;
+        break
+    end
+end
 
-%% Load and prepare Kilosort data
+if ~exist('kilosort_folder','var') || isempty(kilosort_folder)
+    error('%s %s: no kilosort folder found',animal,rec_day);
+end
 
 % Get path for raw data and kilosort for given recording
 kilosort_top_path = fullfile(ephys_path,kilosort_folder);
 kilosort_dir = dir(kilosort_top_path);
+
+if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
+
+%% Load and prepare Kilosort data
 
 if ~any(contains({kilosort_dir.name},{'site','probe'}))
     % If no site/probe subfolders, use that top path

@@ -603,7 +603,7 @@ clim([0,prctile(r_px_timepoint(:),99.9)]);
 
 %% TESTING BATCH DEPTH MUA
 
-animal = 'AM022';
+animal = 'AM021';
 use_workflow = 'lcr_passive';
 recordings = plab.find_recordings(animal,[],use_workflow);
 recording_idx = find([recordings.ephys])-3;
