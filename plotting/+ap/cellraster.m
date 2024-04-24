@@ -466,13 +466,13 @@ switch eventdata.Key
                 
     case 'm'
         % Multiunit (select on unit depth plot)
-        [~,multiunit_top] = ginput(1);
-        [~,multiunit_bottom] = ginput(1);
+        [~,multiunit_click] = ginput(2);
+        multiunit_depths = sort(multiunit_click);
         
         template_depths = get(gui_data.unit_dots,'YData');
         template_id = get(gui_data.unit_dots,'ZData');
-        gui_data.curr_unit = template_id(template_depths >= multiunit_top & ...
-            template_depths <= multiunit_bottom);       
+        gui_data.curr_unit = template_id(template_depths >= multiunit_depths(1) & ...
+            template_depths <= multiunit_depths(2));       
         
     case 'u'
         % Enter and go to unit

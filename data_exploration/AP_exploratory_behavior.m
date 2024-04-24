@@ -13,8 +13,11 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
     1:length(stimOn_times))';
 
-stim_x = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
+% stim_x = vertcat(trial_events.values.StimFrequence);
+% use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
+
+stim_x = vertcat(trial_events.values.TrialStimX);
+use_align = stimOn_times(stim_x == 90 & quiescent_trials);
 
 % % (task)
 % use_align = stimOn_times;
@@ -171,7 +174,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AP020','AP021','AP022'};
+animals = {'AM023','AM024','AM025'};
 
 % Create master tiled layout
 figure;

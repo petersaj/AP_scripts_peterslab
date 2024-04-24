@@ -1,16 +1,14 @@
-function plot_probe_positions(animal,plot_nte,plot_histology)
+function plot_probe_positions(animal,plot_units,plot_nte,plot_histology)
 % plot_probe_positions(animal)
 %
 % Plot probe positions from Trajectory Explorer and histology
 
 arguments
     animal = [];
+    plot_units logical = true;
     plot_nte logical = true;
     plot_histology logical = true;
 end
-
-warning('dot plots not working at the moment - fix area depth')
-
 
 %% Find probe position files (trajectory explorer and histology)
 
@@ -140,65 +138,69 @@ if plot_histology
 
         end
     end
-end 
+end
 
 drawnow
 
 %% Plot areas and unit positions/rate
 
-recordings = plab.find_recordings(animal);
-ephys_recordings = recordings([recordings.ephys]);
+if plot_units
 
-figure('Name',sprintf('%s: Ephys areas/units',animal));
-tiledlayout(1,length(ephys_recordings));
+    recordings = plab.find_recordings(animal);
+    ephys_recordings = recordings([recordings.ephys]);
 
-for curr_recording = 1:length(ephys_recordings)
+    figure('color','w');
+    h = tiledlayout(1,length(ephys_recordings));
+    title(h,animal);
+    for curr_recording = 1:length(ephys_recordings)
 
-    probe_ax = nexttile;
+        % Grab pre-load vars
+        preload_vars = who;
 
-    % Load first recording of the day
-    load_parts.ephys = true;
-    rec_day = ephys_recordings(curr_recording).day;
-    rec_time = ephys_recordings(curr_recording).recording{1};
-    try
+        % Load data
+        rec_day = ephys_recordings(curr_recording).day;
+        rec_time = ephys_recordings(curr_recording).recording{end};
+
+        load_parts = struct;
+        load_parts.ephys = true;
         ap.load_recording;
-    catch me
-        continue
+
+        unit_axes = nexttile; hold on;
+        unit_axes.YDir = 'reverse';
+
+        % Plot units (depth vs normalized rate) with areas
+        if exist('probe_areas','var')
+            probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+                probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
+
+            probe_areas_boundaries = probe_areas{1}.probe_depth;
+            probe_areas_centers = mean(probe_areas_boundaries,2);
+
+            probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
+            probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
+                1:height(probe_areas{1}),probe_areas_image_depth, ...
+                'previous','extrap');
+            probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
+
+            image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
+            yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
+            set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
+        end
+
+        norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+
+        unit_dots = scatter( ...
+            norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
+        multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
+        xlim(unit_axes,[-0.1,1]);
+        ylim([-50, max(channel_positions(:,2))+50]);
+        ylabel('Depth (\mum)')
+        xlabel('Normalized log rate')
+        title(rec_day);
+
+        drawnow;
+
     end
-
-    % Plot probe areas
-    use_probe = 1;
-    if exist('probe_areas','var')
-        probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
-            probe_areas{use_probe}.color_hex_triplet,'uni',false)),[1,3,2]);
-
-        probe_areas_boundaries = probe_areas{use_probe}.trajectory_depth;
-        probe_areas_centers = mean(probe_areas_boundaries,2);
-
-        probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
-        probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
-            1:height(probe_areas{use_probe}),probe_areas_image_depth, ...
-            'previous','extrap');
-        probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
-
-        image(probe_ax,[0,1],probe_areas_image_depth,probe_areas_image);
-        yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
-        set(probe_ax,'YTick',probe_areas_centers,'YTickLabels',probe_areas{use_probe}.acronym);
-        ylim([0,3840]);
-    end
-
-    % Plot spikes normalized rate by depth
-    spike_templates_unique = unique(spike_templates);
-    norm_template_spike_n = mat2gray(log10(accumarray(spike_templates,1)+1));
-    yyaxis right; set(gca,'YDir','reverse'); hold on;
-    ylabel('Depth (\mum)'); xlabel('Normalized spike rate');
-    scatter(norm_template_spike_n(spike_templates_unique), ...
-        template_depths(spike_templates_unique),15,'k','filled');
-    xlim([0,1]);
-    ylim([0,3840]);
-
-    title(sprintf('%s',rec_day));
-    drawnow
 
 end
 

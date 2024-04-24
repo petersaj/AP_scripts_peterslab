@@ -65,7 +65,7 @@ while 1
         break
     end
 
-    AP_print_progress_fraction(chunkInd,nChunksTotal);
+    ap.print_progress_fraction(chunkInd,nChunksTotal);
     chunkInd = chunkInd+1;
 
 end

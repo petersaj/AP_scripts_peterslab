@@ -42,6 +42,8 @@ if ~isempty(data_path_dir)
     save_paths = cellfun(@(x) [save_paths{1} filesep x],{data_path_dir.name},'uni',false);
 end
 
+%% Run kilosort on all datasets
+
 for curr_data = 1:length(data_paths)  
     
     % Get experiments (if turned off between)

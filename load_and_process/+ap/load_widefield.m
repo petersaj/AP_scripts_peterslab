@@ -75,8 +75,22 @@ if ~isfield(load_parts,'widefield_align') || ...
         wf_avg = plab.wf.wf_align(wf_avg,animal,rec_day);
         wf_U = plab.wf.wf_align(wf_U,animal,rec_day);
         if verbose; disp('Aligned widefield U/avg...');end
+        load_parts.widefield_align = true;
+        
+        if isfield(load_parts,'widefield_master') && load_parts.widefield_master
+            % Convert basis set to U master
+            [U_master,V_master] = plab.wf.u2master(wf_U,wf_V);
+            % Set U/V to master
+            wf_U = U_master;
+            wf_V = V_master;
+            % Clear temporary conversions
+            clear U_master V_master
+            if verbose; disp('Changed widefield basis to U master...');end
+        end
+
     catch  me
         warning(me.identifier,'Widefield: %s',me.message);
+        load_parts.widefield_align = false;
     end
 end
 

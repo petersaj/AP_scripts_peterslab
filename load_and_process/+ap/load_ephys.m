@@ -4,7 +4,7 @@
 ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
 
 % Find latest kilosort version
-kilosort_versions = ["kilosort4","pykilosort"];
+kilosort_versions = ["kilosort4","pykilosort"]; % in preference order
 for curr_kilosort_version = kilosort_versions
     if exist(fullfile(ephys_path,curr_kilosort_version),'dir')
         kilosort_folder = curr_kilosort_version;
