@@ -4,12 +4,12 @@
 
 %% Load data (specific day)
 
-animal = 'AM023';
-rec_day = '2024-04-23';
+animal = 'AM024';
+rec_day = '2024-04-24';
 
-% workflow = 'lcr_passive';
+workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-workflow = 'stim_wheel_right*';
+% workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'black_screen';
 % workflow = 'gray_screen';
