@@ -5,8 +5,8 @@
 %% Load data (specific day)
 clear all
 
-animal = 'AP019';
-rec_day = '2024-05-07';
+animal = 'AM024';
+rec_day = '2024-04-29';
 
 % load_parts.widefield = true;
 % load_parts.ephys = true;

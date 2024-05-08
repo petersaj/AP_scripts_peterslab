@@ -4,17 +4,32 @@
 
 %% Check that the necessary parameters are included
 
+% If no animal - choose from list of animals
 if ~exist('animal','var') || isempty(animal)
-    error('Animal not defined')
-end
-if ~exist('rec_day','var')
-    error('Recording day (rec_day) not defined')
+    data_dir = dir(plab.locations.server_data_path);
+    animals_all = {data_dir(3:end).name};
+    animal_idx = listdlg('PromptString','Select animal:', ...
+        'ListString',animals_all,'ListSize',[300,200], ...
+        'SelectionMode','single');
+    animal = animals_all{animal_idx};
 end
 
-% If only recording time is excluded, choose from list
-if ~exist('rec_time','var')
+% If no day - choose from list of days
+if ~exist('rec_day','var') || isempty(rec_day)
+    animal_dir = dir(plab.locations.filename('server',animal));
+    day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
+    recording_day_idx = matches({animal_dir.name},day_pattern) & [animal_dir.isdir];
+    recording_days = {animal_dir(recording_day_idx).name};
+    day_idx = listdlg('PromptString','Select day:', ...
+        'ListString',recording_days,'ListSize',[300,200], ...
+        'SelectionMode','single');
+    rec_day = recording_days{day_idx};
+end
+
+% If no time - choose from list of workflows
+if ~exist('rec_time','var') || isempty(rec_time)
     recordings = plab.find_recordings(animal,rec_day);
-    rec_idx = listdlg('PromptString','Select workflow to load:', ...
+    rec_idx = listdlg('PromptString','Select workflow:', ...
         'ListString',recordings.workflow,'ListSize',[300,200], ...
         'SelectionMode','single');
     rec_time = recordings.recording{rec_idx};

@@ -509,7 +509,7 @@ binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
 use_svs = 1:100;
-kernel_t = [-0.3,0.3];
+kernel_t = [-0.1,0.1];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
 lambda = 5;
 zs = [false,false];
