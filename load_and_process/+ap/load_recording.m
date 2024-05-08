@@ -7,11 +7,17 @@
 if ~exist('animal','var') || isempty(animal)
     error('Animal not defined')
 end
-if ~exist('rec_day','var') || isempty(animal)
+if ~exist('rec_day','var')
     error('Recording day (rec_day) not defined')
 end
-if ~exist('rec_time','var') || isempty(animal)
-    error('Recording time (rec_time) not defined');
+
+% If only recording time is excluded, choose from list
+if ~exist('rec_time','var')
+    recordings = plab.find_recordings(animal,rec_day);
+    rec_idx = listdlg('PromptString','Select workflow to load:', ...
+        'ListString',recordings.workflow,'ListSize',[300,200], ...
+        'SelectionMode','single');
+    rec_time = recordings.recording{rec_idx};
 end
 
 

@@ -7,9 +7,10 @@ function h = wf_draw(type,color,manual_bregma)
 % - scalebar
 % - bregma
 % - grid
-% - ccf
-% - point, [AP,ML] in mm
-% - point_aligned, [AP,ML] in mm tranformed via CCF alignment
+% - point: [AP,ML] in mm
+% - point_aligned: [AP,ML] in mm tranformed via CCF alignment
+% - ccf: all cortical areas
+% - area: search and plot CCF area
 %
 % Color: color of overlay
 %
@@ -122,11 +123,35 @@ switch type
             plot(outline(:,1),outline(:,2),'color',color),areas,'uni',false), ...
                 dorsal_cortex_borders_aligned,'uni',false);
 
-    case 'retinotopy'
-        % Show the master retinotopy
-        master_vfs_fn = fullfile(alignment_path,'master_vfs.mat');
-        load(master_vfs_fn);
-        imagesc(master_vfs);
+    case 'area'
+        % Plot CCF area by search
+        % (NOTE: rotate CCF 5 degrees nose-up)
+
+        allen_atlas_path = fileparts(which('template_volume_10um.npy'));
+        av = readNPY(fullfile(allen_atlas_path, 'annotation_volume_10um_by_index.npy'));
+        st = loadStructureTree(fullfile(allen_atlas_path, 'structure_tree_safe_2017.csv'));
+        
+        structure_search = lower(inputdlg('Search structures'));
+        structure_match = find(contains(lower(st.safe_name),structure_search));
+        list_structures = structure_match;
+
+        plot_structure_parsed = listdlg('PromptString','Select a structure to plot:', ...
+            'ListString',st.safe_name(list_structures),'ListSize',[520,500], ...
+            'SelectionMode','single');
+        plot_structure = list_structures(plot_structure_parsed);
+
+        tilt_angle = 5; % 5 degrees nose-up
+        av_rot = imrotate3(av,tilt_angle,[0,0,1],'nearest','crop');
+
+        top_down_structure_mask = permute(max(ismember(av_rot,plot_structure),[],2),[1,3,2]);
+        top_down_structure_borders = bwboundaries(top_down_structure_mask);
+
+        top_down_structure_borders_aligned = cellfun(@(coords) ...
+            [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,top_down_structure_borders,'uni',false);
+
+        h = cellfun(@(outline) ...
+            plot(outline(:,1),outline(:,2),'color',color), ...
+            top_down_structure_borders_aligned,'uni',false);
 
     otherwise
         warning('Invalid reference: %s',type);
@@ -214,14 +239,6 @@ end
 % save_fn = fullfile(alignment_path,'dorsal_cortex_borders');
 % save(save_fn,'dorsal_cortex_borders','dorsal_ccf_annotation');
 % disp(['Saved ' save_fn]);
-
-
-
-
-
-
-
-
 
 
 

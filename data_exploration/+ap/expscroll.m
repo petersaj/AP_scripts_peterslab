@@ -35,7 +35,7 @@ end
 
 % (ephys)
 try 
-    spike_times_timeline = evalin('base','spike_times_timeline');
+    spike_times_timeline = evalin('base','spike_times_timelite');
     spike_templates = evalin('base','spike_templates');
     template_depths = evalin('base','template_depths');
 

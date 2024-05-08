@@ -3,24 +3,13 @@
 % dev/test code
 
 %% Load data (specific day)
+clear all
 
-animal = 'AM024';
-rec_day = '2024-04-24';
-
-workflow = 'lcr_passive';
-% workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
-% workflow = 'sparse_noise';
-% workflow = 'black_screen';
-% workflow = 'gray_screen';
-% workflow = 'visual_conditioning*';
-% workflow = 'stim_wheel_right_stage2_audio_no_change';
-% workflow = 'hml_passive_audio';
-
-rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
+animal = 'AP019';
+rec_day = '2024-05-07';
 
 % load_parts.widefield = true;
-load_parts.ephys = true;
+% load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;
@@ -29,11 +18,11 @@ ap.load_recording;
 
 %% Load data (relative day)
 
-animal = 'AM021';
+animal = 'AM014';
 
-workflow = 'lcr_passive';
+% workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
+workflow = 'stim_wheel_right*';
 % workflow = 'sparse_noise';
 % workflow = 'visual_conditioning*';
 % workflow = 'hml_passive_audio';
@@ -43,8 +32,8 @@ recordings = plab.find_recordings(animal,[],workflow);
 % (include only ephys days)
 % recordings = recordings([recordings.ephys]);
 
-% use_day = 5;
-use_day = length(recordings);
+use_day = 2;
+% use_day = length(recordings);
 
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
@@ -52,11 +41,8 @@ rec_time = recordings(use_day).recording{end};
 verbose = true;
 
 % load_parts.mousecam = true;
-
-load_parts.widefield = true;
-load_parts.widefield_master = true;
-
-% load_parts.ephys = true;
+% load_parts.widefield = true;
+load_parts.ephys = true;
 
 
 ap.load_recording;
@@ -209,8 +195,8 @@ end
 
 %% temp histology: combine tiff channels
 
-hist_path = plab.locations.filename('server','AM019',[],[],'histology','raw');
-save_path = plab.locations.filename('server','AM019',[],[],'histology','raw_combined');
+hist_path = plab.locations.filename('server','AM022',[],[],'histology','raw');
+save_path = plab.locations.filename('server','AM022',[],[],'histology','raw_combined');
 
 im_filenames = dir(fullfile(hist_path,'*.tif'));
 if ~exist(save_path,'dir')

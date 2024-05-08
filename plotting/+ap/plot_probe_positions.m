@@ -146,6 +146,8 @@ drawnow
 
 if plot_units
 
+    disp('Finding and plotting units...')
+
     recordings = plab.find_recordings(animal);
     ephys_recordings = recordings([recordings.ephys]);
 
@@ -199,6 +201,8 @@ if plot_units
         title(rec_day);
 
         drawnow;
+
+        ap.print_progress_fraction(curr_recording,length(ephys_recordings));
 
     end
 

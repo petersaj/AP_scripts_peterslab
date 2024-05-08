@@ -85,7 +85,7 @@ catch me
 end
 
 % Initialize figure and axes
-cellraster_gui = figure('color','w','units','normalized','position',[0.2,0.1,0.5,0.8]);
+cellraster_gui = figure('color','w','units','normalized','position',[0.02,0.15,0.3,0.7]);
 tiledlayout(cellraster_gui,6,4,'TileSpacing','tight');
 
 % (unit dots: plot depths vs spike number, color background by area)
