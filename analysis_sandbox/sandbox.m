@@ -5,11 +5,11 @@
 %% Load data (specific day)
 clear all
 
-animal = 'AM024';
-rec_day = '2024-04-29';
+animal = 'AM015';
+% rec_day = '2024-05-06';
 
 % load_parts.widefield = true;
-% load_parts.ephys = true;
+load_parts.ephys = true;
 % load_parts.mousecam = true;
 
 verbose = true;

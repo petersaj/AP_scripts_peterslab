@@ -508,8 +508,8 @@ end
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
-use_svs = 1:100;
-kernel_t = [-0.1,0.1];
+use_svs = 1:200;
+kernel_t = [-0.3,0.3];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
 lambda = 5;
 zs = [false,false];
@@ -687,7 +687,7 @@ animals = {'AM008','AP008','AP009', ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
     'AM018','AM019','AM021'};
 
-animals = {'AP014'};
+animals = {'AM014'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};

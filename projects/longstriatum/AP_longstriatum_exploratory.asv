@@ -652,24 +652,52 @@ ld_x = unique(cell2mat(ld));
 
 day_ctxmap_ld_avg = ap.groupfun(cat(4,day_ctxmap_all{:}),[],[],[],vertcat(ld{:}));
 
+
 figure;
-c = [-1,1].*prctile(day_ctxmap_ld_avg,99,'all');
-h = tiledlayout(size(day_ctxmap_ld_avg,3),size(day_ctxmap_ld_avg,4),'TileSpacing','none');
+imagesc(reshape(permute(day_ctxmap_avg,[1,3,2,4]),size(day_ctxmap_avg,1)*n_depths,[]));
+axis image off;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+
+
+plot_depth = 3;
+
+a = cellfun(@(x) reshape(x(:,:,plot_depth,:),[],size(x,4))',day_ctxmap_all,'uni',false);
+
+load("C:\Users\petersa\Desktop\learned_day_all.mat");
+ld = cellfun(@(x,ld) (1:size(x,4))'-ld,day_ctxmap_all,num2cell(learned_day_all)','uni',false);
+ld_x = unique(cell2mat(ld));
+
+a = cat(4,day_ctxmap_all{:});
+[y_idx,x_idx,depth_idx,ld_idx] = ndgrid(1:size(a,1),1:size(a,2),1:n_depths,vertcat(ld{:}));
+
+%%% working on ap.groupfun 
+
+vertcat(ld{:})
+
+m = accumarray(cellfun(@findgroups,{y_idx,x_idx,depth_idx,ld_idx},'uni',false),a,[],@mean);
+
+m = reshape(grpstats(cell2mat(a),cell2mat(ld),'mean')',[U_size,length(ld_x)]);
+
+ap.imscroll(m); axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(AP_colormap('PWG'));
+ap.wf_draw('ccf','k');
+
+figure;
+h = tiledlayout(n_depths,size(m,3));
 for curr_depth = 1:n_depths
-    for curr_ld = 1:length(ld_x)
+    for curr_day = 1:size(m,3)
         nexttile;
-        imagesc(day_ctxmap_ld_avg(:,:,curr_depth,curr_ld));
-        ap.wf_draw('ccf','k');
+        imagesc(m(:,:,curr_day));
         axis image off;
-        clim(c);
-        colormap(ap.colormap('PWG'));
-        if curr_depth == 1
-            title(ld_x(curr_ld));
-        end
+        clim(max(abs(clim)).*[-1,1]);
+        colormap(AP_colormap('PWG'));
+        ap.wf_draw('ccf','k');
+        title(sprintf('LD %d',ld_x(curr_day)));
         drawnow;
     end
 end
-
 
 
 %% Batch cortical regression by striatal depth
