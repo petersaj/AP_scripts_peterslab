@@ -24,7 +24,7 @@ tv = readNPY([allen_atlas_path filesep 'template_volume_10um.npy']); % grey-scal
 
 %% Set up figure
 
-figure('color','w','name','animal');colormap gray;
+figure('color','w','name',animal);colormap gray;
 tiledlayout(1,3,'TileSpacing','compact');
 
 % Set up 3D axes
