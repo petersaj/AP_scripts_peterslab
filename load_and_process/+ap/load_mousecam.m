@@ -5,6 +5,9 @@
 % NOTE: possibly not robust if there is a flip mid-exposure on the first
 % recorded frame, which would cause all frames to be pushed forward or back
 % 1 frames.
+%
+% (updated after AP022 2024-05-20 can see reflection of stim in headplate
+% holder, which gives timing validation)
 
 if verbose; disp('Loading Mousecam...'); end
 
