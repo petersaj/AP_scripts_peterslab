@@ -29,7 +29,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
 
     if isfield(trial_events.values,'TaskType')
         use_trials = rewarded_trials(1:n_trials) & ...
-            vertcat(trial_events.values(1:n_trials).TaskType) == 1;
+            vertcat(trial_events.values(1:n_trials).TaskType) == 0;
     else
         use_trials = rewarded_trials(1:n_trials);
     end
@@ -38,14 +38,9 @@ elseif contains(bonsai_workflow,'stim_wheel')
         stimOn_times(use_trials); ...
         stim_move_time(use_trials); ...
         reward_times];
-    align_category = vertcat( ...
-        1*ones(sum(use_trials),1), ...
-        2*ones(sum(use_trials),1), ...
-        3*ones(length(reward_times),1));
-    baseline_times = vertcat(...
-        stimOn_times(use_trials), ...
-        stimOn_times(use_trials), ...
-        reward_times);
+    align_category = reshape(ones(sum(use_trials),3).*[1,2,3],[],1);
+    baseline_times = vertcat(repmat(stimOn_times(use_trials),2,1), ...
+
 
 elseif contains(bonsai_workflow,'sparse_noise')
 
@@ -202,7 +197,7 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'AM025';
+animal = 'AM015';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

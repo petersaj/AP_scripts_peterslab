@@ -1,4 +1,6 @@
 % Load timelite
+%
+% Extract all necessary information
 
 if verbose; disp('Loading Timelite...'); end
 

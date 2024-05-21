@@ -33,9 +33,11 @@ if ~any(contains({kilosort_dir.name},{'site','probe'}))
 elseif any(contains({kilosort_dir.name},'probe'))
     % If 'probe' folders (recordings in parallel), choose last before recording
     ephys_site_paths = dir(fullfile(kilosort_top_path,'probe_*'));
+    load_probe = 1;
+
     warning('Multiple probes: just loading probe 1 for now')
-    kilosort_path = fullfile(ephys_site_paths(1).folder,ephys_site_paths(1).name);
-    open_ephys_path_dir = dir(fullfile(ephys_path,ephys_site_paths(1).name,'experiment*','recording*'));
+    kilosort_path = fullfile(ephys_site_paths(load_probe).folder,ephys_site_paths(load_probe).name);
+    open_ephys_path_dir = dir(fullfile(ephys_path,ephys_site_paths(load_probe).name,'experiment*','recording*'));
     open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
 
 elseif any(contains({kilosort_dir.name},'site'))

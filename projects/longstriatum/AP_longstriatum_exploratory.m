@@ -167,8 +167,8 @@ master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
 load(master_U_fn);
 
 % Load learned day
-load("C:\Users\petersa\Desktop\learned_day_all.mat");
-ld = cellfun(@(x,ld) (1:size(x,3))'-ld,day_V_all,num2cell(learned_day_all)','uni',false);
+load("C:\Users\petersa\Desktop\am_bhv.mat");
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 
 a = cat(3,day_V_all{:});
 
@@ -270,13 +270,13 @@ for curr_animal = 1:length(animals)
 end
 
 
-load("C:\Users\petersa\Desktop\learned_day_all.mat");
+load("C:\Users\petersa\Desktop\am_bhv.mat");
 
 use_t = t_centers > 0.1 & t_centers < 0.25;
 use_roi = 1;
 a = cellfun(@(x) squeeze(nanmean(x(:,use_t,use_roi),2)),day_roi_all,'uni',false);
 
-ld = cellfun(@(x,ld) (1:length(x))'-ld,a,num2cell(learned_day_all)','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 
 [m,s] = grpstats(cell2mat(a),cell2mat(ld),{'mean','sem'});
 
@@ -374,7 +374,7 @@ for curr_animal = 1:length(animals)
 
         if isfield(trial_events.values,'TrialStimX')
             stim_x = vertcat(trial_events.values.TrialStimX);
-            % temp - what happened here, not all trials shown?
+            % sometimes not all trials shown?
             stim_x = stim_x(1:length(stimOn_times));
             align_times = {stimOn_times(stim_x == 90 & quiescent_trials)};
         else
@@ -421,14 +421,14 @@ for curr_animal = 1:length(animals)
 
 end
 
-load("C:\Users\petersa\Desktop\learned_day_all.mat");
+load("C:\Users\petersa\Desktop\am_bhv.mat");
 
 plot_depth = 1; 
 use_t = t_centers > 0.05 & t_centers < 0.15;
 a = cellfun(@(x) squeeze(mean(x(plot_depth,use_t,:),2)),day_mua_all,'uni',false);
 b = cell2mat(cellfun(@(x) permute(x(1,:,:),[3,2,1]),day_mua_all,'uni',false));
 
-ld = cellfun(@(x,ld) (1:length(x))'-ld,a,num2cell(learned_day_all)','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
 
 [m,s,n] = grpstats(cell2mat(a),cell2mat(ld),{'mean','sem','numel'});
 r = grpstats(b,cell2mat(ld),'mean');
@@ -439,11 +439,40 @@ figure;
 subplot(1,2,1);
 imagesc(t_centers,unique(vertcat(ld{:})),r);
 subplot(1,2,2); hold on;
-cellfun(@(x,ld) plot(ld,x),a,ld);
+cellfun(@(x,ld) plot(ld(1:min(length(ld),length(x))),x(1:min(length(ld),length(x)))),a,ld);
 errorbar(ld_x,m,s,'k','linewidth',2);
 xline(0);
 xlabel('Learned day');
 ylabel('\DeltaFR/FR_0');
+
+figure;
+subplot(1,3,1); hold on;
+cellfun(@(rxn,data) plot(...
+    rxn(1:min(length(rxn),length(data))), ...
+    data(1:min(length(rxn),length(data)))), ...
+    {bhv.rxn_med}',a);
+xlabel('Reaction time');
+ylabel('MUA');
+set(gca,'XScale','log');
+
+subplot(1,3,2); hold on;
+cellfun(@(rxn,data) plot(...
+    rxn(1:min(length(rxn),length(data))), ...
+    data(1:min(length(rxn),length(data)))), ...
+    {bhv.stim_move_frac_ratio}',a);
+xlabel('Move ratio');
+ylabel('MUA');
+
+subplot(1,3,3); hold on;
+cellfun(@(rxn,ratio,data) plot3(...
+    rxn(1:min(length(rxn),length(data))), ...
+    ratio(1:min(length(rxn),length(data))), ...
+    data(1:min(length(rxn),length(data)))), ...
+    {bhv.rxn_med}',{bhv.stim_move_frac_ratio}',a);
+xlabel('Reaction time');
+ylabel('Move ratio');
+zlabel('MUA');
+set(gca,'XScale','log');
 
 
 % Do above with manually excluded days
@@ -466,7 +495,7 @@ plot_depth = 1;
 use_t = t_centers > 0.05 & t_centers < 0.15;
 a = cellfun(@(x) squeeze(mean(x(plot_depth,use_t,:),2)),day_mua_subset,'uni',false);
 b = cell2mat(cellfun(@(x) permute(x(1,:,:),[3,2,1]),day_mua_subset,'uni',false));
-ld = cellfun(@(x,ld) (1:length(x))'-ld,a,num2cell(learned_day_all)','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 
 [m,s,n] = grpstats(cell2mat(a),cell2mat(ld),{'mean','sem','numel'});
 r = grpstats(b,cell2mat(ld),'mean');
@@ -490,7 +519,7 @@ use_animals = on_target;
 
 a = cellfun(@(x) squeeze(mean(x(plot_depth,use_t,:),2)),day_mua_all,'uni',false);
 b = cell2mat(cellfun(@(x) permute(x(1,:,:),[3,2,1]),day_mua_all,'uni',false));
-ld = cellfun(@(x,ld) (1:length(x))'-ld,a,num2cell(learned_day_all)','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 
 a2 = a(use_animals);
 ld2 = ld(use_animals);
@@ -646,8 +675,8 @@ for curr_animal = 1:length(animals)
 end
 
 % Plot average cortical map by learned day and depth
-load("C:\Users\petersa\Desktop\learned_day_all.mat");
-ld = cellfun(@(x,ld) (1:size(x,4))'-ld,day_ctxmap_all,num2cell(learned_day_all)','uni',false);
+load("C:\Users\petersa\Desktop\am_bhv.mat");
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 ld_x = unique(cell2mat(ld));
 
 day_ctxmap_ld_avg = ap.groupfun(cat(4,day_ctxmap_all{:}),[],[],[],vertcat(ld{:}));
@@ -832,14 +861,14 @@ softnorm = 0;
 day_spikes_all_norm = cellfun(@(x) (x-nanmean(x(:,t_centers<0,:),2))./(nanmean(x(:,t_centers<0,:),2)+softnorm),day_spikes_all,'uni',false);
 day_predicted_spikes_all_norm = cellfun(@(x) (x-nanmean(x(:,t_centers<0,:),2))./(nanmean(x(:,t_centers<0,:),2)+softnorm),day_predicted_spikes_all,'uni',false);
 
-load("C:\Users\petersa\Desktop\learned_day_all.mat");
+load("C:\Users\petersa\Desktop\am_bhv.mat");
 
 use_depth = 1; 
 use_t = t_centers > 0.05 & t_centers < 0.2;
 a = cellfun(@(x) squeeze(mean(x(use_depth,use_t,:),2)),day_predicted_spikes_all_norm,'uni',false);
 b = cell2mat(cellfun(@(x) permute(x(1,:,:),[3,2,1]),day_predicted_spikes_all_norm,'uni',false));
 
-ld = cellfun(@(x,ld) (1:length(x))'-ld,a,num2cell(learned_day_all)','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 
 [m,s,n] = grpstats(cell2mat(a),cell2mat(ld),{'mean','sem','numel'});
 r = grpstats(b,cell2mat(ld),'mean');

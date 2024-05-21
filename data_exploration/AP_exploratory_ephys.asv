@@ -187,7 +187,7 @@ switch mua_method
 
     case 'even'
         % (to group multiunit by evenly spaced depths)
-        n_depths = 10;
+        n_depths = 8;
         depth_group_edges = round(linspace(0,4000,n_depths+1));
         [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
         depth_groups_used = unique(depth_group);
@@ -571,14 +571,6 @@ set(c2,'YDir','reverse');
 set(c2,'YTick',linspace(0,1,n_depths));
 set(c2,'YTickLabel',round(linspace(depth_group_edges(1),depth_group_edges(end),n_depths)));
 
-% Plot max maps vertically stacked
-figure;
-imagesc(reshape(permute(r_px_max,[1,3,2]),[],size(r_px_max,2)));
-clim(max(abs(clim)).*[-1,1]*0.5);
-colormap(AP_colormap('BWR'));
-axis image off
-
-
 %% |--> Predicted PSTH by MUA
 
 % (passive)
@@ -750,7 +742,7 @@ colormap(AP_colormap('BWR'));
 %     'AM011','AM012','AM014','AM015','AM016','AM017', ...
 %     'AM018','AM019','AM021'};
 
-animals = {'AM021'};
+animals = {'AM009'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};

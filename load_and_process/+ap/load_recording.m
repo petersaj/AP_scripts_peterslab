@@ -12,6 +12,7 @@ if ~exist('animal','var') || isempty(animal)
         'ListString',animals_all,'ListSize',[300,200], ...
         'SelectionMode','single');
     animal = animals_all{animal_idx};
+    verbose = true;
 end
 
 % If no day - choose from list of days
@@ -24,6 +25,7 @@ if ~exist('rec_day','var') || isempty(rec_day)
         'ListString',recording_days,'ListSize',[300,200], ...
         'SelectionMode','single');
     rec_day = recording_days{day_idx};
+    verbose = true;
 end
 
 % If no time - choose from list of workflows
@@ -33,6 +35,7 @@ if ~exist('rec_time','var') || isempty(rec_time)
         'ListString',recordings.workflow,'ListSize',[300,200], ...
         'SelectionMode','single');
     rec_time = recordings.recording{rec_idx};
+    verbose = true;
 end
 
 
