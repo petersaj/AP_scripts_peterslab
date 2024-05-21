@@ -13,8 +13,11 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 % stim_x = vertcat(trial_events.values.StimFrequence);
 % use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
 
-stim_x = vertcat(trial_events.values.TrialStimX);
-use_align = stimOn_times(stim_x == 90 & quiescent_trials);
+% stim_x = vertcat(trial_events.values.TrialStimX);
+% use_align = stimOn_times(stim_x == 90 & quiescent_trials);
+
+stim_x = vertcat(trial_events.values.PictureID);
+use_align = stimOn_times(stim_x == 2 & quiescent_trials);
 
 % % (task)
 % use_align = stimOn_times;

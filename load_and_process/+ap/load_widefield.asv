@@ -34,10 +34,13 @@ elseif sum(cellfun(@(x) size(x,2),wf_V_raw)) > length(widefield_expose_times)
     % More frames than timelite exposures: timelite probably cut off early
     warning('Widefield: timelite missed exposures, cutting from end')
     wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
-    wf_use_frames = true(size(widefield_expose_times));
 
 elseif sum(cellfun(@(x) size(x,2),wf_V_raw)) < length(widefield_expose_times)
     % More timelite exposures than frames: widefield dropped frames
+end
+
+% Check for dropped frames and set frames to use
+if any(cellfun(@(v,t) size(v,2) < length(t),wf_V_raw,wf_t_all))
     warning('Widefield: dropped frames');
 
     widefield_metadata_fn = ...
@@ -47,15 +50,9 @@ elseif sum(cellfun(@(x) size(x,2),wf_V_raw)) < length(widefield_expose_times)
     [wf_dropped_frames,wf_dropped_frame_idx] = ...
         plab.wf.find_dropped_frames(widefield_metadata_fn,false);
 
-    if length(widefield_expose_times) - sum(cellfun(@(x) size(x,2),wf_V_raw)) ~= ...
-            length(wf_dropped_frames)
-        error('Widefield: could not identify dropped frames')
-    end
-
     wf_use_frames = ~wf_dropped_frame_idx;
-
+else
 end
-
 
 % Get widefield colors (assume alternating)
 widefield_frame_colors = mod((1:length(widefield_expose_times))-1,length(widefield_colors))+1;

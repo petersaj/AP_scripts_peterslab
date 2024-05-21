@@ -29,7 +29,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
 
     if isfield(trial_events.values,'TaskType')
         use_trials = rewarded_trials(1:n_trials) & ...
-            vertcat(trial_events.values(1:n_trials).TaskType) == 1;
+            vertcat(trial_events.values(1:n_trials).TaskType) == 0;
     else
         use_trials = rewarded_trials(1:n_trials);
     end
