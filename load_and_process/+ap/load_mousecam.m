@@ -19,7 +19,7 @@ if load_parts.mousecam && exist(mousecam_fn,'file')
         find(diff(mousecam_header.flipper) ~= 0)]));
 
     mousecam_exposures_per_flip_timelite = ...
-        accumarray(discretize(mousecam_expose_times, ...
+        accumarray(discretize(mousecam_exposeOn_times, ...
         [0;flipper_times;timelite.timestamps(end)]),1);
 
     % Find flip epoch delay between mousecam and timelite
@@ -27,21 +27,49 @@ if load_parts.mousecam && exist(mousecam_fn,'file')
     mousecam_flip_epoch_delay = ...
         finddelay(mousecam_exposures_per_flip_mousecam,mousecam_exposures_per_flip_timelite);
 
-    % Get indicies, then expose times, for mousecam frames
+    % Get index for first recorded frame
     mousecam_first_frame_idx = ...
         (1+sum(mousecam_exposures_per_flip_timelite(1:mousecam_flip_epoch_delay+1)) - mousecam_exposures_per_flip_mousecam(1));
 
-    mousecam_last_frame_idx = length(mousecam_expose_times) - ...
-        (mousecam_exposures_per_flip_timelite(mousecam_flip_epoch_delay+length(mousecam_exposures_per_flip_mousecam)) - ...
-        mousecam_exposures_per_flip_mousecam(end));
-
-    mousecam_times = mousecam_expose_times(mousecam_first_frame_idx:mousecam_last_frame_idx);
-
-    if length(mousecam_times) ~= length(mousecam_header.timestamps)
-        error('Mousecam: frame time mismatch, incorrectly aligned to timelite')
-    end
+    % Get mousecam times from first recorded frame to mousecam N frames
+    mousecam_times = mousecam_exposeOn_times(mousecam_first_frame_idx: ...
+        mousecam_first_frame_idx+length(mousecam_header.timestamps)-1);
 
 end
+
+% ~~~~~~~~~~~~~~~
+% Possibly more robust method, but would take more work: get "matching"
+% frames between mousecam and timelite, interpolate to full frame index,
+% ensure all integer values after interpolating. Doesn't currently work -
+% likely because "matching" epochs include by chance many times where there
+% was a flip mid-exposure, so these aren't actually "matching" frames:
+
+% % Get flip epochs with matching number of frames
+% mousecam_match_epochs = find(mousecam_exposures_per_flip_mousecam == ...
+%     mousecam_exposures_per_flip_timelite(mousecam_flip_epoch_delay+1:end));
+% 
+% % Find corresponding frames in timelite/mousecam
+% mousecam_flip_epochs_mousecam = discretize(mousecam_header.timestamps,[0;mousecam_flipper_times;mousecam_header.timestamps(end)]);
+% mousecam_flip_epochs_timelite = discretize(mousecam_exposeOn_times,[0;flipper_times;timelite.timestamps(end)]);
+% 
+% mousecam_frame_match_idx_mousecam = find(ismember(mousecam_flip_epochs_mousecam,mousecam_match_epochs));
+% mousecam_frame_match_idx_timelite = find(ismember(mousecam_flip_epochs_timelite,mousecam_match_epochs+mousecam_flip_epoch_delay));
+% 
+% % (remove corresponding mousecam exposures with mid-exposure flip)
+% mousecam_midexpose_flip = find(arrayfun(@(x) ...
+%     any(flipper_times >= mousecam_exposeOn_times(x) & ...
+%     flipper_times <= mousecam_exposeOff_times(x)), ...
+%     1:length(mousecam_exposeOn_times)));
+% mousecam_match_use = ~ismember(mousecam_frame_match_idx_timelite,mousecam_midexpose_flip);
+% 
+% % Get timelite index for each mousecam frame
+% mousecam_timelite_idx = interp1( ...
+%     mousecam_frame_match_idx_mousecam(mousecam_match_use), ...
+%     mousecam_frame_match_idx_timelite(mousecam_match_use), ...
+%     1:length(mousecam_header.timestamps),'linear','extrap');
+
+
+
 
 
 

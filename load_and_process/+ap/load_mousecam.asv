@@ -1,4 +1,6 @@
 % Load mousecam
+%
+% Get timelite times for each corresponding mousecam frame
 
 if verbose; disp('Loading Mousecam...'); end
 
@@ -12,140 +14,57 @@ if load_parts.mousecam && exist(mousecam_fn,'file')
     mousecam_header = plab.mousecam.read_mousecam_header(mousecam_header_fn, mousecam_flipper_pin);
     mousecam_flipper_times = mousecam_header.timestamps(find(diff(mousecam_header.flipper) ~= 0) + 1);
 
-    if mousecam_expose_times(1) > flipper_times(1)
-        % If the first exposure time starts after flipper, use last N
-        % exposure times (seems that first few frames aren't recorded: this
-        % was confirmed in AM022 2024-05-20, where you can see stimulus
-        % reflected on headplate)
-        mousecam_times = mousecam_expose_times( ...
-            end-length(mousecam_header.timestamps)+1:end);
+    % Count mousecam exposures per flip (mousecam and timelite)
+    mousecam_exposures_per_flip_mousecam = diff(unique([0;length(mousecam_header.flipper); ...
+        find(diff(mousecam_header.flipper) ~= 0)]));
 
-    else
-        % Otherwise, use the flipper to find the expose offset for frame 1
+    mousecam_exposures_per_flip_timelite = ...
+        accumarray(discretize(mousecam_exposeOn_times, ...
+        [0;flipper_times;timelite.timestamps(end)]),1);
 
-        % Check that timelite and mousecam have equal flipper flips
-        if length(flipper_times) ~= length(mousecam_flipper_times)
-            warning('Flipper not matched timelite/mousecam - not aligning');
-            return
-        end
+    % Find flip epoch delay between mousecam and timelite
+    % (best match between number of exposures in flip epochs)
+    mousecam_flip_epoch_delay = ...
+        finddelay(mousecam_exposures_per_flip_mousecam,mousecam_exposures_per_flip_timelite);
 
-        % Get frame time after flips in timeline and mousecam
-        mousecam_postflips_idx_tl = arrayfun(@(x) ...
-            find(mousecam_expose_times > flipper_times(x),1), ...
-            1:length(flipper_times))';
+    % Get index for first recorded frame
+    mousecam_first_frame_idx = ...
+        (1+sum(mousecam_exposures_per_flip_timelite(1:mousecam_flip_epoch_delay+1)) - mousecam_exposures_per_flip_mousecam(1));
 
-        mousecam_postflips_idx_cam = find(diff(mousecam_header.flipper) ~= 0) + 1;
-
-        % For sync: only use frames where flip happened in window before frame
-        % started (if flip happens during/close to exposure - camera pin state can
-        % be ambiguous)
-        mousecam_use_flips = ...
-            (mousecam_expose_times(mousecam_postflips_idx_tl) - flipper_times) > 0.005 & ...
-            (mousecam_expose_times(mousecam_postflips_idx_tl) - flipper_times) < 0.02;
-
-        use_flipframes = setdiff(1:length(flipper_times), ...
-            find(diff(mousecam_postflips_idx_tl) ~= diff(mousecam_postflips_idx_cam)) + [0,1]);
-
-        % Get offset between frame index in timelite and mousecam
-        mousecam_idx_offset = unique( ...
-            mousecam_postflips_idx_tl(mousecam_use_flips) - ...
-            mousecam_postflips_idx_cam(mousecam_use_flips));
-
-        % If there's more than one offset value, something's misaligned
-        if length(mousecam_idx_offset) ~= 1
-            warning('Mousecam frames misaligned: >1 offset value')
-            mousecam_idx_offset = mousecam_idx_offset(1);
-        end
-
-        % Get the corresponding timelite frame times for each mousecam frame
-        mousecam_tl_idx = (1:length(mousecam_header.timestamps)) + mousecam_idx_offset;
-        mousecam_tl_captured = mousecam_tl_idx > 0 & mousecam_tl_idx <= length(mousecam_expose_times);
-        mousecam_times = mousecam_expose_times(mousecam_tl_idx(mousecam_tl_captured));
-    end
+    % Get mousecam times from first recorded frame to mousecam N frames
+    mousecam_times = mousecam_exposeOn_times(mousecam_first_frame_idx: ...
+        mousecam_first_frame_idx+length(mousecam_header.timestamps)-1);
 
 end
 
 
-%%%%%%%%% WORKING HERE: RETURN TO ALIGNING BY FLIPPER
+% Get flip epochs with matching number of frames
+mousecam_match_epochs = find(mousecam_exposures_per_flip_mousecam == ...
+    mousecam_exposures_per_flip_timelite(mousecam_flip_epoch_delay+1:end));
 
+% Find corresponding frames in timelite/mousecam
+mousecam_flip_epochs_mousecam = discretize(mousecam_header.timestamps,[0;mousecam_flipper_times;mousecam_header.timestamps(end)]);
+mousecam_flip_epochs_timelite = discretize(mousecam_exposeOn_times,[0;flipper_times;timelite.timestamps(end)]);
 
-figure;plot(mousecam_header.timestamps,mousecam_header.flipper)
+mousecam_frame_match_idx_mousecam = find(ismember(mousecam_flip_epochs_mousecam,mousecam_match_epochs));
+mousecam_frame_match_idx_timelite = find(ismember(mousecam_flip_epochs_timelite,mousecam_match_epochs+mousecam_flip_epoch_delay));
 
-mousecam_flipper_trace = logical(normalize(interp1(mousecam_header.timestamps, ...
-    single(mousecam_header.flipper), ...
-    mousecam_header.timestamps(1):1/timelite.daq_info(1).rate: ...
-    mousecam_header.timestamps(end),'previous'),'range'))';
+% (remove corresponding mousecam exposures with mid-exposure flip)
+mousecam_midexpose_flip = find(arrayfun(@(x) ...
+    any(flipper_times >= mousecam_exposeOn_times(x) & ...
+    flipper_times <= mousecam_exposeOff_times(x)), ...
+    1:length(mousecam_exposeOn_times)));
+mousecam_match_exclude = ismember(mousecam_frame_match_idx_timelite,mousecam_midexpose_flip);
 
-mousecam_timelite_flipper_lag = ...
-    finddelay(+mousecam_flipper_trace,+flipper_thresh)/timelite.daq_info(1).rate;
-
-mousecam_timelite_flip_idx = ...
-    flipper_times > mousecam_timelite_flipper_lag & ...
-    flipper_times < mousecam_timelite_flipper_lag + ...
-    diff(mousecam_header.timestamps([1,end]));
-
-length(mousecam_flipper_times) == sum(mousecam_timelite_flip_idx)
-
-r = interp1(mousecam_flipper_times,flipper_times(mousecam_timelite_flip_idx), ...
-    mousecam_header.timestamps,'linear','extrap');
-
-% Count mousecam exposures per flip (mousecam and timelite)
-mousecam_exposures_per_flip_mousecam = diff(unique([0;length(mousecam_header.flipper); ...
-    find(diff(mousecam_header.flipper) ~= 0)]));
-if length(mousecam_header.flipper) ~= sum(mousecam_exposures_per_flip)
-    error('Mousecam exposures per flip don''t sum to number of frames')
-end
-
-mousecam_exposures_per_flip_timelite = ...
-    accumarray(discretize(mousecam_expose_times, ...
-    [0;flipper_times;timelite.timestamps(end)]),1);
-
-% Find flip epoch delay between mousecam and timelite
-x = finddelay(mousecam_exposures_per_flip_mousecam,mousecam_exposures_per_flip_timelite)
-
-mousecam_recorded_sum(mousecam_exposures_per_flip_timelite(1:x+1)) - mousecam_exposures_per_flip_mousecam(1)
-
-mousecam_exposures_per_flip_timelite(x+1) - mousecam_exposures_per_flip_mousecam(1)
-
-mousecam_exposures_per_flip_timelite(x+length(mousecam_exposures_per_flip_mousecam)) - ...
-mousecam_exposures_per_flip_mousecam(end)
-
-
-discretize(mousecam_expose_times,[0;flipper_times;timelite.timestamps(end)])
-
-
-mousecam_startend_timelite = mousecam_timelite_flipper_lag + ...
-    [0,diff(mousecam_header.timestamps([1,end]))];
-
-
-% (get mousecam expose times after lag)
-r = mousecam_expose_times > mousecam_startend_timelite(1) & ...
-    mousecam_expose_times < mousecam_startend_timelite(end);
+% Get timelite index for each mousecam frame
+mousecam_timelite_idx = interp1(1:length(mousecam_exposures_per_flip_timelite
 
 
 
-mousecam_header.timestamps
 
-mousecam_timelite_flipper_lag = finddelay(+flipper_thresh, ...
-    +mousecam_flipper_trace);
 
-% Resample Open Ephys flipper to DAQ sample rate
-open_ephys_flipper_trace = logical(normalize(interp1(open_ephys_flipper.timestamps, ...
-    single(open_ephys_flipper.value), ...
-    open_ephys_flipper.timestamps(1):1/timelite.daq_info(1).rate: ...
-    open_ephys_flipper.timestamps(end),'previous'),'range'));
 
-% Get Open Ephys corresponding to timelite flipper
-% (get lag between timelite and ephys by correlation)
-ephys_timelite_flipper_lag = finddelay(+flipper_thresh, ...
-    +open_ephys_flipper_trace)/timelite.daq_info(1).rate + ...
-    open_ephys_flipper.timestamps(1);
-% (get all ephys flips within that timelite window)
-curr_ephys_flipper_idx =  ...
-    open_ephys_flipper.timestamps >= ephys_timelite_flipper_lag & ...
-    open_ephys_flipper.timestamps <= ephys_timelite_flipper_lag + ...
-    length(flipper_thresh)/timelite.daq_info(1).rate;
-flipper_flip_times_ephys = open_ephys_flipper.timestamps(curr_ephys_flipper_idx);
+
 
 
 

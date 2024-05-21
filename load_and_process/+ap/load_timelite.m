@@ -23,7 +23,8 @@ flipper_times = timelite.timestamps(find(diff(flipper_thresh) ~= 0) + 1);
 % Mousecam times (note: all exposures, including those not recorded)
 mousecam_idx = strcmp({timelite.daq_info.channel_name}, 'mouse_camera');
 mousecam_thresh = timelite.data(:,mousecam_idx) >= ttl_thresh;
-mousecam_expose_times = timelite.timestamps(find(diff(mousecam_thresh) == 1) + 1);
+mousecam_exposeOn_times = timelite.timestamps(find(diff(mousecam_thresh) == 1) + 1);
+mousecam_exposeOff_times = timelite.timestamps(find(diff(mousecam_thresh) == -1) + 1);
 
 % Widefield times
 widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');

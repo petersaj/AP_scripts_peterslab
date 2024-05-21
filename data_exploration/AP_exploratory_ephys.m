@@ -85,7 +85,7 @@ colormap(ap.colormap('BWR'))
 
 %% Cell raster
 
-if contains(bonsai_workflow,'passive')
+if contains(bonsai_workflow,{'passive','Image'})
     % (L/C/R passive)
 
     align_times_all = stimOn_times;
@@ -93,6 +93,8 @@ if contains(bonsai_workflow,'passive')
         align_category_all = vertcat(trial_events.values.TrialStimX);
     elseif isfield(trial_events.values,'StimFrequence')
         align_category_all = vertcat(trial_events.values.StimFrequence);
+    elseif isfield(trial_events.values,'PictureID')
+        align_category_all = vertcat(trial_events.values.PictureID);
     end
     % (get only quiescent trials)
     stim_window = [0,0.5];
