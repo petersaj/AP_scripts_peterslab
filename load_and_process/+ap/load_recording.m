@@ -17,10 +17,8 @@ end
 
 % If no day - choose from list of days
 if ~exist('rec_day','var') || isempty(rec_day)
-    animal_dir = dir(plab.locations.filename('server',animal));
-    day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
-    recording_day_idx = matches({animal_dir.name},day_pattern) & [animal_dir.isdir];
-    recording_days = {animal_dir(recording_day_idx).name};
+    animal_recordings = plab.find_recordings(animal);
+    recording_days = {animal_recordings.day};
     day_idx = listdlg('PromptString','Select day:', ...
         'ListString',recording_days,'ListSize',[300,200], ...
         'SelectionMode','single');

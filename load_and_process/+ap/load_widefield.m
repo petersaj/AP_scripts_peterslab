@@ -58,7 +58,7 @@ end
 
 
 % Get widefield colors (assume alternating)
-widefield_frame_colors = mod((1:length(widefield_expose_times))-1,length(widefield_colors))+1;
+widefield_frame_colors = mod((1:length(widefield_expose_times))'-1,length(widefield_colors))+1;
 
 % Get timestamps for widefield frames by color
 wf_t_all = arrayfun(@(x) ...
