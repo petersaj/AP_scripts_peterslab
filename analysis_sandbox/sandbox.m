@@ -189,7 +189,7 @@ end
 
 %% temp histology: combine tiff channels
 
-animal = 'AM023';
+animal = 'AP022';
 
 hist_path = plab.locations.filename('server',animal,[],[],'histology','raw');
 save_path = plab.locations.filename('server',animal,[],[],'histology','raw_combined');
@@ -214,6 +214,9 @@ if size(slice_name_split_cat,2) == 2
                 slice_num{curr_slice},im_colors{curr_color}));
             curr_im = imread(curr_im_filename);
             imwrite(curr_im,curr_save_filename,'tif','WriteMode','append');
+
+            fprintf('Wrote %s: %s %s\n',animal,slice_num{curr_slice},im_colors{curr_color});
+
         end
     end
 
@@ -230,6 +233,8 @@ elseif size(slice_name_split_cat,2) == 3
                 animal,slice_num{curr_slice},im_colors{curr_color}));
             curr_im = imread(curr_im_filename);
             imwrite(curr_im,curr_save_filename,'tif','WriteMode','append');
+
+            fprintf('Wrote %s: %s %s\n',animal,slice_num{curr_slice},im_colors{curr_color});
         end
     end
 end

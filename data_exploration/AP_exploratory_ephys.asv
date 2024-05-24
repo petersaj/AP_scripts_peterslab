@@ -754,7 +754,7 @@ colormap(AP_colormap('BWR'));
 %     'AM011','AM012','AM014','AM015','AM016','AM017', ...
 %     'AM018','AM019','AM021'};
 
-animals = {'AM023'};
+animals = {'AM021'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -842,7 +842,7 @@ end
 
 %% Batch MUA by depth
 
-animal = 'AM024';
+animal = 'AM025';
 use_workflow = 'lcr_passive';
 % use_workflow = 'stim_wheel*';
 recordings = plab.find_recordings(animal,[],use_workflow);
@@ -858,10 +858,10 @@ t_bins = raster_window(1):psth_bin_size:raster_window(2);
 t_centers = conv2(t_bins,[1,1]/2,'valid');
 
 % Set depth groups
-n_depths = 8;
+n_depths = 3;
 depth_group_edges = round(linspace(0,4000,n_depths+1));
 
-day_mua = cell(length(recordings),1);
+day_mua = nan(n_depths,length(t_centers),length(recordings));
 
 for curr_recording = 1:length(recordings)
 
@@ -884,39 +884,27 @@ for curr_recording = 1:length(recordings)
     n_depths = length(depth_group_edges) - 1;
     depth_group = discretize(spike_depths,depth_group_edges);
 
-    % PSTH for all conditions
-    if contains(bonsai_workflow,'passive')
-        if contains(bonsai_workflow,'lcr')
-            % (L/C/R visual passive)
-            stim_type = vertcat(trial_events.values.TrialStimX);
-        elseif contains(bonsai_workflow,'hml')
-            % (H/M/L auditory passive)
-            stim_type = vertcat(trial_events.values.StimFrequence);
-        end
-        stim_window = [0,0.5];
-        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-            1:length(stimOn_times))';
+    % Stim times (quiescent trials only)
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        1:length(stimOn_times))';
 
-        align_times = cellfun(@(x) stimOn_times(quiescent_trials & stim_type == x), ...
-            num2cell(unique(stim_type)),'uni',false);
-
-    elseif contains(bonsai_workflow,'stim_wheel')
-        % (task)
-        align_times = {stimOn_times,stim_move_time,reward_times};
+    if isfield(trial_events.values,'TrialStimX')
+        stim_x = vertcat(trial_events.values.TrialStimX);
+        % temp - what happened here, not all trials shown?
+        stim_x = stim_x(1:length(stimOn_times));
+        align_times = {stimOn_times(stim_x == 90 & quiescent_trials)};
+    else
+        % Stim times (task)
+        align_times = {stimOn_times};
     end
 
     depth_psth = nan(n_depths,length(t_bins)-1,length(align_times));
     for curr_align = 1:length(align_times)
-
         use_align = align_times{curr_align};
-        if isempty(use_align)
-            continue
-        end
-
         t_peri_event = bsxfun(@plus,use_align,t_bins);
-
         for curr_depth = 1:n_depths
             curr_spikes = spike_times_timelite(depth_group == curr_depth);
 
@@ -934,12 +922,12 @@ for curr_recording = 1:length(recordings)
 
     depth_psth_smooth_baseline = nanmean(nanmean(depth_psth_smooth(:,t_centers<0,:),2),3);
 
-    softnorm = 2;
+    softnorm = 150;
     depth_psth_smooth_norm = (depth_psth_smooth - depth_psth_smooth_baseline)./ ...
         (depth_psth_smooth_baseline+softnorm);
 
     % Store MUA
-    day_mua{curr_recording} = depth_psth_smooth_norm;
+    day_mua(:,:,curr_recording) = depth_psth_smooth_norm;
 
     % Prep for next loop
     AP_print_progress_fraction(curr_recording,length(recordings));
@@ -947,27 +935,29 @@ for curr_recording = 1:length(recordings)
 
 end
 
+plot_mua = day_mua(2,:,:);
 
-% Plot MUA
-figure; 
-h = tiledlayout(1,length(day_mua));
+figure;
+tiledlayout('flow');
 
-for curr_day = 1:length(day_mua)
+nexttile;
+imagesc(nanmean(plot_mua,3))
 
-    nexttile(h); hold on;
-    align_col = lines(size(day_mua{curr_day},3));
-    spacing = 1.2*max(day_mua{curr_day},[],'all');
+nexttile;
+plot(t_centers,nanmean(nanmean(plot_mua,3),1));
+xline(0);
+xlabel('Time');ylabel('Avg response across days');
 
-    for curr_align = 1:length(align_times)
-        AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
-            spacing,[],align_col(curr_align,:));
-    end
+nexttile;
+col = copper(size(plot_mua,3));
+hold on; set(gca,'ColorOrder',col);
+plot(t_centers,squeeze(nanmean(plot_mua,1)));
+xlabel('Time');ylabel('Avg response');
 
-    xline(0,'k');
-
-end
-
-linkaxes(h.Children,'y');
+nexttile;
+use_t = t_centers > 0 & t_centers < 0.2;
+plot(recording_idx,squeeze(nanmean(nanmean(plot_mua(:,use_t,:),1),2)),'.-');
+xlabel('Day');ylabel('Max response');
 
 
 

@@ -606,7 +606,7 @@ for curr_animal = 1:length(animals)
         str_end = max(channel_positions(:,2));
 
         % Discretize spikes by depth
-        depth_group_edges = str_start:mua_length:str_end;
+        depth_group_edges = round(linspace(str_start,str_end,n_depths+1));
         depth_group = discretize(spike_depths,depth_group_edges);
 
         % Get MUA binned by widefield
@@ -615,8 +615,8 @@ for curr_animal = 1:length(animals)
         time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
         time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-        binned_spikes = zeros(max(depth_group),length(time_bins)-1);
-        for curr_depth = 1:max(depth_group)
+        binned_spikes = zeros(n_depths,length(time_bins)-1);
+        for curr_depth = 1:n_depths
             curr_spike_times = spike_times_timelite(depth_group == curr_depth);
             binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
         end
@@ -641,7 +641,7 @@ for curr_animal = 1:length(animals)
             binned_spikes_std,kernel_frames, ...
             lambda,zs,cvfold,return_constant,use_constant);
 
-        ctx_map{curr_recording} = permute(k,[1,3,2]);
+        ctx_map{curr_recording} = k;
 
         % Prep for next loop
         clearvars('-except',preload_vars{:});
@@ -654,32 +654,30 @@ for curr_animal = 1:length(animals)
 
 end
 
-% Below won't work - changed above to be by 200um rather than depth
+% Plot average cortical map by learned day and depth
+load("C:\Users\petersa\Desktop\am_bhv.mat");
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
+ld_x = unique(cell2mat(ld));
 
-% % Plot average cortical map by learned day and depth
-% load("C:\Users\petersa\Desktop\am_bhv.mat");
-% ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
-% ld_x = unique(cell2mat(ld));
-% 
-% day_ctxmap_ld_avg = ap.groupfun(cat(4,ctx_map_all{:}),[],[],[],vertcat(ld{:}));
-% 
-% figure;
-% c = [-1,1].*prctile(day_ctxmap_ld_avg,99,'all');
-% h = tiledlayout(size(day_ctxmap_ld_avg,3),size(day_ctxmap_ld_avg,4),'TileSpacing','none');
-% for curr_depth = 1:n_depths
-%     for curr_ld = 1:length(ld_x)
-%         nexttile;
-%         imagesc(day_ctxmap_ld_avg(:,:,curr_depth,curr_ld));
-%         ap.wf_draw('ccf','k');
-%         axis image off;
-%         clim(c);
-%         colormap(ap.colormap('PWG'));
-%         if curr_depth == 1
-%             title(ld_x(curr_ld));
-%         end
-%         drawnow;
-%     end
-% end
+day_ctxmap_ld_avg = ap.groupfun(cat(4,ctx_map_all{:}),[],[],[],vertcat(ld{:}));
+
+figure;
+c = [-1,1].*prctile(day_ctxmap_ld_avg,99,'all');
+h = tiledlayout(size(day_ctxmap_ld_avg,3),size(day_ctxmap_ld_avg,4),'TileSpacing','none');
+for curr_depth = 1:n_depths
+    for curr_ld = 1:length(ld_x)
+        nexttile;
+        imagesc(day_ctxmap_ld_avg(:,:,curr_depth,curr_ld));
+        ap.wf_draw('ccf','k');
+        axis image off;
+        clim(c);
+        colormap(ap.colormap('PWG'));
+        if curr_depth == 1
+            title(ld_x(curr_ld));
+        end
+        drawnow;
+    end
+end
 
 
 
