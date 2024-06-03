@@ -13,7 +13,7 @@ print('PYTHON: Running kilosort 4 ', data_filename)
 #       settings, see `kilosort.run_kilosort.default_settings`.
 settings = {'filename': data_filename, 'n_chan_bin': 384}
 
-ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate = \
+ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
     run_kilosort(settings=settings, results_dir=kilosort_output_path ,probe_name='neuropixPhase3B2_kilosortChanMap.mat')
 
 # Print pykilosort ending notice

@@ -121,7 +121,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
 
     % (if multiple task types - split by task type)
     if isfield(trial_events.values,'TaskType')
-        [~,type_rxn_sort_idx] = sortrows([vertcat(trial_events.values(1:n_trials).TaskType),rxn_sort_idx]);
+        [~,type_rxn_sort_idx] = sortrows([vertcat(trial_events.values(1:n_trials).TaskType),stim_to_move]);
         trial_sort_idx = [vertcat(trial_events.values(1:n_trials).TaskType),type_rxn_sort_idx,rxn_sort_idx];
     end
 
@@ -750,11 +750,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-% animals = {'AM008','AP008','AP009', ...
-%     'AM011','AM012','AM014','AM015','AM016','AM017', ...
-%     'AM018','AM019','AM021'};
-
-animals = {'AM023'};
+animals = {'AP022'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -763,12 +759,13 @@ for curr_animal = 1:length(animals)
     if exist(histology_path,'dir')
 
         histology_dir = dir(fullfile(histology_path,'**','slice_*.tif'));
-
+        [~,sort_idx] = natsortfiles({histology_dir.name});
+        
         histology_im = cell(length(histology_dir),1);
         for curr_slice = 1:length(histology_dir)
             histology_im{curr_slice} = imread(fullfile( ...
-                histology_dir(curr_slice).folder, ...
-                histology_dir(curr_slice).name));
+                histology_dir(sort_idx(curr_slice)).folder, ...
+                histology_dir(sort_idx(curr_slice)).name));
         end
 
         figure('Name',animal);
@@ -842,9 +839,10 @@ end
 
 %% Batch MUA by depth
 
-animal = 'AM024';
-use_workflow = 'lcr_passive';
-% use_workflow = 'stim_wheel*';
+animal = 'DS000';
+% use_workflow = 'lcr_passive';
+% use_workflow = 'hml_passive_audio';
+use_workflow = 'stim_wheel*';
 recordings = plab.find_recordings(animal,[],use_workflow);
 recordings = recordings([recordings.ephys]);
 
@@ -951,22 +949,17 @@ end
 % Plot MUA
 figure; 
 h = tiledlayout(1,length(day_mua));
-
 for curr_day = 1:length(day_mua)
-
     nexttile(h); hold on;
     align_col = lines(size(day_mua{curr_day},3));
-    spacing = 1.2*max(day_mua{curr_day},[],'all');
+    rescale = 1/(1.2*max(day_mua{curr_day},[],'all'));
 
-    for curr_align = 1:length(align_times)
+    for curr_align = 1:size(day_mua{curr_day},3)
         AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
-            spacing,[],align_col(curr_align,:));
+            1,rescale,align_col(curr_align,:));
     end
-
     xline(0,'k');
-
 end
-
 linkaxes(h.Children,'y');
 
 
