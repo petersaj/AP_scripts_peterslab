@@ -167,15 +167,27 @@ master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
 load(master_U_fn);
 
 % Load learned day
-load("C:\Users\petersa\Desktop\am_bhv.mat");
+am_data_path = 'C:\Users\petersa\Desktop\am_temp';
+load(fullfile(am_data_path,'bhv.mat'));
+
 ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day},'uni',false);
 
 a = cat(3,day_V_all{:});
 
-r = grpstats(reshape(a,[],size(a,3))',vertcat(ld{:}));
+use_animals = ~cellfun(@isempty,day_V_all);
+r = grpstats(reshape(a,[],size(a,3))',vertcat(ld{use_animals}));
 r2 = plab.wf.svd2px(U_master,reshape(r',[size(a,[1,2]),size(r,1)]));
 
-ap.imscroll(r2);axis image
+ld_x = unique(vertcat(ld{use_animals}));
+
+ap.imscroll(r2,ld_x);axis image
+
+% Plot ROI
+% (draw ROI first)
+figure;
+imagesc(t_centers,ld_x,roi.trace)
+
+
 
 
 %% Batch widefield ROI
@@ -557,7 +569,7 @@ animals = {'AM008','AP008','AP009', ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
     'AM018','AM019','AM021','AM022'};
 
-plot_depths = true;
+plot_depths = false;
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -573,8 +585,8 @@ day_mua_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
-    use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+%     use_workflow = 'lcr_passive';
+    use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -1060,8 +1072,11 @@ ylabel('Predicted');
 
 am_data_path = 'C:\Users\petersa\Desktop\am_temp';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'mua.mat'));
+load(fullfile(am_data_path,'mua_passive.mat'));
+% load(fullfile(am_data_path,'mua_task.mat'));
 load(fullfile(am_data_path,'ctx_maps_task.mat'));
+load(fullfile(am_data_path,'wf.mat'));
+
 
 % Load master U, convert V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -1078,7 +1093,7 @@ animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
     [repmat(animal,size(data,3),1),repmat(ld,size(data,3),1),(1:size(data,3))'], ...
     num2cell(ld),data,'uni',false), ...
     num2cell(find(use_animals)),ld(use_animals),ctx_map_px(use_animals),'uni',false);
-animal_ld_idx = cell2mat(vertcat(animal_day_idx_cell{:}));
+animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
 
 % (cardinal day)
 animal_day_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
@@ -1087,8 +1102,16 @@ animal_day_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
     num2cell(find(use_animals)),ld(use_animals),ctx_map_px(use_animals),'uni',false);
 animal_day_idx = cell2mat(vertcat(animal_day_idx_cell{:}));
 
+% Concatenate V's
+V_cat = cat(3,day_V_all{:});
 
+V_animal_day_idx = cell2mat(cellfun(@(x,animal,ld) ...
+    [repmat(animal,size(x,3),1),ld], ...
+    day_V_all(use_animals),num2cell(find(use_animals)),ld(use_animals),'uni',false));
+
+% Concatenate maps
 c2 = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
+
 ap.imscroll(c2); 
 axis image off;
 clim(max(abs(clim)).*[-1,1].*0.5);
@@ -1098,10 +1121,11 @@ ap.wf_draw('ccf','k');
 
 
 % (draw ROI over mVis)
-a = roi.trace';
+vis_map_weights = roi.trace';
 
 % (draw ROI over mpfc)
-b = roi.trace';
+mpfc_map_weights = roi.trace';
+
 
 r = cell2mat(vertcat(day_mua_all{use_animals}));
 
@@ -1111,24 +1135,24 @@ r2 = nanmean(r(:,use_t(1):use_t(2)),2);
 % Plot vis/mpfc weights and MUA
 figure; colormap(jet);
 subplot(1,2,1);
-scatter3(a,b,r2,15,animal_day_idx(:,1),'filled')
+scatter3(vis_map_weights,mpfc_map_weights,r2,15,animal_day_idx(:,1),'filled')
 xlabel('vis');ylabel('mpfc');zlabel('mua');
 axis vis3d; shading interp;
 
 subplot(1,2,2);
-f = fit([a,b],r2,'lowess');
-plot(f,[a,b],r2)
+f = fit([vis_map_weights,mpfc_map_weights],r2,'lowess');
+plot(f,[vis_map_weights,mpfc_map_weights],r2)
 xlabel('vis');ylabel('mpfc');zlabel('mua');
 axis vis3d; shading interp;
 
 % (above, but by learned day)
 figure;tiledlayout('flow','tilespacing','compact'); colormap(jet)
 for curr_ld = -3:3
-    use_data = animal_day_idx(:,2) == curr_ld;
+    use_data = animal_ld_idx(:,2) == curr_ld;
 
     nexttile
-    f = fit([a(use_data),b(use_data)],r2(use_data),'lowess');
-    plot(f,[a(use_data),b(use_data)],r2(use_data))
+    f = fit([vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data),'lowess');
+    plot(f,[vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data))
     xlabel('vis');ylabel('mpfc');zlabel('mua');
     axis vis3d; shading interp;
     title(curr_ld);
@@ -1137,8 +1161,8 @@ end
 % (above, by learned day on one plot)
 figure;hold on
 for curr_ld = -3:3
-    use_data = animal_day_idx(:,2) == curr_ld;
-    f = fit([a(use_data),b(use_data)],r2(use_data),'poly22');
+    use_data = animal_ld_idx(:,2) == curr_ld;
+    f = fit([vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data),'poly22');
     plot(f);
 end
 xlabel('vis');ylabel('mpfc');zlabel('mua');
@@ -1154,10 +1178,10 @@ colormap(ap.colormap('BWR',[],1.5));
 ap.wf_draw('ccf','k');
 
 % Plot maps by threshold cutoffs
-ctx_thresh = 0.013;
+ctx_thresh = 0.01;
 mua_thresh = 0.1;
 
-curr_use_ctx = a >= ctx_thresh;
+curr_use_ctx = vis_map_weights >= ctx_thresh;
 curr_use_mua = r2 >= mua_thresh;
 
 figure; 
@@ -1165,7 +1189,7 @@ h = tiledlayout(2,2);
 colormap(ap.colormap('BWR',[],1.5));
 
 nexttile([2,1]);
-plot(a,r2,'.k');
+plot(vis_map_weights,r2,'.k');
 xlabel('Cortex weight');
 ylabel('Striatum vis response');
 xline(ctx_thresh,'r');
@@ -1209,13 +1233,18 @@ ylabel('MUA');
 
 
 % Get vis cortex maps, group striatal responses, plot by LD
-ctx_thresh = 0.013;
-curr_use_ctx = a >= ctx_thresh;
+ctx_thresh = 0.01;
+curr_use_ctx = vis_map_weights >= ctx_thresh;
 
 [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
 
 x1 = ap.groupfun(r(curr_use_ctx,:),grp_idx,[]);
+x11t = ap.groupfun(x1,grp(:,2),[]);
 x11 = mean(x1(:,use_t(1):use_t(2)),2);
+
+figure;imagesc([],unique(grp(:,2)),x11t)
+ylabel('LD');
+title('MUA');
 
 x2 = ap.groupfun(c2(:,:,curr_use_ctx),[],[],grp_idx);
 x22 = ap.groupfun(x2,[],[],grp(:,2));
@@ -1231,6 +1260,13 @@ for i = -3:3
     title(i);
 end
 colormap(ap.colormap('BWR',[],1.5));
+
+ap.imscroll(x22,ld_x);
+axis image off;
+clim(c);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('BWR',[],1.5));
+
 
 figure; 
 subplot(1,2,1); hold on;
@@ -1251,7 +1287,15 @@ arrayfun(@(x) plot(stim_move(grp(:,1)==x), x11(grp(:,1)==x)),unique(grp(:,1)));
 xlabel('Stim move ratio');
 ylabel('MUA')
 
-
+% (combine V's from animals/days used above)
+use_v = ismember(V_animal_day_idx,grp,'rows');
+V_avg = ap.groupfun(V_cat(:,:,use_v),[],[],V_animal_day_idx(use_v,2));
+px_avg = plab.wf.svd2px(U_master,V_avg);
+ap.imscroll(px_avg); 
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
 
 % K-means cortex maps
 n_k = 4;
@@ -1270,7 +1314,7 @@ end
 
 
 % Group data as above, but using k-means idx as grouper
-curr_use_ctx = kidx == 4;
+curr_use_ctx = kidx == 2;
 
 [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
 

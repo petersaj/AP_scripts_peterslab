@@ -125,12 +125,10 @@ elseif contains(bonsai_workflow,'stim_wheel')
     else
         [~,type_rxn_sort_idx] = sortrows([vertcat(trial_events.values(1:n_trials).TaskType),stim_to_move]);
         trial_sort_idx = [vertcat(trial_events.values(1:n_trials).TaskType),type_rxn_sort_idx,rxn_sort_idx];
-
-        reward_sort_idx = vertcat(trial_events.values([trial_events.values.Outcome]==1).TaskType);
     end
 
     ap.cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts_iti,reward_times}, ...
-        {trial_sort_idx,trial_sort_idx,1:length(wheel_starts_iti),reward_sort_idx});
+        {trial_sort_idx,trial_sort_idx,1:length(wheel_starts_iti),1:length(reward_times)});
 end
 
 set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
