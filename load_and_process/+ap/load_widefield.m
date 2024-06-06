@@ -26,6 +26,9 @@ end
 %% Get frame times by color
 % (check for timelite/frame mismatches and dropped frames)
 
+% Get widefield colors (assume alternating)
+widefield_frame_colors = mod((1:length(widefield_expose_times))'-1,length(widefield_colors))+1;
+
 wf_cam_tl_frame_diff = sum(cellfun(@(x) size(x,2),wf_V_raw)) - ...
     length(widefield_expose_times);
 
@@ -38,7 +41,7 @@ elseif wf_cam_tl_frame_diff > 0
     warning('Widefield: timelite missed [%d] exposures, cutting from end',wf_cam_tl_frame_diff)
 
     % (get expected frames by color, truncate V
-    n_color_frames = accumarray(mod(1:length(widefield_expose_times),length(widefield_colors))'+1,1);
+    n_color_frames = accumarray(widefield_frame_colors,1);
     wf_V_raw = cellfun(@(v,n_frames) v(:,1:n_frames),wf_V_raw,num2cell(n_color_frames),'uni',false);
     wf_use_frames = true(size(widefield_expose_times));
 
@@ -61,9 +64,6 @@ elseif wf_cam_tl_frame_diff < 0
     wf_use_frames = ~wf_dropped_frame_idx;
 
 end
-
-% Get widefield colors (assume alternating)
-widefield_frame_colors = mod((1:length(widefield_expose_times))'-1,length(widefield_colors))+1;
 
 % Get timestamps for widefield frames by color
 wf_t_all = arrayfun(@(x) ...
