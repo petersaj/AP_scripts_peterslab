@@ -409,7 +409,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % even, click, define
+mua_method = 'click'; % even, click, define
 
 switch mua_method
 
@@ -522,10 +522,10 @@ end
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
-use_svs = 1:200;
-kernel_t = [-0.3,0.3];
+use_svs = 1:100;
+kernel_t = [-0.5,0.5];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 5;
+lambda = 20;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -678,7 +678,7 @@ r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
 
 AP_imscroll(r_px,kernel_frames/wf_framerate);
 % clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)]) % (takes too long)
-clim([-0.002,0.002]);
+clim([-0.02,0.02]);
 colormap(AP_colormap('BWR'));
 axis image;
 

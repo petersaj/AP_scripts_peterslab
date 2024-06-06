@@ -9,7 +9,7 @@
 % step?
 
 % Set animal and plot probe positions
-animal = 'AM025';
+animal = 'AP014';
 ap.plot_probe_positions(animal);
 
 % Day selection for each histology trajectory
@@ -31,7 +31,7 @@ disp(['Saved ' probe_ccf_filename]);
 
 %% Align histology depth to recording
 
-animal = 'AM025';
+animal = 'AP014';
 
 probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
     'histology','*','probe_ccf.mat'));

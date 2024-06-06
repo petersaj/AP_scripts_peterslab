@@ -26,25 +26,22 @@ end
 %% Get frame times by color
 % (check for timelite/frame mismatches and dropped frames)
 
-wf_cam_tl_frame_diff = sum(cellfun(@(x) size(x,2),wf_V_raw)) - ...
-    length(widefield_expose_times);
+wf_frame_diff = sum(cellfun(@(x) size(x,2),wf_V_raw)) - length(widefield_expose_times);
 
-if wf_cam_tl_frame_diff == 0
+if wf_frame_diff == 0
     % Same frames as expose times: all good
     wf_use_frames = true(size(widefield_expose_times));
 
-elseif wf_cam_tl_frame_diff > 0
-    % More frames than timelite exposures: timelite probably cut off early 
-    warning('Widefield: timelite missed [%d] exposures, cutting from end',wf_cam_tl_frame_diff)
-
-    % (get expected frames by color, truncate V
-    n_color_frames = accumarray(mod(1:length(widefield_expose_times),length(widefield_colors))'+1,1);
-    wf_V_raw = cellfun(@(v,n_frames) v(:,1:n_frames),wf_V_raw,num2cell(n_color_frames),'uni',false);
+elseif wf_frame_diff > 0
+    % More frames than timelite exposures: timelite probably cut off early
+    
+    warning('Widefield: timelite missed exposures, cutting from end')
+    wf_V_raw = cellfun(@(v,t) v(:,1:length(t)),wf_V_raw,wf_t_all,'uni',false);
     wf_use_frames = true(size(widefield_expose_times));
 
-elseif wf_cam_tl_frame_diff < 0
+elseif wf_frame_diff
     % More timelite exposures than frames: widefield dropped frames
-    warning('Widefield: dropped [%d] frame(s), removing dropped exposure times',-wf_cam_tl_frame_diff);
+    warning('Widefield: dropped frame(s), removing dropped exposure times');
 
     widefield_metadata_fn = ...
         plab.locations.filename('server',animal,rec_day,[], ...
@@ -61,6 +58,7 @@ elseif wf_cam_tl_frame_diff < 0
     wf_use_frames = ~wf_dropped_frame_idx;
 
 end
+
 
 % Get widefield colors (assume alternating)
 widefield_frame_colors = mod((1:length(widefield_expose_times))'-1,length(widefield_colors))+1;
