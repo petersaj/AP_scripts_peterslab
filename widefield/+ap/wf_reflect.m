@@ -6,7 +6,7 @@ error('wf_reflect doesn''t work at all at the moment');
 % Load bregma and master CCF tform
 bregma = allenCCFbregma;
 bregma(3) = bregma(3) + 0.5;
-alignment_path = fullfile(plab.locations.server_path,'Users','Andy_Peters','widefield_alignment');
+alignment_path = fullfile(plab.locations.server_path,'Lab','widefield_alignment');
 ccf_tform_fn = [alignment_path filesep 'ccf_tform.mat'];
 load(ccf_tform_fn);
 

@@ -29,7 +29,7 @@ end
 
 % Load alignment and perform CCF-widefield alignment
 alignment_path = fullfile(plab.locations.server_path, ...
-    'Users','Andy_Peters','widefield_alignment');
+    'Lab','widefield_alignment');
 ccf_tform_fn = fullfile(alignment_path,'ccf_tform.mat');
 load(ccf_tform_fn);
 

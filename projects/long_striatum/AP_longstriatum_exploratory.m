@@ -1270,6 +1270,7 @@ colormap(ap.colormap('BWR',[],1.5));
 
 figure; 
 subplot(1,2,1); hold on;
+set(gca,'colororder',jet(length(unique(grp(:,1)))));
 arrayfun(@(x) plot(grp(grp(:,1)==x,2), x11(grp(:,1)==x)),unique(grp(:,1)));
 xlabel('Learned day');
 ylabel('MUA')
@@ -1283,11 +1284,12 @@ for i = 1:size(stim_move,1)
 end
 
 subplot(1,2,2); hold on;
+set(gca,'colororder',jet(length(unique(grp(:,1)))));
 arrayfun(@(x) plot(stim_move(grp(:,1)==x), x11(grp(:,1)==x)),unique(grp(:,1)));
 xlabel('Stim move ratio');
 ylabel('MUA')
 
-% (combine V's from animals/days used above)
+% Average widefield from animals/days used above
 use_v = ismember(V_animal_day_idx,grp,'rows');
 V_avg = ap.groupfun(V_cat(:,:,use_v),[],[],V_animal_day_idx(use_v,2));
 px_avg = plab.wf.svd2px(U_master,V_avg);
@@ -1296,6 +1298,17 @@ axis image;
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+
+use_frames = 18:22;
+px_tavg = squeeze(nanmean(px_avg(:,:,use_frames,:),3));
+ap.imscroll(px_tavg,ld_x);
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
+% (draw ROI)
+figure;plot(ld_x,roi.trace);
+
 
 % K-means cortex maps
 n_k = 4;
@@ -1314,7 +1327,7 @@ end
 
 
 % Group data as above, but using k-means idx as grouper
-curr_use_ctx = kidx == 2;
+curr_use_ctx = kidx == 4;
 
 [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
 

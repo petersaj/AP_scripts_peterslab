@@ -56,8 +56,7 @@ elseif wf_cam_tl_frame_diff < 0
     [wf_dropped_frames,wf_dropped_frame_idx] = ...
         plab.wf.find_dropped_frames(widefield_metadata_fn,false);
 
-    if length(widefield_expose_times) - sum(cellfun(@(x) size(x,2),wf_V_raw)) ~= ...
-            length(wf_dropped_frames)
+    if -wf_cam_tl_frame_diff ~= length(wf_dropped_frames)
         error('Widefield: could not identify dropped frames')
     end
 
