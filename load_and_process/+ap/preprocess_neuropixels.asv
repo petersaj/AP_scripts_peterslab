@@ -116,8 +116,7 @@ for curr_data = 1:length(data_paths)
             data_filename = apband_car_local_filename, ...
             kilosort_output_path = kilosort_output_path);
 
-        % Terminate Python process
-        terminate(kilosort_python_environment);
+        
 
         %% Convert spike times to Open Ephys timestamps
 
