@@ -3,7 +3,7 @@
 
 % Use raw blue signal (best SNR)
 surround_window = [0.3,0.5]; % 6s = [0.3,0.5], deconv = [0.05,0.15]
-framerate = 1./nanmean(diff(wf_t));
+framerate = 1./nanmean(diff(wf_t_all{1}));
 surround_samplerate = 1/(framerate*1);
 surround_time = surround_window(1):surround_samplerate:surround_window(2);
 response_n = nan(n_y_squares,n_x_squares);
@@ -21,8 +21,8 @@ for px_y = 1:n_y_squares
         response_n(px_y,px_x) = length(align_times);
 
         % Don't use times that fall outside of imaging
-        align_times(align_times + surround_time(1) < wf_t(2) | ...
-            align_times + surround_time(2) > wf_t(end)) = [];
+        align_times(align_times + surround_time(1) < wf_t_all{1}(2) | ...
+            align_times + surround_time(2) > wf_t_all{1}(end)) = [];
 
         % Get stim-aligned responses, 2 choices:
 
@@ -32,7 +32,7 @@ for px_y = 1:n_y_squares
 
         % 2) Use closest frames to times (much faster - not different)
         align_surround_times = align_times + surround_time;
-        frame_edges = [wf_t;wf_t(end)+1/framerate];
+        frame_edges = [wf_t_all{1};wf_t_all{1}(end)+1/framerate];
         align_frames = discretize(align_surround_times,frame_edges);
 
         % Get stim-aligned baseline (at stim onset)

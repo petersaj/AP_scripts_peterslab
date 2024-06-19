@@ -6,8 +6,15 @@
 
 % If no animal - choose from list of animals
 if ~exist('animal','var') || isempty(animal)
-    data_dir = dir(plab.locations.server_data_path);
-    animals_all = {data_dir(3:end).name};
+    if ~exist('rec_day','var') || isempty(rec_day)
+        % (if no day - return all animals)
+        data_dir = dir(plab.locations.server_data_path);
+        animals_all = {data_dir(3:end).name};
+    else
+        % (if day specified - return animals with those days)
+        day_dir = dir(fullfile(plab.locations.server_data_path,'*',rec_day));
+        animals_all = erase(unique({day_dir.folder})',{plab.locations.server_data_path,rec_day,filesep});
+    end
     animal_idx = listdlg('PromptString','Select animal:', ...
         'ListString',animals_all,'ListSize',[300,200], ...
         'SelectionMode','single');

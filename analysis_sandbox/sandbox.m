@@ -303,6 +303,51 @@ violet_avg = nanmean(cat(3,avg_im_all{:,2}),3);
 
 
 
+%% Troubleshooting widefield dropped frames
+
+% Get widefield frame times
+widefield_metadata_fn = ...
+        plab.locations.filename('server',animal,rec_day,[], ...
+        'widefield',sprintf('widefield_%s_metadata.bin',rec_time));
+
+fid = fopen(widefield_metadata_fn);
+widefield_metadata = reshape(fread(fid,'double'),9,[]);
+fclose(fid);
+frame_upload_time = datetime(widefield_metadata(4:9,:)');
+frame_upload_time_rel = seconds(frame_upload_time - frame_upload_time(1));
+
+% Get times when exposures are done
+widefield_exposeOff_times = timelite.timestamps(find(diff(widefield_thresh) == -1) + 1);
+widefield_exposeOff_times_rel = widefield_exposeOff_times-widefield_exposeOff_times(1);
+
+% Plot timelite and frame times (relative to first, 1 of every 100);
+figure; hold on;
+plot(timelite.timestamps - widefield_exposeOff_times(1),timelite.data(:,widefield_idx),'k')
+plot(frame_upload_time_rel(1:100),3,'.r');
+
+
+% Plot frame times - exposure offs
+figure;
+x = frame_upload_time_rel - widefield_exposeOff_times_rel(1:size(widefield_metadata,2));
+subplot(2,1,1);
+plot(x,'.k');
+ylabel('Relative expose offset to frame time')
+
+subplot(2,1,2);
+plot(detrend(x)-min(detrend(x)),'.k');
+ylabel('Detrended and min=0')
+
+%% Prepping retinotopy for Jennifer
+
+animal = 'AP014';
+rec_day = '2024-01-19';
+ap.load_recording;
+
+
+% Get retinotopy
+ap.wf_retinotopy
+
+
 
 
 

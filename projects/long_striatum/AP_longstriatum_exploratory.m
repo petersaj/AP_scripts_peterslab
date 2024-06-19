@@ -585,8 +585,8 @@ day_mua_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
-%     use_workflow = 'lcr_passive';
-    use_workflow = 'stim_wheel*';
+    use_workflow = 'lcr_passive';
+%     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -677,14 +677,8 @@ for curr_animal = 1:length(animals)
         smooth_size = 100;
         depth_psth_smooth = smoothdata(depth_psth,2,'gaussian',smooth_size);
 
-        depth_psth_smooth_baseline = nanmean(nanmean(depth_psth_smooth(:,t_centers<0,:),2),3);
-
-        softnorm = 150;
-        depth_psth_smooth_norm = (depth_psth_smooth - depth_psth_smooth_baseline)./ ...
-            (depth_psth_smooth_baseline+softnorm);
-
-        % Store MUA
-        day_mua{curr_recording} = depth_psth_smooth_norm;
+        % Store MUA (raw - to combine and normalize later)
+        day_mua{curr_recording} = depth_psth_smooth;
 
         % Prep for next loop
         clearvars('-except',preload_vars{:});
@@ -1132,50 +1126,52 @@ r = cell2mat(vertcat(day_mua_all{use_animals}));
 use_t = [500,700];
 r2 = nanmean(r(:,use_t(1):use_t(2)),2);
 
-% Plot vis/mpfc weights and MUA
-figure; colormap(jet);
-subplot(1,2,1);
-scatter3(vis_map_weights,mpfc_map_weights,r2,15,animal_day_idx(:,1),'filled')
-xlabel('vis');ylabel('mpfc');zlabel('mua');
-axis vis3d; shading interp;
+% (below unused: used when mua pre-normalized)
 
-subplot(1,2,2);
-f = fit([vis_map_weights,mpfc_map_weights],r2,'lowess');
-plot(f,[vis_map_weights,mpfc_map_weights],r2)
-xlabel('vis');ylabel('mpfc');zlabel('mua');
-axis vis3d; shading interp;
-
-% (above, but by learned day)
-figure;tiledlayout('flow','tilespacing','compact'); colormap(jet)
-for curr_ld = -3:3
-    use_data = animal_ld_idx(:,2) == curr_ld;
-
-    nexttile
-    f = fit([vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data),'lowess');
-    plot(f,[vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data))
-    xlabel('vis');ylabel('mpfc');zlabel('mua');
-    axis vis3d; shading interp;
-    title(curr_ld);
-end
-
-% (above, by learned day on one plot)
-figure;hold on
-for curr_ld = -3:3
-    use_data = animal_ld_idx(:,2) == curr_ld;
-    f = fit([vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data),'poly22');
-    plot(f);
-end
-xlabel('vis');ylabel('mpfc');zlabel('mua');
-axis vis3d;
-shading interp;
-
-% correlation between pixels and MUA?
-c3 = 1-reshape(pdist2(reshape(c2,[],size(c2,3)),r2','correlation'),size(c2,[1,2]));
-figure;imagesc(c3);
-axis image off;
-clim([-0.5,0.5]);
-colormap(ap.colormap('BWR',[],1.5));
-ap.wf_draw('ccf','k');
+% % Plot vis/mpfc weights and MUA
+% figure; colormap(jet);
+% subplot(1,2,1);
+% scatter3(vis_map_weights,mpfc_map_weights,r2,15,animal_day_idx(:,1),'filled')
+% xlabel('vis');ylabel('mpfc');zlabel('mua');
+% axis vis3d; shading interp;
+% 
+% subplot(1,2,2);
+% f = fit([vis_map_weights,mpfc_map_weights],r2,'lowess');
+% plot(f,[vis_map_weights,mpfc_map_weights],r2)
+% xlabel('vis');ylabel('mpfc');zlabel('mua');
+% axis vis3d; shading interp;
+% 
+% % (above, but by learned day)
+% figure;tiledlayout('flow','tilespacing','compact'); colormap(jet)
+% for curr_ld = -3:3
+%     use_data = animal_ld_idx(:,2) == curr_ld;
+% 
+%     nexttile
+%     f = fit([vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data),'lowess');
+%     plot(f,[vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data))
+%     xlabel('vis');ylabel('mpfc');zlabel('mua');
+%     axis vis3d; shading interp;
+%     title(curr_ld);
+% end
+% 
+% % (above, by learned day on one plot)
+% figure;hold on
+% for curr_ld = -3:3
+%     use_data = animal_ld_idx(:,2) == curr_ld;
+%     f = fit([vis_map_weights(use_data),mpfc_map_weights(use_data)],r2(use_data),'poly22');
+%     plot(f);
+% end
+% xlabel('vis');ylabel('mpfc');zlabel('mua');
+% axis vis3d;
+% shading interp;
+% 
+% % correlation between pixels and MUA?
+% c3 = 1-reshape(pdist2(reshape(c2,[],size(c2,3)),r2','correlation'),size(c2,[1,2]));
+% figure;imagesc(c3);
+% axis image off;
+% clim([-0.5,0.5]);
+% colormap(ap.colormap('BWR',[],1.5));
+% ap.wf_draw('ccf','k');
 
 % Plot maps by threshold cutoffs
 ctx_thresh = 0.01;
@@ -1211,8 +1207,10 @@ ap.wf_draw('ccf','k');
 % (needs cardinal day index above)
 [grp,~,grp_idx] = unique(animal_day_idx(curr_use_ctx,1:2),'rows');
 
-x1 = ap.groupfun(r(curr_use_ctx,:),grp_idx,[]);
-x2 = ap.groupfun(c2(:,:,curr_use_ctx),[],[],grp_idx);
+x1 = ap.groupfun(@sum,r(curr_use_ctx,:),grp_idx,[]);
+x1_norm = (x1-nanmean(x1(:,1:500),2))./nanmean(x1(:,1:500),2);
+
+x2 = ap.groupfun(@nanmean,c2(:,:,curr_use_ctx),[],[],grp_idx);
 
 ap.imscroll(x2); 
 axis image off;
@@ -1220,7 +1218,7 @@ clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('BWR',[],1.5));
 ap.wf_draw('ccf','k');
 
-x11 = nanmean(x1(:,use_t(1):use_t(2)),2);
+x11 = nanmean(x1_norm(:,use_t(1):use_t(2)),2);
 
 stim_move = nan(size(grp,1),1);
 for i = 1:size(stim_move,1)
@@ -1234,20 +1232,22 @@ ylabel('MUA');
 
 % Get vis cortex maps, group striatal responses, plot by LD
 ctx_thresh = 0.01;
-curr_use_ctx = vis_map_weights >= ctx_thresh;
+curr_use_ctx = mpfc_map_weights >= ctx_thresh;
 
 [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
 
-x1 = ap.groupfun(r(curr_use_ctx,:),grp_idx,[]);
-x11t = ap.groupfun(x1,grp(:,2),[]);
-x11 = mean(x1(:,use_t(1):use_t(2)),2);
+x1 = ap.groupfun(@sum,r(curr_use_ctx,:),grp_idx,[]);
+x1_norm = (x1-nanmean(x1(:,1:500),2))./nanmean(x1(:,1:500),2);
+
+x11t = ap.groupfun(@nanmean,x1_norm,grp(:,2),[]);
+x11 = max(x1_norm(:,use_t(1):use_t(2)),[],2);
 
 figure;imagesc([],unique(grp(:,2)),x11t)
 ylabel('LD');
 title('MUA');
 
-x2 = ap.groupfun(c2(:,:,curr_use_ctx),[],[],grp_idx);
-x22 = ap.groupfun(x2,[],[],grp(:,2));
+x2 = ap.groupfun(@nanmean,c2(:,:,curr_use_ctx),[],[],grp_idx);
+x22 = ap.groupfun(@nanmean,x2,[],[],grp(:,2));
 figure; tiledlayout('flow','TileSpacing','none');
 c = max(abs(x22),[],'all').*[-1,1].*0.8;
 ld_x = unique(grp(:,2));
@@ -1276,7 +1276,7 @@ xlabel('Learned day');
 ylabel('MUA')
 
 [m,e] = grpstats(x11,grp(:,2),{'mean','sem'});
-errorbar(unique(grp(:,2)),m,e,'k');
+errorbar(unique(grp(:,2)),m,e,'k','linewidth',2);
 
 stim_move = nan(size(grp,1),1);
 for i = 1:size(stim_move,1)
@@ -1291,7 +1291,7 @@ ylabel('MUA')
 
 % Average widefield from animals/days used above
 use_v = ismember(V_animal_day_idx,grp,'rows');
-V_avg = ap.groupfun(V_cat(:,:,use_v),[],[],V_animal_day_idx(use_v,2));
+V_avg = ap.groupfun(@nanmean,V_cat(:,:,use_v),[],[],V_animal_day_idx(use_v,2));
 px_avg = plab.wf.svd2px(U_master,V_avg);
 ap.imscroll(px_avg); 
 axis image;
@@ -1299,15 +1299,16 @@ clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
 
-use_frames = 18:22;
-px_tavg = squeeze(nanmean(px_avg(:,:,use_frames,:),3));
+use_frames = 15:28;
+px_tavg = squeeze(max(px_avg(:,:,use_frames,:),[],3));
 ap.imscroll(px_tavg,ld_x);
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+
 % (draw ROI)
-figure;plot(ld_x,roi.trace);
+figure;errorbar(ld_x,roi.trace);
 
 
 % K-means cortex maps

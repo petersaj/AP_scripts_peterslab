@@ -161,7 +161,7 @@ colormap(AP_colormap('PWG'));
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AM023';
+animal = 'AP011';
 workflow = 'sparse_noise';
 
 % % Specific day
@@ -170,8 +170,8 @@ workflow = 'sparse_noise';
 
 % Relative day
 recordings = plab.find_recordings(animal,[],workflow);
-% use_day = 1;
-use_day = length(recordings);
+use_day = 1;
+% use_day = length(recordings);
 rec_day = recordings(use_day).day;
 rec_time = recordings(use_day).recording{end};
 

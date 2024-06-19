@@ -48,8 +48,10 @@ mousecam_first_frame_idx = mode( ...
     mousecam_match_epoch_startframe_mousecam)+1;
 
 % Get mousecam times from first recorded frame to mousecam N frames
+% (or to the end, if recorded frames extend beyond timelite)
 mousecam_times = mousecam_exposeOn_times(mousecam_first_frame_idx: ...
-    mousecam_first_frame_idx+length(mousecam_header.timestamps)-1);
+    min(mousecam_first_frame_idx+length(mousecam_header.timestamps)-1, ...
+    length(mousecam_exposeOn_times)));
 
 
 
