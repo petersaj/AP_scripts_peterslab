@@ -1,5 +1,5 @@
 function grouped_data = groupfun(group_function,data,varargin)
-% grouped_data = groupfun(data,dim1 group, dim2 group...)
+% grouped_data = groupfun(group_function, data, dim1 group, dim2 group...)
 %
 % Perform function on grouped data
 % 
@@ -49,7 +49,7 @@ if length(groups_dim) == 1
     grouped_data = nan(size(data,1),max(group_idx{groups_dim}));
 
     for curr_grp = 1:max(group_idx{groups_dim})
-        grouped_data(:,curr_grp) = nanmean(data(:,group_idx{groups_dim} == curr_grp),2);
+        grouped_data(:,curr_grp) = group_function(data(:,group_idx{groups_dim} == curr_grp),2);
     end
 
     % Reshape data to expected size and permutation

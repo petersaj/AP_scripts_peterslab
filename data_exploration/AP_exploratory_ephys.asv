@@ -160,37 +160,37 @@ elseif contains(bonsai_workflow,'stim_wheel')
     align_times = {stimOn_times,stim_move_time,reward_times};
 end
 
-% n_units = size(templates,1);
-% unit_psth = nan(n_units,length(t_bins)-1,length(align_times));
-% for curr_align = 1:length(align_times)
-%     use_align = align_times{curr_align};
-%     t_peri_event = bsxfun(@plus,use_align,t_bins);
-%     for curr_unit = 1:n_units
-% 
-%         use_spikes = spike_times_timelite >= min(t_peri_event,[],'all') & ...
-%             spike_times_timelite <= max(t_peri_event,[],'all');
-%         curr_spikes = spike_times_timelite(use_spikes & (spike_templates == curr_unit));
-% 
-% %         % (surprisingly not faster??)
-% %         curr_spikes_binned = reshape([histcounts(curr_spikes, ...
-% %             reshape(t_peri_event',[],1)),NaN],size(t_peri_event'))';
-% %         curr_mean_psth = mean(curr_spikes_binned(:,1:end-1),1);
-% 
-%         curr_spikes_binned = cell2mat(arrayfun(@(x) ...
-%             histcounts(curr_spikes,t_peri_event(x,:)), ...
-%             [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
-%         curr_mean_psth = mean(curr_spikes_binned,1);
-% 
-%         unit_psth(curr_unit,:,curr_align) = curr_mean_psth;
-%         ap.print_progress_fraction(curr_unit,n_units);
-%     end
-% end
-
-%%%% 2D histogram: do all together, much faster (needs monotonic bins)
 n_units = size(templates,1);
 unit_psth = nan(n_units,length(t_bins)-1,length(align_times));
 for curr_align = 1:length(align_times)
-    t_peri_event = align_times{curr_align} + t_bins;
+    use_align = align_times{curr_align};
+    t_peri_event = bsxfun(@plus,use_align,t_bins);
+    for curr_unit = 1:n_units
+
+        use_spikes = spike_times_timelite >= min(t_peri_event,[],'all') & ...
+            spike_times_timelite <= max(t_peri_event,[],'all');
+        curr_spikes = spike_times_timelite(use_spikes & (spike_templates == curr_unit));
+
+%         % (surprisingly not faster??)
+%         curr_spikes_binned = reshape([histcounts(curr_spikes, ...
+%             reshape(t_peri_event',[],1)),NaN],size(t_peri_event'))';
+%         curr_mean_psth = mean(curr_spikes_binned(:,1:end-1),1);
+
+        curr_spikes_binned = cell2mat(arrayfun(@(x) ...
+            histcounts(curr_spikes,t_peri_event(x,:)), ...
+            [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
+        curr_mean_psth = mean(curr_spikes_binned,1);
+
+        unit_psth(curr_unit,:,curr_align) = curr_mean_psth;
+        ap.print_progress_fraction(curr_unit,n_units);
+    end
+end
+
+%%%% 2D histogram? way faster, do all together
+unit_psth = nan(n_units,length(t_bins)-1,length(align_times));
+for curr_align = 1:length(align_times)
+    use_align = align_times{curr_align};
+    t_peri_event = bsxfun(@plus,use_align,t_bins);
 
     use_spikes = spike_times_timelite >= min(t_peri_event,[],'all') & ...
         spike_times_timelite <= max(t_peri_event,[],'all');
@@ -201,26 +201,23 @@ for curr_align = 1:length(align_times)
     use_continuous_bins = reshape(padarray(true(size(t_peri_event(:,1:end-1)')),[1,0],false,'post'),[],1);
     spikes_binned = spikes_binned_continuous(use_continuous_bins,:);
 
-    unit_psth(:,:,curr_align) = ...
-        nanmean(permute(reshape(spikes_binned, ...
-        size(t_peri_event,2)-1,[],size(templates,1)),[3,1,2]),3);
+    unit_psth = nanmean(permute(reshape(spikes_binned,size(t_peri_event,2)-1,[],size(templates,1)),[3,1,2]),3);
 end
 
+%%%% still working here: they aren't equal!
 
 smooth_size = 100;
 unit_psth_smooth = smoothdata(unit_psth,2,'gaussian',smooth_size);
 
 % Normalize to baseline
-softnorm = 1;
 unit_baseline = nanmean(nanmean(unit_psth(:,t_bins(2:end) < 0,:),2),3);
-unit_psth_smooth_norm = (unit_psth_smooth-unit_baseline)./(unit_baseline+softnorm);
+unit_psth_smooth_norm = (unit_psth_smooth-unit_baseline)./(unit_baseline+1);
 
 % Plot depth-sorted
 [~,sort_idx] = sort(template_depths);
-ap.imscroll(unit_psth_smooth_norm(sort_idx,:,:));
+AP_imscroll(unit_psth_smooth_norm(sort_idx,:,:));
 clim([-2,2]);
 colormap(AP_colormap('BWR'));
-
 
 %% Get responsive units
 
@@ -236,17 +233,24 @@ elseif contains(bonsai_workflow,'hml')
 end
 
 baseline_t = [-0.2,0];
-response_t = [0,0.2];
+event_t = [0,0.2];
 
 baseline_bins = use_align + baseline_t;
-response_bins = use_align + response_t;
+event_bins = use_align + event_t;
 
-event_bins = [baseline_bins,response_bins];
-spikes_binned_continuous = histcounts2(spike_times_timelite,spike_templates, ...
-    reshape([baseline_bins,response_bins]',[],1),1:size(templates,1)+1)./psth_bin_size;
+event_spikes = nan(length(use_align),2,size(templates,1));
+for curr_unit = 1:size(templates,1)
 
-event_spikes = permute(reshape(spikes_binned_continuous(1:2:end,:),2, ...
-    size(event_bins,1),[]),[2,1,3]);
+    curr_binned_spikes = histcounts(spike_times_timelite(spike_templates == curr_unit), ...
+        reshape([baseline_bins,event_bins]',[],1))';
+
+    curr_baseline_response = curr_binned_spikes(1:4:end);
+    curr_event_response = curr_binned_spikes(3:4:end);
+
+    event_spikes(:,:,curr_unit) = [curr_baseline_response,curr_event_response];
+
+    ap.print_progress_fraction(curr_unit,size(templates,1));
+end
 
 event_response = squeeze(mean(diff(event_spikes,[],2),1));
 
@@ -254,6 +258,7 @@ n_shuff = 1000;
 event_response_shuff = cell2mat(arrayfun(@(shuff) ...
     squeeze(mean(diff(ap.shake(event_spikes,2),[],2),1)), ...
     1:n_shuff,'uni',false));
+
 
 event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
 event_response_p = event_response_rank(:,1)./(n_shuff+1);

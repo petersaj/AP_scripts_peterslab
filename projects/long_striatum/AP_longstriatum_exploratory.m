@@ -1068,7 +1068,8 @@ am_data_path = 'C:\Users\petersa\Desktop\am_temp';
 load(fullfile(am_data_path,'bhv.mat'));
 load(fullfile(am_data_path,'mua_passive.mat'));
 % load(fullfile(am_data_path,'mua_task.mat'));
-load(fullfile(am_data_path,'ctx_maps_task.mat'));
+load(fullfile(am_data_path,'ctx_maps_passive.mat'));
+% load(fullfile(am_data_path,'ctx_maps_task.mat'));
 load(fullfile(am_data_path,'wf.mat'));
 
 
@@ -1122,9 +1123,9 @@ mpfc_map_weights = roi.trace';
 
 
 r = cell2mat(vertcat(day_mua_all{use_animals}));
-
+r_norm = (r-nanmean(r(:,200:400),2))./nanmean(r(:,200:400),2);
 use_t = [500,700];
-r2 = nanmean(r(:,use_t(1):use_t(2)),2);
+r2 = nanmean(r_norm(:,use_t(1):use_t(2)),2);
 
 % (below unused: used when mua pre-normalized)
 
@@ -1188,8 +1189,8 @@ nexttile([2,1]);
 plot(vis_map_weights,r2,'.k');
 xlabel('Cortex weight');
 ylabel('Striatum vis response');
-xline(ctx_thresh,'r');
-yline(mua_thresh,'r');
+yline(ctx_thresh,'r');
+xline(mua_thresh,'r');
 
 nexttile;
 imagesc(nanmean(c2(:,:,curr_use_ctx & curr_use_mua),3));
@@ -1307,8 +1308,23 @@ clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
 
-% (draw ROI)
-figure;errorbar(ld_x,roi.trace);
+V_tavg = ap.groupfun(@nanmean,V_cat(:,:,use_v),[],[],V_animal_day_idx(use_v,2));
+
+use_frames = 15:28;
+px_tmax_cat = squeeze(max(plab.wf.svd2px(U_master,V_cat(:,use_frames,:)),[],3));
+
+ap.imscroll(px_tmax_cat);
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
+
+% (draw_roi);
+m = ap.groupfun(@nanmean,roi.trace(use_v),[],V_animal_day_idx(use_v,2));
+e = ap.groupfun(@AP_sem,roi.trace(use_v),[],V_animal_day_idx(use_v,2));
+figure;errorbar(ld_x,m,e);
+
+
 
 
 % K-means cortex maps

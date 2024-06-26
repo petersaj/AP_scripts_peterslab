@@ -112,7 +112,9 @@ if exist('probe_areas','var')
     probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
         1:height(probe_areas),probe_areas_image_depth, ...
         'previous','extrap');
-    probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
+    probe_areas_image = ones(length(probe_areas_image_idx),1,3);
+    probe_areas_image(~isnan(probe_areas_image_idx),:,:) = ...
+        probe_areas_rgb(probe_areas_image_idx(~isnan(probe_areas_image_idx)),:,:);
 
     image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
     yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
@@ -269,17 +271,9 @@ curr_raster_spike_times = gui_data.spike_times(curr_spikes_idx);
 curr_raster_spike_times(curr_raster_spike_times < min(gui_data.t_peri_event(:)) | ...
     curr_raster_spike_times > max(gui_data.t_peri_event(:))) = [];
 
-if ~any(diff(reshape(gui_data.t_peri_event',[],1)) < 0)
-    % (if no backward time jumps, can do long bin and cut out in-between, faster)
-    curr_raster_continuous = reshape([histcounts(curr_raster_spike_times, ...
-        reshape(gui_data.t_peri_event',[],1)),NaN],size(gui_data.t_peri_event'))';
-    curr_raster = curr_raster_continuous(:,1:end-1);   
-else
-    % (otherwise, bin trial-by-trial)
-    curr_raster = cell2mat(arrayfun(@(x) ...
-        histcounts(curr_raster_spike_times,gui_data.t_peri_event(x,:)), ...
-        [1:size(gui_data.t_peri_event,1)]','uni',false));
-end
+curr_raster = cell2mat(arrayfun(@(x) ...
+    histcounts(curr_raster_spike_times,gui_data.t_peri_event(x,:)), ...
+    [1:size(gui_data.t_peri_event,1)]','uni',false));
 
 % Set color scheme
 curr_group = gui_data.align_groups{gui_data.curr_align}(:,gui_data.curr_group);
