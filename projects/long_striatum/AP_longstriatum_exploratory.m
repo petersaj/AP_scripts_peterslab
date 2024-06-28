@@ -266,7 +266,12 @@ for curr_animal = 1:length(animals)
         else
             % Stim times (task)
             % (skip first trial - somes very short iti?)
-            align_times = {stimOn_times(2:end),stim_move_time(2:end),reward_times_task};
+            % (also skip stim_to_move negative - bad quiescence))
+            use_trials = true(n_trials,1);
+            use_trials(1) = false;
+            use_trials(stim_to_move < 0) = false;
+
+            align_times = {stimOn_times(use_trials),stim_move_time(use_trials),reward_times_task};
         end
 
         % Get PSTH depth x t x align

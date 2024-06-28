@@ -71,13 +71,11 @@ if contains(bonsai_workflow,'stim_wheel')
         warning('Photodiode flicker? removing')
         photodiode_times(photodiode_flicker+[0,1]) = [];
         photodiode_values(photodiode_flicker+[0,1]) = [];
-    end
+    end    
 
+    % Stim times: when photodiode flips to 1/0
     stimOn_times = photodiode_times(photodiode_values == 1);
     stimOff_times = photodiode_times(photodiode_values == 0);
-
-    % Stim times: when photodiode flips to 1
-    stimOn_times = photodiode_times(photodiode_values == 1);
 
     % Use only trials with outcome
     n_trials = length([trial_events.timestamps.Outcome]);
