@@ -193,8 +193,8 @@ day_mua_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
-%     use_workflow = 'lcr_passive';
-    use_workflow = 'stim_wheel*';
+    use_workflow = 'lcr_passive';
+%     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -265,14 +265,12 @@ for curr_animal = 1:length(animals)
                 num2cell(unique(stim_x)),'uni',false);
         else
             % Stim times (task)
-            % (skip first trial - somes very short iti?)
-            align_times = {stimOn_times(2:end),stim_move_time(2:end),reward_times_task};
+            align_times = {stimOn_times,stim_move_time,reward_times};
         end
 
         % Get PSTH depth x t x align
         depth_psth = nan(n_depths,length(t_bins)-1,length(align_times));
         for curr_align = 1:length(align_times)
-
             t_peri_event = align_times{curr_align} + t_bins;
 
             use_spikes = spike_times_timelite >= min(t_peri_event,[],'all') & ...

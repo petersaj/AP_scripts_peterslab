@@ -36,10 +36,12 @@ end
 % If no time - choose from list of workflows
 if ~exist('rec_time','var') || isempty(rec_time)
     recordings = plab.find_recordings(animal,rec_day);
+    % (use only recordings with Bonsai workflows)
+    bonsai_recordings = find(~cellfun(@isempty,[recordings.workflow]));
     rec_idx = listdlg('PromptString','Select workflow:', ...
-        'ListString',recordings.workflow,'ListSize',[300,200], ...
+        'ListString',recordings.workflow(bonsai_recordings),'ListSize',[300,200], ...
         'SelectionMode','single');
-    rec_time = recordings.recording{rec_idx};
+    rec_time = recordings.recording{bonsai_recordings(rec_idx)};
     verbose = true;
 end
 

@@ -22,6 +22,11 @@ for curr_depth = 1:size(depth_corr_bins,2)
         find(template_depths >= depth_corr_bins(1,curr_depth) & ...
         template_depths < depth_corr_bins(2,curr_depth));
 
+    % (to plot only responsive cells)
+    % curr_depth_templates_idx = ...
+    %     intersect(find(template_depths >= depth_corr_bins(1,curr_depth) & ...
+    %     template_depths < depth_corr_bins(2,curr_depth)),responsive_units);
+
     binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
 end
@@ -147,14 +152,21 @@ t_bins = raster_window(1):psth_bin_size:raster_window(2);
 t_centers = conv2(t_bins,[1,1]/2,'valid');
 
 % PSTH for all conditions
+% (get quiescent trials)
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    (1:length(stimOn_times))');
+
 if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_x = vertcat(trial_events.values.TrialStimX);
-    align_times = cellfun(@(x) stimOn_times(stim_x == x),num2cell(unique(stim_x)),'uni',false);
+    align_times = cellfun(@(x) stimOn_times(stim_x == x & quiescent_trials),num2cell(unique(stim_x)),'uni',false);
 elseif contains(bonsai_workflow,'hml')
     % (aud passive)
     stim_x = vertcat(trial_events.values.StimFrequence);
-    align_times = cellfun(@(x) stimOn_times(stim_x == x),num2cell(unique(stim_x)),'uni',false);
+    align_times = cellfun(@(x) stimOn_times(stim_x == x & quiescent_trials),num2cell(unique(stim_x)),'uni',false);
 elseif contains(bonsai_workflow,'stim_wheel')
     % (task)
     align_times = {stimOn_times,stim_move_time,reward_times};
@@ -210,14 +222,14 @@ end
 smooth_size = 100;
 unit_psth_smooth = smoothdata(unit_psth,2,'gaussian',smooth_size);
 
-% Normalize to baseline
+% Normalize to baseline (t<0 in first alignment)
 softnorm = 1;
-unit_baseline = nanmean(nanmean(unit_psth(:,t_bins(2:end) < 0,:),2),3);
+unit_baseline = nanmean(unit_psth(:,t_bins(2:end) < 0,1),2);
 unit_psth_smooth_norm = (unit_psth_smooth-unit_baseline)./(unit_baseline+softnorm);
 
 % Plot depth-sorted
-[~,sort_idx] = sort(template_depths);
-ap.imscroll(unit_psth_smooth_norm(sort_idx,:,:));
+[~,unit_depth_sort_idx] = sort(template_depths);
+ap.imscroll(unit_psth_smooth_norm(unit_depth_sort_idx,:,:));
 clim([-2,2]);
 colormap(AP_colormap('BWR'));
 
@@ -225,14 +237,24 @@ colormap(AP_colormap('BWR'));
 %% Get responsive units
 
 % Set event to get response
+% (get quiescent trials)
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    (1:length(stimOn_times))');
+
 if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimX);
-    use_align = stimOn_times(stim_type == 90);
+    use_align = stimOn_times(stim_type == 90 & quiescent_trials);
 elseif contains(bonsai_workflow,'hml')
     % (aud passive)
     stim_type = vertcat(trial_events.values.StimFrequence);
-    use_align = stimOn_times(stim_type == 8000);
+    use_align = stimOn_times(stim_type == 8000 & quiescent_trials);
+elseif contains(bonsai_workflow,'stim_wheel')
+    % (task)
+    use_align = stimOn_times(stim_to_move > 0.15);
 end
 
 baseline_t = [-0.2,0];
@@ -243,7 +265,7 @@ response_bins = use_align + response_t;
 
 event_bins = [baseline_bins,response_bins];
 spikes_binned_continuous = histcounts2(spike_times_timelite,spike_templates, ...
-    reshape([baseline_bins,response_bins]',[],1),1:size(templates,1)+1)./psth_bin_size;
+    reshape([baseline_bins,response_bins]',[],1),1:size(templates,1)+1);
 
 event_spikes = permute(reshape(spikes_binned_continuous(1:2:end,:),2, ...
     size(event_bins,1),[]),[2,1,3]);
@@ -261,6 +283,21 @@ event_response_p = event_response_rank(:,1)./(n_shuff+1);
 % Plot responsive units by depth
 unit_dots = ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
 unit_dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
+
+% Plot rasters of responsive units (from above - if done)
+psth_use_t = t_centers >= response_t(1) & t_centers <= response_t(2);
+
+responsive_units = find(event_response_p < 0.05 | event_response_p > 0.95);
+% (sort by max amplitude from avg across alignments)
+[~,sort_idx] = sort(nanmean(unit_psth_smooth_norm(responsive_units,psth_use_t,:),[2,3]));
+% % (sort by max time in single alignment)
+% sort_align = 1;
+% [~,max_t] = max(unit_psth_smooth_norm(responsive_units,:,sort_align),[],2);
+% [~,sort_idx] = sort(max_t);
+
+ap.imscroll(unit_psth_smooth_norm(responsive_units(sort_idx),:,:));
+colormap(AP_colormap('BWR'));
+clim([-2,2]);
 
 
 %% PSTH - MUA by depth
@@ -917,9 +954,9 @@ end
 
 %% Batch MUA by depth
 
-animal = 'DS004';
-% use_workflow = 'lcr_passive';
-use_workflow = 'hml_passive_audio';
+animal = 'AM022';
+use_workflow = 'lcr_passive';
+% use_workflow = 'hml_passive_audio';
 % use_workflow = 'stim_wheel*';
 recordings = plab.find_recordings(animal,[],use_workflow);
 recordings = recordings([recordings.ephys]);
@@ -975,7 +1012,8 @@ for curr_recording = 1:length(recordings)
             timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
             1:length(stimOn_times))';
 
-        align_times = cellfun(@(x) stimOn_times(quiescent_trials & stim_type == x), ...
+        align_times = cellfun(@(x) stimOn_times(quiescent_trials & ...
+            stim_type(1:length(stimOn_times)) == x), ...
             num2cell(unique(stim_type)),'uni',false);
 
     elseif contains(bonsai_workflow,'stim_wheel')
@@ -1026,19 +1064,30 @@ end
 
 % Plot MUA
 figure; 
-h = tiledlayout(1,length(day_mua));
+h = tiledlayout(2,length(day_mua),'TileIndexing','columnmajor');
 for curr_day = 1:length(day_mua)
+
+    % (plot scaled within-day)
     nexttile(h); hold on;
     align_col = lines(size(day_mua{curr_day},3));
     rescale = 1/(1.2*max(day_mua{curr_day},[],'all'));
-
     for curr_align = 1:size(day_mua{curr_day},3)
         AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
             1,rescale,align_col(curr_align,:));
     end
     xline(0,'k');
+
+    % (plot non-rescaled)
+    nexttile(h); hold on;
+    for curr_align = 1:size(day_mua{curr_day},3)
+        AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
+            3,1,align_col(curr_align,:));
+    end
+    xline(0,'k');
+
+    drawnow;
 end
-linkaxes(h.Children,'y');
+% linkaxes(h.Children,'y');
 
 
 

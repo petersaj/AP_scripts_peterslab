@@ -62,6 +62,20 @@ end
 if contains(bonsai_workflow,'stim_wheel')
     % Task: stim and response times
 
+    % Photodiode bug (old, now fixed): screen could flick to black briefly
+    % when clicking on another window. This are always brief, and no way to
+    % tell when it happened, so compensate by removing all flips that
+    % happen with short duration
+    photodiode_flicker = find(diff(photodiode_times) < 0.1);
+    if any(photodiode_flicker)
+        warning('Photodiode flicker? removing')
+        photodiode_times(photodiode_flicker+[0,1]) = [];
+        photodiode_values(photodiode_flicker+[0,1]) = [];
+    end
+
+    stimOn_times = photodiode_times(photodiode_values == 1);
+    stimOff_times = photodiode_times(photodiode_values == 0);
+
     % Stim times: when photodiode flips to 1
     stimOn_times = photodiode_times(photodiode_values == 1);
 
@@ -85,9 +99,9 @@ if contains(bonsai_workflow,'stim_wheel')
     stim_to_move = stim_move_time - stimOn_times(1:n_trials);
 
     % Get task/manual reward times
-    % (check that total rewards = task + manual)
     if isfield(trial_events.timestamps,'ManualReward')
-
+        % After 'ManualReward' event was added
+        % (check that total rewards = task + manual)
         bonsai_task_reward = vertcat(trial_events.timestamps( ...
             vertcat(trial_events.values.Outcome) == 1).Outcome);
         bonsai_manual_reward = vertcat(trial_events.timestamps.ManualReward);
@@ -101,8 +115,13 @@ if contains(bonsai_workflow,'stim_wheel')
             reward_times_task = reward_times(bonsai_reward_grp(bonsai_reward_sortidx) == 1);
             reward_times_manual = reward_times(bonsai_reward_grp(bonsai_reward_sortidx) == 2);
         end
-        
-    end
+    else
+        % Without Bonsai event: closest reward to stim off on rewarded trials
+        trial_outcome = vertcat(trial_events.values.Outcome);
+        stimOff_times = photodiode_times(photodiode_values == 0);
+        reward_times_task = interp1(reward_times,reward_times, ...
+            stimOff_times(trial_outcome==1),'nearest','extrap');
+    end    
     
 %     % Get all outcome times (interleaved reward/punish)
 %     % (NOT DONE YET)
