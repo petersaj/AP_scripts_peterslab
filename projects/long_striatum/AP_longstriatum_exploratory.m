@@ -687,8 +687,8 @@ ylabel('Predicted');
 
 am_data_path = 'C:\Users\petersa\Desktop\am_temp';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'mua_passive.mat'));
-% load(fullfile(am_data_path,'mua_task.mat'));
+% load(fullfile(am_data_path,'mua_passive.mat'));
+load(fullfile(am_data_path,'mua_task.mat'));
 load(fullfile(am_data_path,'ctx_maps_passive.mat'));
 % load(fullfile(am_data_path,'ctx_maps_task.mat'));
 load(fullfile(am_data_path,'wf_passive.mat'));
@@ -752,10 +752,10 @@ r2 = nanmean(r_norm(:,use_t(1):use_t(2)),2);
 
 % Get vis cortex maps, group striatal responses, plot by LD
 ctx_thresh = 0.005; %0.005
-% curr_use_ctx = vis_map_weights >= ctx_thresh & mpfc_map_weights < ctx_thresh; % vis-only
+curr_use_ctx = vis_map_weights >= ctx_thresh & mpfc_map_weights < ctx_thresh; % vis-only
 % curr_use_ctx = vis_map_weights < ctx_thresh & mpfc_map_weights >= ctx_thresh; % mpfc-only
 % curr_use_ctx = vis_map_weights >= ctx_thresh & mpfc_map_weights >= ctx_thresh; % vis+mpfc
-curr_use_ctx = vis_map_weights >= ctx_thresh; % vis (all)
+% curr_use_ctx = vis_map_weights >= ctx_thresh; % vis (all)
 % curr_use_ctx = mpfc_map_weights >= ctx_thresh; % mpfc (all)
 
 figure;plot(vis_map_weights,mpfc_map_weights,'.k')
