@@ -115,7 +115,6 @@ if contains(bonsai_workflow,'stim_wheel')
     else
         % Without Bonsai event: closest reward to stim off on rewarded trials
         trial_outcome = vertcat(trial_events.values.Outcome);
-        stimOff_times = photodiode_times(photodiode_values == 0);
         reward_times_task = interp1(reward_times,reward_times, ...
             stimOff_times(trial_outcome==1),'nearest','extrap');
     end    
