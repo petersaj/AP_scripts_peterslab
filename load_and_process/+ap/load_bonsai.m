@@ -62,23 +62,22 @@ end
 if contains(bonsai_workflow,'stim_wheel')
     % Task: stim and response times
 
+    % Use only trials with outcome
+    n_trials = length([trial_events.timestamps.Outcome]);
+
     % Photodiode bug (old, now fixed): screen could flick to black briefly
     % when clicking on another window. This are always brief, and no way to
     % tell when it happened, so compensate by removing all flips that
     % happen with short duration
-    photodiode_flicker = find(diff(photodiode_times) < 0.1);
-    if any(photodiode_flicker)
-        warning('Photodiode flicker? removing')
-        photodiode_times(photodiode_flicker+[0,1]) = [];
-        photodiode_values(photodiode_flicker+[0,1]) = [];
-    end    
+    photodiode_flicker_timethresh = 0.2; % off for this duration = flicker
+    photodiode_on = photodiode_times(photodiode_values == 1);
+    photodiode_off = photodiode_times(photodiode_values == 0);
+    photodiode_offtime = photodiode_on(2:end) - photodiode_off(1:length(photodiode_on)-1);
+    photodiode_flicker = find(photodiode_offtime < photodiode_flicker_timethresh);
 
     % Stim times: when photodiode flips to 1/0
-    stimOn_times = photodiode_times(photodiode_values == 1);
-    stimOff_times = photodiode_times(photodiode_values == 0);
-
-    % Use only trials with outcome
-    n_trials = length([trial_events.timestamps.Outcome]);
+    stimOn_times = photodiode_on(setdiff(1:n_trials,photodiode_flicker+1));
+    stimOff_times = photodiode_off(setdiff(1:n_trials,photodiode_flicker));
 
     % Find the last move stop before stim on
     % (sometimes this isn't after the stimulus: Bonsai's quiescence clock
@@ -150,15 +149,15 @@ elseif contains(bonsai_workflow,{'lcr_passive','visual_conditioning','passive_au
     % when clicking on another window. This are always brief, and no way to
     % tell when it happened, so compensate by removing all flips that
     % happen with short duration
-    photodiode_flicker = find(diff(photodiode_times) < 0.1);
-    if any(photodiode_flicker)
-        warning('Photodiode flicker? removing')
-        photodiode_times(photodiode_flicker+[0,1]) = [];
-        photodiode_values(photodiode_flicker+[0,1]) = [];
-    end
+    photodiode_flicker_timethresh = 0.2; % off for this duration = flicker
+    photodiode_on = photodiode_times(photodiode_values == 1);
+    photodiode_off = photodiode_times(photodiode_values == 0);
+    photodiode_offtime = photodiode_on(2:end) - photodiode_off(1:length(photodiode_on)-1);
+    photodiode_flicker = find(photodiode_offtime < photodiode_flicker_timethresh);
 
-    stimOn_times = photodiode_times(photodiode_values == 1);
-    stimOff_times = photodiode_times(photodiode_values == 0);
+    % Stim times: when photodiode flips to 1/0
+    stimOn_times = photodiode_on(setdiff(1:n_trials,photodiode_flicker+1));
+    stimOff_times = photodiode_off(setdiff(1:n_trials,photodiode_flicker));
 
     % If bad Bonsai CSV: truncate stim times to what was recorded
     if bad_bonsai_csv
