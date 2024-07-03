@@ -58,7 +58,7 @@ lambdas = reshape(lambdas,1,[]);
 
 % Z-score all regressors and signals to get beta weights if selected
 if ~exist('zs','var') || isempty(zs)
-    zs = [false,true];
+    zs = [false,false];
 end
 if zs(1)
     regressors = cellfun(@(x) zscore(x,[],2),regressors,'uni',false);

@@ -685,10 +685,10 @@ ylabel('Predicted');
 
 %% Load MUA / cortex maps and process
 
-am_data_path = 'C:\Users\petersa\Desktop\am_temp';
+am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-% load(fullfile(am_data_path,'mua_passive.mat'));
-load(fullfile(am_data_path,'mua_task.mat'));
+load(fullfile(am_data_path,'mua_passive.mat'));
+% load(fullfile(am_data_path,'mua_task.mat'));
 load(fullfile(am_data_path,'ctx_maps_passive.mat'));
 % load(fullfile(am_data_path,'ctx_maps_task.mat'));
 load(fullfile(am_data_path,'wf_passive.mat'));
@@ -718,6 +718,14 @@ animal_day_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
     num2cell(find(use_animals)),ld(use_animals),ctx_map_all(use_animals),'uni',false);
 animal_day_idx = cell2mat(vertcat(animal_day_idx_cell{:}));
 
+
+r = cell2mat(vertcat(day_mua_all{use_animals}));
+softnorm = 1;
+r_norm = (r-nanmean(r(:,200:400),[2,3]))./(nanmean(r(:,200:400),[2,3])+softnorm);
+use_t = [500,700];
+r2 = nanmean(r_norm(:,use_t(1):use_t(2)),2);
+
+
 % Concatenate V's
 V_cat = cat(4,day_V_all{:});
 
@@ -743,11 +751,6 @@ vis_map_weights = roi.trace';
 mpfc_map_weights = roi.trace';
 
 
-r = cell2mat(vertcat(day_mua_all{use_animals}));
-softnorm = 1;
-r_norm = (r-nanmean(r(:,200:400),[2,3]))./(nanmean(r(:,200:400),[2,3])+softnorm);
-use_t = [500,700];
-r2 = nanmean(r_norm(:,use_t(1):use_t(2)),2);
 
 
 % Get vis cortex maps, group striatal responses, plot by LD
@@ -829,8 +832,8 @@ ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
 
 
-use_frames = 15:28;
-px_tmax_cat = squeeze(max(plab.wf.svd2px(U_master,V_cat(:,use_frames,use_align,:)),[],3));
+use_frames = 20:23;
+px_tmax_cat = squeeze(mean(plab.wf.svd2px(U_master,V_cat(:,use_frames,use_align,:)),3));
 
 ap.imscroll(px_tmax_cat);
 axis image;
@@ -854,7 +857,7 @@ errorbar(ld_x,m,e,'k','linewidth',2);
 
 
 % K-means cortex maps
-n_k = 3;
+n_k = 4;
 [kidx,ck] = kmeans(reshape(c2,[],size(c2,3))',n_k,'Distance','correlation');
 ck = reshape(ck',[size(c2,[1,2]),n_k]);
 
@@ -879,13 +882,9 @@ end
 use_align = 3;
 figure;h = tiledlayout(1,n_k);
 for curr_kidx = 1:n_k
+
     curr_use_ctx = kidx == curr_kidx;
-
     [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
-
-    x1 = ap.groupfun(@sum,r(curr_use_ctx,:,use_align),grp_idx,[]);
-    x1_norm = (x1-nanmean(x1(:,1:500),2))./nanmean(x1(:,1:500),2);
-    x11 = mean(x1_norm(:,use_t(1):use_t(2)),2);
 
     x2 = ap.groupfun(@mean,c2(:,:,curr_use_ctx),[],[],grp_idx);
     x22 = ap.groupfun(@mean,x2,[],[],grp(:,2));
@@ -902,6 +901,11 @@ for curr_kidx = 1:n_k
     end
     colormap(ap.colormap('BWR',[],1.5));
 
+
+    x1 = ap.groupfun(@sum,r(curr_use_ctx,:,use_align),grp_idx,[]);
+    x1_norm = (x1-nanmean(x1(:,1:500),2))./nanmean(x1(:,1:500),2);
+    x11 = max(x1_norm(:,use_t(1):use_t(2)),[],2);
+
     nexttile(h); hold on;
     arrayfun(@(x) plot(grp(grp(:,1)==x,2), x11(grp(:,1)==x)),unique(grp(:,1)));
     xlabel('Learned day');
@@ -910,6 +914,7 @@ for curr_kidx = 1:n_k
     [m,e] = grpstats(x11,grp(:,2),{'mean','sem'});
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
+    
 end
 
 

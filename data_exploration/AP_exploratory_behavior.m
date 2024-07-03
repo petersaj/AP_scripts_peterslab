@@ -162,7 +162,7 @@ plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.valu
 
 %% Behavior across days
 
-animals = {'AM008'};
+animals = {'AP015'};
 
 % Create master tiled layout
 figure;

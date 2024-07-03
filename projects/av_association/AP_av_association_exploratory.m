@@ -109,12 +109,13 @@ colormap(AP_colormap('BWR'));
 
 %% ~~~~~~~~~~~ BATCH 
 
-%% Batch widefield (master U)
+%% Batch widefield (master U) - passive V/A 
 
 % Loop through animals
-animals = {'AP021','AP022'};
+animals = {'AP021','AP022','DS001', ... & V>A
+    'DS000','DS003','DS004'};           % A>V
 
-% Set times for PSTH
+% Set times for PSTH        
 raster_window = [-0.5,1];
 psth_bin_size = 0.03;
 t_bins = raster_window(1):psth_bin_size:raster_window(2);
@@ -126,83 +127,121 @@ for curr_animal = 1:length(animals)
    
     animal = animals{curr_animal};
 
-    use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
-    recordings = plab.find_recordings(animal,[],use_workflow);
-    recordings = recordings(cellfun(@any,{recordings.widefield}) & [recordings.ephys]);
+    vis_workflow = 'lcr_passive';
+    aud_workflow = 'hml_passive_audio';
 
-    recording_idx = 1:length(recordings);
+    vis_recordings = plab.find_recordings(animal,[],vis_workflow);
+    aud_recordings = plab.find_recordings(animal,[],aud_workflow);
+
+    rec_days = unique(horzcat(...
+        {vis_recordings(cellfun(@any,{vis_recordings.widefield})).day},...
+        {aud_recordings(cellfun(@any,{aud_recordings.widefield})).day}));
 
     n_components = 2000;
-    day_V = nan(n_components,length(t_centers),length(recordings));
+    day_V = cell(length(rec_days),2);
 
-    for curr_recording = 1:length(recordings)
+    for curr_day = 1:length(rec_days)
+        for curr_modality = 1:2
+            switch curr_modality
+                case 1
+                    curr_workflow = vis_workflow;
+                case 2
+                    curr_workflow = aud_workflow;
+            end
 
-        % Grab pre-load vars
-        preload_vars = who;
+            % Grab pre-load vars
+            preload_vars = who;
 
-        % Load data
-        rec_day = recordings(curr_recording).day;
-        rec_time = recordings(curr_recording).recording{end};
+            % Load data
+            try
+                curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
+            catch me
+                continue
+            end
 
-        load_parts = struct;
-        load_parts.widefield = true;
-        load_parts.widefield_master = true;
-        ap.load_recording;
+            rec_day = curr_recording.day;
+            rec_time = curr_recording.recording{end};
 
-        % If widefield isn't aligned, skip
-        if ~load_parts.widefield_align
-            continue
-        end
+            load_parts = struct;
+            load_parts.widefield = true;
+            load_parts.widefield_master = true;
+            ap.load_recording;
 
-        % Get quiescent trials
-        stim_window = [0,0.5];
-        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-            1:length(stimOn_times))';
+            % If widefield isn't aligned, skip
+            if ~load_parts.widefield_align
+                continue
+            end
 
-        if isfield(trial_events.values,'TrialStimX')
-            stim_type = vertcat(trial_events.values.TrialStimX);
-            % temp - what happened here, not all trials shown?
+            % Stim times (quiescent trials only)
+            switch curr_modality
+                case 1
+                    stim_type = vertcat(trial_events.values.TrialStimX);             
+                case 2
+                    stim_type = vertcat(trial_events.values.StimFrequence);
+            end
+            
+            stim_window = [0,0.5];
+            quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+                timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+                timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+                1:length(stimOn_times))';
+      
+            % sometimes not all trials shown?
             stim_type = stim_type(1:length(stimOn_times));
-            align_times = stimOn_times(stim_type == 90 & quiescent_trials);
-        else
-            % Stim times (task)
-            align_times = stimOn_times;
+            align_times = cellfun(@(x) stimOn_times(stim_type == x & quiescent_trials), ...
+                num2cell(unique(stim_type)),'uni',false);
+
+            % Align ROI trace to align times
+            aligned_V_mean = nan(n_components,length(t_centers),length(align_times));
+            for curr_align = 1:length(align_times)
+
+                % (skip if <5 usable trials)
+                if length(align_times{curr_align}) < 5
+                    continue
+                end
+
+                peri_event_t = align_times{curr_align} + t_centers;
+
+                aligned_V = interp1(wf_t,wf_V',peri_event_t);
+
+                aligned_V_baselinesub = aligned_V - ...
+                    mean(aligned_V(:,t_centers < 0,:),2);
+
+                aligned_V_mean(:,:,curr_align) = ...
+                    permute(nanmean(aligned_V_baselinesub,1),[3,2,1]);
+            end
+
+            % Store mean aligned ROI trace
+            day_V{curr_day,curr_modality} = aligned_V_mean;
+
+            % Prep for next loop
+            clearvars('-except',preload_vars{:});
+
         end
 
-        % Align ROI trace to align times    
-        peri_event_t = align_times + t_centers;
-        
-        aligned_V = interp1(wf_t,wf_V',peri_event_t);
-
-        aligned_V_baselinesub = aligned_V - ...
-            mean(aligned_V(:,t_centers < 0,:),2);
-
-        % Store mean aligned ROI trace
-        day_V(:,:,curr_recording) = permute(nanmean(aligned_V_baselinesub,1),[3,2,1]);
-
-        % Prep for next loop
-        clearvars('-except',preload_vars{:});
-
+        ap.print_progress_fraction(curr_day,length(rec_days));
     end
 
     day_V_all{curr_animal} = day_V;
-
-    ap.print_progress_fraction(curr_animal,length(animals));
+    disp(['Done ' animal]);
 
 end
 
-% Load master U
+
+% Load master U, convert V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
     'widefield_alignment','U_master.mat');
-
 load(master_U_fn);
 
+x = cellfun(@(x) cat(4,x{:,1}),day_V_all,'uni',false);
+x2 = cellfun(@(x) plab.wf.svd2px(U_master,squeeze(x(:,:,3,:))),x,'uni',false);
+x3 = cellfun(@(x) nanmean(x,4),x2,'uni',false);
+x4 = namean(cat(4,x3{:}),4);
 
-
-
+ap.imscroll(x4);
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
 
 
 

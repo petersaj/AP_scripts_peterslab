@@ -162,7 +162,7 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_x = vertcat(trial_events.values.TrialStimX);
-    align_times = cellfun(@(x) stimOn_times(stim_x == x & quiescent_trials),num2cell(unique(stim_x)),'uni',false);
+    align_times = cellfun(@(x) stimOn_times(stim_x(1:length(stimOn_times)) == x & quiescent_trials),num2cell(unique(stim_x)),'uni',false);
 elseif contains(bonsai_workflow,'hml')
     % (aud passive)
     stim_x = vertcat(trial_events.values.StimFrequence);
@@ -247,7 +247,7 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimX);
-    use_align = stimOn_times(stim_type == 90 & quiescent_trials);
+    use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 90 & quiescent_trials);
 elseif contains(bonsai_workflow,'hml')
     % (aud passive)
     stim_type = vertcat(trial_events.values.StimFrequence);
@@ -524,7 +524,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % even, click, define
+mua_method = 'click'; % even, click, define
 
 switch mua_method
 
@@ -636,7 +636,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:100;
 kernel_t = [-0.2,0.2];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 20;
+lambda = 50;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -865,7 +865,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP014'};
+animals = {'AP015'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
