@@ -115,7 +115,6 @@ animals = {'AP021','AP022','DS001', ... & V>A
     'DS000','DS003','DS004'};           % A>V
 
 rec_days_all = cell(length(animals),1);
-task_workflow_all = cell(length(animals),1);
 
 for curr_animal = 1:length(animals)
    
@@ -135,12 +134,7 @@ for curr_animal = 1:length(animals)
 
         for curr_day = 1:length(rec_days)
             
-            task_workflow = 'stim_wheel*';
-            try
-            day_recordings = plab.find_recordings(animal,rec_days{curr_day},task_workflow);
-            catch me
-            end
-
+            plab.find_recordings(animal,
         end
 
 end
