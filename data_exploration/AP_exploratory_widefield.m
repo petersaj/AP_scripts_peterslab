@@ -188,7 +188,7 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'AM015';
+animal = 'AM027';
 
 % Create across-day alignments
 plab.wf.wf_align([],animal,[],'new_days');
@@ -202,7 +202,7 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'AM025';
+animal = 'AM027';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
@@ -223,7 +223,7 @@ for curr_day = 1:length(wf_recordings)
 %             plab.wf.wf_align(avg_im_h,animal,day)];
 
     % (blue only)
-    avg_im_aligned{curr_day} = plab.wf.wf_align(avg_im_n,animal,day);
+    avg_im_aligned{curr_day} = plab.wf.wf_align(avg_im_h,animal,day);
 end
 
 % Plot average

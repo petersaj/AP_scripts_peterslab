@@ -1052,7 +1052,7 @@ errorbar(ld_x,m,e,'k','linewidth',2);
 
 
 % K-means cortex maps
-n_k = 4;
+n_k = 5;
 [kidx,ck] = kmeans(reshape(c2,[],size(c2,3))',n_k,'Distance','correlation');
 ck = reshape(ck',[size(c2,[1,2]),n_k]);
 
@@ -1103,21 +1103,19 @@ for curr_kidx = 1:n_k
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
 
-    %%% TESTING (for stats)
-    ld_x = unique(grp(:,2));
-    act_grid = nan(max(grp(:,1)),length(ld_x));
-    for curr_entry = 1:size(x11,1)
-        act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
-            x11(curr_entry);
-    end
-    p = signrank(act_grid(:,ld_x == -2),act_grid(:,ld_x == -1));
-    %%%%%
+%     %%% TESTING (for stats)
+%     ld_x = unique(grp(:,2));
+%     act_grid = nan(max(grp(:,1)),length(ld_x));
+%     for curr_entry = 1:size(x11,1)
+%         act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
+%             x11(curr_entry);
+%     end
+%     signrank(act_grid(:,ld_x == -2),act_grid(:,ld_x == -1));
+%     %%%%%
     
 end
 
 % Plot responsive cell fraction by k-means cluster
-figure;h = tiledlayout(1,n_k);
-
 stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{use_animals}));
 for curr_kidx = 1:n_k
 
@@ -1128,11 +1126,11 @@ for curr_kidx = 1:n_k
     stim_cells_frac  = stim_cells_combine(:,1)./stim_cells_combine(:,2);
 
     nexttile(h); hold on;
-    arrayfun(@(x) plot(grp(grp(:,1)==x,2), stim_cells_frac(grp(:,1)==x)),unique(grp(:,1)));
+    arrayfun(@(x) plot(grp(grp(:,1)==x,2), x11(grp(:,1)==x)),unique(grp(:,1)));
     xlabel('Learned day');
-    ylabel('Frac stim-responsive')
+    ylabel('MUA')
 
-    [m,e] = grpstats(stim_cells_frac,grp(:,2),{'mean','sem'});
+    [m,e] = grpstats(x11,grp(:,2),{'mean','sem'});
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
 

@@ -516,7 +516,7 @@ axis image;
 %% Widefield/ephys regression maps (MUA)
 
 % Set upsample value for regression
-upsample_factor = 2;
+upsample_factor = 1;
 sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
 
 % Skip the first/last n seconds to do this
@@ -524,7 +524,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'click'; % even, click, define
+mua_method = 'even'; % even, click, define
 
 switch mua_method
 
@@ -895,7 +895,7 @@ end
 
 %% Plot units by area
 
-animal = 'AM012';
+animal = 'AM027';
 recordings = plab.find_recordings(animal);
 recordings = recordings([recordings.ephys]);
 
@@ -951,18 +951,16 @@ for curr_recording = 1:length(recordings)
 
 end
 
+title(h,animal);
 
 %% Batch MUA by depth
 
-animal = 'AM022';
+animal = 'AM027';
 use_workflow = 'lcr_passive';
 % use_workflow = 'hml_passive_audio';
 % use_workflow = 'stim_wheel*';
 recordings = plab.find_recordings(animal,[],use_workflow);
 recordings = recordings([recordings.ephys]);
-
-recording_idx = 1:length(recordings);
-
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -1087,8 +1085,9 @@ for curr_day = 1:length(day_mua)
 
     drawnow;
 end
-% linkaxes(h.Children,'y');
-
+linkaxes(h.Children(1:2:end));
+linkaxes(h.Children(2:2:end));
+title(h,{'Rescaled','Not rescaled'});
 
 
 

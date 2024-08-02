@@ -109,42 +109,6 @@ colormap(AP_colormap('BWR'));
 
 %% ~~~~~~~~~~~ BATCH 
 
-
-% Loop through animals
-animals = {'AP021','AP022','DS001', ... & V>A
-    'DS000','DS003','DS004'};           % A>V
-
-rec_days_all = cell(length(animals),1);
-task_workflow_all = cell(length(animals),1);
-
-for curr_animal = 1:length(animals)
-   
-    animal = animals{curr_animal};
-
-    vis_workflow = 'lcr_passive';
-    aud_workflow = 'hml_passive_audio';
-
-    vis_recordings = plab.find_recordings(animal,[],vis_workflow);
-    aud_recordings = plab.find_recordings(animal,[],aud_workflow);
-
-    rec_days = unique(horzcat(...
-        {vis_recordings(cellfun(@any,{vis_recordings.widefield})).day},...
-        {aud_recordings(cellfun(@any,{aud_recordings.widefield})).day}));
-
-    rec_days_all{curr_animal} = rec_days;
-
-        for curr_day = 1:length(rec_days)
-            
-            task_workflow = 'stim_wheel*';
-            try
-            day_recordings = plab.find_recordings(animal,rec_days{curr_day},task_workflow);
-            catch me
-            end
-
-        end
-
-end
-
 %% Batch widefield (master U) - passive V/A 
 
 % Loop through animals
@@ -158,6 +122,7 @@ t_bins = raster_window(1):psth_bin_size:raster_window(2);
 t_centers = conv2(t_bins,[1,1]/2,'valid');
 
 rec_days_all = cell(length(animals),1);
+task_workflow_all = cell(length(animals),1);
 day_V_all = cell(length(animals),1);
 
 for curr_animal = 1:length(animals)
@@ -174,10 +139,18 @@ for curr_animal = 1:length(animals)
         {vis_recordings(cellfun(@any,{vis_recordings.widefield})).day},...
         {aud_recordings(cellfun(@any,{aud_recordings.widefield})).day}));
 
-    n_components = 2000;
+    task_workflow = cell(length(rec_days),1);
     day_V = cell(length(rec_days),2);
 
     for curr_day = 1:length(rec_days)
+
+        % Get the task workflow
+        task_workflow_name = 'stim_wheel*';
+        day_recordings = plab.find_recordings(animal,rec_days{curr_day},task_workflow_name);
+        if ~isempty(day_recordings)
+            task_workflow{curr_day} = day_recordings.workflow{end};
+        end
+
         for curr_modality = 1:2
             switch curr_modality
                 case 1
@@ -229,7 +202,7 @@ for curr_animal = 1:length(animals)
                 num2cell(unique(stim_type)),'uni',false);
 
             % Align ROI trace to align times
-            aligned_V_mean = nan(n_components,length(t_centers),length(align_times));
+            aligned_V_mean = nan(size(wf_V,1),length(t_centers),length(align_times));
             for curr_align = 1:length(align_times)
 
                 % (skip if <5 usable trials)
@@ -260,6 +233,7 @@ for curr_animal = 1:length(animals)
     end
 
     rec_days_all{curr_animal} = rec_days;
+    task_workflow_all{curr_animal} = task_workflow;
     day_V_all{curr_animal} = day_V;
     disp(['Done ' animal]);
 
@@ -272,10 +246,13 @@ master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
 load(master_U_fn);
 
 % Average and plot
-use_modality = 2;
-use_stim = 2;
+use_modality = 1;
+use_stim = 3;
+% use_workflow = 'stim_wheel_right_stage2_audio_volume';
+use_workflow = 'stim_wheel_right_stage2';
+% use_workflow = 'stim_wheel_right_stage2_mixed_VA';
 
-x = cellfun(@(x) cat(4,x{:,use_modality}),day_V_all,'uni',false);
+x = cellfun(@(x,task) cat(4,x{strcmp(task,use_workflow),use_modality}),day_V_all,task_workflow_all,'uni',false);
 x2 = cellfun(@(x) plab.wf.svd2px(U_master,squeeze(x(:,:,use_stim,:))),x,'uni',false);
 x3 = cellfun(@(x) nanmean(x,4),x2,'uni',false);
 x4 = nanmean(cat(4,x3{:}),4);
