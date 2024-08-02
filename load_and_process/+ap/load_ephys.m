@@ -343,6 +343,15 @@ spike_times_timelite = spike_times_timelite(good_spikes);
 
 if verbose; fprintf('kept %d/%d "good" units...\n',sum(good_templates),length(good_templates)); end
 
+%% Future: classification
+
+% Bombcell classifies striatal cells: 
+% bc.clsfy.classifyCells
+
+
+
+
+
 
 
 

@@ -1,4 +1,4 @@
-function run_bombcell(ap_band_filename,kilosort_path,meta_filename,kilosort_version)
+function run_bombcell(rawFile,ephysKilosortPath,meta_filename,kilosortVersion)
 % run_bombcell(ap_band_filename,kilosort_path,meta_filename)
 %
 % Run Bombcell (JF quality metrics) and supplemental metrics
@@ -13,24 +13,24 @@ function run_bombcell(ap_band_filename,kilosort_path,meta_filename,kilosort_vers
 disp('Running bombcell...');
 
 % Set save location as the kilosort path
-savePath = fullfile(kilosort_path,'qMetrics');
+savePath = fullfile(ephysKilosortPath,'qMetrics');
 
 % Get file info of metadata
-ephys_meta_dir = dir(meta_filename);
+ephysMetaDir = dir(meta_filename);
 
 % Grab bit-volts from metadata
 ephys_metadata = jsondecode(fileread(meta_filename));
-bit_volts = unique([ephys_metadata.continuous(1).channels.bit_volts]);
-if length(bit_volts) ~= 1
+gain_to_uV = unique([ephys_metadata.continuous(1).channels.bit_volts]);
+if length(gain_to_uV) ~= 1
     error('More than 1 unique bit-volt value');
 end
 
 % Load data
 [spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, ...
-    pcFeatureIdx, channelPositions] = bc_loadEphysData(kilosort_path);
+    pcFeatureIdx, channelPositions] = bc.load.loadEphysData(ephysKilosortPath);
 
 % Set parameters (load default, overwrite custom)
-param = bc_qualityParamValues(ephys_meta_dir,ap_band_filename,kilosort_path,bit_volts,kilosort_version);
+param = bc.qm.qualityParamValues(ephysMetaDir, rawFile, ephysKilosortPath, gain_to_uV, kilosortVersion);
 param.nChannels = 384;
 param.nSyncChannels = 0;
 param.extractRaw = 1;
@@ -42,17 +42,17 @@ rerun = 0;
 qMetricsExist = ~isempty(dir(fullfile(savePath, 'qMetric*.mat'))) || ~isempty(dir(fullfile(savePath, 'templates._bc_qMetrics.parquet')));
 
 if qMetricsExist == 0 || rerun
-    [qMetric, unitType] = bc_runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
+    [qMetric, unitType] = bc.qm.runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
         templateWaveforms, templateAmplitudes, pcFeatures, pcFeatureIdx, channelPositions, savePath);
 else
-    [param, qMetric] = bc_loadSavedMetrics(savePath); 
-    unitType = bc_getQualityUnitType(param, qMetric, savePath);
+    [param, qMetric] = bc.load.loadSavedMetrics(savePath); 
+    unitType = bc.qm.getQualityUnitType(param, qMetric, savePath);
 end
 
-% % view units + quality metrics in GUI 
+% % (GUI for viewing units/quality metrics)
 % % load data for GUI
 % loadRawTraces = 0; % default: don't load in raw data (this makes the GUI significantly faster)
-% bc_loadMetricsForGUI;
+% bc.load.loadMetricsForGUI;
 % 
 % % GUI guide: 
 % % left/right arrow: toggle between units 
@@ -64,7 +64,7 @@ end
 % 
 % % currently this GUI works best with a screen in portrait mode - we are
 % % working to get it to handle screens in landscape mode better. 
-% unitQualityGuiHandle = bc_unitQualityGUI(memMapData, ephysData, qMetric, forGUI, rawWaveforms, ...
+% unitQualityGuiHandle = bc.viz.unitQualityGUI(memMapData, ephysData, qMetric, forGUI, rawWaveforms, ...
 %     param, probeLocation, unitType, loadRawTraces);
 
 
@@ -72,7 +72,7 @@ end
 
 % Load raw waveforms to run extra template vs. raw quality metrics
 % (load channel map to use only channels used by kilosort)
-channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'))+1; % 0-idx > 1-idx
+channel_map = readNPY(fullfile(ephysKilosortPath,'channel_map.npy'))+1; % 0-idx > 1-idx
 rawWaveforms.average_full = readNPY([fullfile(savePath, 'templates._bc_rawWaveforms.npy')]);
 rawWaveforms.average = rawWaveforms.average_full(:,channel_map,:);
 
