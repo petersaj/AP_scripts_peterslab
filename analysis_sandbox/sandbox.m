@@ -189,7 +189,7 @@ end
 
 %% temp histology: combine tiff channels
 
-animal = 'DS004';
+animal = 'AM027';
 
 hist_path = plab.locations.filename('server',animal,[],[],'histology','raw');
 save_path = plab.locations.filename('server',animal,[],[],'histology','raw_combined');
