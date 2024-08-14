@@ -1,4 +1,4 @@
-function ephys_car(data_raw_filename,data_car_filename)
+function ephys_car(data_raw_filenames,data_car_filename)
 % ephys_car(data_raw_filename,data_car_filename)
 % Apply common average referencing to Neuroipxels data
 %
@@ -7,8 +7,8 @@ function ephys_car(data_raw_filename,data_car_filename)
 % 3) Scale and subtract median for each channel
 
 % Allow for multiple filenames: package in cell if only one filename
-if ~iscell(data_raw_filename)
-    data_raw_filename = {data_raw_filename};
+if ~iscell(data_raw_filenames)
+    data_raw_filenames = {data_raw_filenames};
 end
 
 % Hardcode channel number and get channel index across ADCs
@@ -24,11 +24,11 @@ chunkSize = 1e6;
 % Open CAR file for writing
 fid_car = fopen(data_car_filename, 'w');
 
-for curr_recording = 1:length(data_raw_filename)
+for curr_recording = 1:length(data_raw_filenames)
 
-    curr_data_raw_filename = data_raw_filename{curr_recording};
+    curr_data_raw_filename = data_raw_filenames{curr_recording};
     fprintf('CAR-ing data: %s (file %d/%d) \n',curr_data_raw_filename, ...
-        curr_recording,length(data_raw_filename))
+        curr_recording,length(data_raw_filenames))
 
     % Get number of chunks in file (for printing progress)
     ap_filename_dir = dir(curr_data_raw_filename);
@@ -40,7 +40,7 @@ for curr_recording = 1:length(data_raw_filename)
 
     % Loop through data chunks and apply common average referencing
     chunkInd = 1;
-    data_eof = feof(curr_data_raw_filename);
+    data_eof = feof(fid_raw);
     while ~data_eof
 
         % Load in current data chunk
@@ -75,7 +75,7 @@ for curr_recording = 1:length(data_raw_filename)
         ap.print_progress_fraction(chunkInd,nChunksTotal);
         
         chunkInd = chunkInd+1;
-        data_eof = feof(curr_data_raw_filename);
+        data_eof = feof(fid_raw);
         
     end
 

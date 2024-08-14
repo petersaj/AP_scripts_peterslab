@@ -5,7 +5,7 @@ function preprocess_neuropixels(animal,day)
 %% Set user locations
 
 % Path to copy and sort locally
-local_kilosort_path = 'D:\data_temp\kilosort';
+local_kilosort_path = fullfile(plab.locations.local_data_path,'kilosort');
 
 % Path to kilosort python environment
 system_path = split(getenv("Path"),';');
@@ -46,7 +46,8 @@ end
 
 for curr_data = 1:length(data_paths)  
     
-    % Get experiments (if turned off between)
+    % Get experiments
+    % (multiple if preview off/on, default process separately)
     curr_data_path = data_paths{curr_data};   
     ephys_exp_paths = dir([curr_data_path filesep 'experiment*']);
        
@@ -59,7 +60,7 @@ for curr_data = 1:length(data_paths)
         if length(ephys_exp_paths) == 1
             curr_save_path = save_paths{curr_data};
         elseif length(ephys_exp_paths) > 1
-            curr_save_path = [save_paths{curr_data} filesep ephys_exp_paths(curr_exp).name];
+            curr_save_path = fullfile(save_paths{curr_data},ephys_exp_paths(curr_exp).name);
         end
         
         % Make save path
@@ -68,22 +69,15 @@ for curr_data = 1:length(data_paths)
         end
               
         % Find Open Ephys recordings
+        % (multiple if record off/on, default concatenate processing)
         experiment_dir = dir(fullfile(curr_exp_path,'recording*'));
-
-        % If more than one recording, error out at the moment
-        % (multiple recordings = record stopped/started, preview continuous)
-        % (in future, could manually concatenate them - kilosort allows
-        % for py.lists of filenames, but it assumes chronic so performs
-        % some chronic drift correction which is broken)
-        if length(experiment_dir) > 1
-            error('%s %s: multiple recordings, not handled in kilosort code yet',animal,day);
-        end
-
-        % Get Open Ephys filenames
-        ap_data_dir = dir(fullfile(experiment_dir.folder,experiment_dir.name, ...
-            'continuous', '*-AP', 'continuous.dat'));
-        ap_data_filename = fullfile(ap_data_dir.folder,ap_data_dir.name);
-
+ 
+        % Get Open Ephys filename(s)
+        ap_data_dir = cellfun(@(data_path,data_fn) ...
+            dir(fullfile(data_path,data_fn,'continuous','*-AP','continuous.dat')), ...
+            {experiment_dir.folder},{experiment_dir.name},'uni',false);
+        ap_data_filename = cellfun(@(data_dir) ...
+            fullfile(data_dir.folder,data_dir.name),ap_data_dir,'uni',false);
 
         %% Run kilosort
         
@@ -94,11 +88,18 @@ for curr_data = 1:length(data_paths)
         mkdir(local_kilosort_path);
         
         % Copy AP-band data locally
-        disp('Copying AP data to local drive...') 
-        apband_local_filename = fullfile(local_kilosort_path, ...
-            sprintf('%s_%s_apband.dat',animal,day));
+        disp('Copying AP data to local drive...')
 
-        copyfile(ap_data_filename, apband_local_filename);
+        apband_local_filenames = cellfun(@(x) ...
+            fullfile(local_kilosort_path,sprintf('%s_%s_apband.dat',animal,day)), ...
+            ap_data_filename,'uni',false);
+        
+        apband_local_filename = ;
+        for curr_ap_file = 1:length(ap_data_filename)
+            
+
+            copyfile(ap_data_filename, apband_local_filename);
+        end
         disp('Done');
             
         % Run common average referencing (CAR)
@@ -116,7 +117,8 @@ for curr_data = 1:length(data_paths)
             data_filename = apband_car_local_filename, ...
             kilosort_output_path = kilosort_output_path);
 
-        
+        % Terminate Python process
+        terminate(kilosort_python_environment);
 
         %% Convert spike times to Open Ephys timestamps
 
@@ -126,6 +128,7 @@ for curr_data = 1:length(data_paths)
         ephys_metadata = jsondecode(fileread(ephys_meta_fn));
 
         % Convert kilosort "spike times" (samples) into timestamps
+        %%%%%%%%%%%%%% TO DO: CONCATENATE SAMPLE NUMBERS FOR MULTIPLE FILES
         ks_spike_times_fn = fullfile(kilosort_output_path,'spike_times.npy');
         oe_ap_samples_fn = fullfile(fileparts(ap_data_filename),'sample_numbers.npy');
 

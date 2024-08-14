@@ -46,7 +46,8 @@ end
 
 for curr_data = 1:length(data_paths)  
     
-    % Get experiments (= preview off in between)
+    % Get experiments
+    % (multiple if preview off/on, default process separately)
     curr_data_path = data_paths{curr_data};   
     ephys_exp_paths = dir([curr_data_path filesep 'experiment*']);
        
@@ -59,7 +60,7 @@ for curr_data = 1:length(data_paths)
         if length(ephys_exp_paths) == 1
             curr_save_path = save_paths{curr_data};
         elseif length(ephys_exp_paths) > 1
-            curr_save_path = [save_paths{curr_data} filesep ephys_exp_paths(curr_exp).name];
+            curr_save_path = fullfile(save_paths{curr_data},ephys_exp_paths(curr_exp).name);
         end
         
         % Make save path
@@ -68,22 +69,15 @@ for curr_data = 1:length(data_paths)
         end
               
         % Find Open Ephys recordings
+        % (multiple if record off/on, default concatenate processing)
         experiment_dir = dir(fullfile(curr_exp_path,'recording*'));
-
-        % If more than one recording, error out at the moment
-        % (multiple recordings = record stopped/started, preview continuous)
-        % (in future, could manually concatenate them - kilosort allows
-        % for py.lists of filenames, but it assumes chronic so performs
-        % some chronic drift correction which is broken)
-        if length(experiment_dir) > 1
-            error('%s %s: multiple recordings, not handled in kilosort code yet',animal,day);
-        end
-
-        % Get Open Ephys filenames
-        ap_data_dir = dir(fullfile(experiment_dir.folder,experiment_dir.name, ...
-            'continuous', '*-AP', 'continuous.dat'));
-        ap_data_filename = fullfile(ap_data_dir.folder,ap_data_dir.name);
-
+ 
+        % Get Open Ephys filename(s)
+        ap_data_dir = cellfun(@(data_path,data_fn) ...
+            dir(fullfile(data_path,data_fn,'continuous','*-AP','continuous.dat')), ...
+            {experiment_dir.folder},{experiment_dir.name},'uni',false);
+        ap_data_filenames = cellfun(@(data_dir) ...
+            fullfile(data_dir.folder,data_dir.name),ap_data_dir,'uni',false);
 
         %% Run kilosort
         
@@ -94,16 +88,19 @@ for curr_data = 1:length(data_paths)
         mkdir(local_kilosort_path);
         
         % Copy AP-band data locally
-        disp('Copying AP data to local drive...') 
-        apband_local_filename = fullfile(local_kilosort_path, ...
-            sprintf('%s_%s_apband.dat',animal,day));
-
-        copyfile(ap_data_filename, apband_local_filename);
+        disp('Copying AP data to local drive...')
+        apband_local_filenames = cellfun(@(rec) ...
+            fullfile(local_kilosort_path,sprintf('%s_%s_apband_rec%d.dat',animal,day,rec)), ...
+            num2cell(1:length(ap_data_filenames)),'uni',false);
+        for curr_ap_file = 1:length(ap_data_filenames) 
+            fprintf('%s\n --> %s...\n',ap_data_filenames{curr_ap_file},apband_local_filenames{curr_ap_file})
+            copyfile(ap_data_filenames{curr_ap_file},apband_local_filenames{curr_ap_file});
+        end
         disp('Done');
             
         % Run common average referencing (CAR)
-        apband_car_local_filename = strrep(apband_local_filename,'.dat','_car.dat');
-        ap.ephys_car(apband_local_filename,apband_car_local_filename)
+        apband_car_local_filename = fullfile(local_kilosort_path,sprintf('%s_%s_apband_car.dat',animal,day));
+        ap.ephys_car(apband_local_filenames,apband_car_local_filename)
 
         % Run Kilsort 4
         disp('Running Kilosort 4...');
@@ -121,16 +118,19 @@ for curr_data = 1:length(data_paths)
 
         %% Convert spike times to Open Ephys timestamps
 
-        % Get metadata filename
-        ephys_meta_dir = dir(fullfile(experiment_dir.folder,experiment_dir.name,'**','*.oebin'));
+        % Get metadata filename (for sample rate: just use first file)
+        ephys_meta_dir = dir(fullfile(experiment_dir(1).folder,experiment_dir(1).name,'**','*.oebin'));
         ephys_meta_fn = fullfile(ephys_meta_dir.folder,ephys_meta_dir.name);
         ephys_metadata = jsondecode(fileread(ephys_meta_fn));
 
         % Convert kilosort "spike times" (samples) into timestamps
+        % (if multiple files, create concatenated/consecutive sample numbers)
         ks_spike_times_fn = fullfile(kilosort_output_path,'spike_times.npy');
-        oe_ap_samples_fn = fullfile(fileparts(ap_data_filename),'sample_numbers.npy');
+        oe_ap_sample_fns = cellfun(@(data_fn) ...
+            fullfile(fileparts(data_fn),'sample_numbers.npy'), ...
+            ap_data_filenames,'uni',false);
 
-        plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_ap_samples_fn, ...
+        plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_ap_sample_fns, ...
             ephys_metadata(1).continuous(1).sample_rate);
         
         %% Run bombcell (using CAR data)
