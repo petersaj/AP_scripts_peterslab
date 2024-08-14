@@ -24,11 +24,11 @@ if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
 
 %% Load and prepare Kilosort data
 
+% Set Kilosort and Open Ephys folders for recording
 if ~any(contains({kilosort_dir.name},{'site','probe'}))
     % If no site/probe subfolders, use that top path
     kilosort_path = kilosort_top_path;
     open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
-    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
 
 elseif any(contains({kilosort_dir.name},'probe'))
     % If 'probe' folders (recordings in parallel), choose last before recording
@@ -37,8 +37,8 @@ elseif any(contains({kilosort_dir.name},'probe'))
 
     warning('Multiple probes: just loading probe 1 for now')
     kilosort_path = fullfile(ephys_site_paths(load_probe).folder,ephys_site_paths(load_probe).name);
-    open_ephys_path_dir = dir(fullfile(ephys_path,ephys_site_paths(load_probe).name,'experiment*','recording*'));
-    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+    open_ephys_path_dir = dir(fullfile(ephys_path, ...
+        ephys_site_paths(load_probe).name,'experiment*','recording*'));
 
 elseif any(contains({kilosort_dir.name},'site'))
     % If 'site' folders (recordings in serial), choose last before recording
@@ -62,20 +62,24 @@ elseif any(contains({kilosort_dir.name},'site'))
         kilosort_path = fullfile(kilosort_top_path, ...
             ephys_site_paths(ephys_use_site).name);
         open_ephys_path_dir = dir(fullfile(ephys_path, ...
-            ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));
-        open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
+            ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));   
+
     end
 end
+open_ephys_path = cellfun(@(ephys_path,ephys_name) ...
+    fullfile(ephys_path,ephys_name), ...
+    {open_ephys_path_dir.folder},{open_ephys_path_dir.name},'uni',false);
 
 % Get start time of ephys recording (unused currently)
-ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir.folder),'settings.xml');
+ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir(1).folder),'settings.xml');
 ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
     'InputFormat','dd MMM yyyy HH:mm:ss');
 
-% Load Open Ephys metadata
-oe_metadata_fn = fullfile(open_ephys_path,'structure.oebin');
+% Load Open Ephys metadata (for sample rate)
+oe_metadata_fn = fullfile(open_ephys_path{1},'structure.oebin');
 oe_metadata = jsondecode(fileread(oe_metadata_fn));
+oe_ap_samplerate = oe_metadata(1).continuous(1).sample_rate;
 
 % Load kilosort data
 % (spike times: load open ephys times - create if not yet created)
@@ -83,8 +87,11 @@ spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.n
 if ~exist(spike_times_openephys_filename,'file')
     ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
 
-    oe_samples_dir = dir(fullfile(open_ephys_path,'continuous','*-AP','sample_numbers.npy'));
-    oe_samples_fn = fullfile(oe_samples_dir.folder,oe_samples_dir.name);
+    oe_samples_dir = cellfun(@(data_path) ...
+        dir(fullfile(data_path,'continuous','*-AP','sample_numbers.npy')), ...
+        open_ephys_path,'uni',false);
+    oe_samples_fn = cellfun(@(data_dir) ...
+        fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);
 
     plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_samples_fn, ...
         oe_metadata(1).continuous(1).sample_rate);
@@ -154,18 +161,23 @@ waveform_duration_fwhm = arrayfun(@(x) ...
 
 
 %% Convert timestamps to timelite (with flipper)
+% (allow for multiple files if multiple recordings concatenated)
 
 % Load ephys flipper
 % (use sample numbers as accurate, convert into timestamps -
 % 'timestamps.npy' are recomputed across recording and not always accurate)
 flipper_sync_idx = 1;
 
-open_ephys_ttl_dir = dir(fullfile(open_ephys_path,'events', '*-AP','TTL'));
-open_ephys_ttl_path = cell2mat(unique({open_ephys_ttl_dir.folder}));
+open_ephys_ttl_dir = cellfun(@(data_path) ...
+    dir(fullfile(data_path,'events', '*-AP','TTL')),open_ephys_path,'uni',false);
+open_ephys_ttl_path = cellfun(@(data_dir) ...
+    cell2mat(unique({data_dir.folder})),open_ephys_ttl_dir,'uni',false);
 
-open_ephys_ttl_states = readNPY(fullfile(open_ephys_ttl_path,'states.npy'));
-open_ephys_ttl_sample_numbers = readNPY(fullfile(open_ephys_ttl_path,'sample_numbers.npy'));
-open_ephys_ttl_timestamps = double(open_ephys_ttl_sample_numbers)/oe_metadata(1).continuous(1).sample_rate;
+open_ephys_ttl_states = cell2mat(cellfun(@(data_path) ...
+    readNPY(fullfile(data_path,'states.npy')),open_ephys_ttl_path,'uni',false)');
+open_ephys_ttl_sample_numbers = cell2mat(cellfun(@(data_path) ...
+    readNPY(fullfile(data_path,'sample_numbers.npy')),open_ephys_ttl_path,'uni',false)');
+open_ephys_ttl_timestamps = double(open_ephys_ttl_sample_numbers)/oe_ap_samplerate;
 
 open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
 open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
@@ -198,34 +210,34 @@ if length(flipper_flip_times_ephys) == length(flipper_times)
     sync_ephys = flipper_flip_times_ephys;
 
 elseif length(flipper_flip_times_ephys) < length(flipper_times)
-    warning('%s %s flips: %d ephys/%d timelite, using first/last for now', ...
-        animal, rec_day, length(flipper_flip_times_ephys),length(flipper_times));
-    sync_timelite = flipper_times([1,end]);
-    sync_ephys = flipper_flip_times_ephys([1,end]);
+    % If missing flips in ephys, find which timelite flips were recorded
 
-    %         sync_timelite = flipper_times;
-    %         sync_ephys = flipper_flip_times_ephys;
-    %
-    %         % Remove flips by flip interval until same number
-    %         ephys_missed_flips_n = length(flipper_times) - length(flipper_flip_times_ephys);
-    %         missed_flip_t_thresh = 0.1;
-    %         while length(sync_ephys) ~= length(sync_timelite)
-    %             curr_missed_flip = ...
-    %                 find(abs(diff(sync_ephys) - ...
-    %                 diff(sync_timelite(1:length(sync_ephys)))) > ...
-    %                 missed_flip_t_thresh,1);
-    %             sync_timelite(curr_missed_flip) = [];
-    %         end
-    %
-    %         % Remove remaining flips with mismatching flip intervals
-    %         remove_flips = abs(diff(sync_ephys) - ...
-    %             diff(sync_timelite(1:length(sync_ephys)))) > missed_flip_t_thresh;
-    %         sync_timelite(remove_flips) = [];
-    %         sync_ephys(remove_flips) = [];
+    % Estimate nearest flip in ephys for each flip in timelite
+    flip_timelite_ephys_timediff = ...
+        interp1(flipper_flip_times_ephys,flipper_flip_times_ephys, ...
+        flipper_times + ephys_timelite_flipper_lag,'nearest','extrap') - ...
+        (flipper_times+ephys_timelite_flipper_lag);
+
+    % Set cutoff to find "matched" flips
+    % (note clock drift makes matching flips have drifting offset)
+    flip_timediff_thresh = 0.1;
+    use_timelite_flips = abs(flip_timelite_ephys_timediff) < flip_timediff_thresh;
+
+    if sum(use_timelite_flips) == length(flipper_flip_times_ephys)
+        % Successful if same number of matched flips: 
+        % use all ephys flips
+        sync_ephys = flipper_flip_times_ephys;
+        % use subset of matched timelite flips
+        sync_timelite = flipper_times(use_timelite_flips);
+    else
+        % If not, unclear where the matched flips are, error out
+        error('%s %s: Cannot match timelite/ephys flips',animal,rec_day);
+    end
 
 elseif length(flipper_flip_times_ephys) > length(flipper_times)
-    % If more flips in ephys than timelite, screwed
-    error([animal ' ' rec_day ': flips ephys > timelite'])
+    % If more flips in ephys than timelite, you're screwed
+    error('%s %s: flips ephys > timelite, cannot fix',animal,rec_day);
+    
 end
 
 % Get spike times in timelite time
@@ -249,7 +261,7 @@ end
 
 % (load NTE positions if available)
 nte_positions_filename = dir(fullfile( ...
-    fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
+    fileparts(open_ephys_path_dir(1).folder),'*probe_positions*.mat'));
 if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end

@@ -2,6 +2,8 @@
 %
 % Load and prepare all/selected parts of a recording
 
+warning on
+
 %% Check that the necessary parameters are included
 
 % If no animal - choose from list of animals
