@@ -3,13 +3,13 @@
 
 %% Align mousecam to event
 
-% (passive)
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    1:length(stimOn_times))';
-
+% % (passive)
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     1:length(stimOn_times))';
+% 
 % stim_x = vertcat(trial_events.values.StimFrequence);
 % use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
 
@@ -152,12 +152,12 @@ ylabel('Move prob.');
 xlabel('Time from event');
 
 
-[~,sort_idx] = sort([trial_events.values.TrialQuiescence]);
-figure;
-imagesc(surround_time_points,[],event_aligned_wheel_move(sort_idx,:));
-xline(0,'color','r','linewidth',2);
-hold on;
-plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.values),'b','linewidth',2);
+% [~,sort_idx] = sort([trial_events.values.TrialQuiescence]);
+% figure;
+% imagesc(surround_time_points,[],event_aligned_wheel_move(sort_idx,:));
+% xline(0,'color','r','linewidth',2);
+% hold on;
+% plot(-[trial_events.values(sort_idx).TrialQuiescence],1:length(trial_events.values),'b','linewidth',2);
 
 
 %% Behavior across days

@@ -1,5 +1,5 @@
 function spike_xcorr = ephys_spike_cg(template_1,template_2,plot_flag)
-% ephys_spike_cg(template_1,template_2,plot_flag)
+% spike_xcorr = ephys_spike_cg(template_1,template_2,plot_flag)
 %
 % Calculate and plot spike Auto/crosscorrelogram
 
@@ -8,13 +8,17 @@ spike_times_timelite = evalin('base','spike_times_timelite');
 spike_templates = evalin('base','spike_templates');
 
 % Parameters
-t_acg = 100; % time window to bin spikes
-max_lag = 500; % max correlation lag
-t_smooth = 10;
+bin_size_expt = 100; % experiment size chunk to get ACG from (s)
+max_lag = 500; % max correlation lag (ms)
+t_smooth = 50; % gaussian smoothing window size (ms)
 
-t_bins_expt = min(spike_times_timelite):t_acg:max(spike_times_timelite);
+if nargin < 3 || isempty(plot_flag)
+    plot_flag = false;
+end
 
-if nargin == 1 || isempty(template_2)
+t_bins_expt = min(spike_times_timelite):bin_size_expt:max(spike_times_timelite);
+
+if nargin == 1 || isempty(template_2) || template_1 == template_2
     % Autocorrelogram
 
     % Find window with largest number of spikes
@@ -24,11 +28,8 @@ if nargin == 1 || isempty(template_2)
     
     % Bin spikes, autocorrelate, plot
     binned_spikes = histcounts(spike_times_timelite(spike_templates == template_1),t_bins);
-    [binned_spikes_xcorr,lags] = xcorr(binned_spikes,max_lag);
+    [binned_spikes_xcorr,lags] = xcorr(binned_spikes,max_lag,'coeff');
     binned_spikes_xcorr(lags == 0) = nan;
-    figure; plot(lags,smoothdata(binned_spikes_xcorr,'gaussian',t_smooth),'k');
-    xlabel('Lag (ms)');
-    title(sprintf('Unit %d',template_1));
 
 else
     % Crosscorrelogram
@@ -44,15 +45,16 @@ else
     binned_spikes_1 = histcounts(spike_times_timelite(spike_templates == template_1),t_bins);
     binned_spikes_2 = histcounts(spike_times_timelite(spike_templates == template_2),t_bins);
     [binned_spikes_xcorr,lags] = xcorr(binned_spikes_1,binned_spikes_2,max_lag,'coeff');
-    binned_spikes_xcorr_smoothed = smoothdata(binned_spikes_xcorr,'gaussian',t_smooth);
 
-    if plot_flag
-        figure; plot(lags,binned_spikes_xcorr_smoothed,'k');
-        xline(0,'color','r');
-        xlabel('Lag (ms)');
-        title(sprintf('Unit %d, lagged unit %d',template_1,template_2));
-    end
+end
 
+binned_spikes_xcorr_smoothed = smoothdata(binned_spikes_xcorr,'gaussian',t_smooth);
+
+if plot_flag
+    figure; plot(lags,binned_spikes_xcorr_smoothed,'k');
+    xline(0,'color','r');
+    xlabel('Lag (ms)');
+    title(sprintf('Unit %d, lagged unit %d',template_1,template_2));
 end
 
 spike_xcorr = binned_spikes_xcorr_smoothed;

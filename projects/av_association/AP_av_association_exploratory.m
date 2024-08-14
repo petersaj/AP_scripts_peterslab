@@ -31,7 +31,7 @@ event_aligned_wheel_move = interp1(timelite.timestamps, ...
 stim_wheel_vel_med = ap.groupfun(@median,event_aligned_wheel_vel,trial_modality,[]);
 stim_wheel_move_avg = ap.groupfun(@mean,event_aligned_wheel_move,trial_modality,[]);
 
-figure; tiledlayout('flow'); 
+figure; tiledlayout(1,3); 
 nexttile; hold on
 plot(surround_time_points,stim_wheel_vel_med','linewidth',2);
 ylabel('Median velocity');
@@ -262,6 +262,102 @@ axis image;
 colormap(AP_colormap('PWG',[],1));
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
+
+%% Batch fraction of responsive units 
+
+% Loop through animals
+animals = {'DS004','DS007'};
+
+frac_responsive_units = cell(length(animals),1);
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+
+    recordings = plab.find_recordings(animal);
+    ephys_recordings = recordings([recordings.ephys]);
+
+    frac_responsive_units{curr_animal} = nan(length(ephys_recordings),2);
+
+    for curr_day = 1:length(ephys_recordings)
+        for curr_modality = 1:2
+            switch curr_modality
+                case 1
+                    curr_workflow = 'lcr_passive';
+                case 2
+                    curr_workflow = 'hml_passive_audio';
+            end
+
+            % Grab pre-load vars
+            preload_vars = who;
+
+            % Load data
+            curr_recording = plab.find_recordings(animal,ephys_recordings(curr_day).day,curr_workflow);
+    
+            rec_day = curr_recording.day;
+            rec_time = curr_recording.recording{end};
+            ap.load_recording;
+
+            % Set event to get response
+            % (get quiescent trials)
+            stim_window = [0,0.5];
+            quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+                timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+                timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+                (1:length(stimOn_times))');
+
+            if contains(bonsai_workflow,'lcr')
+                % (vis passive)
+                stim_type = vertcat(trial_events.values.TrialStimX);
+                use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 90 & quiescent_trials);
+            elseif contains(bonsai_workflow,'hml')
+                % (aud passive)
+                stim_type = vertcat(trial_events.values.StimFrequence);
+                use_align = stimOn_times(stim_type == 8000 & quiescent_trials);
+            elseif contains(bonsai_workflow,'stim_wheel')
+                % (task)
+                use_align = stimOn_times(stim_to_move > 0.15);
+            end
+
+            baseline_t = [-0.2,0];
+            response_t = [0,0.2];
+
+            baseline_bins = use_align + baseline_t;
+            response_bins = use_align + response_t;
+
+            event_bins = [baseline_bins,response_bins];
+            spikes_binned_continuous = histcounts2(spike_times_timelite,spike_templates, ...
+                reshape([baseline_bins,response_bins]',[],1),1:size(templates,1)+1);
+
+            event_spikes = permute(reshape(spikes_binned_continuous(1:2:end,:),2, ...
+                size(event_bins,1),[]),[2,1,3]);
+
+            event_response = squeeze(mean(diff(event_spikes,[],2),1));
+
+            n_shuff = 1000;
+            event_response_shuff = cell2mat(arrayfun(@(shuff) ...
+                squeeze(mean(diff(ap.shake(event_spikes,2),[],2),1)), ...
+                1:n_shuff,'uni',false));
+
+            event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
+            event_response_p = event_response_rank(:,1)./(n_shuff+1);
+            responsive_units = event_response_p < 0.05 | event_response_p > 0.95;
+
+            frac_responsive_units{curr_animal}(curr_day,curr_modality) = ...
+                mean(responsive_units);
+
+        end
+    end
+
+    ap.print_progress_fraction(curr_animal,length(animals));
+
+end
+
+
+
+
+
+
+
 
 
 

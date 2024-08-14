@@ -36,7 +36,6 @@ param.nSyncChannels = 0;
 param.extractRaw = 1;
 param.plotGlobal = false;
 param.plotDetails = false;
-% param.firstPeakRatio = 2; %  possibly for future? more sensitive to potential axons
 
 % Run quality metrics
 rerun = 0;

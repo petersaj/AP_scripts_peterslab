@@ -161,7 +161,7 @@ colormap(AP_colormap('PWG'));
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AP011';
+animal = 'AM030';
 workflow = 'sparse_noise';
 
 % % Specific day

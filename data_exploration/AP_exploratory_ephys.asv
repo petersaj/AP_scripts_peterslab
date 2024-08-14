@@ -254,7 +254,7 @@ elseif contains(bonsai_workflow,'hml')
     use_align = stimOn_times(stim_type == 8000 & quiescent_trials);
 elseif contains(bonsai_workflow,'stim_wheel')
     % (task)
-    use_align = stimOn_times;
+    use_align = stimOn_times(stim_to_move > 0.15);
 end
 
 baseline_t = [-0.2,0];
@@ -865,7 +865,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP022'};
+animals = {'AP015'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -955,7 +955,7 @@ title(h,animal);
 
 %% Batch MUA by depth
 
-animal = 'AM026';
+animal = 'AM027';
 use_workflow = 'lcr_passive';
 % use_workflow = 'hml_passive_audio';
 % use_workflow = 'stim_wheel*';
@@ -1062,22 +1062,32 @@ end
 
 % Plot MUA
 figure; 
-h = tiledlayout(1,length(day_mua));
+h = tiledlayout(2,length(day_mua),'TileIndexing','columnmajor');
 for curr_day = 1:length(day_mua)
 
+    % (plot scaled within-day)
     nexttile(h); hold on;
     align_col = lines(size(day_mua{curr_day},3));
+    rescale = 1/(1.2*max(day_mua{curr_day},[],'all'));
     for curr_align = 1:size(day_mua{curr_day},3)
         AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
-            2,1,align_col(curr_align,:));
+            1,rescale,align_col(curr_align,:));
     end
     xline(0,'k');
-    title(recordings(curr_day).day);
+
+    % (plot non-rescaled)
+    nexttile(h); hold on;
+    for curr_align = 1:size(day_mua{curr_day},3)
+        AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
+            3,1,align_col(curr_align,:));
+    end
+    xline(0,'k');
 
     drawnow;
 end
-linkaxes(h.Children);
-title(h,sprintf('%s: %s',animal,use_workflow),'interpreter','none');
+linkaxes(h.Children(1:2:end));
+linkaxes(h.Children(2:2:end));
+title(h,{'Rescaled','Not rescaled'});
 
 
 

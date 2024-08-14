@@ -246,10 +246,11 @@ master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
 load(master_U_fn);
 
 % Average and plot
-use_modality = 2;
-use_stim = 2;
+use_modality = 1;
+use_stim = 3;
 % use_workflow = 'stim_wheel_right_stage2_audio_volume';
-use_workflow = 'stim_wheel_right_stage2_mixed_VA';
+use_workflow = 'stim_wheel_right_stage2';
+% use_workflow = 'stim_wheel_right_stage2_mixed_VA';
 
 x = cellfun(@(x,task) cat(4,x{strcmp(task,use_workflow),use_modality}),day_V_all,task_workflow_all,'uni',false);
 x2 = cellfun(@(x) plab.wf.svd2px(U_master,squeeze(x(:,:,use_stim,:))),x,'uni',false);
@@ -261,6 +262,56 @@ axis image;
 colormap(AP_colormap('PWG',[],1));
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
+
+%% Batch fraction of responsive units 
+
+% Loop through animals
+animals = {'DS004','DS007'};
+
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+
+    recordings = plab.find_recordings(animal);
+    ephys_recordings = recordings([recordings.ephys]);
+
+    for curr_day = 1:length(ephys_recordings)
+
+        for curr_modality = 1:2
+            switch curr_modality
+                case 1
+                    curr_workflow = 'lcr_passive';
+                case 2
+                    curr_workflow = 'hml_passive_audio';
+            end
+
+            % Grab pre-load vars
+            preload_vars = who;
+
+            % Load data
+            try
+                curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
+            catch me
+                continue
+            end
+
+            rec_day = curr_recording.day;
+            rec_time = curr_recording.recording{end};
+
+            load_parts = struct;
+            load_parts.widefield = true;
+            load_parts.widefield_master = true;
+            ap.load_recording;
+        end
+    end
+end
+
+
+
+
+
+
+
 
 
 
