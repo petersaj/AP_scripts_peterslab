@@ -24,11 +24,11 @@ if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
 
 %% Load and prepare Kilosort data
 
+% Set Kilosort and Open Ephys folders for recording
 if ~any(contains({kilosort_dir.name},{'site','probe'}))
     % If no site/probe subfolders, use that top path
     kilosort_path = kilosort_top_path;
     open_ephys_path_dir = dir(fullfile(ephys_path,'experiment*','recording*'));
-    open_ephys_path = fullfile(open_ephys_path_dir.folder,open_ephys_path_dir.name);
 
 elseif any(contains({kilosort_dir.name},'probe'))
     % If 'probe' folders (recordings in parallel), choose last before recording
@@ -38,10 +38,7 @@ elseif any(contains({kilosort_dir.name},'probe'))
     warning('Multiple probes: just loading probe 1 for now')
     kilosort_path = fullfile(ephys_site_paths(load_probe).folder,ephys_site_paths(load_probe).name);
     open_ephys_path_dir = dir(fullfile(ephys_path, ...
-        ephys_site_paths.name,'experiment*','recording*'));
-    open_ephys_path = cellfun(@(ephys_path,ephys_name) ...
-        fullfile(ephys_path,ephys_name), ...
-        {open_ephys_path_dir.folder},{open_ephys_path_dir.name},'uni',false);
+        ephys_site_paths(load_probe).name,'experiment*','recording*'));
 
 elseif any(contains({kilosort_dir.name},'site'))
     % If 'site' folders (recordings in serial), choose last before recording
@@ -65,12 +62,13 @@ elseif any(contains({kilosort_dir.name},'site'))
         kilosort_path = fullfile(kilosort_top_path, ...
             ephys_site_paths(ephys_use_site).name);
         open_ephys_path_dir = dir(fullfile(ephys_path, ...
-            ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));
-        open_ephys_path = cellfun(@(ephys_path,ephys_name) ...
-            fullfile(ephys_path,ephys_name), ...
-            {open_ephys_path_dir.folder},{open_ephys_path_dir.name},'uni',false);
+            ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));   
+
     end
 end
+open_ephys_path = cellfun(@(ephys_path,ephys_name) ...
+    fullfile(ephys_path,ephys_name), ...
+    {open_ephys_path_dir.folder},{open_ephys_path_dir.name},'uni',false);
 
 % Get start time of ephys recording (unused currently)
 ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir(1).folder),'settings.xml');
@@ -263,7 +261,7 @@ end
 
 % (load NTE positions if available)
 nte_positions_filename = dir(fullfile( ...
-    fileparts(open_ephys_path_dir.folder),'*probe_positions*.mat'));
+    fileparts(open_ephys_path_dir(1).folder),'*probe_positions*.mat'));
 if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end
@@ -372,18 +370,18 @@ if verbose; fprintf('kept %d/%d "good" units...\n',sum(good_templates),length(go
 % 
 % if verbose; fprintf('Ephys: Classifying TANs...\n'); end
 % 
-% (get spike acgs)
+% % (get spike acgs)
 % spike_acg = cell2mat(arrayfun(@(x) ap.ephys_spike_cg(x),(1:size(waveforms,1))','uni',false));
 % 
-% (time to get to 90% steady-state value)
+% % (time to get to 90% steady-state value)
 % acg_isi = arrayfun(@(x) ...
 %     find(spike_acg(x,ceil(size(spike_acg,2)/2):end) > ...
 %     mean(spike_acg(x,end-100:end),2)*0.9,1,'first'),(1:size(templates,1))');
 % 
-% (get average firing rate from whole session)
+% % (get average firing rate from whole session)
 % spike_rate = accumarray(spike_templates,1)/diff(prctile(spike_times_timelite,[0,100]));
 % 
-% (empirical)
+% % (empirical)
 % tans = spike_rate >= 4 & spike_rate <= 12 & ...
 %     acg_isi >= 60;
 % 

@@ -865,7 +865,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP022'};
+animals = {'DS003'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};

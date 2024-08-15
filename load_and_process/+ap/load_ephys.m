@@ -370,18 +370,18 @@ if verbose; fprintf('kept %d/%d "good" units...\n',sum(good_templates),length(go
 % 
 % if verbose; fprintf('Ephys: Classifying TANs...\n'); end
 % 
-% (get spike acgs)
+% % (get spike acgs)
 % spike_acg = cell2mat(arrayfun(@(x) ap.ephys_spike_cg(x),(1:size(waveforms,1))','uni',false));
 % 
-% (time to get to 90% steady-state value)
+% % (time to get to 90% steady-state value)
 % acg_isi = arrayfun(@(x) ...
 %     find(spike_acg(x,ceil(size(spike_acg,2)/2):end) > ...
 %     mean(spike_acg(x,end-100:end),2)*0.9,1,'first'),(1:size(templates,1))');
 % 
-% (get average firing rate from whole session)
+% % (get average firing rate from whole session)
 % spike_rate = accumarray(spike_templates,1)/diff(prctile(spike_times_timelite,[0,100]));
 % 
-% (empirical)
+% % (empirical)
 % tans = spike_rate >= 4 & spike_rate <= 12 & ...
 %     acg_isi >= 60;
 % 

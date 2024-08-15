@@ -107,7 +107,7 @@ colormap(AP_colormap('BWR'));
 
 
 
-%% ~~~~~~~~~~~ BATCH 
+%% ~~~~~~~~~~~ BATCH WIDEFIELD
 
 %% Batch widefield (master U) - passive V/A 
 
@@ -351,6 +351,76 @@ for curr_animal = 1:length(animals)
     ap.print_progress_fraction(curr_animal,length(animals));
 
 end
+
+
+
+%% ~~~~~~~~~~~ BATCH EPHYS
+
+%% Plot all recording locations
+animals = {'AP022','DS000','DS007','DS010', ...
+    'AP019','AP021','DS001','DS003','DS004'};
+
+animal_col = [brewermap(8,'Dark2');brewermap(8,'Set2')];
+
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+    probe_color = animal_col(curr_animal,:);
+
+    % Trajectory explorer probe position files
+    nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
+    nte_fns = dir(nte_filepattern);
+
+    for curr_recording = 1:length(nte_fns)
+
+        load(fullfile(nte_fns(curr_recording).folder, nte_fns(curr_recording).name));
+
+        % Loop through probes and draw
+        for curr_probe = 1:length(probe_positions_ccf)
+
+            % Probe line is directly stored
+            probe_line = probe_positions_ccf{curr_probe}';
+
+            % Draw probe in 3D view
+            line(ccf_3d_axes,probe_line(:,1),probe_line(:,3),probe_line(:,2), ...
+                'linewidth',2,'color',probe_color)
+
+            % Draw probes on coronal + saggital
+            line(ccf_axes(1),probe_line(:,3),probe_line(:,2),'linewidth',2,'color',probe_color);
+            line(ccf_axes(2),probe_line(:,3),probe_line(:,1),'linewidth',2,'color',probe_color);
+            line(ccf_axes(3),probe_line(:,2),probe_line(:,1),'linewidth',2,'color',probe_color);
+
+            % Draw probe start/end on horizontal
+            plot(ccf_axes(2), probe_line(1,3),probe_line(1,1), ...
+                'o','MarkerSize',5,'color',probe_color);
+            plot(ccf_axes(2), probe_line(end,3),probe_line(end,1), ...
+                '.','MarkerSize',20,'color',probe_color);
+
+        end
+    end
+end
+
+%% Do something
+
+animals = {'AP022','DS000','DS007','DS010', ...
+    'AP019','AP021','DS001','DS003','DS004'};
+
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+    workflow = 'stim_wheel_right_stage2_mixed_VA';
+    recordings = plab.find_recordings(animal,[],workflow);
+
+    recordings_ephys = recordings([recordings.ephys]);
+
+
+end
+
+
+
+
+
+
 
 
 
