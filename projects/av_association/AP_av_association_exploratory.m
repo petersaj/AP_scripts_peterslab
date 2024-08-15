@@ -361,11 +361,14 @@ animals = {'AP022','DS000','DS007','DS010', ...
     'AP019','AP021','DS001','DS003','DS004'};
 
 animal_col = [brewermap(8,'Dark2');brewermap(8,'Set2')];
+ccf_draw = ap.ccf_draw;
 
 for curr_animal = 1:length(animals)
 
     animal = animals{curr_animal};
     probe_color = animal_col(curr_animal,:);
+    ccf_draw.draw_probes_nte;
+    
 
     % Trajectory explorer probe position files
     nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
