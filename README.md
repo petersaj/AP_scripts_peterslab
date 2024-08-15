@@ -28,5 +28,5 @@ Scripts written after opening lab
 `ap.expscroll` - scroll through data
 
 #### Plotting
-`ccf_outline` - draw CCF flat and 3D views, plot probe trajectories etc.
+`ccf_draw` - draw CCF flat and 3D views, draw areas. plot probe trajectories
 `plot_probe_positions` - draw all probe positions (NTE and histology) for animal
