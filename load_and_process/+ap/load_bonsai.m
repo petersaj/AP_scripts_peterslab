@@ -1,6 +1,6 @@
 % Load Bonsai data
 
-if verbose; disp('Loading Bonsai...'); end
+if verbose; fprintf('Loading Bonsai...'); end
 
 %% Load general Bonsai events
 
@@ -13,6 +13,20 @@ bonsai_events_fn = plab.locations.filename('server', ...
     animal,rec_day,rec_time,'bonsai','bonsai_events.csv');
 
 if exist(bonsai_events_fn,'file') && ~isempty(readtable(bonsai_events_fn))
+
+    % Check if Bonsai file is bad
+    % (when this happens, last line is not written in full, so look for a
+    % timestamp entry that is the wrong length)
+    bonsai_readtimestamps_opts = detectImportOptions(bonsai_events_fn);
+    bonsai_readtimestamps_opts.SelectedVariableNames = 'Timestamp';
+    bonsai_timestamps_raw = readtable(bonsai_events_fn,bonsai_readtimestamps_opts);
+    if length(unique(cellfun(@length,bonsai_timestamps_raw.Timestamp))) ~= 1
+        bad_bonsai_csv = true;
+        warning('Bonsai file ends improperly: %s',bonsai_events_fn);
+    else
+        bad_bonsai_csv = false;
+    end
+
     % Set Bonsai timestamp format
     bonsai_table_opts = detectImportOptions(bonsai_events_fn);
     bonsai_table_opts = setvaropts(bonsai_table_opts,'Timestamp','Type','datetime', ...
@@ -21,14 +35,6 @@ if exist(bonsai_events_fn,'file') && ~isempty(readtable(bonsai_events_fn))
 
     % Load Bonsai CSV file
     bonsai_events_raw = readtable(bonsai_events_fn,bonsai_table_opts);
-
-    % Check for NaT timestamps, throw warning and flag if so
-    if any(isnat(bonsai_events_raw.Timestamp))
-        bad_bonsai_csv = true;
-        warning('Bonsai file ends improperly: %s',bonsai_events_fn);
-    else
-        bad_bonsai_csv = false;
-    end
 
     % Create nested structure for trial events
     trial_events = struct('parameters',cell(1),'values',cell(1),'timestamps',cell(1));
@@ -218,6 +224,7 @@ elseif strcmp(bonsai_workflow,'sparse_noise')
 
 end
 
+if verbose; fprintf('%s\n',bonsai_workflow); end
 
 
 %% For testing: convert bonsai times to timelite times

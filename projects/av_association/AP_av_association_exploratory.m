@@ -50,63 +50,6 @@ ylabel('Count');
 
 
 
-%% PSTH - units (split by visual/auditory)
-
-% Set times for PSTH
-raster_window = [-0.5,1];
-psth_bin_size = 0.001;
-t_bins = raster_window(1):psth_bin_size:raster_window(2);
-t_centers = conv2(t_bins,[1,1]/2,'valid');
-
-% PSTH for all conditions
-if contains(bonsai_workflow,'lcr')
-    % (visual passive)
-    stim_type = vertcat(trial_events.values.TrialStimX);
-    align_times = cellfun(@(x) stimOn_times(stim_type == x),num2cell(unique(stim_type)),'uni',false);
-elseif contains(bonsai_workflow,'hml')
-    % (auditory passive)
-    stim_type = vertcat(trial_events.values.StimFrequence);
-    align_times = cellfun(@(x) stimOn_times(stim_type == x),num2cell(unique(stim_type)),'uni',false);
-elseif contains(bonsai_workflow,'stim_wheel')
-    % (task)
-    trial_modality = [trial_events.values(1:n_trials).TaskType];
-    align_times = { ...
-        stimOn_times(trial_modality==0),stimOn_times(trial_modality==1), ...
-        stim_move_time,reward_times};
-end
-
-n_units = size(templates,1);
-unit_psth = nan(n_units,length(t_bins)-1,2);
-for curr_align = 1:length(align_times)
-    use_align = align_times{curr_align};
-    t_peri_event = bsxfun(@plus,use_align,t_bins);
-    for curr_unit = 1:n_units
-        curr_spikes = spike_times_timelite(spike_templates == curr_unit);
-
-        curr_spikes_binned = cell2mat(arrayfun(@(x) ...
-            histcounts(curr_spikes,t_peri_event(x,:)), ...
-            [1:size(t_peri_event,1)]','uni',false))./psth_bin_size;
-        curr_mean_psth = mean(curr_spikes_binned,1);
-
-        unit_psth(curr_unit,:,curr_align) = curr_mean_psth;
-    end
-end
-
-smooth_size = 100;
-unit_psth_smooth = smoothdata(unit_psth,2,'gaussian',smooth_size);
-
-% Normalize to baseline
-unit_baseline = nanmean(nanmean(unit_psth(:,t_bins(2:end) < 0,:),2),3);
-unit_psth_smooth_norm = (unit_psth_smooth-unit_baseline)./(unit_baseline+1);
-
-% Plot depth-sorted
-[~,sort_idx] = sort(template_depths);
-AP_imscroll(unit_psth_smooth_norm(sort_idx,:,:));
-clim([-2,2]);
-colormap(AP_colormap('BWR'));
-
-
-
 %% ~~~~~~~~~~~ BATCH WIDEFIELD
 
 %% Batch widefield (master U) - passive V/A 
@@ -357,79 +300,492 @@ end
 %% ~~~~~~~~~~~ BATCH EPHYS
 
 %% Plot all recording locations
+
 animals = {'AP022','DS000','DS007','DS010', ...
-    'AP019','AP021','DS001','DS003','DS004'};
+    'AP021','DS001','DS003','DS004'};
 
 animal_col = [brewermap(8,'Dark2');brewermap(8,'Set2')];
 ccf_draw = ap.ccf_draw;
+ccf_draw.draw_name('Caudoputamen');
 
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+    probe_color = animal_col(curr_animal,:);
+    ccf_draw.draw_probes_nte(animal,probe_color);
+end
+
+%% Get recording locations/days
+
+% Find anterior/posterior striatum recordings (from NTE)
+str_rec_days = cell(length(animals),2); % [ant,pos]
 for curr_animal = 1:length(animals)
 
     animal = animals{curr_animal};
-    probe_color = animal_col(curr_animal,:);
-    ccf_draw.draw_probes_nte;
-    
 
-    % Trajectory explorer probe position files
     nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
     nte_fns = dir(nte_filepattern);
 
+    % Get days for all NTE files
+    day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
+    rec_days = extract({nte_fns.folder},day_pattern);
+
+    % Load NTE files
+    nte_all = cell(size(nte_fns));
     for curr_recording = 1:length(nte_fns)
-
-        load(fullfile(nte_fns(curr_recording).folder, nte_fns(curr_recording).name));
-
-        % Loop through probes and draw
-        for curr_probe = 1:length(probe_positions_ccf)
-
-            % Probe line is directly stored
-            probe_line = probe_positions_ccf{curr_probe}';
-
-            % Draw probe in 3D view
-            line(ccf_3d_axes,probe_line(:,1),probe_line(:,3),probe_line(:,2), ...
-                'linewidth',2,'color',probe_color)
-
-            % Draw probes on coronal + saggital
-            line(ccf_axes(1),probe_line(:,3),probe_line(:,2),'linewidth',2,'color',probe_color);
-            line(ccf_axes(2),probe_line(:,3),probe_line(:,1),'linewidth',2,'color',probe_color);
-            line(ccf_axes(3),probe_line(:,2),probe_line(:,1),'linewidth',2,'color',probe_color);
-
-            % Draw probe start/end on horizontal
-            plot(ccf_axes(2), probe_line(1,3),probe_line(1,1), ...
-                'o','MarkerSize',5,'color',probe_color);
-            plot(ccf_axes(2), probe_line(end,3),probe_line(end,1), ...
-                '.','MarkerSize',20,'color',probe_color);
-
-        end
+        nte_all{curr_recording} = load(fullfile(nte_fns(curr_recording).folder, ...
+            nte_fns(curr_recording).name));
     end
+
+    % Get NTE files with A/P striatum
+    ap_striatum_threshold = 550;
+    anterior_recordings = cellfun(@(x) x.probe_positions_ccf{1}(1,2),nte_all) < ap_striatum_threshold;
+    striatum_recordings = cellfun(@(x) any(strcmp(x.probe_areas{1}.name,'Caudoputamen')),nte_all);
+
+    str_ant_rec = rec_days(striatum_recordings & anterior_recordings);
+    str_pos_rec = rec_days(striatum_recordings & ~anterior_recordings);
+
+    str_rec_days{curr_animal,1} = str_ant_rec;
+    str_rec_days{curr_animal,2} = str_pos_rec;
+
 end
 
-%% Do something
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+data_fn = fullfile(data_dir,'str_rec_days');
+save(data_fn,'str_rec_days');
+
+%% Get association performance
 
 animals = {'AP022','DS000','DS007','DS010', ...
-    'AP019','AP021','DS001','DS003','DS004'};
+    'AP021','DS001','DS003','DS004'};
 
+% Load recording days
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+load(fullfile(data_dir,'str_rec_days'));
+
+% Find days with sensorimotor associations
+bhv_p = cell(size(str_rec_days));
 for curr_animal = 1:length(animals)
+    for curr_ap = 1:2
+        for curr_day = 1:length(str_rec_days{curr_animal,curr_ap})
 
-    animal = animals{curr_animal};
-    workflow = 'stim_wheel_right_stage2_mixed_VA';
-    recordings = plab.find_recordings(animal,[],workflow);
+            % Load data
+            animal = animals{curr_animal};
+            rec_day = str_rec_days{curr_animal,curr_ap}{curr_day};
 
-    recordings_ephys = recordings([recordings.ephys]);
+            workflow = 'stim_wheel_right_stage2_mixed_VA';
+            recordings = plab.find_recordings(animal,rec_day,workflow);
+            rec_time = recordings.recording{end};
+
+            load_parts.ephys = false;
+            ap.load_recording;
+
+            % Get association significance by modality
+            trial_modality = [trial_events.values(1:n_trials).TaskType]';
+
+            trial_events_vis = trial_events;
+            trial_events_vis.timestamps = trial_events_vis.timestamps(trial_modality == 0);
+            trial_events_vis.values = trial_events_vis.values(trial_modality == 0);
+
+            trial_events_aud = trial_events;
+            trial_events_aud.timestamps = trial_events_aud.timestamps(trial_modality == 1);
+            trial_events_aud.values = trial_events_aud.values(trial_modality == 1);
+
+            vis_p = AP_stimwheel_association_pvalue(stimOn_times(trial_modality == 0), ...
+            trial_events_vis,stim_to_move(trial_modality == 0));
+            aud_p = AP_stimwheel_association_pvalue(stimOn_times(trial_modality == 1), ...
+                trial_events_aud,stim_to_move(trial_modality == 1));
+
+            bhv_p{curr_animal,curr_ap}{curr_day} = [vis_p,aud_p];
+        end
+    end
+    ap.print_progress_fraction(curr_animal,length(animals));
+end
+
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+data_fn = fullfile(data_dir,'bhv_p');
+save(data_fn,'bhv_p');
 
 
+%% Striatum MUA (whole striatum together)
+
+animals = {'AP022','DS000','DS007','DS010', ...
+    'AP021','DS001','DS003','DS004'};
+
+% Load recording days
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+load(fullfile(data_dir,'str_rec_days'));
+
+% Get multiunit activity in striatum
+striatum_mua_all = cell(length(animals),2);
+for curr_animal = 1:length(animals)
+    for curr_ap = 1:2
+        for curr_day = 1:length(str_rec_days{curr_animal,curr_ap})
+
+            % Load data
+            animal = animals{curr_animal};
+            rec_day = str_rec_days{curr_animal,curr_ap}{curr_day};
+
+%             workflow = 'stim_wheel_right_stage2_mixed_VA';
+%             workflow = 'lcr_passive';
+            workflow = 'hml_passive_audio';
+            recordings = plab.find_recordings(animal,rec_day,workflow);
+            rec_time = recordings.recording{end};
+
+            ap.load_recording;
+
+            % Identify striatum spikes
+            striatum_idx = strcmp(probe_areas{1}.name,'Caudoputamen');
+            striatum_depth = prctile(probe_areas{1}.probe_depth(striatum_idx,:),[0,100],'all');
+            striatum_spikes = spike_depths >= striatum_depth(1) & ...
+                spike_depths <= striatum_depth(2);
+
+            % Set times for PSTH
+            raster_window = [-0.5,1];
+            psth_bin_size = 0.001;
+            t_bins = raster_window(1):psth_bin_size:raster_window(2);
+            t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+            % Set align times:
+            if contains(bonsai_workflow,'passive')
+                % Passive
+                % Get quiescent trials
+                stim_window = [0,0.5];
+                quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+                    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+                    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+                    (1:length(stimOn_times))');
+
+                if isfield(trial_events.values,'TrialStimX')
+                    align_category = vertcat(trial_events.values.TrialStimX);
+                elseif isfield(trial_events.values,'StimFrequence')
+                    align_category = vertcat(trial_events.values.StimFrequence);
+                end
+                align_times = cellfun(@(x) ...
+                    stimOn_times(align_category(1:length(stimOn_times)) == x & ...
+                    quiescent_trials),num2cell(unique(align_category)),'uni',false);
+
+            elseif contains(bonsai_workflow,'stim_wheel')
+                % Task
+                trial_type = [trial_events.values.TaskType];
+                align_times = cell(4,1);
+                % Stim on (by type)
+                align_times{1} = stimOn_times(trial_type(1:n_trials) == 0);
+                align_times{2} = stimOn_times(trial_type(1:n_trials) == 1);
+                % Stim move
+                align_times{3} = stim_move_time;
+                % Reward
+                align_times{4} = reward_times_task;
+%                 % ITI move
+%                 wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
+%                 wheel_stops = timelite.timestamps(diff([0;wheel_move]) == -1);
+%                 iti_move_idx = interp1(photodiode_times, ...
+%                     photodiode_values,wheel_starts,'previous') == 0;
+%                 align_times{5} =  wheel_starts(iti_move_idx);
+            end
+           
+            % Get multiunit PSTH
+            striatum_psth = nan(length(align_times),length(t_bins)-1);
+            for curr_align = 1:length(align_times)
+
+                t_peri_event = align_times{curr_align} + t_bins;
+
+                use_spikes_time = spike_times_timelite >= min(t_peri_event,[],'all') & ...
+                    spike_times_timelite <= max(t_peri_event,[],'all');
+
+                curr_use_spikes = striatum_spikes & use_spikes_time;
+
+                spikes_binned_continuous = histcounts(spike_times_timelite(curr_use_spikes), ...
+                    reshape(t_peri_event',[],1))./psth_bin_size;
+
+                use_continuous_bins = reshape(padarray(true(size(t_peri_event(:,1:end-1)')),[1,0],false,'post'),[],1);
+                spikes_binned = reshape(spikes_binned_continuous(use_continuous_bins),size(t_peri_event(:,1:end-1)'))';
+                striatum_psth(curr_align,:) = nansum(spikes_binned,1);
+            end
+
+            striatum_mua_all{curr_animal,curr_ap}{curr_day} = striatum_psth;
+        end
+    end
+    ap.print_progress_fraction(curr_animal,length(animals));
 end
 
 
+figure;
+for str_ap = 1:2
+    mua_avg = smoothdata( ...
+        cell2mat(permute(cat(2,striatum_mua_all{:,str_ap}),[1,3,2])), ...
+        2,'gaussian',100);
+    mua_avg_norm = (mua_avg-nanmean(mua_avg(:,1:500,:),2))./nanmean(mua_avg(:,1:500,:),2);
+    nexttile;plot(nanmean(mua_avg_norm,3)');
+    switch str_ap
+        case 1
+            title('Anterior');
+        case 2
+            title('Posterior');
+    end
+end
+linkaxes(gcf().Children.Children);
 
 
+%% Striatum unit PSTHs
+
+animals = {'AP022','DS000','DS007','DS010', ...
+    'AP021','DS001','DS003','DS004'};
+
+% Load recording days
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+load(fullfile(data_dir,'str_rec_days'));
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% Get PSTHs and responsive units
+unit_psth_all = cell(length(animals),2);
+responsive_units_all = cell(length(animals),2);
+for curr_animal = 1:length(animals)
+    for curr_ap = 1:2
+        for curr_day = 1:length(str_rec_days{curr_animal,curr_ap})
+            for curr_modality = 1:2
+
+            % Load data
+            animal = animals{curr_animal};
+            rec_day = str_rec_days{curr_animal,curr_ap}{curr_day};
+
+            switch curr_modality
+                case 1
+                    workflow = 'lcr_passive';
+                case 2
+                    workflow = 'hml_passive_audio';
+            end
+            recordings = plab.find_recordings(animal,rec_day,workflow);
+            rec_time = recordings.recording{end};
+
+            ap.load_recording;
+
+            % Get quiescent trials
+            stim_window = [0,0.5];
+            quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+                timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+                timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+                (1:length(stimOn_times))');
+
+            % Get stim times to use
+            if isfield(trial_events.values,'TrialStimX')
+                align_category = vertcat(trial_events.values.TrialStimX);
+            elseif isfield(trial_events.values,'StimFrequence')
+                align_category = vertcat(trial_events.values.StimFrequence);
+            end
+            align_times = cellfun(@(x) ...
+                stimOn_times(align_category(1:length(stimOn_times)) == x & ...
+                quiescent_trials),num2cell(unique(align_category)),'uni',false);
+
+            % Get PSTH by 2D histogram
+            n_units = size(templates,1);
+            unit_psth = nan(n_units,length(t_bins)-1,length(align_times));
+            for curr_align = 1:length(align_times)
+                t_peri_event = align_times{curr_align} + t_bins;
+
+                use_spikes = spike_times_timelite >= min(t_peri_event,[],'all') & ...
+                    spike_times_timelite <= max(t_peri_event,[],'all');
+
+                spikes_binned_continuous = histcounts2(spike_times_timelite(use_spikes),spike_templates(use_spikes), ...
+                    reshape(t_peri_event',[],1),1:size(templates,1)+1)./psth_bin_size;
+
+                use_continuous_bins = reshape(padarray(true(size(t_peri_event(:,1:end-1)')),[1,0],false,'post'),[],1);
+                spikes_binned = permute(reshape(spikes_binned_continuous(use_continuous_bins,:), ...
+                    size(t_peri_event,2)-1,size(t_peri_event,1),size(templates,1)),[3,1,2]);
+
+                unit_psth(:,:,curr_align) = nanmean(spikes_binned,3);
+            end
+
+            % Get responsive units
+            switch curr_modality
+                case 1
+                    response_align = align_times{3}; % response = R vis
+                case 2
+                    response_align = align_times{2}; % response = M aud
+            end
+
+            baseline_t = [-0.2,0];
+            response_t = [0,0.2];
+
+            baseline_bins = response_align + baseline_t;
+            response_bins = response_align + response_t;
+
+            event_bins = [baseline_bins,response_bins];
+            spikes_binned_continuous = histcounts2(spike_times_timelite,spike_templates, ...
+                reshape([baseline_bins,response_bins]',[],1),1:size(templates,1)+1);
+
+            event_spikes = permute(reshape(spikes_binned_continuous(1:2:end,:),2, ...
+                size(event_bins,1),[]),[2,1,3]);
+
+            event_response = squeeze(mean(diff(event_spikes,[],2),1));
+
+            n_shuff = 1000;
+            event_response_shuff = cell2mat(arrayfun(@(shuff) ...
+                squeeze(mean(diff(ap.shake(event_spikes,2),[],2),1)), ...
+                1:n_shuff,'uni',false));
+
+            event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
+            event_response_p = event_response_rank(:,1)./(n_shuff+1);
+
+            responsive_units = event_response_p > 0.95;
+
+            % Get striatum templates
+            striatum_idx = strcmp(probe_areas{1}.name,'Caudoputamen');
+            striatum_depth = prctile(probe_areas{1}.probe_depth(striatum_idx,:),[0,100],'all');
+            striatum_templates = template_depths >= striatum_depth(1) & ...
+                template_depths <= striatum_depth(2);
+
+            % Store unit PSTHs and responsive units (striatum units only)
+            unit_psth_all{curr_animal,curr_ap}{curr_day,curr_modality} = unit_psth(striatum_templates,:,:);
+            responsive_units_all{curr_animal,curr_ap}{curr_day,curr_modality} = responsive_units(striatum_templates);
+
+            end
+        end
+    end
+    ap.print_progress_fraction(curr_animal,length(animals));
+end
+
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+data_fn = fullfile(data_dir,'unit_data');
+save(data_fn,'unit_psth_all','responsive_units_all');
 
 
+%% ^^ Unit data analysis
+% (some dirty plots)
+
+% Load unit and performance data
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
+load(fullfile(data_dir,'unit_data'));
+load(fullfile(data_dir,'bhv_p'));
+
+% (get days with auditory performance?)
+cell2mat(horzcat(bhv_p{:,1})') < 0.05;
+cell2mat(horzcat(bhv_p{:,2})') < 0.05;
+
+% (manually define V>A and A>V for now)
+training_order = ismember(animals', ...
+    {'AP021','AP022','DS001','DS007','DS010','DS011'});
 
 
+% Get total fraction of responsive units by modality
+responsive_units_frac = cellfun(@(x) arrayfun(@(curr_day) ...
+    [mean(x{curr_day,1}), ... % V
+    mean(x{curr_day,2})], ... % A
+    (1:size(x,1))','uni',false), ...
+    responsive_units_all,'uni',false);
+
+r = cellfun(@(x) nanmean(cell2mat(x),1),responsive_units_frac,'uni',false);
+figure;
+for str_ap = 1:2
+    r2 = cell2mat(r(:,str_ap));
+    nexttile;
+    bar(categorical({'V>A','A>V'}),ap.groupfun(@nanmean,r2,training_order,[]))
+    legend({'V','A'});
+    ylabel('Fraction responsive units');
+end
+linkaxes(gcf().Children.Children);
 
 
+% Get overlap in responsive units by modality
+responsive_units_n = cellfun(@(x) arrayfun(@(curr_day) ...
+    [sum(x{curr_day,1} & x{curr_day,2}), ... % V+A
+    sum(x{curr_day,1} & ~x{curr_day,2}), ... % V
+    sum(~x{curr_day,1} & x{curr_day,2})], ...% A
+    (1:size(x,1))','uni',false), ...
+    responsive_units_all,'uni',false);
+
+responsive_units_overlap_frac = ...
+    cellfun(@(x) cellfun(@(x) x./sum(x),x,'uni',false), ...
+    responsive_units_n,'uni',false);
+
+a = cell2mat(vertcat(responsive_units_overlap_frac{:,1}));
+
+r = cellfun(@(x) nanmean(cell2mat(x),1),responsive_units_overlap_frac,'uni',false);
+figure;
+for str_ap = 1:2
+    r2 = cell2mat(r(:,str_ap));
+    nexttile;
+    bar(categorical({'V>A','A>V'}),ap.groupfun(@nanmean,r2,training_order,[]))
+    legend({'V+A','V','A'});
+    ylabel('Fraction responsive units');
+end
+linkaxes(gcf().Children.Children);
 
 
+% Smooth and normalize PSTH data
+unit_psth_all_smooth = cellfun(@(x) cellfun(@(x) ...
+    smoothdata(x,2,'gaussian',100),x,'uni',false), ...
+    unit_psth_all,'uni',false);
+
+softnorm = 1;
+unit_psth_all_norm = cellfun(@(x) cellfun(@(x) ...
+    (x-nanmean(x(:,1:500,:,:),[2,3]))./(nanmean(x(:,1:500,:,:),[2,3])+softnorm),x,'uni',false), ...
+    unit_psth_all_smooth,'uni',false);
+
+
+% Plot PSTHs for V/A units during V/A stim
+str_ap = 1;
+use_animals = training_order==1;
+
+vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
+aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
+
+v_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,1}),responsive_units_all(use_animals,str_ap),'uni',false)));
+[~,v_sort_idx] = sort(nanmean(vis_psth_cat(v_units_cat,500:700,3),2));
+
+a_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,2}),responsive_units_all(use_animals,str_ap),'uni',false)));
+[~,a_sort_idx] = sort(nanmean(aud_psth_cat(a_units_cat,500:700,2),2));
+
+figure; colormap(AP_colormap('BWR'));
+h = tiledlayout(2,2);
+
+nexttile;
+imagesc(vis_psth_cat(v_units_cat(v_sort_idx),:,3));
+clim([-10,10]);
+title('Vis (V units)')
+
+nexttile;
+imagesc(aud_psth_cat(v_units_cat(v_sort_idx),:,2));
+clim([-10,10]);
+title('Aud (V units)')
+
+nexttile;
+imagesc(vis_psth_cat(a_units_cat(a_sort_idx),:,3));
+clim([-10,10]);
+title('Vis (A units)')
+
+nexttile;
+imagesc(aud_psth_cat(a_units_cat(a_sort_idx),:,2));
+clim([-10,10]);
+title('Aud (A units)')
+
+
+% Plot PSTHs for V/A units during V/A stim
+str_ap = 1;
+use_animals = training_order==1;
+
+vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
+aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
+
+responsive_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,1}),responsive_units_all(use_animals,str_ap),'uni',false)));
+[~,sort_idx] = sort(nanmean(vis_psth_cat(responsive_units_cat,500:700,3),2));
+
+figure; colormap(AP_colormap('BWR'));
+h = tiledlayout(1,2);
+
+nexttile;
+imagesc(vis_psth_cat(responsive_units_cat(sort_idx),:,3));
+clim([-10,10]);
+title('Vis (V units)')
+
+nexttile;
+imagesc(aud_psth_cat(responsive_units_cat(sort_idx),:,2));
+clim([-10,10]);
+title('Aud (V units)')
 
 
 

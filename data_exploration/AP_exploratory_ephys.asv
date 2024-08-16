@@ -82,7 +82,7 @@ end
 mua_corr = corrcoef(binned_spikes_depth');
 
 figure;
-imagesc(mua_corr);
+imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
 axis image;
 clim([-1,1].*0.5);
 colormap(ap.colormap('BWR'))
@@ -211,7 +211,8 @@ for curr_align = 1:length(align_times)
         reshape(t_peri_event',[],1),1:size(templates,1)+1)./psth_bin_size;
 
     use_continuous_bins = reshape(padarray(true(size(t_peri_event(:,1:end-1)')),[1,0],false,'post'),[],1);
-    spikes_binned = spikes_binned_continuous(use_continuous_bins,:);
+    spikes_binned = reshape(spikes_binned_continuous(use_continuous_bins,:), ...
+        size(t_peri_event,[2,1])
 
     unit_psth(:,:,curr_align) = ...
         nanmean(permute(reshape(spikes_binned, ...
@@ -223,7 +224,7 @@ smooth_size = 100;
 unit_psth_smooth = smoothdata(unit_psth,2,'gaussian',smooth_size);
 
 % Normalize to baseline (t<0 in first alignment)
-softnorm = 1;
+softnorm = 0.5;
 unit_baseline = nanmean(unit_psth(:,t_bins(2:end) < 0,1),2);
 unit_psth_smooth_norm = (unit_psth_smooth-unit_baseline)./(unit_baseline+softnorm);
 
@@ -254,7 +255,7 @@ elseif contains(bonsai_workflow,'hml')
     use_align = stimOn_times(stim_type == 8000 & quiescent_trials);
 elseif contains(bonsai_workflow,'stim_wheel')
     % (task)
-    use_align = stimOn_times(stim_to_move > 0.15);
+    use_align = stimOn_times;
 end
 
 baseline_t = [-0.2,0];
@@ -865,7 +866,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP015'};
+animals = {'DS000'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -955,7 +956,7 @@ title(h,animal);
 
 %% Batch MUA by depth
 
-animal = 'AM027';
+animal = 'AM026';
 use_workflow = 'lcr_passive';
 % use_workflow = 'hml_passive_audio';
 % use_workflow = 'stim_wheel*';
@@ -1062,32 +1063,22 @@ end
 
 % Plot MUA
 figure; 
-h = tiledlayout(2,length(day_mua),'TileIndexing','columnmajor');
+h = tiledlayout(1,length(day_mua));
 for curr_day = 1:length(day_mua)
 
-    % (plot scaled within-day)
     nexttile(h); hold on;
     align_col = lines(size(day_mua{curr_day},3));
-    rescale = 1/(1.2*max(day_mua{curr_day},[],'all'));
     for curr_align = 1:size(day_mua{curr_day},3)
         AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
-            1,rescale,align_col(curr_align,:));
+            2,1,align_col(curr_align,:));
     end
     xline(0,'k');
-
-    % (plot non-rescaled)
-    nexttile(h); hold on;
-    for curr_align = 1:size(day_mua{curr_day},3)
-        AP_stackplot(day_mua{curr_day}(:,:,curr_align)',t_centers, ...
-            3,1,align_col(curr_align,:));
-    end
-    xline(0,'k');
+    title(recordings(curr_day).day);
 
     drawnow;
 end
-linkaxes(h.Children(1:2:end));
-linkaxes(h.Children(2:2:end));
-title(h,{'Rescaled','Not rescaled'});
+linkaxes(h.Children);
+title(h,sprintf('%s: %s',animal,use_workflow),'interpreter','none');
 
 
 

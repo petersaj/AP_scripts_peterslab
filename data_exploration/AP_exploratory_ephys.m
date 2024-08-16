@@ -82,7 +82,7 @@ end
 mua_corr = corrcoef(binned_spikes_depth');
 
 figure;
-imagesc(mua_corr);
+imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
 axis image;
 clim([-1,1].*0.5);
 colormap(ap.colormap('BWR'))
@@ -211,11 +211,10 @@ for curr_align = 1:length(align_times)
         reshape(t_peri_event',[],1),1:size(templates,1)+1)./psth_bin_size;
 
     use_continuous_bins = reshape(padarray(true(size(t_peri_event(:,1:end-1)')),[1,0],false,'post'),[],1);
-    spikes_binned = spikes_binned_continuous(use_continuous_bins,:);
+    spikes_binned = permute(reshape(spikes_binned_continuous(use_continuous_bins,:), ...
+        size(t_peri_event,2)-1,size(t_peri_event,1),size(templates,1)),[3,1,2]);
 
-    unit_psth(:,:,curr_align) = ...
-        nanmean(permute(reshape(spikes_binned, ...
-        size(t_peri_event,2)-1,[],size(templates,1)),[3,1,2]),3);
+    unit_psth(:,:,curr_align) = nanmean(spikes_binned,3);
 end
 
 
@@ -865,7 +864,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'DS003'};
+animals = {'DS006'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
