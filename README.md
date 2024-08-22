@@ -20,7 +20,7 @@ Scripts written after opening lab
 - create and save new animal alignment: `ap.align_widefield(day-aligned retinotopy,animal,[],'new_animal')` (aligns day-aligned average animal retinotopy to master retinotopy)
 
 - `wf_roi`: grab fluorescence trace in ROI
-- `wf_draw`: draw CCF borders/grid/point over aligned widefield
+- `wf_draw`: draw CCF borders/grid/point/areas over aligned widefield
 - `wf_reflect`: flips L/R on aligned widefield image
 - `wf_load_raw`: load/scroll raw frames
 - `wf_corrviewer`: view seed pixel correlations in widefield
