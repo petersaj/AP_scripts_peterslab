@@ -7,8 +7,8 @@ function h = wf_draw(type,color,manual_bregma)
 % - scalebar
 % - bregma
 % - grid
-% - point: [AP,ML] in mm
-% - point_aligned: [AP,ML] in mm tranformed via CCF alignment
+% - point: [AP,ML] in mm transformed via CCF alignment
+% - point_absolute: [AP,ML] in mm absolute distance (um/px)
 % - ccf: all cortical areas
 % - area: search and plot CCF area
 %
@@ -100,14 +100,6 @@ switch type
         h.bregma = plot(bregma_offset_x,bregma_offset_y,'xr','MarkerSize',10);
 
     case 'point'
-        % Plot a point at specific coordinates (in um/px)
-        [point_ap,point_ml] = deal(color(1),color(2));
-
-        plot(bregma_offset_x+point_ml*1000/um2pixel, ...
-            bregma_offset_y-point_ap*1000/um2pixel,'oy','markersize',20);       
-        warning('um/px: needs more accurate measurement');
-
-    case 'point_aligned'
         % Plot a point at specific coordinates (in CCF-aligned transform)
         point_ml_ap = fliplr(color);
 
@@ -115,7 +107,17 @@ switch type
         point_ccf_aligned = [point_ccf,1]*ccf_tform.T;
         
         plot(point_ccf_aligned(1),point_ccf_aligned(2), ...
-            '.y','markersize',20);
+            '.r','markersize',20);
+
+    case 'point_absolute'
+        % Plot a point at specific coordinates (in um/px)
+        % (NOTE: this shouldn't be used for aligned images, since
+        % CCF-relative coordinates will be more consistent)
+        [point_ap,point_ml] = deal(color(1),color(2));
+
+        plot(bregma_offset_x+point_ml*1000/um2pixel, ...
+            bregma_offset_y-point_ap*1000/um2pixel,'.b','markersize',20);
+        warning('um/px: needs more accurate measurement');
         
     case 'ccf'
         % Plot CCF borders aligned to master retinotopy        

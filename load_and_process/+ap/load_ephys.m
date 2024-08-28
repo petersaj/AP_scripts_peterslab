@@ -383,8 +383,10 @@ if verbose; fprintf('kept %d/%d "good" units...\n',sum(good_templates),length(go
 % 
 % % (empirical)
 % tans = spike_rate >= 4 & spike_rate <= 12 & ...
-%     acg_isi >= 60;
+%     acg_isi >= 40; % (40 was used by Julie)
 % 
+% if verbose;fprintf('TAN: %d\n',find(tans)); end
+%
 % %%%%%%%%%%%%%%%%%%
 
 

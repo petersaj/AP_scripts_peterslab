@@ -301,8 +301,9 @@ end
 
 %% Plot all recording locations
 
-animals = {'AP022','DS000','DS007','DS010', ...
-    'AP021','DS001','DS003','DS004'};
+animals = {'AP022','DS000','DS007','DS010','DS005','DS011', ... 
+    'AP021','DS001','DS003','DS004', ...
+    'AP018','DS006'};
 
 animal_col = [brewermap(8,'Dark2');brewermap(8,'Set2')];
 ccf_draw = ap.ccf_draw;
@@ -315,6 +316,10 @@ for curr_animal = 1:length(animals)
 end
 
 %% Get recording locations/days
+
+animals = {'AP022','DS000','DS007','DS010','DS005','DS011', ... 
+    'AP021','DS001','DS003','DS004', ...
+    'AP018','DS006'};
 
 % Find anterior/posterior striatum recordings (from NTE)
 str_rec_days = cell(length(animals),2); % [ant,pos]
@@ -355,8 +360,9 @@ save(data_fn,'str_rec_days');
 
 %% Get association performance
 
-animals = {'AP022','DS000','DS007','DS010', ...
-    'AP021','DS001','DS003','DS004'};
+animals = {'AP022','DS000','DS007','DS010','DS005','DS011', ... 
+    'AP021','DS001','DS003','DS004', ...
+    'AP018','DS006'};
 
 % Load recording days
 data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
@@ -372,7 +378,7 @@ for curr_animal = 1:length(animals)
             animal = animals{curr_animal};
             rec_day = str_rec_days{curr_animal,curr_ap}{curr_day};
 
-            workflow = 'stim_wheel_right_stage2_mixed_VA';
+            workflow = 'stim_wheel_right*mixed_VA';
             recordings = plab.find_recordings(animal,rec_day,workflow);
             rec_time = recordings.recording{end};
 
@@ -408,8 +414,9 @@ save(data_fn,'bhv_p');
 
 %% Striatum MUA (whole striatum together)
 
-animals = {'AP022','DS000','DS007','DS010', ...
-    'AP021','DS001','DS003','DS004'};
+animals = {'AP022','DS000','DS007','DS010','DS005','DS011', ... 
+    'AP021','DS001','DS003','DS004', ...
+    'AP018','DS006'};
 
 % Load recording days
 data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
@@ -426,8 +433,8 @@ for curr_animal = 1:length(animals)
             rec_day = str_rec_days{curr_animal,curr_ap}{curr_day};
 
 %             workflow = 'stim_wheel_right_stage2_mixed_VA';
-%             workflow = 'lcr_passive';
-            workflow = 'hml_passive_audio';
+            workflow = 'lcr_passive';
+%             workflow = 'hml_passive_audio';
             recordings = plab.find_recordings(animal,rec_day,workflow);
             rec_time = recordings.recording{end};
 
@@ -526,10 +533,11 @@ end
 linkaxes(gcf().Children.Children);
 
 
-%% Striatum unit PSTHs
+%% Striatum unit PSTHs: passive
 
-animals = {'AP022','DS000','DS007','DS010', ...
-    'AP021','DS001','DS003','DS004'};
+animals = {'AP022','DS000','DS007','DS010','DS005','DS011', ... 
+    'AP021','DS001','DS003','DS004', ...
+    'AP018','DS006'};
 
 % Load recording days
 data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
@@ -666,9 +674,9 @@ load(fullfile(data_dir,'bhv_p'));
 cell2mat(horzcat(bhv_p{:,1})') < 0.05;
 cell2mat(horzcat(bhv_p{:,2})') < 0.05;
 
-% (manually define V>A and A>V for now)
+% (manually define V>A)
 training_order = ismember(animals', ...
-    {'AP021','AP022','DS001','DS007','DS010','DS011'});
+    {'AP022','DS007','DS010','DS011','AP021','DS001','AP018','DS006'});
 
 
 % Get total fraction of responsive units by modality
@@ -729,7 +737,7 @@ unit_psth_all_norm = cellfun(@(x) cellfun(@(x) ...
 
 % Plot PSTHs for V/A units during V/A stim
 str_ap = 1;
-use_animals = training_order==1;
+use_animals = training_order == 0;
 
 vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
