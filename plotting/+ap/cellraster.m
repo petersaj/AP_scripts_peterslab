@@ -355,13 +355,15 @@ if length(gui_data.curr_unit) == 1
     
 elseif length(gui_data.curr_unit) > 1
     % (multiunit mode)
-     
+
     % (plot raster matrix as heatmap)
     raster_heatmap = smoothdata(curr_raster_sorted,2,'gaussian',smooth_size);
     set(gui_data.raster_image,'XData',gui_data.t,'YData', ...
         1:size(gui_data.t_peri_event,1),'CData',raster_heatmap);
-    caxis(get(gui_data.raster_image,'Parent'),prctile(raster_heatmap(:),[0,100]));
     axis(get(gui_data.raster_image,'Parent'),'tight');
+
+    % (set color limit as 0 to 50% max value)
+    clim(get(gui_data.raster_image,'Parent'),[0,max(raster_heatmap,[],'all').*0.5]);
 end
 
 % Plot template amplitude over whole experiment
