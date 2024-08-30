@@ -188,7 +188,7 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'AM014';
+animal = 'AM026';
 
 % Create across-day alignments
 plab.wf.wf_align([],animal,[],'new_days');
@@ -202,7 +202,7 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'AM015';
+animal = 'DS015';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

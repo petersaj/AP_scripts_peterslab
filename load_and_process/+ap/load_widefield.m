@@ -56,11 +56,21 @@ elseif wf_cam_tl_frame_diff < 0
     [wf_dropped_frames,wf_dropped_frame_idx] = ...
         plab.wf.find_dropped_frames(widefield_metadata_fn,false);
 
-    if -wf_cam_tl_frame_diff ~= length(wf_dropped_frames)
+    if -wf_cam_tl_frame_diff == length(wf_dropped_frames)
+        % If dropped frames were all identified, use non-dropped frames
+        wf_use_frames = ~wf_dropped_frame_idx;
+    elseif (-wf_cam_tl_frame_diff - length(wf_dropped_frames)) < 300
+        % If few dropped frames and not all identified, error out
         error('Widefield: could not identify dropped frames')
+    elseif (-wf_cam_tl_frame_diff - length(wf_dropped_frames)) > 300
+        % If large number of dropped frames, assume the remainder at end
+        % (note: this is very messy - made to handle cases where the camera
+        % broke at the end of the recording)
+        wf_use_frames = false(size(widefield_expose_times));
+        wf_use_frames(1:length(wf_dropped_frame_idx)) = ~wf_dropped_frame_idx;
+        warning('Widefield: %d dropped frames could not be identified, assuming at end of recording', ...
+            -wf_cam_tl_frame_diff - length(wf_dropped_frames));
     end
-
-    wf_use_frames = ~wf_dropped_frame_idx;
 
 end
 

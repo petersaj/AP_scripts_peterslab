@@ -85,6 +85,17 @@ if contains(bonsai_workflow,'stim_wheel')
     stimOn_times = photodiode_on_times(setdiff(1:length(photodiode_on_times),photodiode_flicker+1));
     stimOff_times = photodiode_off_times(setdiff(1:length(photodiode_off_times),photodiode_flicker));
 
+    % Ensure that n stims match n trials
+    if length(stimOn_times) < n_trials
+        % If fewer stims than trials, assume broken at end and cut off
+        n_trials = length(stimOn_times);
+        warning('%s %s %s: fewer stim onsets than bonsai trials, truncating stims', ...
+            animal,rec_day,rec_time);
+    elseif length(stimOn_times) > n_trials
+        error('%s %s %s: more stim onsets than bonsai trials - check manually', ...
+            animal,rec_day,rec_time);
+    end
+
     % Find the last move stop before stim on
     % (sometimes this isn't after the stimulus: Bonsai's quiescence clock
     % isn't very accurate)
@@ -120,7 +131,7 @@ if contains(bonsai_workflow,'stim_wheel')
         end
     else
         % Without Bonsai event: closest reward to stim off on rewarded trials
-        trial_outcome = vertcat(trial_events.values.Outcome);
+        trial_outcome = vertcat(trial_events.values(1:n_trials).Outcome);
         reward_times_task = interp1(reward_times,reward_times, ...
             stimOff_times(trial_outcome==1),'nearest','extrap');
     end    
