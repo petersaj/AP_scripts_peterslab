@@ -153,7 +153,7 @@ raster_axes = nexttile([4,2]);
 set(raster_axes,'YDir','reverse','YAxisLocation','right');
 hold on;
 raster_dots = scatter(NaN,NaN,5,'k','filled');
-raster_image = imagesc(NaN,'visible','off'); colormap(raster_axes,hot);
+raster_image = imagesc(NaN,'visible','off'); colormap(raster_axes,ap.colormap('WK',[],1));
 xlabel('Time from event (s)');
 ylabel('Trial');
 
@@ -361,9 +361,7 @@ elseif length(gui_data.curr_unit) > 1
     set(gui_data.raster_image,'XData',gui_data.t,'YData', ...
         1:size(gui_data.t_peri_event,1),'CData',raster_heatmap);
     axis(get(gui_data.raster_image,'Parent'),'tight');
-
-    % (set color limit as 0 to 50% max value)
-    clim(get(gui_data.raster_image,'Parent'),[0,max(raster_heatmap,[],'all').*0.5]);
+    clim(get(gui_data.raster_image,'Parent'),prctile(raster_heatmap,[0,99.9],'all'));
 end
 
 % Plot template amplitude over whole experiment
