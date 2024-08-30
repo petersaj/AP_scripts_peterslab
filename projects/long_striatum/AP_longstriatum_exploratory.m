@@ -2,9 +2,13 @@
 
 %% Cortical activity split by striatal activity amount
 
-use_depth = [1000,2000];
+use_depth = [2000,3000];
+ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas)
+yline(use_depth,'r');
+
 use_spikes = spike_depths >= use_depth(1) & spike_depths <= use_depth(2);
 
+% (passive)
 % PSTH for quiescent right-stim trials
 stim_window = [0,0.5];
 quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
@@ -15,12 +19,15 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 stim_x = vertcat(trial_events.values.TrialStimX);
 align_times = stimOn_times(stim_x == 90 & quiescent_trials);
 
+% % (task)
+% align_times = stimOn_times;
+
 psth = permute(ap.ephys_psth(spike_times_timelite(use_spikes),num2cell(align_times),'smoothing',20),[3,2,1]);
 
 psth_tavg = nanmean(psth(:,500:700),2);
 [~,sort_idx] = sort(psth_tavg);
 
-n_grps = 6;
+n_grps = 3;
 trial_grp = discretize(psth_tavg,prctile(psth_tavg,linspace(0,100,n_grps+1)));
 psth_grp_avg = ap.groupfun(@nanmean,psth,trial_grp,[]);
 figure; 
@@ -64,7 +71,15 @@ clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
 set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
+% (testing: correlate grouped striatal/cortical activity)
+str_grp_tavg = ap.groupfun(@nanmean,psth_tavg,trial_grp,[]);
 
+r = reshape(1-pdist2(str_grp_tavg',reshape(aligned_px_avg,[],n_grps), ...
+    'correlation'),size(aligned_px_avg,[1,2,3]));
+
+ap.imscroll(r,t); axis image;
+clim([-1,1]);
+colormap(AP_colormap('BWR',[],5));
 
 
 %% ~~~~~~~~~~~ BATCH
@@ -1281,7 +1296,7 @@ load(fullfile(am_data_path,'ctx_maps_passive.mat'));
 % load(fullfile(am_data_path,'ctx_maps_task.mat'));
 load(fullfile(am_data_path,'wf_passive.mat'));
 load(fullfile(am_data_path,'stim_cells.mat'));
-load(fullfile(am_data_path,'ctx_str_prediction.mat'));
+% load(fullfile(am_data_path,'ctx_str_prediction.mat')); % (note this overrides mua above)
 load(fullfile(am_data_path,'tan_psth_all.mat'));
 
 
@@ -1455,7 +1470,7 @@ use_maps = ctx_expl_var_cat > 0.05;
 
 n_k = 4;
 kidx = nan(size(ctx_map_cat,3),1);
-[kidx(use_maps),ck] = kmeans(reshape(ctx_map_cat(:,:,use_maps),[],sum(use_maps))',n_k,'Distance','correlation');
+[kidx(use_maps),ck] = kmeans(reshape(ctx_map_cat(:,:,use_maps),[],sum(use_maps))',n_k,'distance','correlation','replicates',5);
 ck = reshape(ck',[size(ctx_map_cat,[1,2]),n_k]);
 
 figure;tiledlayout(1,n_k,'tilespacing','none','tileindexing','columnmajor');
@@ -1505,16 +1520,17 @@ for curr_kidx = 1:n_k
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
 
-%     %%% TESTING (for stats)
-%     ld_x = unique(grp(:,2));
-%     act_grid = nan(max(grp(:,1)),length(ld_x));
-%     for curr_entry = 1:size(x11,1)
-%         act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
-%             x11(curr_entry);
-%     end
-%     p = signrank(nanmean(act_grid(:,ld_x <= -2),2),act_grid(:,ld_x == -1));
-%     %%%%%
-    
+    %%% TESTING (for stats)
+    ld_x = unique(grp(:,2));
+    act_grid = nan(max(grp(:,1)),length(ld_x));
+    for curr_entry = 1:size(x11,1)
+        act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
+            x11(curr_entry);
+    end
+    p = signrank(nanmean(act_grid(:,ld_x <= -2),2),act_grid(:,ld_x == -1));
+    fprintf('Kidx %d: p = %.3f\n',curr_kidx,p);
+    %%%%%
+
 end
 
 % Plot responsive cell fraction by k-means cluster
@@ -1538,15 +1554,16 @@ for curr_kidx = 1:n_k
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
 
-%     %%% TESTING (for stats)
-%     ld_x = unique(grp(:,2));
-%     act_grid = nan(max(grp(:,1)),length(ld_x));
-%     for curr_entry = 1:size(x11,1)
-%         act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
-%             x11(curr_entry);
-%     end
-%     p = signrank(nanmean(act_grid(:,ld_x <= -2),2),act_grid(:,ld_x == -1));
-%     %%%%%
+    %%% TESTING (for stats)
+    ld_x = unique(grp(:,2));
+    act_grid = nan(max(grp(:,1)),length(ld_x));
+    for curr_entry = 1:size(x11,1)
+        act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
+            stim_cells_frac(curr_entry);
+    end
+    p = signrank(nanmean(act_grid(:,ld_x <= -2),2),act_grid(:,ld_x == -1));
+    fprintf('Kidx %d: p = %.3f\n',curr_kidx,p);
+    %%%%%
 
 end
 

@@ -23,7 +23,7 @@ clearvars -except wf_lr_master
 
 %% Create L/R image and animal align
 
-animal = 'AM014';
+animal = 'AM015';
 
 recordings = plab.find_recordings(animal,[],'lcr_passive');
 wf_recordings = recordings(cellfun(@any,{recordings.widefield}));
@@ -83,9 +83,9 @@ end
 
 use_frames = 15:25;
 % (use all non-empty days)
-% wf_mean = nanmean(cat(5,wf_day_mean{cellfun(@(x) ~isempty(x),wf_day_mean)}),5);
+wf_mean = nanmean(cat(5,wf_day_mean{cellfun(@(x) ~isempty(x),wf_day_mean)}),5);
 % (use subset of days)
-wf_mean = nanmean(cat(5,wf_day_mean{5:7}),5);
+% wf_mean = nanmean(cat(5,wf_day_mean{5:7}),5);
 
 wf_max = squeeze(max(wf_mean(:,:,use_frames,:),[],3));
 wf_lr_unaligned = wf_max(:,:,1) - wf_max(:,:,3);

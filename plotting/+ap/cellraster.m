@@ -305,15 +305,11 @@ elseif length(unique(sign(curr_group(curr_group ~= 0)))) == 2
 end
 
 % Plot smoothed PSTH
-smooth_size = 51;
-gw = gausswin(smooth_size,3)';
-smWin = gw./sum(gw);
+smooth_size = 50;
 bin_t = mean(diff(gui_data.t));
 
-curr_psth = grpstats(curr_raster,curr_group,@(x) mean(x,1));
-curr_smoothed_psth = conv2(padarray(curr_psth, ...
-    [0,floor(length(smWin)/2)],'replicate','both'), ...
-    smWin,'valid')./bin_t;
+curr_psth = grpstats(curr_raster,curr_group,@(x) mean(x,1))./bin_t;
+curr_smoothed_psth = smoothdata(curr_psth,2,'gaussian',smooth_size);
 
 cla(gui_data.psth_axes);
 set(gui_data.psth_axes,'ColorOrder',group_colors);
@@ -360,8 +356,8 @@ if length(gui_data.curr_unit) == 1
 elseif length(gui_data.curr_unit) > 1
     % (multiunit mode)
      
-    % (plot raster matrix as smoothed heatmap)
-    raster_heatmap = imgaussfilt(curr_raster_sorted,[3,5]);
+    % (plot raster matrix as heatmap)
+    raster_heatmap = smoothdata(curr_raster_sorted,2,'gaussian',smooth_size);
     set(gui_data.raster_image,'XData',gui_data.t,'YData', ...
         1:size(gui_data.t_peri_event,1),'CData',raster_heatmap);
     caxis(get(gui_data.raster_image,'Parent'),prctile(raster_heatmap(:),[0,100]));
