@@ -699,18 +699,18 @@ axis image off
 
 %% |--> Predicted PSTH by MUA
 
-% (passive)
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    1:length(stimOn_times))';
+% % (passive)
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     1:length(stimOn_times))';
+% 
+% stim_x = vertcat(trial_events.values.TrialStimX);
+% align_times = stimOn_times(quiescent_trials & stim_x == 90);
 
-stim_x = vertcat(trial_events.values.TrialStimX);
-align_times = stimOn_times(quiescent_trials & stim_x == 90);
-
-% % (task)
-% align_times = stimOn_times;
+% (task)
+align_times = stimOn_times;
 
 % Set times for PSTH
 surround_window = [-0.2,1];
@@ -742,6 +742,80 @@ figure; hold on;
 AP_stackplot(aligned_trace_measured_mean_norm',t,yscale,[],'k');
 AP_stackplot(aligned_trace_predicted_mean_norm',t,yscale,[],'r');
 xline(0);
+
+%% Widefield/ephys regression (JUST ITI) DOESN'T WORK
+% THIS DOESNT WORK 
+
+% Set upsample value for regression
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
+
+% Skip the first/last n seconds to do this
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+% (group multiunit by evenly spaced depths)
+n_depths = 8;
+depth_group_edges = round(linspace(0,4000,n_depths+1));
+[depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+depth_groups_used = unique(depth_group);
+depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+% Bin spikes
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+binned_spikes = zeros(n_depths,length(time_bins)-1);
+for curr_depth = 1:n_depths
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+end
+
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+% Set times to use (no movement, no stim)
+stim_on_epochs = interp1(photodiode_times,photodiode_values,time_bin_centers','previous');
+wheel_move_epochs = interp1(timelite.timestamps,+wheel_move,time_bin_centers','previous');
+use_t = ~stim_on_epochs & ~wheel_move_epochs;
+
+use_svs = 1:100;
+kernel_t = [-0.2,0.2];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 50;
+zs = [false,false];
+cvfold = 5;
+return_constant = false;
+use_constant = true;
+discontinuities = [0;diff(use_t) == 1];
+
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+
+% Regress cortex to spikes
+[k,~,explained_var] = ...
+    ap.regresskernel(fVdf_deconv_resample(:,use_t), ...
+    binned_spikes_std(:,use_t),kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant,discontinuities(use_t));
+
+% Apply kernel (from partial data) to whole dataset
+% (DOESN'T WORK - maybe easier to modify function to have things included
+% in regression and things not)
+predicted_spikes = cell2mat(arrayfun(@(str) sum(cell2mat(arrayfun(@(v) ...
+    conv(fVdf_deconv_resample(v,:),k(v,:,str),'same'), ...
+    1:size(k,1),'uni',false)'),1),1:size(k,3),'uni',false)');
+
+% Convert kernel to pixel space
+r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
+
+AP_imscroll(r_px,kernel_frames/wf_framerate);
+clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+colormap(AP_colormap('BWR'));
+axis image;
+
+
+
+
 
 
 %% Widefield/ephys regression maps (all single units)

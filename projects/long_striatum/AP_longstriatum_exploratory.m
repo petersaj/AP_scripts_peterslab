@@ -1,5 +1,161 @@
 %% ~~~~~~~~~~~ INDIVIDUAL 
 
+%% Get striatal and cortex ROI trial activity
+
+
+% Set upsample value for regression
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
+
+% Skip the first/last n seconds to do this
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+% (group multiunit by size bins)
+
+% Get striatum start = lowest unit density, end = end of probe
+unit_density_bins = 0:100:3840;
+unit_density = histcounts(template_depths,unit_density_bins);
+[~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
+unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
+template_depths_sorted = sort(template_depths);
+str_start =  template_depths_sorted(find(template_depths_sorted >= ...
+    unit_density_bins(unit_density_min_idx+1),1));
+str_end = max(channel_positions(:,2));
+
+depth_size = 300;
+depth_group_edges = unique([str_start:depth_size:str_end,str_end]);
+[depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
+depth_groups_used = unique(depth_group);
+depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
+yline(depth_group_edges,'r','linewidth',2)
+
+% Bin spikes
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+binned_spikes = zeros(n_depths,length(time_bins)-1);
+for curr_depth = 1:n_depths
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+end
+
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+use_svs = 1:100;
+kernel_t = [0,0];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 10;
+zs = [false,false];
+cvfold = 5;
+return_constant = false;
+use_constant = true;
+
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+
+% Regress cortex to spikes
+[k,predicted_spikes,explained_var] = ...
+    AP_regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+
+% Convert kernel to pixel space
+r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
+
+AP_imscroll(r_px,kernel_frames/wf_framerate);
+clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+colormap(AP_colormap('BWR'));
+axis image;
+
+
+% Regress cortex to spikes
+[k,predicted_spikes,explained_var] = ...
+    ap.regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+
+% Convert kernel to pixel space
+r_px = permute(plab.wf.svd2px(wf_U(:,:,use_svs),k),[1,2,4,3]);
+k_roi = r_px > std(r_px(:))*3;
+k_roi(:,round(size(k_roi,2)/2):end,:) = false;
+
+figure;
+imagesc(sum(k_roi.*permute(1:size(k_roi,3),[1,3,2]),3));
+colormap(AP_colormap('BKR'));
+clim([0,size(k_roi,3)])
+ap.wf_draw('ccf','w');
+axis image;
+
+
+% Align data
+if contains(bonsai_workflow,'passive')
+% LCR passive: align to quiescent stim onset
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
+
+stim_x = vertcat(trial_events.values.TrialStimX);
+align_times = stimOn_times(quiescent_trials & stim_x == 90);
+sort_idx = 1:length(align_times);
+
+elseif contains(bonsai_workflow,'stim_wheel')
+% (task)
+align_times = stimOn_times;
+[~,sort_idx] = sort(stim_to_move);
+
+end
+
+% Align data to align times
+
+% (striatum)
+% (note - missing depth group handled weirdly atm)
+[~,str_psth_all] = ap.ephys_psth(spike_times_timelite,align_times,depth_group,'norm_window',[-0.5,0],'smoothing',100);
+str_psth = nan(size(align_times,1),size(str_psth_all{1},2),n_depths);
+str_psth(:,:,unique(depth_group)) = str_psth_all{1};
+
+% (cortex)
+[roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,[],[],k_roi);
+
+surround_window = [-0.5,1];
+surround_samplerate = wf_framerate;
+t = surround_window(1):1/surround_samplerate:surround_window(2);
+peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
+
+aligned_trace = reshape(interp1(wf_t,roi_trace',peri_event_t,'previous'), ...
+    length(align_times),length(t),[]);
+aligned_trace_baselinesub = aligned_trace - ...
+    mean(aligned_trace(:,t < 0,:),2);
+
+figure;
+h = tiledlayout(3,n_depths,'TileIndexing','ColumnMajor');
+for curr_str = 1:n_depths
+    nexttile;
+    imagesc(k_roi(:,:,curr_str));
+    axis image off;
+    set(gca,'colormap',ap.colormap('WK'));
+    ap.wf_draw('ccf','r');
+
+    nexttile;
+    imagesc(t,[],aligned_trace_baselinesub(sort_idx,:,curr_str))
+    clim(0.8*max(max(aligned_trace_baselinesub,[],'all')).*[-1,1]);
+    xline(0);
+    set(gca,'colormap',AP_colormap('PWG'))
+
+    nexttile;
+    imagesc(linspace(-0.5,1,size(str_psth,2)),[],str_psth(sort_idx,:,curr_str))
+    clim(0.2*max(max(str_psth,[],'all')).*[-1,1]);
+    xline(0);
+    set(gca,'colormap',AP_colormap('PWG'))
+end
+
+
+
 %% Cortical activity split by striatal activity amount
 
 use_depth = [2000,3000];
@@ -1421,11 +1577,13 @@ errorbar(unique(grp(:,2)),m,e,'k','linewidth',2);
 
 % Average widefield from animals/days used above
 use_align = 3;
-use_v = ismember(V_animal_day_idx,grp,'rows');
+% use_v = ismember(V_animal_day_idx,grp,'rows');
+use_v = true(size(V_animal_day_idx,1),1);
 
 V_avg = permute(ap.groupfun(@nanmean,V_cat(:,:,use_align,use_v),[],[],[],V_animal_day_idx(use_v,2)),[1,2,4,3]);
 px_avg = plab.wf.svd2px(U_master,V_avg);
-ap.imscroll(px_avg);
+ld_x = unique(V_animal_day_idx(use_v,2));
+ap.imscroll(px_avg(:,:,:,ismember(ld_x,-3:3)));
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
@@ -1482,10 +1640,10 @@ for i = 1:n_k
     colormap(ap.colormap('PWG',[],1.5));
     ap.wf_draw('ccf','k');
 end
-
+    
 % Plot MUA by k-means cluster
 use_align = 3;
-figure;h = tiledlayout(1,n_k);
+figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 
     curr_use_ctx = kidx == curr_kidx;
@@ -1506,10 +1664,13 @@ for curr_kidx = 1:n_k
     end
     colormap(ap.colormap('PWG',[],1.5));
 
-
     x1 = ap.groupfun(@sum,r(curr_use_ctx,:,use_align),grp_idx,[]);
     x1_norm = (x1-nanmean(x1(:,1:500),2))./nanmean(x1(:,1:500),2);
     x11 = max(x1_norm(:,use_t(1):use_t(2)),[],2);
+
+    x1_norm_grp = ap.groupfun(@mean,x1_norm,grp(:,2),[]);
+    nexttile(h); colororder(ap.colormap('BKR',7));
+    plot(x1_norm_grp(ismember(ld_x,-3:3),:)','linewidth',2);
 
     nexttile(h); hold on;
     arrayfun(@(x) plot(grp(grp(:,1)==x,2), x11(grp(:,1)==x)),unique(grp(:,1)));
@@ -1517,7 +1678,7 @@ for curr_kidx = 1:n_k
     ylabel('MUA')
 
     [m,e] = grpstats(x11,grp(:,2),{'mean','sem'});
-    errorbar(unique(grp(:,2)),m,e,'k');
+    errorbar(ld_x,m,e,'k');
     drawnow;
 
     %%% TESTING (for stats)
@@ -1532,6 +1693,8 @@ for curr_kidx = 1:n_k
     %%%%%
 
 end
+linkaxes(h.Children(2:2:end));
+
 
 % Plot responsive cell fraction by k-means cluster
 figure;h = tiledlayout(1,n_k);

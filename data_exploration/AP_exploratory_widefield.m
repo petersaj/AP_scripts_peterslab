@@ -130,6 +130,10 @@ align_category = align_category_all(quiescent_trials);
 
 baseline_times = stimOn_times(quiescent_trials);
 
+% % (task)
+% align_times = stimOn_times;
+% baseline_times = stimOn_times;
+% align_category = ones(size(align_times));
 
 % Align ROI trace to align times
 surround_window = [-1,4];
@@ -157,6 +161,7 @@ for curr_id = 1:max(align_id)
     xline(0);
 end
 colormap(AP_colormap('PWG'));
+
 
 %% Sparse noise retinotopy (single day)
 

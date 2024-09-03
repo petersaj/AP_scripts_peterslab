@@ -1,4 +1,4 @@
-function psth = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
+function [psth_avg,psth_trial] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
 
 arguments
 
@@ -18,13 +18,13 @@ arguments
 
 end
 
-% psth = ephys_psth(spike_times,align_times,spike_groups,Name,Value)
+% [psth_avg,psth_trial] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
 % 
 % Make PSTHs for spike data
 %
 % INPUTS
 % align_times = cell array of times to align
-% spike_groups (optional) = grouping variable for spike times
+% spike_groups (optional) = grouping variable for spike times (ignore NaNs)
 % 
 % Name-Value arguments: 
 % window = window around align times to gather (default = [-0.5,1])
@@ -36,7 +36,13 @@ end
 %
 % OUTPUTS
 %
-% psth = group x t x align (averaged across instances within alignment)
+% psth_avg = group x t x align (averaged across instances within alignment)
+% psth_trial = 
+
+% If 'align_times' is a vector, convert it into a cell
+if ~iscell(align_times)
+    align_times = {align_times};
+end
 
 % Set time bins
 t_bins = psth_opts.window(1):psth_opts.bin_size:psth_opts.window(2);
@@ -47,7 +53,7 @@ t_centers = conv2(t_bins,[1,1]/2,'valid');
 % (re-number spike groups as 1:N)
 [spike_groups_unique,~,spike_groups_renumbered] = unique(spike_groups);
 
-psth = nan(length(spike_groups_unique),length(t_bins)-1,length(align_times));
+psth = cell(length(align_times));
 for curr_align = 1:length(align_times)
 
     % Get time bins around event (ensure column vector align times)
@@ -57,10 +63,12 @@ for curr_align = 1:length(align_times)
     % Make spike group "bins" (centered on integers)
     spike_group_bins = 0.5:1:length(spike_groups_unique)+1;
 
-    % Bin spikes
+    % Use spikes only within time bounds and with valid group
     use_spikes = spike_times >= min(align_bins_vector) & ...
-        spike_times <= max(align_bins_vector);
+        spike_times <= max(align_bins_vector) & ...
+        ~isnan(spike_groups);
 
+    % Bin spikes 
     spikes_binned_continuous = histcounts2( ...
         spike_times(use_spikes), ...
         spike_groups_renumbered(use_spikes), ...
@@ -72,14 +80,14 @@ for curr_align = 1:length(align_times)
         true(size(align_bins(:,1:end-1)')), ...
         [1,0],false,'post'),[],1);
 
-    spikes_binned_aligned = permute( ...
-        reshape(spikes_binned_continuous(use_continuous_bins,:), ...
+    spikes_binned_aligned = ...
+        permute(reshape(spikes_binned_continuous(use_continuous_bins,:), ...
         size(align_bins,2)-1,size(align_bins,1),length(spike_groups_unique)), ...
-        [3,1,2]);
+        [2,1,3]);
 
     spikes_binned_aligned_rate = spikes_binned_aligned./psth_opts.bin_size;
 
-    psth(:,:,curr_align) = nanmean(spikes_binned_aligned_rate,3);
+    psth{curr_align} = spikes_binned_aligned_rate;
 
 end
 
@@ -87,7 +95,8 @@ end
 
 % Smooth
 if psth_opts.smoothing > 0
-    psth = smoothdata(psth,2,'gaussian',psth_opts.smoothing);
+    psth = cellfun(@(x) smoothdata(x,2,'gaussian', ...
+        psth_opts.smoothing),psth,'uni',false);
 end
 
 % Normalize
@@ -95,12 +104,13 @@ if ~all(isnan(psth_opts.norm_window))
     t_baseline = t_centers >= psth_opts.norm_window(1) & ...
         t_centers <= psth_opts.norm_window(2);
     % (compute baseline as average across all alignments)
-    psth_baseline = nanmean(psth(:,t_baseline,3),[2,3]);
-    psth = (psth - psth_baseline)./(psth_baseline + psth_opts.softnorm);
+    psth_baseline = cellfun(@(x) nanmean(x(:,t_baseline,:),[1,2]),psth,'uni',false);
+    psth = cellfun(@(x,bl) (x - bl)./(bl + psth_opts.softnorm),psth,psth_baseline,'uni',false);
 end
 
-
-
+% Set outputs
+psth_trial = psth;
+psth_avg = permute(cell2mat(reshape(cellfun(@(x) nanmean(x,1),psth,'uni',false),[],1)),[3,2,1]);
 
 
 
