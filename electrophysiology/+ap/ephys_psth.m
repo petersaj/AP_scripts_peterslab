@@ -1,4 +1,4 @@
-function [psth_avg,psth_trial] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
+function [psth_avg,psth_trial,psth_t] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
 
 arguments
 
@@ -38,7 +38,8 @@ end
 % OUTPUTS
 %
 % psth_avg = group x t x align (averaged across instances within alignment)
-% psth_trial = 
+% psth_trial = trial x t x align
+% psth_t = timepoints for psth (bin centers)
 
 % If 'align_times' is a vector, convert it into a cell
 if ~iscell(align_times)
@@ -47,7 +48,7 @@ end
 
 % Set time bins
 t_bins = psth_opts.window(1):psth_opts.bin_size:psth_opts.window(2);
-t_centers = conv2(t_bins,[1,1]/2,'valid');
+t_centers = t_bins(1:end-1) + diff(t_bins)./2;
 
 % Set spike groups
 spike_groups_unique = 1:max(spike_groups);
@@ -110,10 +111,14 @@ if ~all(isnan(psth_opts.norm_window))
 end
 
 % Set outputs
-psth_trial = psth;
+% (one alignment group: psth = matrix, multiple alignments: psth = cell)
+if length(align_times) == 1
+    psth_trial = cell2mat(psth);
+else
+    psth_trial = psth;
+end
 psth_avg = permute(cell2mat(reshape(cellfun(@(x) nanmean(x,1),psth,'uni',false),[],1)),[3,2,1]);
-
-
+psth_t = t_centers;
 
 
 
