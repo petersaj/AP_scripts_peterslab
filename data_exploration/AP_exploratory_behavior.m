@@ -3,16 +3,16 @@
 
 %% Align mousecam to event
 
-% (passive)
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    1:length(stimOn_times))';
-
-stim_x = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
-
+% % (passive)
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     1:length(stimOn_times))';
+% 
+% stim_x = vertcat(trial_events.values.StimFrequence);
+% use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
+% 
 % stim_x = vertcat(trial_events.values.TrialStimX);
 % use_align = stimOn_times(stim_x == 90 & quiescent_trials);
 
@@ -30,11 +30,13 @@ surround_frames = 15;
 grab_frames = interp1(mousecam_times,1:length(mousecam_times), ...
     use_align,'previous') + [-1,1].*surround_frames;
 
+grab_frames_use = find(~any(isnan(grab_frames),2) & all(grab_frames>0,2));
+
 cam_align_avg = zeros(size(cam_im1,1),size(cam_im1,2), ...
     surround_frames*2+1);
-for curr_align = 2:length(use_align)
+for curr_align = grab_frames_use'
     curr_clip = double(squeeze(read(vr,grab_frames(curr_align,:))));
-    cam_align_avg = cam_align_avg + curr_clip./length(use_align);
+    cam_align_avg = cam_align_avg + curr_clip./length(grab_frames_use);
     AP_print_progress_fraction(curr_align,length(use_align));
 end
 

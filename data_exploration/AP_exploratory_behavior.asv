@@ -10,17 +10,19 @@
 %     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
 %     1:length(stimOn_times))';
 % 
-% % stim_x = vertcat(trial_events.values.StimFrequence);
-% % use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
-% 
+% stim_x = vertcat(trial_events.values.StimFrequence);
+% use_align = stimOn_times(stim_x == 8000 & quiescent_trials);
+
+use_align = a3';
+
 % stim_x = vertcat(trial_events.values.TrialStimX);
 % use_align = stimOn_times(stim_x == 90 & quiescent_trials);
-% 
-% % stim_x = vertcat(trial_events.values.PictureID);
-% % use_align = stimOn_times(stim_x == 2 & quiescent_trials);
 
-% (task)
-use_align = stimOn_times;
+% stim_x = vertcat(trial_events.values.PictureID);
+% use_align = stimOn_times(stim_x == 2 & quiescent_trials);
+
+% % (task)
+% use_align = stimOn_times;
 
 % Initialize video reader, get average and average difference
 vr = VideoReader(mousecam_fn);
@@ -30,9 +32,11 @@ surround_frames = 15;
 grab_frames = interp1(mousecam_times,1:length(mousecam_times), ...
     use_align,'previous') + [-1,1].*surround_frames;
 
+grab_frames_use = fiund(~any(isnan(grab_frames),2))
+
 cam_align_avg = zeros(size(cam_im1,1),size(cam_im1,2), ...
     surround_frames*2+1);
-for curr_align = 2:length(use_align)
+for curr_align = 1:length(use_align)
     curr_clip = double(squeeze(read(vr,grab_frames(curr_align,:))));
     cam_align_avg = cam_align_avg + curr_clip./length(use_align);
     AP_print_progress_fraction(curr_align,length(use_align));
@@ -56,7 +60,7 @@ use_t = mousecam_times;
 % (passive)
 % stim_type = vertcat(trial_events.values.TrialStimX);
 stim_type = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_type == 12000);
+use_align = stimOn_times(stim_type == 8000);
 
 % (task)
 % use_align = stimOn_times;

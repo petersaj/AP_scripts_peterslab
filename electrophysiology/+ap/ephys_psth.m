@@ -24,7 +24,8 @@ end
 %
 % INPUTS
 % align_times = cell array of times to align
-% spike_groups (optional) = grouping variable for spike times (ignore NaNs)
+% spike_groups (optional) = grouping variable for spike times (ignore
+% NaNs). Currently: must be indicies (e.g. 1,2,3), not categorical.
 % 
 % Name-Value arguments: 
 % window = window around align times to gather (default = [-0.5,1])
@@ -48,15 +49,11 @@ end
 t_bins = psth_opts.window(1):psth_opts.bin_size:psth_opts.window(2);
 t_centers = conv2(t_bins,[1,1]/2,'valid');
 
-% Use only spikes within time range of interest and non-NaN group
-minmax_time = prctile(vertcat(align_times{:}),[0,100]) + t_bins([1,end]);
-use_spikes = spike_times >= minmax_time(1) & spike_times <= minmax_time(2) & ~isnan(spike_groups);
-
-% Get unique groups and re-number spike groups as 1:N
-[spike_groups_unique,~,spike_groups_subset_renumbered] = unique(spike_groups(use_spikes));
+% Set spike groups
+spike_groups_unique = 1:max(spike_groups);
 
 % Get PSTH unit x t x align
-psth = cell(length(align_times));
+psth = cell(length(align_times),1);
 for curr_align = 1:length(align_times)
 
     % Get time bins around event (ensure column vector align times)
@@ -66,10 +63,16 @@ for curr_align = 1:length(align_times)
     % Make spike group "bins" (centered on integers)
     spike_group_bins = 0.5:1:length(spike_groups_unique)+1;
 
+    % Set spikes to use (non-NaN group, within time range)
+    use_spikes = ...
+        spike_times >= min(align_bins_vector) & ...
+        spike_times <= max(align_bins_vector) & ...
+        ~isnan(spike_groups);
+
     % Bin spikes 
     spikes_binned_continuous = histcounts2( ...
         spike_times(use_spikes), ...
-        spike_groups_subset_renumbered, ...
+        spike_groups(use_spikes), ...
         align_bins_vector, ...
         spike_group_bins);
 

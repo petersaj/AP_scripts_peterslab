@@ -199,7 +199,7 @@ end
 % end
 
 unit_psth_smooth_norm = ...
-    ap.ephys_psth(spike_times_timelite,spike_templates,align_times, ...
+    ap.ephys_psth(spike_times_timelite,align_times,spike_templates, ...
     'smoothing',100,'norm_window',[-0.5,0],'softnorm',1);
 
 % Plot depth-sorted
@@ -525,7 +525,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % even, click, define
+mua_method = 'click'; % even, click, define
 
 switch mua_method
 
@@ -940,7 +940,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AM026'};
+animals = {'DS000'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};

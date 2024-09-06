@@ -1,5 +1,48 @@
 %% ~~~~~~~~~~~ INDIVIDUAL 
 
+%% Get bursts of DMS activity
+
+
+% Get bursts
+use_depth = [1000,2000];
+
+spike_binning_t = 0.005; % seconds
+spike_binning_t_edges = (min(timelite.timestamps):spike_binning_t:max(timelite.timestamps))';
+spike_binning_t_centers = spike_binning_t_edges(1:end-1) + diff(spike_binning_t_edges)/2;
+
+use_spikes = spike_depths > use_depth(1) & spike_depths < use_depth(2);
+binned_spikes = histcounts(spike_times_timelite(use_spikes), ...
+    spike_binning_t_edges);
+
+binned_spikes_std = binned_spikes./std(binned_spikes);
+
+burst_thresh = 6;
+burst_times = spike_binning_t_centers(find(diff(binned_spikes_std > burst_thresh)==1)+1);
+
+figure;plot(spike_binning_t_centers,binned_spikes_std,'k');
+xline(burst_times,'r');
+
+ap.cellraster(burst_times);
+
+% Get widefield aligned to bursts
+surround_window = [-0.5,1];
+t = surround_window(1):1/wf_framerate:surround_window(2);
+peri_event_t = reshape(burst_times,[],1) + reshape(t,1,[]);
+
+aligned_v = reshape(interp1(wf_t,wf_V',peri_event_t,'previous'), ...
+    length(burst_times),length(t),[]);
+
+aligned_px_avg = plab.wf.svd2px(wf_U,permute(nanmean(aligned_v - ...
+    nanmean(aligned_v(:,t<0,:),2),1),[3,2,1]));
+
+AP_imscroll(aligned_px_avg,t);
+colormap(AP_colormap('PWG'));
+clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
+axis image;
+set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
+
+
+
 %% Get striatal and cortex ROI trial activity
 
 
@@ -24,8 +67,9 @@ str_start =  template_depths_sorted(find(template_depths_sorted >= ...
     unit_density_bins(unit_density_min_idx+1),1));
 str_end = max(channel_positions(:,2));
 
-depth_size = 300;
-depth_group_edges = unique([str_start:depth_size:str_end,str_end]);
+depth_size = 600;
+depth_group_edges = str_start:depth_size:str_end;
+depth_group_edges(end) = str_end;
 [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
 depth_groups_used = unique(depth_group);
 depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
@@ -49,7 +93,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:100;
 kernel_t = [0,0];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 10;
+lambda = 30;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -80,16 +124,8 @@ axis image;
 
 % Convert kernel to pixel space
 r_px = permute(plab.wf.svd2px(wf_U(:,:,use_svs),k),[1,2,4,3]);
-k_roi = r_px > std(r_px(:))*3;
+k_roi = r_px > std(r_px(:))*2;
 k_roi(:,round(size(k_roi,2)/2):end,:) = false;
-
-figure;
-imagesc(sum(k_roi.*permute(1:size(k_roi,3),[1,3,2]),3));
-colormap(AP_colormap('BKR'));
-clim([0,size(k_roi,3)])
-ap.wf_draw('ccf','w');
-axis image;
-
 
 % Align data
 if contains(bonsai_workflow,'passive')
@@ -117,7 +153,7 @@ end
 % (note - missing depth group handled weirdly atm)
 [~,str_psth_all] = ap.ephys_psth(spike_times_timelite,align_times,depth_group,'norm_window',[-0.5,0],'smoothing',100);
 str_psth = nan(size(align_times,1),size(str_psth_all{1},2),n_depths);
-str_psth(:,:,unique(depth_group)) = str_psth_all{1};
+str_psth(:,:,unique(depth_group(~isnan(depth_group)))) = str_psth_all{1};
 
 % (cortex)
 [roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,[],[],k_roi);
@@ -158,27 +194,28 @@ end
 
 %% Cortical activity split by striatal activity amount
 
-use_depth = [2000,3000];
+use_depth = [1000,2300];
 ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas)
 yline(use_depth,'r');
 
 use_spikes = spike_depths >= use_depth(1) & spike_depths <= use_depth(2);
 
-% (passive)
-% PSTH for quiescent right-stim trials
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    (1:length(stimOn_times))');
+% % (passive)
+% % PSTH for quiescent right-stim trials
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     (1:length(stimOn_times))');
+% 
+% stim_x = vertcat(trial_events.values.TrialStimX);
+% align_times = stimOn_times(stim_x == 90 & quiescent_trials);
 
-stim_x = vertcat(trial_events.values.TrialStimX);
-align_times = stimOn_times(stim_x == 90 & quiescent_trials);
+% (task)
+align_times = stimOn_times;
 
-% % (task)
-% align_times = stimOn_times;
-
-psth = permute(ap.ephys_psth(spike_times_timelite(use_spikes),num2cell(align_times),'smoothing',20),[3,2,1]);
+[~,psth] = ap.ephys_psth(spike_times_timelite(use_spikes),align_times,'smoothing',20);
+psth = cell2mat(psth);
 
 psth_tavg = nanmean(psth(:,500:700),2);
 [~,sort_idx] = sort(psth_tavg);
