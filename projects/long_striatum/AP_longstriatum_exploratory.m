@@ -4,7 +4,7 @@
 
 
 % Get bursts
-use_depth = [1000,2000];
+use_depth = [1000,2500];
 
 spike_binning_t = 0.005; % seconds
 spike_binning_t_edges = (min(timelite.timestamps):spike_binning_t:max(timelite.timestamps))';
@@ -281,7 +281,8 @@ colormap(AP_colormap('BWR',[],5));
 
 animals = { ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
-    'AM018','AM019','AM021','AM022','AM026','AM029'};
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
 
 % Excluding: 
 % AM008, AP009, AP009 - ephys-only
@@ -1105,10 +1106,10 @@ for curr_animal = 1:length(animals)
         % If TANs, store PSTHs
         if any(use_tans)
             % Get TAN PSTH
-            use_spikes = ismember(spike_templates,use_tans);
+            [use_spikes,use_spike_groups] = ismember(spike_templates,use_tans);
             tan_psth = ...
                 ap.ephys_psth(spike_times_timelite(use_spikes), ...
-                align_times,spike_templates(use_spikes), ...
+                align_times,use_spike_groups(use_spikes), ...
                 'smoothing',100,'norm_window',[-0.5,0],'softnorm',0);
 
             % Store TAN PSTH by depth group
@@ -1524,6 +1525,11 @@ r_norm = (r-nanmean(r(:,200:400),[2,3]))./(nanmean(r(:,200:400),[2,3])+softnorm)
 use_t = [550,750];
 r2 = nanmean(r_norm(:,use_t(1):use_t(2)),2);
 
+% Concatenate maps and explained variance
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+
+
 
 % Concatenate V's
 V_cat = cat(4,day_V_all{:});
@@ -1532,16 +1538,11 @@ V_animal_day_idx = cell2mat(cellfun(@(x,animal,ld) ...
     [repmat(animal,size(x,4),1),ld], ...
     day_V_all(use_animals),num2cell(find(use_animals)),ld(use_animals),'uni',false));
 
-% Concatenate maps and explained variance
-ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
-ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
-
 ap.imscroll(ctx_map_cat); 
 axis image off;
 clim(max(abs(clim)).*[-1,1].*0.5);
 colormap(ap.colormap('BWR',[],1.5));
 ap.wf_draw('ccf','k');
-
 
 
 % (draw ROI over mVis)
@@ -1757,7 +1758,7 @@ for curr_kidx = 1:n_k
     %%% TESTING (for stats)
     ld_x = unique(grp(:,2));
     act_grid = nan(max(grp(:,1)),length(ld_x));
-    for curr_entry = 1:size(x11,1)
+    for curr_entry = 1:length(stim_cells_frac)
         act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
             stim_cells_frac(curr_entry);
     end
@@ -1852,13 +1853,23 @@ figure;
 h = tiledlayout(n_k,length(ld_x),'tileindexing','columnmajor');
 for i = 1:numel(tan_grp)
     nexttile;
+    if isempty(tan_grp{i})
+        continue
+    end
     imagesc(tan_grp{i}(:,:,3));
     clim([-2,2]);
 end
 colormap(ap.colormap('BWR'));
 
-
-
+tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
+figure;
+h = tiledlayout(1,n_k);
+for i = 1:numel(tan_grp)
+    curr_tan = cat(1,tan_grp_mean{i,:});
+    nexttile;
+    plot(curr_tan(:,:,3)');
+    set(gca,'ColorOrder',ap.colormap('BKR',7));
+end
 
 
 

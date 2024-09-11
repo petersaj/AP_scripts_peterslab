@@ -1,5 +1,48 @@
 %% ~~~~~~~~~~~ INDIVIDUAL 
 
+%% Get bursts of DMS activity
+
+
+% Get bursts
+use_depth = [1000,2500];
+
+spike_binning_t = 0.005; % seconds
+spike_binning_t_edges = (min(timelite.timestamps):spike_binning_t:max(timelite.timestamps))';
+spike_binning_t_centers = spike_binning_t_edges(1:end-1) + diff(spike_binning_t_edges)/2;
+
+use_spikes = spike_depths > use_depth(1) & spike_depths < use_depth(2);
+binned_spikes = histcounts(spike_times_timelite(use_spikes), ...
+    spike_binning_t_edges);
+
+binned_spikes_std = binned_spikes./std(binned_spikes);
+
+burst_thresh = 6;
+burst_times = spike_binning_t_centers(find(diff(binned_spikes_std > burst_thresh)==1)+1);
+
+figure;plot(spike_binning_t_centers,binned_spikes_std,'k');
+xline(burst_times,'r');
+
+ap.cellraster(burst_times);
+
+% Get widefield aligned to bursts
+surround_window = [-0.5,1];
+t = surround_window(1):1/wf_framerate:surround_window(2);
+peri_event_t = reshape(burst_times,[],1) + reshape(t,1,[]);
+
+aligned_v = reshape(interp1(wf_t,wf_V',peri_event_t,'previous'), ...
+    length(burst_times),length(t),[]);
+
+aligned_px_avg = plab.wf.svd2px(wf_U,permute(nanmean(aligned_v - ...
+    nanmean(aligned_v(:,t<0,:),2),1),[3,2,1]));
+
+AP_imscroll(aligned_px_avg,t);
+colormap(AP_colormap('PWG'));
+clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
+axis image;
+set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
+
+
+
 %% Get striatal and cortex ROI trial activity
 
 
@@ -12,12 +55,27 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-% (to group multiunit by evenly spaced depths)
-n_depths = 8;
-depth_group_edges = round(linspace(0,4000,n_depths+1));
+% (group multiunit by size bins)
+
+% Get striatum start = lowest unit density, end = end of probe
+unit_density_bins = 0:100:3840;
+unit_density = histcounts(template_depths,unit_density_bins);
+[~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
+unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
+template_depths_sorted = sort(template_depths);
+str_start =  template_depths_sorted(find(template_depths_sorted >= ...
+    unit_density_bins(unit_density_min_idx+1),1));
+str_end = max(channel_positions(:,2));
+
+depth_size = 600;
+depth_group_edges = str_start:depth_size:str_end;
+depth_group_edges(end) = str_end;
 [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
 depth_groups_used = unique(depth_group);
 depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);
+
+ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
+yline(depth_group_edges,'r','linewidth',2)
 
 % Bin spikes
 n_depths = length(depth_group_edges) - 1;
@@ -35,7 +93,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:100;
 kernel_t = [0,0];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 10;
+lambda = 30;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -66,20 +124,11 @@ axis image;
 
 % Convert kernel to pixel space
 r_px = permute(plab.wf.svd2px(wf_U(:,:,use_svs),k),[1,2,4,3]);
-k_roi = r_px > std(r_px(:))*3;
-
-figure;
-imagesc(sum(k_roi.*permute(1:size(k_roi,3),[1,3,2]),3));
-colormap(AP_colormap('BKR'));
-clim([0,size(k_roi,3)])
-ap.wf_draw('ccf','w');
-axis image;
-
+k_roi = r_px > std(r_px(:))*2;
+k_roi(:,round(size(k_roi,2)/2):end,:) = false;
 
 % Align data
-
 if contains(bonsai_workflow,'passive')
-
 % LCR passive: align to quiescent stim onset
 stim_window = [0,0.5];
 quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
@@ -88,21 +137,14 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
     1:length(stimOn_times))';
 
 stim_x = vertcat(trial_events.values.TrialStimX);
-align_times = stimOn_times(quiescent_trials & stim_x);
-if isfield(trial_events.values,'TrialStimX')
-    align_category_all = vertcat(trial_events.values.TrialStimX);
-elseif isfield(trial_events.values,'StimFrequence')
-    align_category_all = vertcat(trial_events.values.StimFrequence);
-end
-align_category = align_category_all(quiescent_trials);
-
-baseline_times = stimOn_times(quiescent_trials);
+align_times = stimOn_times(quiescent_trials & stim_x == 90);
+sort_idx = 1:length(align_times);
 
 elseif contains(bonsai_workflow,'stim_wheel')
-
 % (task)
 align_times = stimOn_times;
-baseline_times = stimOn_times;
+[~,sort_idx] = sort(stim_to_move);
+
 end
 
 % Align data to align times
@@ -111,7 +153,7 @@ end
 % (note - missing depth group handled weirdly atm)
 [~,str_psth_all] = ap.ephys_psth(spike_times_timelite,align_times,depth_group,'norm_window',[-0.5,0],'smoothing',100);
 str_psth = nan(size(align_times,1),size(str_psth_all{1},2),n_depths);
-str_psth(:,:,unique(depth_group)) = str_psth_all{1};
+str_psth(:,:,unique(depth_group(~isnan(depth_group)))) = str_psth_all{1};
 
 % (cortex)
 [roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,[],[],k_roi);
@@ -125,8 +167,6 @@ aligned_trace = reshape(interp1(wf_t,roi_trace',peri_event_t,'previous'), ...
     length(align_times),length(t),[]);
 aligned_trace_baselinesub = aligned_trace - ...
     mean(aligned_trace(:,t < 0,:),2);
-
-[~,sort_idx] = sort(stim_to_move);
 
 figure;
 h = tiledlayout(3,n_depths,'TileIndexing','ColumnMajor');
@@ -154,27 +194,28 @@ end
 
 %% Cortical activity split by striatal activity amount
 
-use_depth = [2000,3000];
+use_depth = [1000,2300];
 ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas)
 yline(use_depth,'r');
 
 use_spikes = spike_depths >= use_depth(1) & spike_depths <= use_depth(2);
 
-% (passive)
-% PSTH for quiescent right-stim trials
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    (1:length(stimOn_times))');
+% % (passive)
+% % PSTH for quiescent right-stim trials
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     (1:length(stimOn_times))');
+% 
+% stim_x = vertcat(trial_events.values.TrialStimX);
+% align_times = stimOn_times(stim_x == 90 & quiescent_trials);
 
-stim_x = vertcat(trial_events.values.TrialStimX);
-align_times = stimOn_times(stim_x == 90 & quiescent_trials);
+% (task)
+align_times = stimOn_times;
 
-% % (task)
-% align_times = stimOn_times;
-
-psth = permute(ap.ephys_psth(spike_times_timelite(use_spikes),num2cell(align_times),'smoothing',20),[3,2,1]);
+[~,psth] = ap.ephys_psth(spike_times_timelite(use_spikes),align_times,'smoothing',20);
+psth = cell2mat(psth);
 
 psth_tavg = nanmean(psth(:,500:700),2);
 [~,sort_idx] = sort(psth_tavg);
@@ -240,7 +281,8 @@ colormap(AP_colormap('BWR',[],5));
 
 animals = { ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
-    'AM018','AM019','AM021','AM022','AM026','AM029'};
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
 
 % Excluding: 
 % AM008, AP009, AP009 - ephys-only
@@ -542,7 +584,7 @@ mua_length = 200;
 
 day_mua_all = cell(length(animals),1);
 
-for curr_animal = 1:length(animals)
+for curr_animal = length(animals)-1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
@@ -1064,10 +1106,10 @@ for curr_animal = 1:length(animals)
         % If TANs, store PSTHs
         if any(use_tans)
             % Get TAN PSTH
-            use_spikes = ismember(spike_templates,use_tans);
+            [use_spikes,use_spike_groups] = ismember(spike_templates,use_tans);
             tan_psth = ...
                 ap.ephys_psth(spike_times_timelite(use_spikes), ...
-                align_times,spike_templates(use_spikes), ...
+                align_times,use_spike_groups(use_spikes), ...
                 'smoothing',100,'norm_window',[-0.5,0],'softnorm',0);
 
             % Store TAN PSTH by depth group
@@ -1483,6 +1525,9 @@ r_norm = (r-nanmean(r(:,200:400),[2,3]))./(nanmean(r(:,200:400),[2,3])+softnorm)
 use_t = [550,750];
 r2 = nanmean(r_norm(:,use_t(1):use_t(2)),2);
 
+% Concatenate maps and explained variance
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
 
 % Concatenate V's
 V_cat = cat(4,day_V_all{:});
@@ -1491,16 +1536,11 @@ V_animal_day_idx = cell2mat(cellfun(@(x,animal,ld) ...
     [repmat(animal,size(x,4),1),ld], ...
     day_V_all(use_animals),num2cell(find(use_animals)),ld(use_animals),'uni',false));
 
-% Concatenate maps and explained variance
-ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
-ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
-
 ap.imscroll(ctx_map_cat); 
 axis image off;
 clim(max(abs(clim)).*[-1,1].*0.5);
 colormap(ap.colormap('BWR',[],1.5));
 ap.wf_draw('ccf','k');
-
 
 
 % (draw ROI over mVis)
@@ -1716,7 +1756,7 @@ for curr_kidx = 1:n_k
     %%% TESTING (for stats)
     ld_x = unique(grp(:,2));
     act_grid = nan(max(grp(:,1)),length(ld_x));
-    for curr_entry = 1:size(x11,1)
+    for curr_entry = 1:length(stim_cells_frac)
         act_grid(grp(curr_entry,1),ld_x==grp(curr_entry,2)) = ...
             stim_cells_frac(curr_entry);
     end
@@ -1811,13 +1851,23 @@ figure;
 h = tiledlayout(n_k,length(ld_x),'tileindexing','columnmajor');
 for i = 1:numel(tan_grp)
     nexttile;
+    if isempty(tan_grp{i})
+        continue
+    end
     imagesc(tan_grp{i}(:,:,3));
     clim([-2,2]);
 end
 colormap(ap.colormap('BWR'));
 
-
-
+tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
+figure;
+h = tiledlayout(1,n_k);
+for i = 1:numel(tan_grp)
+    curr_tan = cat(1,tan_grp_mean{i,:});
+    nexttile;
+    plot(curr_tan(:,:,3)');
+    set(gca,'ColorOrder',ap.colormap('BKR',7));
+end
 
 
 

@@ -9,7 +9,6 @@ function grouped_data = groupfun(group_function,data,varargin)
 %
 %
 % CURRENTLY: 
-% - only does nanmean
 % - does a for loop if one grouping dimension (quick), does fully indexed
 % accumarray if multiple grouping dimensions (very slow), there's probably
 % a smarter way to do this

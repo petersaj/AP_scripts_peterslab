@@ -940,7 +940,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP022'};
+animals = {'AM027'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -1030,7 +1030,8 @@ title(h,animal);
 
 %% Batch MUA by depth
 
-animal = 'AM029';
+animal = 'AP023';
+
 use_workflow = 'lcr_passive';
 % use_workflow = 'hml_passive_audio';
 % use_workflow = 'stim_wheel*';
