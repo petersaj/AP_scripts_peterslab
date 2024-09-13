@@ -193,7 +193,7 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'AP023';
+animal = 'AP025';
 
 % Create across-day alignments
 plab.wf.wf_align([],animal,[],'new_days');

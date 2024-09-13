@@ -135,7 +135,7 @@ unit_dots = scatter3( ...
     norm_spike_n,template_depths(unique(spike_templates)), ...
     unique(spike_templates),20,'k','filled','ButtonDownFcn',@unit_click);
 xlim(unit_axes,[0,1]);
-set(unit_axes.YAxis,'limits',[0, max(channel_positions(:,2))]);
+ylim(unit_axes,[0, max(channel_positions(:,2))]);
 ylabel('Depth (\mum)')
 xlabel('Normalized log rate')
 set(unit_axes.YAxis,'Color','k')
