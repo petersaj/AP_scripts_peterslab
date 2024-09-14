@@ -18,7 +18,7 @@ arguments
 
 end
 
-% [psth_avg,psth_trial] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
+% [psth_avg,psth_trial,psth_t] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
 % 
 % Make PSTHs for spike data
 %

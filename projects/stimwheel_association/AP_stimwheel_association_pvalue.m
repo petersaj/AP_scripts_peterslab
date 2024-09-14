@@ -1,5 +1,5 @@
-function p = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
-% p = AP_stimwheel_association_pvalue(trial_events)
+function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
+% [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(trial_events)
 % Get p-value for whether reaction times are faster than chance (the animal
 % has a stim-wheel association)
 %
@@ -15,6 +15,8 @@ function p = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_m
 %
 % Output:
 % p: p-value for median reaction time
+% rxn_med: median used reaction times
+% rxn_null_med: median null reaction times
 
 % Only look at completed trials
 n_trials = length([trial_events.timestamps.Outcome]);
@@ -86,6 +88,12 @@ rxn_null_stat = mad(stim_to_move_null(null_use_trials,:),1,1);
 
 rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
 p = rxn_stat_rank(1)./(n_samples+1);
+
+% Output median real and null reaction times
+rxn_med = median(stim_to_move(null_use_trials));
+rxn_null_med = mean(median(stim_to_move_null(null_use_trials,:),1),2);
+
+
 
 
 

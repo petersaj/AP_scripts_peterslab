@@ -2,9 +2,8 @@
 
 %% Get bursts of DMS activity
 
-
 % Get bursts
-use_depth = [1000,2500];
+use_depth = [2000,4000];
 
 spike_binning_t = 0.005; % seconds
 spike_binning_t_edges = (min(timelite.timestamps):spike_binning_t:max(timelite.timestamps))';
@@ -14,12 +13,18 @@ use_spikes = spike_depths > use_depth(1) & spike_depths < use_depth(2);
 binned_spikes = histcounts(spike_times_timelite(use_spikes), ...
     spike_binning_t_edges);
 
-binned_spikes_std = binned_spikes./std(binned_spikes);
+binned_spikes_smoothed = smoothdata(binned_spikes,2,'gaussian',0.1/spike_binning_t);
 
-burst_thresh = 6;
-burst_times = spike_binning_t_centers(find(diff(binned_spikes_std > burst_thresh)==1)+1);
+binned_spikes_smoothed_std = binned_spikes_smoothed./std(binned_spikes_smoothed);
 
-figure;plot(spike_binning_t_centers,binned_spikes_std,'k');
+burst_thresh = 4;
+burst_times = spike_binning_t_centers(find(diff(binned_spikes_smoothed_std > burst_thresh)==1)+1);
+
+% (trim the burst times)
+burst_times(burst_times < 30) = [];
+burst_times(find(diff(burst_times) < 2)+1) = [];
+
+figure;plot(spike_binning_t_centers,binned_spikes_smoothed_std,'k');
 xline(burst_times,'r');
 
 ap.cellraster(burst_times);
@@ -43,8 +48,7 @@ set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
 
 
-%% Get striatal and cortex ROI trial activity
-
+%% Get striatal and cortex ROI trial activity aligned to event
 
 % Set upsample value for regression
 upsample_factor = 1;
@@ -93,7 +97,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:100;
 kernel_t = [0,0];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 30;
+lambda = 5;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -152,8 +156,8 @@ end
 % (striatum)
 % (note - missing depth group handled weirdly atm)
 [~,str_psth_all] = ap.ephys_psth(spike_times_timelite,align_times,depth_group,'norm_window',[-0.5,0],'smoothing',100);
-str_psth = nan(size(align_times,1),size(str_psth_all{1},2),n_depths);
-str_psth(:,:,unique(depth_group(~isnan(depth_group)))) = str_psth_all{1};
+str_psth = nan(size(align_times,1),size(str_psth_all,2),n_depths);
+str_psth(:,:,unique(depth_group(~isnan(depth_group)))) = str_psth_all;
 
 % (cortex)
 [roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,[],[],k_roi);
@@ -182,42 +186,46 @@ for curr_str = 1:n_depths
     clim(0.8*max(max(aligned_trace_baselinesub,[],'all')).*[-1,1]);
     xline(0);
     set(gca,'colormap',AP_colormap('PWG'))
+    title('Cortex');
 
     nexttile;
     imagesc(linspace(-0.5,1,size(str_psth,2)),[],str_psth(sort_idx,:,curr_str))
     clim(0.2*max(max(str_psth,[],'all')).*[-1,1]);
     xline(0);
     set(gca,'colormap',AP_colormap('PWG'))
+    title('Striatum');
 end
 
 
 
 %% Cortical activity split by striatal activity amount
 
-use_depth = [1000,2300];
+use_depth = [1000,2000];
 ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas)
 yline(use_depth,'r');
 
 use_spikes = spike_depths >= use_depth(1) & spike_depths <= use_depth(2);
 
-% % (passive)
-% % PSTH for quiescent right-stim trials
-% stim_window = [0,0.5];
-% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-%     (1:length(stimOn_times))');
-% 
-% stim_x = vertcat(trial_events.values.TrialStimX);
-% align_times = stimOn_times(stim_x == 90 & quiescent_trials);
+if contains(bonsai_workflow,'passive')
+    % (passive)
+    % PSTH for quiescent right-stim trials
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        (1:length(stimOn_times))');
 
-% (task)
-align_times = stimOn_times;
+    stim_x = vertcat(trial_events.values.TrialStimX);
+    align_times = stimOn_times(stim_x == 90 & quiescent_trials);
+elseif contains(bonsai_workflow,'stim_wheel')
+    % (task)
+    align_times = stimOn_times;
+end
 
-[~,psth] = ap.ephys_psth(spike_times_timelite(use_spikes),align_times,'smoothing',20);
-psth = cell2mat(psth);
+[~,psth,psth_t] = ap.ephys_psth(spike_times_timelite(use_spikes),align_times,'smoothing',20);
 
-psth_tavg = nanmean(psth(:,500:700),2);
+use_t = [0,0.3];
+psth_tavg = nanmean(psth(:,psth_t>=use_t(1) & psth_t<=use_t(2)),2);
 [~,sort_idx] = sort(psth_tavg);
 
 n_grps = 3;
@@ -321,9 +329,11 @@ for curr_animal_idx = 1:length(animals)
 
     n_trials_water = nan(length(recordings),2);
     frac_move_day = nan(length(recordings),1);
-    rxn_med = nan(length(recordings),1);
+    stim_to_move_med = nan(length(recordings),1);
+    stim_to_outcome_med = nan(length(recordings),1);
     frac_move_stimalign = nan(length(recordings),length(surround_time_points));
     rxn_stat_p = nan(length(recordings),1);
+    rxn_idx =  nan(length(recordings),1);
 
     for curr_recording = 1:length(recordings)
 
@@ -338,12 +348,14 @@ for curr_animal_idx = 1:length(animals)
         ap.load_recording;
 
         % Get total trials/water
-        n_trials_water(curr_recording,:) = [length(trial_events.timestamps), ...
+        n_trials_water(curr_recording,:) = ...
+            [length(trial_events.timestamps), ...
             sum(([trial_events.values.Outcome] == 1)*6)];
 
-        % Get median stim-outcome time
-        n_trials = length([trial_events.timestamps.Outcome]);
-        rxn_med(curr_recording) = median(seconds([trial_events.timestamps(1:n_trials).Outcome] - ...
+        % Get median stim-move/outcome time
+        stim_to_move_med(curr_recording) = median(stim_to_move);
+        stim_to_outcome_med(curr_recording) = ...
+            median(seconds([trial_events.timestamps(1:n_trials).Outcome] - ...
             cellfun(@(x) x(1),{trial_events.timestamps(1:n_trials).StimOn})));
 
         % Align wheel movement to stim onset
@@ -365,8 +377,12 @@ for curr_animal_idx = 1:length(animals)
             continue
         end
 
-        rxn_stat_p(curr_recording) = AP_stimwheel_association_pvalue( ...
+        [rxn_stat_p(curr_recording),rxn_med,rxn_null_med] = ...
+            AP_stimwheel_association_pvalue( ...
             stimOn_times,trial_events,stim_to_move);
+
+        % Get "performance index" from 2022 Fig3C
+        rxn_idx(curr_recording) = (rxn_med-rxn_null_med)./(rxn_med+rxn_null_med);
 
         % Clear vars except pre-load for next loop
         clearvars('-except',preload_vars{:});
@@ -375,7 +391,7 @@ for curr_animal_idx = 1:length(animals)
     end
 
     % Define learned day from reaction stat p-value and reaction time
-    learned_day = rxn_stat_p < 0.05 & rxn_med < 5;
+    learned_day = rxn_stat_p < 0.05 & stim_to_outcome_med < 5;
 
     relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
     nonrecorded_day = setdiff(1:length(recordings),relative_day);
@@ -400,7 +416,7 @@ for curr_animal_idx = 1:length(animals)
 
     nexttile(t_animal);
     yyaxis left
-    plot(relative_day,rxn_med)
+    plot(relative_day,stim_to_outcome_med)
     set(gca,'YScale','log');
     ylabel('Med. rxn');
     xlabel('Day');
@@ -443,7 +459,9 @@ for curr_animal_idx = 1:length(animals)
             0.02,[0,1,0],0.1,false);
         
         % Store behavior across animals
-        bhv(curr_animal_idx).rxn_med = rxn_med;
+        bhv(curr_animal_idx).stim_to_move_med = stim_to_move_med;
+        bhv(curr_animal_idx).stim_to_outcome_med = stim_to_outcome_med;
+        bhv(curr_animal_idx).rxn_idx = rxn_idx;
         bhv(curr_animal_idx).frac_move_stimalign = frac_move_stimalign;
         bhv(curr_animal_idx).stim_move_frac_ratio = stim_move_frac_ratio;
         bhv(curr_animal_idx).learned_day = learned_day;
@@ -461,7 +479,7 @@ save(save_fn,'bhv')
 fprintf('Saved %s\n',save_fn);
 
 
-%% Widefield (master U)
+%% Widefield passive (master U)
 
 clearvars
 
@@ -482,7 +500,102 @@ for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+    recordings = recordings(cellfun(@any,{recordings.widefield}) & [recordings.ephys]);
+
+    recording_idx = 1:length(recordings);
+
+    n_components = 2000;
+    n_align = 3; % (just hardcoded for now)
+    day_V = nan(n_components,length(t_centers),n_align,length(recordings));
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+
+        load_parts = struct;
+        load_parts.widefield = true;
+        load_parts.widefield_master = true;
+        ap.load_recording;
+
+        % If widefield isn't aligned, skip
+        if ~load_parts.widefield_align
+            continue
+        end
+
+        % Stim times (quiescent trials only)
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            1:length(stimOn_times))';
+
+        stim_x = vertcat(trial_events.values.TrialStimX);
+        % sometimes not all trials shown?
+        stim_x = stim_x(1:length(stimOn_times));
+        align_times = cellfun(@(x) stimOn_times(stim_x == x & quiescent_trials), ...
+            num2cell(unique(stim_x)),'uni',false);
+
+        % Align ROI trace to align times
+        aligned_V_mean = nan(n_components,length(t_centers),length(align_times));
+        for curr_align = 1:length(align_times)
+            peri_event_t = align_times{curr_align} + t_centers;
+
+            aligned_V = interp1(wf_t,wf_V',peri_event_t);
+
+            aligned_V_baselinesub = aligned_V - ...
+                mean(aligned_V(:,t_centers < 0,:),2);
+
+            aligned_V_mean(:,:,curr_align) = ...
+                permute(nanmean(aligned_V_baselinesub,1),[3,2,1]);
+        end
+
+        % Store mean aligned ROI trace
+        day_V(:,:,:,curr_recording) = aligned_V_mean;
+
+        % Prep for next loop
+        clearvars('-except',preload_vars{:});
+
+    end
+
+    day_V_all{curr_animal} = day_V;
+
+    ap.print_progress_fraction(curr_animal,length(animals));
+
+end
+
+% Save
+save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+save_fn = fullfile(save_dir,'wf_passive');
+save(save_fn,'day_V_all')
+fprintf('Saved %s\n',save_fn);
+
+%% Widefield task (master U)
+
+clearvars
+
+% Get animals
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_dir,'animals'));
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.03;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+day_V_all = cell(length(animals),1);
+
+for curr_animal = 1:length(animals)
+   
+    animal = animals{curr_animal};
+
+    use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings(cellfun(@any,{recordings.widefield}) & [recordings.ephys]);
 
@@ -559,7 +672,7 @@ end
 
 % Save
 save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'wf_passive');
+save_fn = fullfile(save_dir,'wf_task');
 save(save_fn,'day_V_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1513,7 +1626,7 @@ animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
 % (only use maps that explain x% variance)
 use_maps = ctx_expl_var_cat > 0.05;
 
-n_k = 3;
+n_k = 4;
 kidx = nan(size(ctx_map_cat,3),1);
 [kidx(use_maps),kmeans_map] = kmeans(reshape(ctx_map_cat(:,:,use_maps), ...
     [],sum(use_maps))',n_k,'distance','correlation','replicates',5);
@@ -1554,8 +1667,10 @@ for curr_kidx = 1:n_k
     colormap(ap.colormap('PWG',[],1.5));
 
     str_mua_depthgrp = ap.groupfun(@sum,str_mua_cat(curr_use_ctx,:,use_align),grp_idx,[]);
+
+    softnorm = 0;
     str_mua_depthgrp_norm = (str_mua_depthgrp-nanmean(str_mua_depthgrp(:,1:500),2))./ ...
-        nanmean(str_mua_depthgrp(:,1:500),2);
+        (nanmean(str_mua_depthgrp(:,1:500),2) + softnorm);
     str_mua_depthgrp_norm_tmax = max(str_mua_depthgrp_norm(:,use_t(1):use_t(2)),[],2);
 
     str_mua_ldgrp_norm = ap.groupfun(@mean,str_mua_depthgrp_norm,grp(:,2),[]);
@@ -1655,33 +1770,11 @@ end
 % end
 
 
-
-%%%% TESTING
-
-% ~~~ (temp - run specific kidx above)
-
-animal_idx = cell2mat(cellfun(@(x,ld) ...
-    repmat(x,length(ld),1),num2cell(1:length(ld))',ld,'uni',false));
-idx = [animal_idx,vertcat(ld{:})];
-
-use_idx = find(ismember(idx,grp,'rows'));
-
-figure; hold on;
-plot(str_mua_depthgrp_norm_tmax,stim_move_ratio_cat(use_idx),'.k');
-plot(str_mua_depthgrp_norm_tmax(grp(:,2) == -1 & ~ismember(grp(:,1),[5,6])), ...
-    stim_move_ratio_cat(use_idx(grp(:,2) == 0 & ~ismember(grp(:,1),[5,6]))),'.r');
-
-plot(str_mua_depthgrp_norm_tmax(grp(:,2) == -1 & ~ismember(grp(:,1),[3,5,6])) - ...
-    str_mua_depthgrp_norm_tmax(grp(:,2) == -2 & ~ismember(grp(:,1),[3,5,6])), ...
-    stim_move_ratio_cat(use_idx(grp(:,2) == -1 & ~ismember(grp(:,1),[3,5,6]))),'.r');
-
-str_act_grid = nan(max(grp(:,1)),length(ld_unique)
-
-%%% ~~~
-
+% Plot behavior by LD
 ld_unique = unique(vertcat(ld{:}));
 
-rxn_med_cat = cat(1,bhv.rxn_med);
+rxn_idx_cat = cat(1,bhv.rxn_idx);
+rxn_med_cat = cat(1,bhv.stim_to_move_med);
 stim_move_ratio_cat = cat(1,bhv.stim_move_frac_ratio);
 frac_move_stimalign_cat = cat(1,bhv.frac_move_stimalign);
 
@@ -1704,7 +1797,80 @@ nexttile;
 plot(frac_move_stimalign_ldgrp(ismember(ld_unique,-3:3),:)','linewidth',2);
 colororder(gca,ap.colormap('BKR',7));
 
-%%%%%%%%
+
+
+% Behavior vs striatal activity
+curr_kidx = 3;
+curr_use_ctx = kidx == curr_kidx;
+[grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+str_mua_depthgrp = ap.groupfun(@sum,str_mua_cat(curr_use_ctx,:,use_align),grp_idx,[]);
+str_mua_depthgrp_norm = (str_mua_depthgrp-nanmean(str_mua_depthgrp(:,1:500),2))./ ...
+    nanmean(str_mua_depthgrp(:,1:500),2);
+str_mua_depthgrp_norm_tmax = max(str_mua_depthgrp_norm(:,use_t(1):use_t(2)),[],2);
+
+[ld_unique,~,ld_grp] = unique(grp(:,2));
+size_grid = [max(grp(:,1)),max(ld_grp)];
+idx = sub2ind(size_grid,grp(:,1),ld_grp);
+act_grid = nan(size_grid);
+act_grid(idx) = str_mua_depthgrp_norm_tmax;
+
+
+animal_idx = cell2mat(cellfun(@(x,ld) ...
+    repmat(x,length(ld),1),num2cell(1:length(ld))',ld,'uni',false));
+bhv_grp = [animal_idx,vertcat(ld{:})];
+
+[ld_unique,~,ld_grp] = unique(bhv_grp(:,2));
+size_grid = [max(bhv_grp(:,1)),max(ld_grp)];
+idx = sub2ind(size_grid,bhv_grp(:,1),ld_grp);
+bhv_grid = nan(size_grid);
+bhv_grid(idx) = rxn_med_cat;
+
+% (this is super messy)
+bhv_grid_use = bhv_grid(:,ismember(ld_unique,unique(grp(:,2))));
+
+act_bhv_corr = corr(act_grid,bhv_grid_use,'rows','pairwise');
+figure;imagesc(unique(grp(:,2)),unique(grp(:,2)),act_bhv_corr);
+set(gca,'YDir','normal');
+clim([-1,1]);
+colormap(ap.colormap('BWR',[],1));
+axis image; 
+xlim([-3.5,2.5]);ylim(xlim);
+xlabel('LD: Behavior');
+ylabel('LD: Striatal activity');
+
+
+ld_x = unique(grp(:,2));
+figure; hold on
+plot(reshape(bhv_grid_use,[],1),reshape(act_grid,[],1),'.k');
+plot(reshape(bhv_grid_use(:,ld_x<-1),[],1),reshape(act_grid(:,ld_x<-1),[],1),'or');
+plot(reshape(bhv_grid_use(:,ismember(ld_x,-1)),[],1),reshape(act_grid(:,ismember(ld_x,-1)),[],1),'om');
+plot(reshape(bhv_grid_use(:,ld_x>=0),[],1),reshape(act_grid(:,ld_x>=0),[],1),'ob');
+
+figure; hold on;
+ld_x_discrete = discretize(ld_x,[-Inf,-2,-1,0,Inf],'IncludedEdge','right');
+ld_x_discrete_col = [0,0,0;0,0,1;1,0,0;0,0.7,0];
+
+scatter(reshape(bhv_grid_use,[],1),reshape(act_grid,[],1),10, ...
+    ld_x_discrete_col(reshape(repmat(ld_x_discrete',size(act_grid,1),1),[],1),:));
+gscatter(nanmean(bhv_grid_use,1),nanmean(act_grid,1),ld_x_discrete,ld_x_discrete_col,'o',10,'filled')
+errorbar(nanmean(bhv_grid_use,1),nanmean(act_grid,1), ...
+    AP_sem(act_grid,1),AP_sem(act_grid,1), ...
+    AP_sem(bhv_grid_use,1),AP_sem(bhv_grid_use,1),'k');
+legend({'','LD<-1','LD=-1','LD==0','LD>1'},'location','best')
+xlabel('Behavior');
+ylabel('Striatal MUA');
+
+figure; hold on
+ld_x_diff = ld_x(2:end);
+a = diff(bhv_grid_use,[],2);
+b = diff(act_grid,[],2);
+plot(reshape(a,[],1),reshape(b,[],1),'.k');
+plot(reshape(a(:,ismember(ld_x_diff,-3:-2)),[],1),reshape(b(:,ismember(ld_x_diff,-3:-2)),[],1),'or');
+plot(reshape(a(:,ismember(ld_x_diff,-1)),[],1),reshape(b(:,ismember(ld_x_diff,-1)),[],1),'om');
+plot(reshape(a(:,ismember(ld_x_diff,0:2)),[],1),reshape(b(:,ismember(ld_x_diff,0:2)),[],1),'ob');
+xlabel('\DeltaBehavior');
+ylabel('\DeltaActivity');
+
 
 
 %% Widefield responses
