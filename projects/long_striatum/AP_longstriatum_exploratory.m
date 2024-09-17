@@ -1581,7 +1581,8 @@ fprintf('Saved %s\n',save_fn);
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'mua_passive.mat'));
+% load(fullfile(am_data_path,'mua_passive.mat'));
+load(fullfile(am_data_path,'mua_task.mat'));
 load(fullfile(am_data_path,'ctx_maps_passive.mat'));
 load(fullfile(am_data_path,'stim_cells.mat'));
 load(fullfile(am_data_path,'tan_psth_all.mat'));
@@ -1628,7 +1629,7 @@ for i = 1:n_k
 end
     
 % Plot MUA by k-means cluster
-use_align = 3;
+use_align = 2;
 use_t = [500,750];
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
@@ -1863,7 +1864,8 @@ ylabel('\DeltaActivity');
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'wf_passive.mat'));
+% load(fullfile(am_data_path,'wf_passive.mat'));
+load(fullfile(am_data_path,'wf_task.mat'));
 
 % Load U master
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -1901,6 +1903,7 @@ nexttile;imagesc([],-3:3,roi.trace);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG',[],1.5));
 
+
 ha = nexttile;
 plot(roi.trace','linewidth',2);
 colororder(ha,ap.colormap('BKR',size(roi.trace,1)));
@@ -1918,6 +1921,16 @@ xlabel('Learned day');
 ylabel('Max fluorescence');
 
 title(h,'ROI');
+
+
+
+
+
+figure; hold on
+
+plot(c1',c2','linewidth',2);
+colororder(gca,ap.colormap('BKR',size(roi.trace,1)));
+
 
 
 

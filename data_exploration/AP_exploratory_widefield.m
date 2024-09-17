@@ -166,7 +166,7 @@ colormap(AP_colormap('PWG'));
 %% Sparse noise retinotopy (single day)
 
 % Load data
-animal = 'AM030';
+animal = 'AP026';
 workflow = 'sparse_noise';
 
 % % Specific day
@@ -193,7 +193,7 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'AP025';
+animal = 'AP026';
 
 % Create across-day alignments
 plab.wf.wf_align([],animal,[],'new_days');

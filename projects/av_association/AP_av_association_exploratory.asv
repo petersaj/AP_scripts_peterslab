@@ -527,9 +527,6 @@ for curr_animal = 1:length(animals)
     ap.print_progress_fraction(curr_animal,length(animals));
 end
 
-%%% ---> TODO: Save data
-
-
 
 figure;
 for str_ap = 1:2
@@ -546,7 +543,6 @@ for str_ap = 1:2
     end
 end
 linkaxes(gcf().Children.Children);
-
 
 
 %% Striatum unit PSTHs: passive
@@ -701,8 +697,9 @@ cell2mat(horzcat(bhv_p{:,1})') < 0.05;
 cell2mat(horzcat(bhv_p{:,2})') < 0.05;
 
 % (manually define V>A)
-training_order = ~ismember(animals', ...
+training_order = ismember(animals', ...
     {'AP022','DS007','DS010','DS011','AP021','DS001'});
+
 
 % Get total fraction of responsive units by modality
 responsive_units_frac = cellfun(@(x) arrayfun(@(curr_day) ...

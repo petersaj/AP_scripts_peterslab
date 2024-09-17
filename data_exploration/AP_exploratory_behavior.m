@@ -159,7 +159,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'AP023','AP025'};
+animals = {'AM008','AP008','AP009'};
 
 % Create master tiled layout
 figure;
