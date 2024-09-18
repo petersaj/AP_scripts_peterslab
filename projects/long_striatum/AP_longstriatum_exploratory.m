@@ -1,4 +1,4 @@
-%% ~~~~~~~~~~~ INDIVIDUAL 
+%% ~~~~~~~~~~~ INDIVIDUAL
 
 %% Get bursts of DMS activity
 
@@ -133,21 +133,21 @@ k_roi(:,round(size(k_roi,2)/2):end,:) = false;
 
 % Align data
 if contains(bonsai_workflow,'passive')
-% LCR passive: align to quiescent stim onset
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    1:length(stimOn_times))';
+    % LCR passive: align to quiescent stim onset
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        1:length(stimOn_times))';
 
-stim_x = vertcat(trial_events.values.TrialStimX);
-align_times = stimOn_times(quiescent_trials & stim_x == 90);
-sort_idx = 1:length(align_times);
+    stim_x = vertcat(trial_events.values.TrialStimX);
+    align_times = stimOn_times(quiescent_trials & stim_x == 90);
+    sort_idx = 1:length(align_times);
 
 elseif contains(bonsai_workflow,'stim_wheel')
-% (task)
-align_times = stimOn_times;
-[~,sort_idx] = sort(stim_to_move);
+    % (task)
+    align_times = stimOn_times;
+    [~,sort_idx] = sort(stim_to_move);
 
 end
 
@@ -231,8 +231,8 @@ psth_tavg = nanmean(psth(:,psth_t>=use_t(1) & psth_t<=use_t(2)),2);
 n_grps = 3;
 trial_grp = discretize(psth_tavg,prctile(psth_tavg,linspace(0,100,n_grps+1)));
 psth_grp_avg = ap.groupfun(@nanmean,psth,trial_grp,[]);
-figure; 
-nexttile; 
+figure;
+nexttile;
 imagesc(psth(sort_idx,:));
 nexttile;
 colororder(copper(n_grps));
@@ -282,6 +282,70 @@ ap.imscroll(str_mua_cat,t); axis image;
 clim([-1,1]);
 colormap(AP_colormap('BWR',[],5));
 
+%% MUA task regression
+
+mua_length = 200;
+
+% Get striatum start = lowest unit density, end = end of probe
+unit_density_bins = 0:100:3840;
+unit_density = histcounts(template_depths,unit_density_bins);
+[~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
+unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
+template_depths_sorted = sort(template_depths);
+str_start =  template_depths_sorted(find(template_depths_sorted >= ...
+    unit_density_bins(unit_density_min_idx+1),1));
+str_end = max(channel_positions(:,2));
+
+% Discretize spikes by depth
+depth_group_edges = str_start:mua_length:str_end;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+% Get MUA binned by widefield
+sample_rate = (1/mean(diff(wf_t)));
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+binned_spikes = zeros(max(depth_group),length(time_bins)-1);
+for curr_depth = 1:max(depth_group)
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+end
+
+% Task regressors
+stim_regressors = histcounts(stimOn_times,time_bins);
+reward_regressors = histcounts(reward_times,time_bins);
+
+stim_move_regressors = histcounts(stim_move_time,time_bins);
+nonstim_move_times = ...
+    setdiff(timelite.timestamps(find(diff(wheel_move) == 1)+1), ...
+    stim_move_regressors);
+nonstim_move_regressors = histcounts(nonstim_move_times,time_bins);
+
+% Concatenate selected regressors, set parameters
+task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
+task_regressor_labels = {'Stim','Reward','Stim move','Nonstim move'};
+
+task_t_shifts = { ...
+    [-0.2,1]; ... % stim
+    [-0.2,1];  ... % outcome
+    [-0.2,1];  ... % nonstim move
+    [-0.2,1]};    % stim move
+
+task_regressor_sample_shifts = cellfun(@(x) round(x(1)*(wf_framerate)): ...
+    round(x(2)*(wf_framerate)),task_t_shifts,'uni',false);
+lambda = 0;
+zs = [false,false];
+cvfold = 5;
+use_constant = true;
+return_constant = false;
+
+[mua_task_k,mua_task_long,mua_task_expl_var,mua_task_reduced_long] = ...
+    AP_regresskernel(task_regressors,binned_spikes,task_regressor_sample_shifts, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+
+mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
+
 
 %% ~~~~~~~~~~~ BATCH
 
@@ -292,7 +356,7 @@ animals = { ...
     'AM018','AM019','AM021','AM022','AM026','AM029', ...
     'AP023','AP025'};
 
-% Excluding: 
+% Excluding:
 % AM008, AP009, AP009 - ephys-only
 % AM027 - very anterior / in SM-striatum
 
@@ -457,7 +521,7 @@ for curr_animal_idx = 1:length(animals)
     if any(learned_day)
         AP_errorfill(surround_time_points,frac_move_stimalign(learned_day,:)', ...
             0.02,[0,1,0],0.1,false);
-        
+
         % Store behavior across animals
         bhv(curr_animal_idx).stim_to_move_med = stim_to_move_med;
         bhv(curr_animal_idx).stim_to_outcome_med = stim_to_outcome_med;
@@ -496,7 +560,7 @@ t_centers = conv2(t_bins,[1,1]/2,'valid');
 day_V_all = cell(length(animals),1);
 
 for curr_animal = 1:length(animals)
-   
+
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
@@ -592,7 +656,7 @@ t_centers = conv2(t_bins,[1,1]/2,'valid');
 day_V_all = cell(length(animals),1);
 
 for curr_animal = 1:length(animals)
-   
+
     animal = animals{curr_animal};
 
     use_workflow = 'stim_wheel*';
@@ -687,7 +751,7 @@ for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -727,7 +791,7 @@ for curr_animal = 1:length(animals)
         % Discretize spikes by depth
         depth_group_edges = str_start:mua_length:str_end;
         if length(depth_group_edges) < 2
-            continue    
+            continue
         end
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
@@ -835,7 +899,7 @@ day_mua_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
-%     use_workflow = 'lcr_passive';
+    %     use_workflow = 'lcr_passive';
     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
@@ -876,7 +940,7 @@ for curr_animal = 1:length(animals)
         % Discretize spikes by depth
         depth_group_edges = str_start:mua_length:str_end;
         if length(depth_group_edges) < 2
-            continue    
+            continue
         end
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
@@ -960,8 +1024,155 @@ save_fn = fullfile(save_dir,'mua_task');
 save(save_fn,'day_mua_all')
 fprintf('Saved %s\n',save_fn);
 
+%% MUA task regression by depth
 
-%% Visually responsive units 
+clearvars
+
+% Get animals
+data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_dir,'animals'));
+
+plot_depths = false;
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% Set MUA length (microns)
+mua_length = 200;
+
+mua_task_k_all = cell(length(animals),1);
+
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+
+    %     use_workflow = 'lcr_passive';
+    use_workflow = 'stim_wheel*';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+    recordings = recordings([recordings.ephys]);
+
+    recording_idx = 1:length(recordings);
+
+    day_mua_task_k = cell(length(recordings),1);
+
+    if plot_depths
+        figure;
+        h = tiledlayout(1,length(recordings));
+        title(h,animal);
+    end
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+
+        load_parts = struct;
+        load_parts.ephys = true;
+        ap.load_recording;
+
+        % Get striatum start = lowest unit density, end = end of probe
+        unit_density_bins = 0:100:3840;
+        unit_density = histcounts(template_depths,unit_density_bins);
+        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
+        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
+        template_depths_sorted = sort(template_depths);
+        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
+            unit_density_bins(unit_density_min_idx+1),1));
+        str_end = max(channel_positions(:,2));
+
+        % Discretize spikes by depth
+        depth_group_edges = str_start:mua_length:str_end;
+        if length(depth_group_edges) < 2
+            continue
+        end
+        spike_depth_group = discretize(spike_depths,depth_group_edges);
+        n_depths = max(spike_depth_group);
+
+        % Get MUA binned by widefield framerate
+        % (NOT DEFINED IN THIS, SO DEFINING HERE)
+%         sample_rate = (1/mean(diff(wf_t)));
+        sample_rate = 35;
+        skip_seconds = 60;
+        time_bins = skip_seconds:1/sample_rate:timelite.timestamps(end)-skip_seconds;
+        time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+        binned_spikes = zeros(max(spike_depth_group),length(time_bins)-1);
+        for curr_depth = 1:max(spike_depth_group)
+            curr_spike_times = spike_times_timelite(spike_depth_group == curr_depth);
+            binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+        end
+
+        % Baseline binned spikes by pre-stim periods
+        baseline_periods = stimOn_times + [-0.5,0];
+        spike_baselines = nanmean(cell2mat(cellfun(@(x) nanmean(binned_spikes(:,x),2), ...
+            arrayfun(@(x) time_bin_centers > baseline_periods(x,1) & ...
+            time_bin_centers < baseline_periods(x,2),1:length(stimOn_times), ...
+            'uni', false),'uni',false)),2);
+        binned_spikes_baselined = binned_spikes - spike_baselines;
+
+        % Task regressors
+        stim_regressors = histcounts(stimOn_times,time_bins);
+        reward_regressors = histcounts(reward_times,time_bins);
+
+        stim_move_regressors = histcounts(stim_move_time,time_bins);
+        nonstim_move_times = ...
+            setdiff(timelite.timestamps(find(diff(wheel_move) == 1)+1), ...
+            stim_move_regressors);
+        nonstim_move_regressors = histcounts(nonstim_move_times,time_bins);
+
+        % Concatenate selected regressors, set parameters
+        task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
+        task_regressor_labels = {'Stim','Reward','Stim move','Nonstim move'};
+
+        task_t_shifts = { ...
+            [-0.2,1]; ... % stim
+            [-0.2,1];  ... % outcome
+            [-0.2,1];  ... % nonstim move
+            [-0.2,1]};    % stim move
+
+        task_regressor_sample_shifts = cellfun(@(x) round(x(1)*(sample_rate)): ...
+            round(x(2)*(sample_rate)),task_t_shifts,'uni',false);
+        lambda = 0;
+        zs = [false,false];
+        cvfold = 5;
+        use_constant = false;
+        return_constant = false;
+
+        [mua_task_k,mua_task_long,mua_task_expl_var,mua_task_reduced_long] = ...
+            AP_regresskernel(task_regressors,binned_spikes_baselined, ...
+            task_regressor_sample_shifts, ...
+            lambda,zs,cvfold,return_constant,use_constant);
+
+        mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
+
+        % Store MUA task kernel (raw - to combine and normalize later)
+        day_mua_task_k{curr_recording} = mua_task_k_permute;
+
+        % Prep for next loop
+        clearvars('-except',preload_vars{:});
+
+    end
+
+    mua_task_k_all{curr_animal} = day_mua_task_k;
+
+    ap.print_progress_fraction(curr_animal,length(animals));
+
+end
+
+% Save
+save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+save_fn = fullfile(save_dir,'mua_task_k');
+save(save_fn,'mua_task_k_all')
+fprintf('Saved %s\n',save_fn);
+
+
+%% Visually responsive units
 
 clearvars
 
@@ -986,7 +1197,7 @@ for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -1122,7 +1333,7 @@ for curr_animal = 1:length(animals)
     disp(animal);
 
     use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -1175,7 +1386,7 @@ for curr_animal = 1:length(animals)
         % (empirical)
         tans = spike_rate >= 4 & spike_rate <= 12 & acg_isi >= 40;
 
-        % Use TANs in "striatum" and depth-sort 
+        % Use TANs in "striatum" and depth-sort
         use_tans = find(tans & template_depths >= str_start & template_depths <= str_end);
 
         % Stim times (quiescent trials only)
@@ -1237,20 +1448,20 @@ fprintf('Saved %s\n',save_fn);
 
 % %%% Simple plots for testing (this will break b/c now additional cell
 % %%% layer)
-% 
+%
 % tan_allcat = cell2mat(cellfun(@cell2mat,tan_psth_all,'uni',false));
 % [~,sort_idx] = sort(nanmean(abs(tan_allcat(:,500:700,3)),2));
 % ap.imscroll(tan_allcat(sort_idx,:,:))
 % clim([-2,2]);
 % colormap(ap.colormap('BWR'));
-% 
+%
 % am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 % load(fullfile(am_data_path,'bhv.mat'));
 % ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
-% 
+%
 % tan_daycat = vertcat(tan_psth_all{4:end});
 % ld_daycat = vertcat(ld{4:end});
-% 
+%
 % figure;
 % for curr_ld = -3:3
 %     curr_tan = cell2mat(tan_daycat(ld_daycat == curr_ld));
@@ -1260,7 +1471,7 @@ fprintf('Saved %s\n',save_fn);
 %     colormap(ap.colormap('BWR'));
 %     title(curr_ld);
 % end
-% 
+%
 % ld_x = -3:3;
 % tan_ld = nan(length(ld_x),size(tan_allcat,2));
 % for curr_ld_idx = 1:length(ld_x)
@@ -1294,7 +1505,7 @@ for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings(cellfun(@any,{recordings.widefield}) & [recordings.ephys]);
 
@@ -1318,7 +1529,7 @@ for curr_animal = 1:length(animals)
         ap.load_recording;
 
         % If not aligned, skip
-        if ~load_parts.widefield_align 
+        if ~load_parts.widefield_align
             continue
         end
 
@@ -1423,7 +1634,7 @@ for curr_animal = 1:length(animals)
     disp(animal);
 
     use_workflow = 'lcr_passive';
-%     use_workflow = 'stim_wheel*';
+    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings(cellfun(@any,{recordings.widefield}) & [recordings.ephys]);
 
@@ -1431,7 +1642,7 @@ for curr_animal = 1:length(animals)
 
     day_mua = cell(length(recordings),1);
     day_mua_predicted = cell(length(recordings),1);
-  
+
     for curr_recording = 1:length(recordings)
 
         % Grab pre-load vars
@@ -1448,7 +1659,7 @@ for curr_animal = 1:length(animals)
         ap.load_recording;
 
         % If not aligned, skip
-        if ~load_parts.widefield_align 
+        if ~load_parts.widefield_align
             continue
         end
 
@@ -1465,7 +1676,7 @@ for curr_animal = 1:length(animals)
         % Discretize spikes by depth
         depth_group_edges = str_start:mua_length:str_end;
         if length(depth_group_edges) < 2
-            continue    
+            continue
         end
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
@@ -1540,7 +1751,7 @@ for curr_animal = 1:length(animals)
             aligned_spikes = reshape(interp1(time_bin_centers,binned_spikes', ...
                 peri_event_t), ...
                 size(peri_event_t,1),length(t_centers),[]);
-            
+
             aligned_predicted_spikes = reshape(interp1(time_bin_centers, ...
                 predicted_spikes',peri_event_t), ...
                 size(peri_event_t,1),length(t_centers),[]);
@@ -1582,7 +1793,10 @@ fprintf('Saved %s\n',save_fn);
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
 % load(fullfile(am_data_path,'mua_passive.mat'));
+
 load(fullfile(am_data_path,'mua_task.mat'));
+load(fullfile(am_data_path,'mua_task_k.mat'));
+
 load(fullfile(am_data_path,'ctx_maps_passive.mat'));
 load(fullfile(am_data_path,'stim_cells.mat'));
 load(fullfile(am_data_path,'tan_psth_all.mat'));
@@ -1627,9 +1841,9 @@ for i = 1:n_k
     colormap(ap.colormap('PWG',[],1.5));
     ap.wf_draw('ccf','k');
 end
-    
+
 % Plot MUA by k-means cluster
-use_align = 2;
+use_align = 3;
 use_t = [500,750];
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
@@ -1712,17 +1926,58 @@ for curr_kidx = 1:n_k
     idx = sub2ind(size_grid,grp(:,1),ld_grp);
     act_grid = nan(size_grid);
     act_grid(idx) = stim_cells_frac;
-    
+
     p = signrank(nanmean(act_grid(:,ld_unique == -2),2),act_grid(:,ld_unique == -1));
     fprintf('% responsive stats - Kidx %d: p = %.3f\n',curr_kidx,p);
 
 end
 
+% Plot task kernel by k-means cluster
+plot_kernel = 4;
+mua_task_k_flat = cellfun(@transpose,vertcat(mua_task_k_all{:}),'uni',false);
+mua_task_k = vertcat(mua_task_k_flat{:});
+mua_task_k_cat = cell2mat(mua_task_k(:,plot_kernel));
+
+use_t = [8,14];
+
+figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
+for curr_kidx = 1:n_k
+
+    curr_use_ctx = kidx == curr_kidx;
+    [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+    ld_unique = unique(grp(:,2));
+
+    str_mua_depthgrp = ap.groupfun(@sum,str_mua_cat(curr_use_ctx,:,1),grp_idx,[]);
+    str_mua_depthgrp_baseline = nanmean(str_mua_depthgrp(:,1:500),2);
+    
+    str_k_depthgrp = ap.groupfun(@sum,mua_task_k_cat(curr_use_ctx,:),grp_idx,[])/(1/35); % convert to rate - currently in spikes
+
+    str_mua_depthgrp_norm = str_k_depthgrp./str_mua_depthgrp_baseline;
+    str_mua_depthgrp_norm_tmax = max(str_mua_depthgrp_norm(:,use_t(1):use_t(2)),[],2);
+
+    str_mua_ldgrp_norm = ap.groupfun(@mean,str_mua_depthgrp_norm,grp(:,2),[]);
+    nexttile(h); hold on; colororder(gca,ap.colormap('BKR',7));
+    plot(str_mua_ldgrp_norm(ismember(ld_unique,-3:3),:)','linewidth',2);
+
+    nexttile(h); hold on; colororder(gca,lines);
+    arrayfun(@(x) plot(grp(grp(:,1)==x,2), ...
+        str_mua_depthgrp_norm_tmax(grp(:,1)==x)),unique(grp(:,1)));
+    xlabel('Learned day');
+    ylabel('MUA')
+
+    [m,e] = grpstats(str_mua_depthgrp_norm_tmax,grp(:,2),{'mean','sem'});
+    errorbar(ld_unique,m,e,'k');
+    drawnow;
+
+end
+linkaxes(h.Children(2:2:end));
+
+
 % % Quick TAN look (haven't re-run this yet)
 % % (concanenate all TANs by kidx/LD)
 % tan_psth_cat = cellfun(@(x) vertcat(x{:}),tan_psth_all,'uni',false);
 % tan_psth_cat = vertcat(tan_psth_cat{:});
-% 
+%
 % ld_unique = -3:3;
 % tan_grp = cell(n_k,length(ld_unique));
 % for curr_kidx = 1:n_k
@@ -1732,7 +1987,7 @@ end
 %             animal_ld_idx(:,2) == ld_unique(curr_ld_idx)});
 %     end
 % end
-% 
+%
 % figure;
 % h = tiledlayout(n_k,length(ld_unique),'tileindexing','columnmajor');
 % for i = 1:numel(tan_grp)
@@ -1744,7 +1999,7 @@ end
 %     clim([-2,2]);
 % end
 % colormap(ap.colormap('BWR'));
-% 
+%
 % tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
 % figure;
 % h = tiledlayout(1,n_k);
@@ -1819,7 +2074,7 @@ figure;imagesc(unique(grp(:,2)),unique(grp(:,2)),act_bhv_corr);
 set(gca,'YDir','normal');
 clim([-1,1]);
 colormap(ap.colormap('BWR',[],1));
-axis image; 
+axis image;
 xlim([-3.5,2.5]);ylim(xlim);
 xlabel('LD: Behavior');
 ylabel('LD: Striatal activity');
@@ -1934,7 +2189,7 @@ colororder(gca,ap.colormap('BKR',size(roi.trace,1)));
 
 
 
-%% Cortex prediction 
+%% Cortex prediction
 % (unused at the moment - cortex predicts striatum, but that would be
 % expected if the synapse was strengthened?)
 
@@ -1988,7 +2243,7 @@ V_animal_day_idx = cell2mat(cellfun(@(x,animal,ld) ...
     [repmat(animal,size(x,4),1),ld], ...
     day_V_all(use_animals),num2cell(find(use_animals)),ld(use_animals),'uni',false));
 
-ap.imscroll(ctx_map_cat); 
+ap.imscroll(ctx_map_cat);
 axis image off;
 clim(max(abs(clim)).*[-1,1].*0.5);
 colormap(ap.colormap('BWR',[],1.5));
@@ -2037,7 +2292,7 @@ figure; tiledlayout('flow','TileSpacing','none');
 c = max(abs(x22),[],'all').*[-1,1].*0.8;
 ld_unique = unique(grp(:,2));
 for i = -3:3
-    nexttile; 
+    nexttile;
     imagesc(x22(:,:,ld_unique==i));
     axis image off;
     clim(c);
@@ -2128,7 +2383,7 @@ for i = 1:n_k
     colormap(ap.colormap('PWG',[],1.5));
     ap.wf_draw('ccf','k');
 end
-    
+
 % Plot MUA by k-means cluster
 use_align = 3;
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
@@ -2257,7 +2512,7 @@ for curr_kidx = 1:n_k
     [m,e] = grpstats(x11,grp(:,2),{'mean','sem'});
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
-    
+
 end
 
 % Plot single animal over days
