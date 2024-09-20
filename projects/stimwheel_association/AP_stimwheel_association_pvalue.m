@@ -1,5 +1,5 @@
 function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
-% [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(trial_events)
+% [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
 % Get p-value for whether reaction times are faster than chance (the animal
 % has a stim-wheel association)
 %

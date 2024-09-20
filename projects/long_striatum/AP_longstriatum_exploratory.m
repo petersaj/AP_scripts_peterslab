@@ -2,8 +2,11 @@
 
 %% Get bursts of DMS activity
 
+ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
+
 % Get bursts
-use_depth = [2000,4000];
+use_depth = [1600,2200];
+yline(use_depth,'r','linewidth',2)
 
 spike_binning_t = 0.005; % seconds
 spike_binning_t_edges = (min(timelite.timestamps):spike_binning_t:max(timelite.timestamps))';
@@ -345,6 +348,152 @@ return_constant = false;
     lambda,zs,cvfold,return_constant,use_constant);
 
 mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
+
+%% Control task: behavior
+% (fixed quiescence, 10% no stimuli)
+
+animals = {'AP024'};
+
+curr_animal_idx = 1;
+animal = animals{curr_animal_idx};
+
+use_workflow = {'stim_wheel_right_fixedquiescence*'};
+recordings = plab.find_recordings(animal,[],use_workflow);
+
+surround_time = [-5,5];
+surround_sample_rate = 100;
+surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+
+n_trials_success = nan(length(recordings),2);
+frac_move_day = nan(length(recordings),1);
+rxn_med = nan(length(recordings),2);
+frac_move_stimalign = nan(length(recordings),length(surround_time_points),2);
+rxn_stat_p = nan(length(recordings),1);
+
+% Create master tiled layout
+figure;
+t = tiledlayout(1,length(animals),'TileSpacing','tight');
+
+for curr_recording = 1:length(recordings)
+
+    % Grab pre-load vars
+    preload_vars = who;
+
+    % Load data
+    rec_day = recordings(curr_recording).day;
+    rec_time = recordings(curr_recording).recording{end};
+    load_parts = struct;
+    load_parts.behavior = true;
+    ap.load_recording;
+
+    % Get total trials/water
+    n_trials_success(curr_recording,:) = ...
+        [length([trial_events.values.Outcome]), ...
+        sum([trial_events.values.Outcome])];
+
+    % Get median stim-outcome time
+    % (for stim and no-stim trials)
+    n_trials = length([trial_events.values.Outcome]);
+    trial_opacity = 1-[trial_events.values(1:n_trials).TrialOpacity]';
+    rxn_med(curr_recording,:) = ap.groupfun(@median,stim_to_move,trial_opacity,[]);
+
+    % Align wheel movement to stim onset
+    align_times = stimOn_times(1:n_trials);
+    pull_times = align_times + surround_time_points;
+
+    frac_move_day(curr_recording) = nanmean(wheel_move);
+
+    event_aligned_wheel_vel = interp1(timelite.timestamps, ...
+        wheel_velocity,pull_times);
+    event_aligned_wheel_move = interp1(timelite.timestamps, ...
+        +wheel_move,pull_times,'previous');
+
+    frac_move_stimalign(curr_recording,:,:) = ...
+        permute(ap.groupfun(@nanmean,event_aligned_wheel_move,trial_opacity,[]),[3,2,1]);
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+end
+
+% Draw in tiled layout nested in master
+t_animal = tiledlayout(t,4,1);
+t_animal.Layout.Tile = curr_animal_idx;
+title(t_animal,animal);
+
+relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
+nonrecorded_day = setdiff(1:length(recordings),relative_day);
+
+nexttile(t_animal);
+yyaxis left; plot(relative_day,n_trials_success);
+ylabel('# trials');
+yyaxis right; plot(relative_day,frac_move_day);
+ylabel('Fraction time moving');
+xlabel('Day');
+
+nexttile(t_animal);
+yyaxis left
+plot(relative_day,rxn_med)
+set(gca,'YScale','log');
+ylabel('Med. rxn');
+xlabel('Day');
+
+yyaxis right
+prestim_max = max(frac_move_stimalign(:,surround_time_points < 0,:),[],2);
+poststim_max = max(frac_move_stimalign(:,surround_time_points > 0,:),[],2);
+stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
+plot(relative_day,permute(stim_move_frac_ratio,[1,3,2]));
+yline(0);
+ylabel('pre/post move idx');
+xlabel('Day');
+legend({'Stim','No stim'},'location','best')
+
+
+nexttile(t_animal); hold on
+set(gca,'ColorOrder',copper(length(recordings)));
+plot(surround_time_points,frac_move_stimalign(:,:,1)','linewidth',2);
+xline(0,'color','k');
+ylabel('Fraction moving');
+xlabel('Time from stim');
+title('Stim');
+
+nexttile(t_animal); hold on
+set(gca,'ColorOrder',copper(length(recordings)));
+plot(surround_time_points,frac_move_stimalign(:,:,2)','linewidth',2);
+xline(0,'color','k');
+ylabel('Fraction moving');
+xlabel('Time from stim');
+title('No stim');
+
+
+%% Control task: cell raster
+
+trial_opacity = [trial_events.values(1:n_trials).TrialOpacity]';
+
+% (regular task)
+wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
+wheel_stops = timelite.timestamps(diff([0;wheel_move]) == -1);
+
+% (get wheel starts when no stim on screen: not sure this works yet)
+iti_move_idx = interp1(photodiode_times, ...
+    photodiode_values,wheel_starts,'previous') == 0;
+[~,iti_move_sortidx] = sort(wheel_stops(iti_move_idx) - ...
+    wheel_starts(iti_move_idx));
+
+[~,rxn_sort_idx] = sort(stim_to_move);
+
+reward_sort_idx = 1:length(reward_times);
+[~,opacity_rxn_sort_idx] = sortrows([trial_opacity,stim_to_move]);
+trial_sort_idx = [trial_opacity,opacity_rxn_sort_idx,rxn_sort_idx];
+rewarded_trials = [trial_events.values(1:n_trials).Outcome] == 1;
+
+ap.cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts(iti_move_idx),reward_times_task}, ...
+    {trial_sort_idx,trial_sort_idx,iti_move_sortidx,trial_sort_idx(rewarded_trials,:)});
+
+set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
+
+
 
 
 %% ~~~~~~~~~~~ BATCH
@@ -1792,10 +1941,10 @@ fprintf('Saved %s\n',save_fn);
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-% load(fullfile(am_data_path,'mua_passive.mat'));
+load(fullfile(am_data_path,'mua_passive.mat'));
 
-load(fullfile(am_data_path,'mua_task.mat'));
-load(fullfile(am_data_path,'mua_task_k.mat'));
+% load(fullfile(am_data_path,'mua_task.mat'));
+% load(fullfile(am_data_path,'mua_task_k.mat'));
 
 load(fullfile(am_data_path,'ctx_maps_passive.mat'));
 load(fullfile(am_data_path,'stim_cells.mat'));
@@ -1973,42 +2122,43 @@ end
 linkaxes(h.Children(2:2:end));
 
 
-% % Quick TAN look (haven't re-run this yet)
-% % (concanenate all TANs by kidx/LD)
-% tan_psth_cat = cellfun(@(x) vertcat(x{:}),tan_psth_all,'uni',false);
-% tan_psth_cat = vertcat(tan_psth_cat{:});
-%
-% ld_unique = -3:3;
-% tan_grp = cell(n_k,length(ld_unique));
-% for curr_kidx = 1:n_k
-%     for curr_ld_idx = 1:length(ld_unique)
-%         tan_grp{curr_kidx,curr_ld_idx} = vertcat(tan_psth_cat{ ...
-%             kidx == curr_kidx &  ...
-%             animal_ld_idx(:,2) == ld_unique(curr_ld_idx)});
-%     end
-% end
-%
-% figure;
-% h = tiledlayout(n_k,length(ld_unique),'tileindexing','columnmajor');
-% for i = 1:numel(tan_grp)
-%     nexttile;
-%     if isempty(tan_grp{i})
-%         continue
-%     end
-%     imagesc(tan_grp{i}(:,:,3));
-%     clim([-2,2]);
-% end
-% colormap(ap.colormap('BWR'));
-%
-% tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
-% figure;
-% h = tiledlayout(1,n_k);
-% for i = 1:numel(tan_grp)
-%     curr_tan = cat(1,tan_grp_mean{i,:});
-%     nexttile;
-%     plot(curr_tan(:,:,3)');
-%     set(gca,'ColorOrder',ap.colormap('BKR',7));
-% end
+% Quick TAN look (haven't re-run this yet)
+% (concanenate all TANs by kidx/LD)
+tan_psth_cat = cellfun(@(x) vertcat(x{:}),tan_psth_all,'uni',false);
+tan_psth_cat = vertcat(tan_psth_cat{:});
+tan_psth_cat(cellfun(@isempty,tan_psth_cat)) = {nan(0,1500,3)};
+
+ld_unique = -3:3;
+tan_grp = cell(n_k,length(ld_unique));
+for curr_kidx = 1:n_k
+    for curr_ld_idx = 1:length(ld_unique)
+        tan_grp{curr_kidx,curr_ld_idx} = vertcat(tan_psth_cat{ ...
+            kidx == curr_kidx &  ...
+            animal_ld_idx(:,2) == ld_unique(curr_ld_idx)});
+    end
+end
+
+figure;
+h = tiledlayout(n_k,length(ld_unique),'tileindexing','columnmajor');
+for i = 1:numel(tan_grp)
+    nexttile;
+    if isempty(tan_grp{i})
+        continue
+    end
+    imagesc(tan_grp{i}(:,:,3));
+    clim([-2,2]);
+end
+colormap(ap.colormap('BWR'));
+
+tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
+figure;
+h = tiledlayout(1,n_k);
+for i = 1:size(tan_grp_mean,1)
+    curr_tan = cat(1,tan_grp_mean{i,:});
+    nexttile;
+    plot(curr_tan(:,:,3)');
+    set(gca,'ColorOrder',ap.colormap('BKR',7));
+end
 
 
 % Plot behavior by LD
@@ -2119,8 +2269,8 @@ ylabel('\DeltaActivity');
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-% load(fullfile(am_data_path,'wf_passive.mat'));
-load(fullfile(am_data_path,'wf_task.mat'));
+load(fullfile(am_data_path,'wf_passive.mat'));
+% load(fullfile(am_data_path,'wf_task.mat'));
 
 % Load U master
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -2158,7 +2308,6 @@ nexttile;imagesc([],-3:3,roi.trace);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG',[],1.5));
 
-
 ha = nexttile;
 plot(roi.trace','linewidth',2);
 colororder(ha,ap.colormap('BKR',size(roi.trace,1)));
@@ -2180,11 +2329,6 @@ title(h,'ROI');
 
 
 
-
-figure; hold on
-
-plot(c1',c2','linewidth',2);
-colororder(gca,ap.colormap('BKR',size(roi.trace,1)));
 
 
 

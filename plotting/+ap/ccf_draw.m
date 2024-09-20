@@ -101,6 +101,7 @@ classdef ccf_draw < handle
         %% Plot probes
 
         function obj = draw_probes_nte(obj,animal,probe_color)
+            % draw_probes_nte(obj,animal,probe_color)
             % Trajectory explorer probe position files
             nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
             nte_fns = dir(nte_filepattern);
