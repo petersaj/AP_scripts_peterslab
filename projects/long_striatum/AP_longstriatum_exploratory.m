@@ -350,7 +350,7 @@ return_constant = false;
 mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
 
 %% Control task: behavior
-% (fixed quiescence, 10% no stimuli)
+% (fixed quiescence, % no stimuli)
 
 animals = {'AP024'};
 
@@ -457,6 +457,7 @@ xline(0,'color','k');
 ylabel('Fraction moving');
 xlabel('Time from stim');
 title('Stim');
+ylim([0,1]);
 
 nexttile(t_animal); hold on
 set(gca,'ColorOrder',copper(length(recordings)));
@@ -465,6 +466,7 @@ xline(0,'color','k');
 ylabel('Fraction moving');
 xlabel('Time from stim');
 title('No stim');
+ylim([0,1]);
 
 
 %% Control task: cell raster
@@ -489,7 +491,7 @@ trial_sort_idx = [trial_opacity,opacity_rxn_sort_idx,rxn_sort_idx];
 rewarded_trials = [trial_events.values(1:n_trials).Outcome] == 1;
 
 ap.cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts(iti_move_idx),reward_times_task}, ...
-    {trial_sort_idx,trial_sort_idx,iti_move_sortidx,trial_sort_idx(rewarded_trials,:)});
+    {trial_sort_idx,trial_sort_idx,iti_move_sortidx,trial_opacity(rewarded_trials)});
 
 set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
 
