@@ -352,121 +352,143 @@ mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
 %% Control task: behavior
 % (fixed quiescence, % no stimuli)
 
-animals = {'AP024'};
-
-curr_animal_idx = 1;
-animal = animals{curr_animal_idx};
-
-use_workflow = {'stim_wheel_right_fixedquiescence*'};
-recordings = plab.find_recordings(animal,[],use_workflow);
-
-surround_time = [-5,5];
-surround_sample_rate = 100;
-surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
-
-n_trials_success = nan(length(recordings),2);
-frac_move_day = nan(length(recordings),1);
-rxn_med = nan(length(recordings),2);
-frac_move_stimalign = nan(length(recordings),length(surround_time_points),2);
-rxn_stat_p = nan(length(recordings),1);
+animals = {'AP024','AP026'};
 
 % Create master tiled layout
 figure;
 t = tiledlayout(1,length(animals),'TileSpacing','tight');
 
-for curr_recording = 1:length(recordings)
+for curr_animal_idx = 1:length(animals)
 
-    % Grab pre-load vars
-    preload_vars = who;
+    animal = animals{curr_animal_idx};
 
-    % Load data
-    rec_day = recordings(curr_recording).day;
-    rec_time = recordings(curr_recording).recording{end};
-    load_parts = struct;
-    load_parts.behavior = true;
-    ap.load_recording;
+    use_workflow = {'stim_wheel_right_fixedquiescence*'};
+    recordings = plab.find_recordings(animal,[],use_workflow);
 
-    % Get total trials/water
-    n_trials_success(curr_recording,:) = ...
-        [length([trial_events.values.Outcome]), ...
-        sum([trial_events.values.Outcome])];
+    surround_time = [-5,5];
+    surround_sample_rate = 100;
+    surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
 
-    % Get median stim-outcome time
-    % (for stim and no-stim trials)
-    n_trials = length([trial_events.values.Outcome]);
-    trial_opacity = 1-[trial_events.values(1:n_trials).TrialOpacity]';
-    rxn_med(curr_recording,:) = ap.groupfun(@median,stim_to_move,trial_opacity,[]);
+    n_trials_success = nan(length(recordings),2);
+    frac_move_day = nan(length(recordings),1);
+    rxn_med = nan(length(recordings),2);
+    frac_move_stimalign = nan(length(recordings),length(surround_time_points),2);
+    rxn_stat_p = nan(length(recordings),1);
 
-    % Align wheel movement to stim onset
-    align_times = stimOn_times(1:n_trials);
-    pull_times = align_times + surround_time_points;
+    for curr_recording = 1:length(recordings)
 
-    frac_move_day(curr_recording) = nanmean(wheel_move);
+        % Grab pre-load vars
+        preload_vars = who;
 
-    event_aligned_wheel_vel = interp1(timelite.timestamps, ...
-        wheel_velocity,pull_times);
-    event_aligned_wheel_move = interp1(timelite.timestamps, ...
-        +wheel_move,pull_times,'previous');
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
 
-    frac_move_stimalign(curr_recording,:,:) = ...
-        permute(ap.groupfun(@nanmean,event_aligned_wheel_move,trial_opacity,[]),[3,2,1]);
+        % Get total trials/water
+        n_trials_success(curr_recording,:) = ...
+            [length([trial_events.values.Outcome]), ...
+            sum([trial_events.values.Outcome])];
 
-    % Clear vars except pre-load for next loop
-    clearvars('-except',preload_vars{:});
-    AP_print_progress_fraction(curr_recording,length(recordings));
+        % Get median stim-outcome time
+        % (for stim and no-stim trials)
+        n_trials = length([trial_events.values.Outcome]);
+        trial_opacity = 1-[trial_events.values(1:n_trials).TrialOpacity]';
+        rxn_med(curr_recording,:) = ap.groupfun(@median,stim_to_move,trial_opacity,[]);
+
+        % Get statistical learning (faster to stim than no-stim)
+        n_shuff = 1000;
+        rxn_diff_null = arrayfun(@(x) diff(ap.groupfun(@median,stim_to_move,ap.shake(trial_opacity),[])),1:n_shuff);
+        rxn_diff_real = diff(ap.groupfun(@median,stim_to_move,trial_opacity,[]));
+        rxn_stat_rank = tiedrank(horzcat(rxn_diff_real,rxn_diff_null));
+        rxn_stat_p = 1-(rxn_stat_rank(1)./(n_shuff+2));
+
+        % Align wheel movement to stim onset
+        align_times = stimOn_times(1:n_trials);
+        pull_times = align_times + surround_time_points;
+
+        frac_move_day(curr_recording) = nanmean(wheel_move);
+
+        event_aligned_wheel_vel = interp1(timelite.timestamps, ...
+            wheel_velocity,pull_times);
+        event_aligned_wheel_move = interp1(timelite.timestamps, ...
+            +wheel_move,pull_times,'previous');
+
+        frac_move_stimalign(curr_recording,:,:) = ...
+            permute(ap.groupfun(@nanmean,event_aligned_wheel_move,trial_opacity,[]),[3,2,1]);
+
+        % Clear vars except pre-load for next loop
+        clearvars('-except',preload_vars{:});
+        AP_print_progress_fraction(curr_recording,length(recordings));
+
+    end
+
+    % Draw in tiled layout nested in master
+    t_animal = tiledlayout(t,5,1);
+    t_animal.Layout.Tile = curr_animal_idx;
+    title(t_animal,animal);
+
+    relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
+    nonrecorded_day = setdiff(1:length(recordings),relative_day);
+
+    nexttile(t_animal);
+    yyaxis left; plot(relative_day,n_trials_success);
+    ylabel('# trials');
+    yyaxis right; plot(relative_day,frac_move_day);
+    ylabel('Fraction time moving');
+    xlabel('Day');
+
+    nexttile(t_animal);
+    yyaxis left
+    plot(relative_day,rxn_med)
+    set(gca,'YScale','log');
+    ylabel('Med. rxn');
+    xlabel('Day');
+
+    yyaxis right
+    prestim_max = max(frac_move_stimalign(:,surround_time_points < 0,:),[],2);
+    poststim_max = max(frac_move_stimalign(:,surround_time_points > 0,:),[],2);
+    stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
+    plot(relative_day,permute(stim_move_frac_ratio,[1,3,2]));
+    yline(0);
+    ylabel('pre/post move idx');
+    xlabel('Day');
+    legend({'Stim','No stim'},'location','best')
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,frac_move_stimalign(:,:,1)','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    title('Stim');
+    ylim([0,1]);
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,frac_move_stimalign(:,:,2)','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    title('No stim');
+    ylim([0,1]);
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,(frac_move_stimalign(:,:,1) - ...
+        frac_move_stimalign(:,:,2))','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    title('Stim - no stim');
+    ylim([-1,1]);
 
 end
 
-% Draw in tiled layout nested in master
-t_animal = tiledlayout(t,4,1);
-t_animal.Layout.Tile = curr_animal_idx;
-title(t_animal,animal);
-
-relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
-nonrecorded_day = setdiff(1:length(recordings),relative_day);
-
-nexttile(t_animal);
-yyaxis left; plot(relative_day,n_trials_success);
-ylabel('# trials');
-yyaxis right; plot(relative_day,frac_move_day);
-ylabel('Fraction time moving');
-xlabel('Day');
-
-nexttile(t_animal);
-yyaxis left
-plot(relative_day,rxn_med)
-set(gca,'YScale','log');
-ylabel('Med. rxn');
-xlabel('Day');
-
-yyaxis right
-prestim_max = max(frac_move_stimalign(:,surround_time_points < 0,:),[],2);
-poststim_max = max(frac_move_stimalign(:,surround_time_points > 0,:),[],2);
-stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
-plot(relative_day,permute(stim_move_frac_ratio,[1,3,2]));
-yline(0);
-ylabel('pre/post move idx');
-xlabel('Day');
-legend({'Stim','No stim'},'location','best')
 
 
-nexttile(t_animal); hold on
-set(gca,'ColorOrder',copper(length(recordings)));
-plot(surround_time_points,frac_move_stimalign(:,:,1)','linewidth',2);
-xline(0,'color','k');
-ylabel('Fraction moving');
-xlabel('Time from stim');
-title('Stim');
-ylim([0,1]);
-
-nexttile(t_animal); hold on
-set(gca,'ColorOrder',copper(length(recordings)));
-plot(surround_time_points,frac_move_stimalign(:,:,2)','linewidth',2);
-xline(0,'color','k');
-ylabel('Fraction moving');
-xlabel('Time from stim');
-title('No stim');
-ylim([0,1]);
 
 
 %% Control task: cell raster
@@ -512,8 +534,17 @@ animals = { ...
 % AM027 - very anterior / in SM-striatum
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'animals');
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+save_fn = fullfile(data_path,'animals');
+save(save_fn,'animals')
+
+%% Set animals (fixed quiescence task)
+
+animals = {'AP024','AP026'};
+
+% Save
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\fixed_quiescence';
+save_fn = fullfile(data_path,'animals');
 save(save_fn,'animals')
 
 %% Behavior
@@ -521,8 +552,8 @@ save(save_fn,'animals')
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Create master tiled layout
 figure;
@@ -688,8 +719,164 @@ for curr_animal_idx = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'bhv');
+save_fn = fullfile(data_path,'bhv');
+save(save_fn,'bhv')
+fprintf('Saved %s\n',save_fn);
+
+%% Behavior (fixed quiescence task)
+
+clearvars
+
+% Get animals
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals_fixedquiescence'));
+
+% Create master tiled layout
+figure;
+t = tiledlayout(1,length(animals),'TileSpacing','tight');
+
+% Grab learning day for each mouse
+bhv = struct;
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals{curr_animal_idx};
+
+    use_workflow = {'stim_wheel*'};
+    recordings = plab.find_recordings(animal,[],use_workflow);
+
+    surround_time = [-5,5];
+    surround_sample_rate = 100;
+    surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+
+    n_trials_success = nan(length(recordings),2);
+    frac_move_day = nan(length(recordings),1);
+    rxn_med = nan(length(recordings),2);
+    frac_move_stimalign = nan(length(recordings),length(surround_time_points),2);
+    rxn_stat_p = nan(length(recordings),1);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        % Get total trials/water
+        n_trials_success(curr_recording,:) = ...
+            [length([trial_events.values.Outcome]), ...
+            sum([trial_events.values.Outcome])];
+
+        % Get median stim-outcome time
+        % (for stim and no-stim trials)
+        n_trials = length([trial_events.values.Outcome]);
+        trial_opacity = 1-[trial_events.values(1:n_trials).TrialOpacity]';
+        rxn_med(curr_recording,:) = ap.groupfun(@median,stim_to_move,trial_opacity,[]);
+
+        % Get statistical learning (faster to stim than no-stim)
+        n_shuff = 10000;
+        rxn_diff_null = arrayfun(@(x) diff(ap.groupfun(@median,stim_to_move,ap.shake(trial_opacity),[])),1:n_shuff);
+        rxn_diff_real = diff(ap.groupfun(@median,stim_to_move,trial_opacity,[]));
+        rxn_stat_rank = tiedrank(horzcat(rxn_diff_real,rxn_diff_null));
+        rxn_stat_p(curr_recording) = 1-(rxn_stat_rank(1)./(n_shuff+2));
+
+        % Align wheel movement to stim onset
+        align_times = stimOn_times(1:n_trials);
+        pull_times = align_times + surround_time_points;
+
+        frac_move_day(curr_recording) = nanmean(wheel_move);
+
+        event_aligned_wheel_vel = interp1(timelite.timestamps, ...
+            wheel_velocity,pull_times);
+        event_aligned_wheel_move = interp1(timelite.timestamps, ...
+            +wheel_move,pull_times,'previous');
+
+        frac_move_stimalign(curr_recording,:,:) = ...
+            permute(ap.groupfun(@nanmean,event_aligned_wheel_move,trial_opacity,[]),[3,2,1]);
+
+        % Clear vars except pre-load for next loop
+        clearvars('-except',preload_vars{:});
+        AP_print_progress_fraction(curr_recording,length(recordings));
+
+    end
+
+    % Define learned day from reaction stat p-value and reaction time
+    learned_day = rxn_stat_p < 0.05;
+
+    % Draw in tiled layout nested in master
+    t_animal = tiledlayout(t,5,1);
+    t_animal.Layout.Tile = curr_animal_idx;
+    title(t_animal,animal);
+
+    relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
+    nonrecorded_day = setdiff(1:length(recordings),relative_day);
+
+    nexttile(t_animal);
+    yyaxis left; plot(relative_day,n_trials_success);
+    ylabel('# trials');
+    yyaxis right; plot(relative_day,frac_move_day);
+    ylabel('Fraction time moving');
+    xlabel('Day');
+
+    nexttile(t_animal);
+    yyaxis left
+    plot(relative_day,rxn_med)
+    set(gca,'YScale','log');
+    ylabel('Med. rxn');
+    xlabel('Day');
+
+    yyaxis right
+    prestim_max = max(frac_move_stimalign(:,surround_time_points < 0,:),[],2);
+    poststim_max = max(frac_move_stimalign(:,surround_time_points > 0,:),[],2);
+    stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
+    plot(relative_day,permute(stim_move_frac_ratio,[1,3,2]));
+    yline(0);
+    ylabel('pre/post move idx');
+    xlabel('Day');
+    legend({'Stim','No stim'},'location','best')
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,frac_move_stimalign(:,:,1)','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    title('Stim');
+    ylim([0,1]);
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,frac_move_stimalign(:,:,2)','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    title('No stim');
+    ylim([0,1]);
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,(frac_move_stimalign(:,:,1) - ...
+        frac_move_stimalign(:,:,2))','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    title('Stim - no stim');
+    ylim([-1,1]);
+
+    % Store behavior across animals
+    bhv(curr_animal_idx).learned_day = learned_day;
+
+    drawnow;
+
+end
+
+% Save
+save_fn = fullfile(data_path,'bhv');
 save(save_fn,'bhv')
 fprintf('Saved %s\n',save_fn);
 
@@ -699,8 +886,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -785,8 +972,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'wf_passive');
+save_fn = fullfile(data_path,'wf_passive');
 save(save_fn,'day_V_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -795,8 +981,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -871,8 +1057,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'wf_task');
+save_fn = fullfile(data_path,'wf_task');
 save(save_fn,'day_V_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -882,8 +1067,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1021,8 +1206,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'mua_passive');
+save_fn = fullfile(data_path,'mua_passive');
 save(save_fn,'day_mua_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1031,8 +1215,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1170,8 +1354,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'mua_task');
+save_fn = fullfile(data_path,'mua_task');
 save(save_fn,'day_mua_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1180,8 +1363,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1317,8 +1500,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'mua_task_k');
+save_fn = fullfile(data_path,'mua_task_k');
 save(save_fn,'mua_task_k_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1328,8 +1510,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1455,8 +1637,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'stim_cells');
+save_fn = fullfile(data_path,'stim_cells');
 save(save_fn,'stim_responsive_cells')
 fprintf('Saved %s\n',save_fn);
 
@@ -1466,8 +1647,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set MUA length (microns)
 mua_length = 200;
@@ -1592,8 +1773,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'tan_psth_all');
+save_fn = fullfile(data_path,'tan_psth_all');
 save(save_fn,'tan_psth_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1643,8 +1823,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set MUA length (microns)
 mua_length = 200;
@@ -1655,8 +1835,8 @@ ctx_expl_var_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
-    use_workflow = 'lcr_passive';
-    %     use_workflow = 'stim_wheel*';
+%     use_workflow = 'lcr_passive';
+    use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings(cellfun(@any,{recordings.widefield}) & [recordings.ephys]);
 
@@ -1716,10 +1896,10 @@ for curr_animal = 1:length(animals)
             binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
             binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
-            use_svs = 1:500;
+            use_svs = 1:200;
             kernel_t = [0,0];
             kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-            lambda = 10;
+            lambda = 20;
             zs = [false,false];
             cvfold = 5;
             return_constant = false;
@@ -1755,18 +1935,18 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'ctx_maps_passive');
+save_fn = fullfile(data_path,'ctx_maps_task');
 save(save_fn,'ctx_map_all','ctx_expl_var_all');
 fprintf('Saved %s\n',save_fn);
+
 
 %% Cortical regression
 
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -1930,8 +2110,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'ctx_str_prediction');
+save_fn = fullfile(data_path,'ctx_str_prediction');
 save(save_fn,'day_mua_all','day_mua_predicted_all');
 fprintf('Saved %s\n',save_fn);
 
@@ -1939,6 +2118,8 @@ fprintf('Saved %s\n',save_fn);
 %% |--> ~~~~~~~~~~~ BATCH ANALYSIS
 
 %% MUA/responsive/TANs grouped by k-means
+
+%%%%%% Load just normal-task mice
 
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
@@ -1948,9 +2129,34 @@ load(fullfile(am_data_path,'mua_passive.mat'));
 % load(fullfile(am_data_path,'mua_task.mat'));
 % load(fullfile(am_data_path,'mua_task_k.mat'));
 
-load(fullfile(am_data_path,'ctx_maps_passive.mat'));
+% load(fullfile(am_data_path,'ctx_maps_passive.mat'));
+load(fullfile(am_data_path,'ctx_maps_task.mat'));
+
 load(fullfile(am_data_path,'stim_cells.mat'));
 load(fullfile(am_data_path,'tan_psth_all.mat'));
+
+%%%%%% Load/concatenate normal-task and fixed quiescence mice
+
+am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+a1 = load(fullfile(am_data_path,'bhv.mat'));
+b1 = load(fullfile(am_data_path,'mua_passive.mat'));
+c1 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
+d1 = load(fullfile(am_data_path,'stim_cells.mat'));
+
+am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\fixed_quiescence';
+a2 = load(fullfile(am_data_path,'bhv.mat'));
+b2 = load(fullfile(am_data_path,'mua_passive.mat'));
+c2 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
+d2 = load(fullfile(am_data_path,'stim_cells.mat'));
+
+bhv = struct('learned_day',[{a1.bhv.learned_day},{a2.bhv.learned_day}]);
+day_mua_all = vertcat(b1.day_mua_all,b2.day_mua_all);
+ctx_expl_var_all = vertcat(c1.ctx_expl_var_all,c2.ctx_expl_var_all);
+ctx_map_all = vertcat(c1.ctx_map_all,c2.ctx_map_all);
+stim_responsive_cells = vertcat(d1.stim_responsive_cells,d2.stim_responsive_cells);
+
+%%%%%%%
+
 
 % Convert cortex maps V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -1975,7 +2181,16 @@ animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
 
 % K-means cortex maps
 % (only use maps that explain x% variance)
-use_maps = ctx_expl_var_cat > 0.05;
+expl_var_cutoff = 0; 
+figure;
+subplot(2,1,1);
+plot(ctx_expl_var_cat,'.k');
+yline(expl_var_cutoff,'r','Use maps cutoff');
+subplot(2,1,2);
+histogram(ctx_expl_var_cat,linspace(-0.2,1,100));
+xline(expl_var_cutoff,'r','Use maps cutoff');
+
+use_maps = ctx_expl_var_cat > expl_var_cutoff;
 
 n_k = 4;
 kidx = nan(size(ctx_map_cat,3),1);
@@ -1992,6 +2207,22 @@ for i = 1:n_k
     colormap(ap.colormap('PWG',[],1.5));
     ap.wf_draw('ccf','k');
 end
+
+%%%%%
+
+% get rid of maps that aren't at least x correlation to template 
+
+k_corr_thresh = 0.5;
+for curr_kidx = 1:n_k
+    curr_maps = find(use_maps & kidx == curr_kidx);
+    curr_k_corr = corr(reshape(kmeans_map(:,:,curr_kidx),[],1), ...
+        reshape(ctx_map_cat(:,:,curr_maps), ...
+        prod(size(ctx_map_cat,[1,2])),[]));
+
+    kidx(curr_maps(curr_k_corr < k_corr_thresh)) = NaN;
+end
+
+%%%%%%
 
 % Plot MUA by k-means cluster
 use_align = 3;
@@ -2079,12 +2310,12 @@ for curr_kidx = 1:n_k
     act_grid(idx) = stim_cells_frac;
 
     p = signrank(nanmean(act_grid(:,ld_unique == -2),2),act_grid(:,ld_unique == -1));
-    fprintf('% responsive stats - Kidx %d: p = %.3f\n',curr_kidx,p);
+    fprintf('Frac responsive stats - Kidx %d: p = %.3f\n',curr_kidx,p);
 
 end
 
 % Plot task kernel by k-means cluster
-plot_kernel = 4;
+plot_kernel = 1;
 mua_task_k_flat = cellfun(@transpose,vertcat(mua_task_k_all{:}),'uni',false);
 mua_task_k = vertcat(mua_task_k_flat{:});
 mua_task_k_cat = cell2mat(mua_task_k(:,plot_kernel));
@@ -2124,7 +2355,7 @@ end
 linkaxes(h.Children(2:2:end));
 
 
-% Quick TAN look (haven't re-run this yet)
+% Quick TAN look
 % (concanenate all TANs by kidx/LD)
 tan_psth_cat = cellfun(@(x) vertcat(x{:}),tan_psth_all,'uni',false);
 tan_psth_cat = vertcat(tan_psth_cat{:});
