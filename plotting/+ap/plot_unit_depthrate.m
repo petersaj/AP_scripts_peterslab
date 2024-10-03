@@ -28,7 +28,7 @@ if exist('probe_areas','var') && ~isempty('probe_areas')
     set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
 end
 
-yyaxis right; 
+yyaxis right;
 set(gca,'YDir','reverse');
 norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
 
@@ -36,14 +36,16 @@ unit_dots = scatter( ...
     norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
 multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
 xlim(unit_axes,[-0.1,1]);
-ylim([-50, 3870]);
 ylabel('Depth (\mum)')
 xlabel('Normalized log rate')
 
-linkprop([unit_axes.YAxis],'limits');
 [unit_axes.YAxis.Color] = deal('k');
-axis tight;
 
+yyaxis left; 
+ylim([0, 3870]);
 
+yyaxis right;
+ylim([0, 3870]);
+xlim([0,1]);
 
 

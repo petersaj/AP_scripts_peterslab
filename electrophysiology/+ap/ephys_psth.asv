@@ -60,6 +60,8 @@ spike_groups_unique = 1:max(spike_groups);
 psth = cell(length(align_times),1);
 for curr_align = 1:length(align_times)
 
+    %%%%%%%%% TESTING
+
     % Get max number of align times that fall within overlapping window
     align_time_diff = align_times{curr_align} - align_times{curr_align}';
     max_t_diff = max(t_bins)-min(t_bins);
@@ -106,17 +108,45 @@ for curr_align = 1:length(align_times)
 
         spikes_binned_aligned_rate = spikes_binned_aligned./psth_opts.bin_size;
 
-        curr_psth(curr_align_idx,:,:) = spikes_binned_aligned_rate;
+        curr_psth
 
     end
 
-    % Check for NaNs (should be none if all filled)
-    if any(isnan(curr_psth(:)))
-        error('PSTH contains NaN: problem in filling all bins')
-    end
+    %%%%%%%%%%%%
 
-    % Store full PSTH
-    psth{curr_align} = curr_psth;
+    % Get time bins around event (ensure column vector align times)
+    align_bins = reshape(align_times{curr_align},[],1) + t_bins;
+    align_bins_vector = reshape(align_bins',[],1);
+
+    % Make spike group "bins" (centered on integers)
+    spike_group_bins = 0.5:1:length(spike_groups_unique)+1;
+
+    % Set spikes to use (non-NaN group, within time range)
+    use_spikes = ...
+        spike_times >= min(align_bins_vector) & ...
+        spike_times <= max(align_bins_vector) & ...
+        ~isnan(spike_groups);
+
+    % Bin spikes 
+    spikes_binned_continuous = histcounts2( ...
+        spike_times(use_spikes), ...
+        spike_groups(use_spikes), ...
+        align_bins_vector, ...
+        spike_group_bins);
+
+    % Throw away between-event bins and reshape to expected size
+    use_continuous_bins = reshape(padarray( ...
+        true(size(align_bins(:,1:end-1)')), ...
+        [1,0],false,'post'),[],1);
+
+    spikes_binned_aligned = ...
+        permute(reshape(spikes_binned_continuous(use_continuous_bins,:), ...
+        size(align_bins,2)-1,size(align_bins,1),length(spike_groups_unique)), ...
+        [2,1,3]);
+
+    spikes_binned_aligned_rate = spikes_binned_aligned./psth_opts.bin_size;
+
+    psth{curr_align} = spikes_binned_aligned_rate;
 
 end
 

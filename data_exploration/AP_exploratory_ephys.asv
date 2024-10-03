@@ -57,8 +57,8 @@ linkaxes(get(h,'Children'),'x');
 %% MUA correlelogram
 
 % Get correlation of MUA in sliding windows
-depth_corr_window = 200; % MUA window in microns
-depth_corr_window_spacing = 50; % MUA window spacing in microns
+depth_corr_window = 50; % MUA window in microns
+depth_corr_window_spacing = 20; % MUA window spacing in microns
 
 max_depths = 3840; % (hardcode, sometimes kilosort drops channels)
 
@@ -66,7 +66,7 @@ depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); .
     (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
 depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
 
-spike_binning_t = 0.01; % seconds
+spike_binning_t = 0.05; % seconds
 spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spike_times_timelite);
 
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
@@ -517,7 +517,7 @@ axis image;
 %% Widefield/ephys regression maps (MUA)
 
 % Set upsample value for regression
-upsample_factor = 1;
+upsample_factor = 2;
 sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
 
 % Skip the first/last n seconds to do this
@@ -634,8 +634,8 @@ end
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
-use_svs = 1:100;
-kernel_t = [-0.2,0.2];
+use_svs = 1:200;
+kernel_t = [-0.1,0.1];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
 lambda = 20;
 zs = [false,false];
@@ -940,7 +940,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'DS010'};
+animals = {'AP023','AP025'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -1030,7 +1030,7 @@ title(h,animal);
 
 %% Batch MUA by depth
 
-animal = 'AP026';
+animal = 'AM026';
 
 use_workflow = 'lcr_passive';
 % use_workflow = 'hml_passive_audio';

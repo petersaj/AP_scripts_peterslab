@@ -5,7 +5,7 @@
 ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
 
 % Get bursts
-use_depth = [1600,2200];
+use_depth = [2000,2500];
 yline(use_depth,'r','linewidth',2)
 
 spike_binning_t = 0.005; % seconds
@@ -74,7 +74,7 @@ str_start =  template_depths_sorted(find(template_depths_sorted >= ...
     unit_density_bins(unit_density_min_idx+1),1));
 str_end = max(channel_positions(:,2));
 
-depth_size = 600;
+depth_size = 400;
 depth_group_edges = str_start:depth_size:str_end;
 depth_group_edges(end) = str_end;
 [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
@@ -100,7 +100,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:100;
 kernel_t = [0,0];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 5;
+lambda = 10;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -156,9 +156,12 @@ end
 
 % Align data to align times
 
+psth_sample_rate = 200;
+
 % (striatum)
 % (note - missing depth group handled weirdly atm)
-[~,str_psth_all] = ap.ephys_psth(spike_times_timelite,align_times,depth_group,'norm_window',[-0.5,0],'smoothing',100);
+[~,str_psth_all,psth_t] = ap.ephys_psth(spike_times_timelite,align_times,depth_group, ...
+    'norm_window',[-0.5,0],'smoothing',10,'bin_size',1/psth_sample_rate);
 str_psth = nan(size(align_times,1),size(str_psth_all,2),n_depths);
 str_psth(:,:,unique(depth_group(~isnan(depth_group)))) = str_psth_all;
 
@@ -166,17 +169,16 @@ str_psth(:,:,unique(depth_group(~isnan(depth_group)))) = str_psth_all;
 [roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,[],[],k_roi);
 
 surround_window = [-0.5,1];
-surround_samplerate = wf_framerate;
-t = surround_window(1):1/surround_samplerate:surround_window(2);
+t = surround_window(1):1/psth_sample_rate:surround_window(2);
 peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
 
 aligned_trace = reshape(interp1(wf_t,roi_trace',peri_event_t,'previous'), ...
     length(align_times),length(t),[]);
-aligned_trace_baselinesub = aligned_trace - ...
-    mean(aligned_trace(:,t < 0,:),2);
+aligned_trace_baselinesub = aligned_trace - mean(aligned_trace(:,t < 0,:),2);
 
+% Plot all
 figure;
-h = tiledlayout(3,n_depths,'TileIndexing','ColumnMajor');
+h = tiledlayout(4,n_depths,'TileIndexing','ColumnMajor');
 for curr_str = 1:n_depths
     nexttile;
     imagesc(k_roi(:,:,curr_str));
@@ -192,19 +194,34 @@ for curr_str = 1:n_depths
     title('Cortex');
 
     nexttile;
-    imagesc(linspace(-0.5,1,size(str_psth,2)),[],str_psth(sort_idx,:,curr_str))
+    imagesc(psth_t,[],str_psth(sort_idx,:,curr_str))
     clim(0.2*max(max(str_psth,[],'all')).*[-1,1]);
     xline(0);
     set(gca,'colormap',AP_colormap('PWG'))
     title('Striatum');
+
+    aligned_trace_baselinesub_norm = aligned_trace_baselinesub(sort_idx,:,curr_str)./ ...
+        std(aligned_trace_baselinesub(:,:,curr_str),[],'all');
+    str_psth_norm = str_psth(sort_idx,:,curr_str)./std(str_psth(:,:,curr_str),[],'all');
+    nexttile;
+    imagesc(aligned_trace_baselinesub_norm - str_psth_norm);
+    xline(0);
+    clim(max(abs(clim)).*[-1,1]);
+    set(gca,'colormap',AP_colormap('BWR'))
+    title('Cortex - striatum')
+
 end
+title(h,sprintf('%s %s',animal,rec_day))
+
+
+
 
 
 
 %% Cortical activity split by striatal activity amount
 
 use_depth = [1000,2000];
-ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas)
+ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
 yline(use_depth,'r');
 
 use_spikes = spike_depths >= use_depth(1) & spike_depths <= use_depth(2);
@@ -534,8 +551,8 @@ animals = { ...
 % AM027 - very anterior / in SM-striatum
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'animals');
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+save_fn = fullfile(data_path,'animals');
 save(save_fn,'animals')
 
 %% Set animals (fixed quiescence task)
@@ -543,8 +560,8 @@ save(save_fn,'animals')
 animals = {'AP024','AP026'};
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'animals_fixedquiescence');
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\fixed_quiescence';
+save_fn = fullfile(data_path,'animals');
 save(save_fn,'animals')
 
 %% Behavior
@@ -552,8 +569,8 @@ save(save_fn,'animals')
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Create master tiled layout
 figure;
@@ -719,8 +736,7 @@ for curr_animal_idx = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'bhv');
+save_fn = fullfile(data_path,'bhv');
 save(save_fn,'bhv')
 fprintf('Saved %s\n',save_fn);
 
@@ -729,8 +745,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals_fixedquiescence'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals_fixedquiescence'));
 
 % Create master tiled layout
 figure;
@@ -877,8 +893,7 @@ for curr_animal_idx = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'bhv');
+save_fn = fullfile(data_path,'bhv');
 save(save_fn,'bhv')
 fprintf('Saved %s\n',save_fn);
 
@@ -888,8 +903,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -974,8 +989,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'wf_passive');
+save_fn = fullfile(data_path,'wf_passive');
 save(save_fn,'day_V_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -984,8 +998,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -1060,8 +1074,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'wf_task');
+save_fn = fullfile(data_path,'wf_task');
 save(save_fn,'day_V_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1071,8 +1084,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1210,18 +1223,175 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'mua_passive');
+save_fn = fullfile(data_path,'mua_passive');
 save(save_fn,'day_mua_all')
 fprintf('Saved %s\n',save_fn);
+
+%% MUA passive by depth (excluding TANs)
+
+clearvars
+
+% Get animals
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
+
+plot_depths = false;
+
+% Set times for PSTH
+raster_window = [-0.5,1];
+psth_bin_size = 0.001;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+% Set MUA length (microns)
+mua_length = 200;
+
+day_mua_all = cell(length(animals),1);
+
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+
+    use_workflow = 'lcr_passive';
+    %     use_workflow = 'stim_wheel*';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+    recordings = recordings([recordings.ephys]);
+
+    recording_idx = 1:length(recordings);
+
+    day_mua = cell(length(recordings),1);
+
+    if plot_depths
+        figure;
+        h = tiledlayout(1,length(recordings));
+        title(h,animal);
+    end
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+
+        load_parts = struct;
+        load_parts.ephys = true;
+        ap.load_recording;
+
+        % Get striatum start = lowest unit density, end = end of probe
+        unit_density_bins = 0:100:3840;
+        unit_density = histcounts(template_depths,unit_density_bins);
+        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
+        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
+        template_depths_sorted = sort(template_depths);
+        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
+            unit_density_bins(unit_density_min_idx+1),1));
+        str_end = max(channel_positions(:,2));
+
+        % Discretize spikes by depth
+        depth_group_edges = str_start:mua_length:str_end;
+        if length(depth_group_edges) < 2
+            continue
+        end
+        spike_depth_group = discretize(spike_depths,depth_group_edges);
+        n_depths = max(spike_depth_group);
+
+        % Plot units and depth groupings
+        if plot_depths
+            nexttile(h);
+            set(gca,'YDir','reverse'); hold on
+            norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+            unit_dots = scatter(norm_spike_n,template_depths( ...
+                unique(spike_templates)),20,'k','filled');
+            yline(depth_group_edges,'color','r');
+            drawnow;
+        end
+
+        % Stim times (quiescent trials only)
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            1:length(stimOn_times))';
+
+        if isfield(trial_events.values,'TrialStimX')
+            stim_x = vertcat(trial_events.values.TrialStimX);
+            % sometimes not all trials shown?
+            stim_x = stim_x(1:length(stimOn_times));
+            align_times = cellfun(@(x) stimOn_times(stim_x == x & quiescent_trials), ...
+                num2cell(unique(stim_x)),'uni',false);
+        else
+            % Stim times (task)
+            % (skip first trial - somes very short iti?)
+            % (also skip stim_to_move negative - bad quiescence))
+            use_trials = true(n_trials,1);
+            use_trials(1) = false;
+            use_trials(stim_to_move < 0) = false;
+
+            align_times = {stimOn_times(use_trials),stim_move_time(use_trials),reward_times_task};
+        end
+
+         % Classify tans (by spike rate and ACG time to steady-state)
+        spike_acg = cell2mat(arrayfun(@(x) ap.ephys_spike_cg(x),(1:size(waveforms,1))','uni',false));
+        acg_isi = arrayfun(@(x) ...
+            find(spike_acg(x,ceil(size(spike_acg,2)/2):end) > ...
+            mean(spike_acg(x,end-100:end),2),1,'first'),(1:size(templates,1))');
+        spike_rate = accumarray(spike_templates,1)/diff(prctile(spike_times_timelite,[0,100]));
+        tans = find(spike_rate >= 4 & spike_rate <= 12 & acg_isi >= 40);
+
+        % Get PSTH depth x t x align
+        depth_psth = nan(n_depths,length(t_bins)-1,length(align_times));
+        for curr_align = 1:length(align_times)
+
+            t_peri_event = align_times{curr_align} + t_bins;
+
+            use_spikes = spike_times_timelite >= min(t_peri_event,[],'all') & ...
+                spike_times_timelite <= max(t_peri_event,[],'all') & ...
+                ~isnan(spike_depth_group) & ...
+                ~ismember(spike_templates,tans); % Exclude TANs
+
+            spikes_binned_continuous = histcounts2(spike_times_timelite(use_spikes),spike_depth_group(use_spikes), ...
+                reshape(t_peri_event',[],1),1:n_depths+1)./psth_bin_size;
+
+            use_continuous_bins = reshape(padarray(true(size(t_peri_event(:,1:end-1)')),[1,0],false,'post'),[],1);
+            spikes_binned = spikes_binned_continuous(use_continuous_bins,:);
+
+            depth_psth(:,:,curr_align) = ...
+                nanmean(permute(reshape(spikes_binned, ...
+                size(t_peri_event,2)-1,[],n_depths),[3,1,2]),3);
+        end
+
+        smooth_size = 100;
+        depth_psth_smooth = smoothdata(depth_psth,2,'gaussian',smooth_size);
+
+        % Store MUA (raw - to combine and normalize later)
+        day_mua{curr_recording} = depth_psth_smooth;
+
+        % Prep for next loop
+        clearvars('-except',preload_vars{:});
+
+    end
+
+    day_mua_all{curr_animal} = day_mua;
+
+    ap.print_progress_fraction(curr_animal,length(animals));
+
+end
+
+% Save
+save_fn = fullfile(data_path,'mua_passive_notan');
+save(save_fn,'day_mua_all')
+fprintf('Saved %s\n',save_fn);
+
 
 %% MUA task by depth
 
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1359,8 +1529,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'mua_task');
+save_fn = fullfile(data_path,'mua_task');
 save(save_fn,'day_mua_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1369,8 +1538,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1506,8 +1675,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'mua_task_k');
+save_fn = fullfile(data_path,'mua_task_k');
 save(save_fn,'mua_task_k_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1517,8 +1685,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 plot_depths = false;
 
@@ -1609,7 +1777,7 @@ for curr_animal = 1:length(animals)
 
         event_response = squeeze(mean(diff(event_spikes,[],2),1));
 
-        n_shuff = 1000;
+        n_shuff = 10000;
         event_response_shuff = cell2mat(arrayfun(@(shuff) ...
             squeeze(mean(diff(ap.shake(event_spikes,2),[],2),1)), ...
             1:n_shuff,'uni',false));
@@ -1617,7 +1785,7 @@ for curr_animal = 1:length(animals)
         event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
         event_response_p = event_response_rank(:,1)./(n_shuff+1);
 
-        responsive_cells = event_response_p > 0.95;
+        responsive_cells = event_response_p > 0.99;
 
         % % Plot responsive units by depth
         % unit_dots = ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
@@ -1644,8 +1812,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'stim_cells');
+save_fn = fullfile(data_path,'stim_cells');
 save(save_fn,'stim_responsive_cells')
 fprintf('Saved %s\n',save_fn);
 
@@ -1655,8 +1822,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set MUA length (microns)
 mua_length = 200;
@@ -1781,8 +1948,7 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'tan_psth_all');
+save_fn = fullfile(data_path,'tan_psth_all');
 save(save_fn,'tan_psth_all')
 fprintf('Saved %s\n',save_fn);
 
@@ -1832,8 +1998,8 @@ fprintf('Saved %s\n',save_fn);
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set MUA length (microns)
 mua_length = 200;
@@ -1944,18 +2110,18 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'ctx_maps_task');
+save_fn = fullfile(data_path,'ctx_maps_task');
 save(save_fn,'ctx_map_all','ctx_expl_var_all');
 fprintf('Saved %s\n',save_fn);
+
 
 %% Cortical regression
 
 clearvars
 
 % Get animals
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-load(fullfile(data_dir,'animals'));
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
 
 % Set times for PSTH
 raster_window = [-0.5,1];
@@ -2119,13 +2285,29 @@ for curr_animal = 1:length(animals)
 end
 
 % Save
-save_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-save_fn = fullfile(save_dir,'ctx_str_prediction');
+save_fn = fullfile(data_path,'ctx_str_prediction');
 save(save_fn,'day_mua_all','day_mua_predicted_all');
 fprintf('Saved %s\n',save_fn);
 
 
 %% |--> ~~~~~~~~~~~ BATCH ANALYSIS
+
+%% Plot all recording locations
+
+% Get animals
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
+
+animal_col = [brewermap(8,'Dark2');brewermap(8,'Set2')];
+ccf_draw = ap.ccf_draw;
+ccf_draw.draw_name('Caudoputamen');
+
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+    probe_color = animal_col(curr_animal,:);
+    ccf_draw.draw_probes_nte(animal,probe_color);
+end
+
 
 %% MUA/responsive/TANs grouped by k-means
 
@@ -2134,7 +2316,7 @@ fprintf('Saved %s\n',save_fn);
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'mua_passive.mat'));
+load(fullfile(am_data_path,'mua_passive_.mat'));
 
 % load(fullfile(am_data_path,'mua_task.mat'));
 % load(fullfile(am_data_path,'mua_task_k.mat'));
@@ -2152,18 +2334,21 @@ a1 = load(fullfile(am_data_path,'bhv.mat'));
 b1 = load(fullfile(am_data_path,'mua_passive.mat'));
 c1 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
 d1 = load(fullfile(am_data_path,'stim_cells.mat'));
+e1 = load(fullfile(am_data_path,'tan_psth_all.mat'));
 
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\fixed_quiescence';
 a2 = load(fullfile(am_data_path,'bhv.mat'));
 b2 = load(fullfile(am_data_path,'mua_passive.mat'));
 c2 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
 d2 = load(fullfile(am_data_path,'stim_cells.mat'));
+e2 = load(fullfile(am_data_path,'tan_psth_all.mat'));
 
 bhv = struct('learned_day',[{a1.bhv.learned_day},{a2.bhv.learned_day}]);
 day_mua_all = vertcat(b1.day_mua_all,b2.day_mua_all);
 ctx_expl_var_all = vertcat(c1.ctx_expl_var_all,c2.ctx_expl_var_all);
 ctx_map_all = vertcat(c1.ctx_map_all,c2.ctx_map_all);
 stim_responsive_cells = vertcat(d1.stim_responsive_cells,d2.stim_responsive_cells);
+tan_psth_all = vertcat(e1.tan_psth_all,e2.tan_psth_all);
 
 %%%%%%%
 
@@ -2191,7 +2376,7 @@ animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
 
 % K-means cortex maps
 % (only use maps that explain x% variance)
-expl_var_cutoff = 0; 
+expl_var_cutoff = 0.00; 
 figure;
 subplot(2,1,1);
 plot(ctx_expl_var_cat,'.k');
@@ -2222,7 +2407,9 @@ end
 
 % get rid of maps that aren't at least x correlation to template 
 
-k_corr_thresh = 0.5;
+k_corr_thresh = 0;
+
+figure;tiledlayout(n_k,1);
 for curr_kidx = 1:n_k
     curr_maps = find(use_maps & kidx == curr_kidx);
     curr_k_corr = corr(reshape(kmeans_map(:,:,curr_kidx),[],1), ...
@@ -2230,6 +2417,10 @@ for curr_kidx = 1:n_k
         prod(size(ctx_map_cat,[1,2])),[]));
 
     kidx(curr_maps(curr_k_corr < k_corr_thresh)) = NaN;
+
+    nexttile;
+    plot(curr_k_corr,'.k');
+    yline(k_corr_thresh,'r','Kernel correlation threshold');
 end
 
 %%%%%%
@@ -2265,7 +2456,7 @@ for curr_kidx = 1:n_k
         (nanmean(str_mua_depthgrp(:,1:500),2) + softnorm);
     str_mua_depthgrp_norm_tmax = max(str_mua_depthgrp_norm(:,use_t(1):use_t(2)),[],2);
 
-    str_mua_ldgrp_norm = ap.groupfun(@mean,str_mua_depthgrp_norm,grp(:,2),[]);
+    str_mua_ldgrp_norm = ap.groupfun(@median,str_mua_depthgrp_norm,grp(:,2),[]);
     nexttile(h); hold on; colororder(gca,ap.colormap('BKR',7));
     plot(str_mua_ldgrp_norm(ismember(ld_unique,-3:3),:)','linewidth',2);
 
@@ -2275,7 +2466,7 @@ for curr_kidx = 1:n_k
     xlabel('Learned day');
     ylabel('MUA')
 
-    [m,e] = grpstats(str_mua_depthgrp_norm_tmax,grp(:,2),{'mean','sem'});
+    [m,e] = grpstats(str_mua_depthgrp_norm_tmax,grp(:,2),{'median','sem'});
     errorbar(ld_unique,m,e,'k');
     drawnow;
 
@@ -2308,7 +2499,7 @@ for curr_kidx = 1:n_k
     xlabel('Learned day');
     ylabel('Frac stim-responsive')
 
-    [m,e] = grpstats(stim_cells_frac,grp(:,2),{'mean','sem'});
+    [m,e] = grpstats(stim_cells_frac,grp(:,2),{'median','sem'});
     errorbar(unique(grp(:,2)),m,e,'k');
     drawnow;
 
@@ -2507,6 +2698,21 @@ ylabel('\DeltaActivity');
 
 
 
+
+% (testing: make template map from visually-responsive regions)
+x = stim_responsive_cells_cat(:,1)./stim_responsive_cells_cat(:,2);
+r = mat2gray(ctx_map_cat.^2).*permute(x,[2,3,1]);
+r2 = sqrt(sum(r.^2,3));
+figure;imagesc(r2); 
+axis image off; colormap(ap.colormap('WK',[],2));
+clim([0,0.25]);
+ap.wf_draw('ccf','r');
+
+a = corr(r2(:),reshape(ctx_map_cat.^2,[],size(ctx_map_cat,3)));
+kidx = nan(size(ctx_map_cat,3),1);
+kidx(a>0.5) = 1;
+
+
 %% Widefield responses
 
 % Load data
@@ -2543,7 +2749,7 @@ clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1));
 
-% (draw ROI from above and plot heatmap, lines, and max fluorescence)
+% |--> (draw ROI from above and plot heatmap, lines, and max fluorescence)
 figure;
 h = tiledlayout(1,3);
 
@@ -2557,7 +2763,7 @@ colororder(ha,ap.colormap('BKR',size(roi.trace,1)));
 
 use_frames = 15:30;
 roi_max = squeeze(max(ap.wf_roi(U_master,permute(V_cat(:,use_frames,3,:),[1,2,4,3]),[],[],roi.mask),[],2));
-roi_max_avg = ap.groupfun(@nanmean,roi_max,V_animal_day_idx(:,2),[]);
+roi_max_avg = ap.groupfun(@nanmedian,roi_max,V_animal_day_idx(:,2),[]);
 roi_max_std = ap.groupfun(@AP_sem,roi_max,V_animal_day_idx(:,2),[]);
 
 nexttile; hold on;

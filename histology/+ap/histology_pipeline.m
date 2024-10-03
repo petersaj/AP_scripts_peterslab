@@ -9,7 +9,7 @@
 % step?
 
 % Set animal and plot probe positions
-animal = 'AP014';
+animal = 'AP015';
 ap.plot_probe_positions(animal);
 
 % Day selection for each histology trajectory
@@ -31,7 +31,7 @@ disp(['Saved ' probe_ccf_filename]);
 
 %% Align histology depth to recording
 
-animal = 'AP014';
+animal = 'AP015';
 
 probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
     'histology','*','probe_ccf.mat'));
@@ -109,7 +109,93 @@ save(probe_ccf_filename,'probe_ccf');
 fprintf('Saved %s\n',probe_ccf_filename);
 
 
+%% Align depth to recording for one day? 
 
+animal = 'AP015';
+rec_day = '2024-02-22';
+load_parts.ephys = true;
+ap.load_recording;
+
+probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
+    'histology','*','probe_ccf.mat'));
+probe_ccf_filename = fullfile(probe_ccf_dir.folder,probe_ccf_dir.name);
+load(probe_ccf_filename);
+
+curr_probe = 1;
+
+% Get tajectory areas
+trajectory_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
+    probe_ccf(curr_probe).trajectory_areas.color_hex_triplet,'uni',false)),[1,3,2]);
+
+trajectory_areas_boundaries = probe_ccf(curr_probe).trajectory_areas.trajectory_depth;
+trajectory_areas_centers = mean(trajectory_areas_boundaries,2);
+
+trajectory_areas_image_depth = 0:1:max(trajectory_areas_boundaries,[],'all');
+trajectory_areas_image_idx = interp1(trajectory_areas_boundaries(:,1), ...
+    1:height(probe_ccf(curr_probe).trajectory_areas),trajectory_areas_image_depth, ...
+    'previous','extrap');
+trajectory_areas_image = trajectory_areas_rgb(trajectory_areas_image_idx,:,:);
+
+% Interpolate depth from lowest DV point, ylim by depth estimate
+deepest_marked_depth = interp1(probe_ccf(curr_probe).trajectory_coords(:,2), ...
+    probe_ccf(curr_probe).trajectory_areas.trajectory_depth([1,end]), ...
+    max(probe_ccf(curr_probe).points(:,2)));
+
+% Get spikes normalized rate by depth
+norm_template_spike_n = mat2gray(log10(accumarray(spike_templates,1)+1));
+
+% Get correlation of multiunit in sliding windows
+depth_corr_window = 50; % MUA window in microns
+depth_corr_window_spacing = 20; % MUA window spacing in microns
+
+max_depths = 3840; % (hardcode, sometimes kilosort drops channels)
+
+depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); ...
+    (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
+depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
+
+spike_binning_t = 0.05; % seconds
+spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spike_times_timelite);
+
+binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
+for curr_depth = 1:size(depth_corr_bins,2)
+    curr_depth_templates_idx = ...
+        find(template_depths >= depth_corr_bins(1,curr_depth) & ...
+        template_depths < depth_corr_bins(2,curr_depth));
+    
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
+        ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
+end
+
+mua_corr = corrcoef(binned_spikes_depth');
+
+% Make figure
+figure;
+unit_ax = axes('position',[0.1,0,0.14,0.95]); axis off;
+mua_corr_ax = axes('position',[0.26,0,0.74,0.95]); axis off;
+area_ax = axes('position',[0.1,0,0.14,0.95],'color','none');
+
+scatter(unit_ax,norm_template_spike_n,template_depths,15,'k','filled');
+imagesc(mua_corr_ax,depth_corr_bin_centers,depth_corr_bin_centers,mua_corr)
+area_image = image(area_ax,trajectory_areas_image_depth,[],trajectory_areas_image);
+area_image.AlphaData = 0.5;
+set(unit_ax,'YDir','reverse');
+set(area_ax,'color','none');
+axis([unit_ax,mua_corr_ax],'off')
+
+linkaxes([unit_ax,mua_corr_ax],'y');
+ylim([unit_ax,mua_corr_ax,area_ax],[0,3840]);
+ylim(area_ax,[deepest_marked_depth-3840,deepest_marked_depth]);
+
+colormap(mua_corr_ax,ap.colormap('BWR'))
+clim(mua_corr_ax,[-0.5,0.5]);
+
+yline(area_ax,unique(trajectory_areas_boundaries(:)),'color','k','linewidth',1);
+set(area_ax(curr_probe),'XTick',[],'YTick',trajectory_areas_centers, ...
+    'YTickLabels',probe_ccf(curr_probe).trajectory_areas.acronym);
+
+title(unit_ax,'Unit depth x rate');
+title(mua_corr_ax,'Multiunit correlation');
 
 %% Miscellaneous 
 

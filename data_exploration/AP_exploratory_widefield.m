@@ -113,30 +113,29 @@ set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
 [roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,wf_avg);
 
-% LCR passive: align to quiescent stim onset
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    1:length(stimOn_times))';
+% % LCR passive: align to quiescent stim onset
+% stim_window = [0,0.5];
+% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+%     1:length(stimOn_times))';
+% 
+% align_times = stimOn_times(quiescent_trials);
+% if isfield(trial_events.values,'TrialStimX')
+%     align_category_all = vertcat(trial_events.values.TrialStimX);
+% elseif isfield(trial_events.values,'StimFrequence')
+%     align_category_all = vertcat(trial_events.values.StimFrequence);
+% end
+% align_category = align_category_all(quiescent_trials);
+% baseline_times = stimOn_times(quiescent_trials);
 
-align_times = stimOn_times(quiescent_trials);
-if isfield(trial_events.values,'TrialStimX')
-    align_category_all = vertcat(trial_events.values.TrialStimX);
-elseif isfield(trial_events.values,'StimFrequence')
-    align_category_all = vertcat(trial_events.values.StimFrequence);
-end
-align_category = align_category_all(quiescent_trials);
-
-baseline_times = stimOn_times(quiescent_trials);
-
-% % (task)
-% align_times = stimOn_times;
-% baseline_times = stimOn_times;
-% align_category = ones(size(align_times));
+% (task)
+align_times = stimOn_times;
+baseline_times = stimOn_times;
+align_category = ones(size(align_times));
 
 % Align ROI trace to align times
-surround_window = [-1,4];
+surround_window = [-1,2];
 baseline_window = [-0.5,-0.1];
 
 surround_samplerate = 35;
@@ -155,8 +154,12 @@ align_id = findgroups(reshape(align_category,[],1));
 figure;
 h = tiledlayout(1,max(align_id));
 for curr_id = 1:max(align_id)
-    nexttile
-    imagesc(t,[],aligned_trace_baselinesub(align_id == curr_id,:))
+
+    curr_trials = find(align_id == curr_id);
+    [~,sort_idx] = sort(stim_to_move(curr_trials));
+
+    nexttile;
+    imagesc(t,[],aligned_trace_baselinesub(curr_trials(sort_idx),:))
     clim(0.8*max(max(aligned_trace_baselinesub,[],'all')).*[-1,1]);
     xline(0);
 end
@@ -262,7 +265,6 @@ nonstim_move_times = ...
     setdiff(timelite.timestamps(find(diff(wheel_move) == 1)+1), ...
     stim_move_regressors);
 nonstim_move_regressors = histcounts(nonstim_move_times,time_bins);
-
 
 % Concatenate selected regressors, set parameters
 task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
