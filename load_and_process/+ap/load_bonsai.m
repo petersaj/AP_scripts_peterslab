@@ -17,7 +17,7 @@ if exist(bonsai_events_fn,'file') && ~isempty(readtable(bonsai_events_fn))
     % Check if Bonsai file is bad
     % (when this happens, last line is not written in full, so look for a
     % timestamp entry that is the wrong length)
-    bonsai_readtimestamps_opts = detectImportOptions(bonsai_events_fn);
+    bonsai_readtimestamps_opts = detectImportOptions(bonsai_events_fn,'delimiter',',');
     bonsai_readtimestamps_opts.SelectedVariableNames = 'Timestamp';
     bonsai_timestamps_raw = readtable(bonsai_events_fn,bonsai_readtimestamps_opts);
     if length(unique(cellfun(@length,bonsai_timestamps_raw.Timestamp))) ~= 1
@@ -28,7 +28,7 @@ if exist(bonsai_events_fn,'file') && ~isempty(readtable(bonsai_events_fn))
     end
 
     % Set Bonsai timestamp format
-    bonsai_table_opts = detectImportOptions(bonsai_events_fn);
+    bonsai_table_opts = detectImportOptions(bonsai_events_fn,'delimiter',',');
     bonsai_table_opts = setvaropts(bonsai_table_opts,'Timestamp','Type','datetime', ...
         'InputFormat','yyyy-MM-dd''T''HH:mm:ss.SSSSSSSZ','TimeZone','local', ...
         'DatetimeFormat','yyyy-MM-dd HH:mm:ss.SSS');

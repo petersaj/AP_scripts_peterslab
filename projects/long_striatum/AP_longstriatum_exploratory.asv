@@ -64,18 +64,11 @@ time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
 % (group multiunit by size bins)
 
-% Get striatum start = lowest unit density, end = end of probe
-unit_density_bins = 0:100:3840;
-unit_density = histcounts(template_depths,unit_density_bins);
-[~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-template_depths_sorted = sort(template_depths);
-str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-    unit_density_bins(unit_density_min_idx+1),1));
-str_end = max(channel_positions(:,2));
+% Find striatum boundaries
+AP_longstriatum_find_striatum_depth
 
 depth_size = 400;
-depth_group_edges = str_start:depth_size:str_end;
+depth_group_edges = striatum_depth(1):depth_size:striatum_depth(2);
 depth_group_edges(end) = str_end;
 [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
 depth_groups_used = unique(depth_group);
@@ -306,18 +299,11 @@ colormap(AP_colormap('BWR',[],5));
 
 mua_length = 200;
 
-% Get striatum start = lowest unit density, end = end of probe
-unit_density_bins = 0:100:3840;
-unit_density = histcounts(template_depths,unit_density_bins);
-[~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-template_depths_sorted = sort(template_depths);
-str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-    unit_density_bins(unit_density_min_idx+1),1));
-str_end = max(channel_positions(:,2));
+% Find striatum boundaries
+AP_longstriatum_find_striatum_depth
 
 % Discretize spikes by depth
-depth_group_edges = str_start:mua_length:str_end;
+depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
 depth_group = discretize(spike_depths,depth_group_edges);
 
 % Get MUA binned by widefield
@@ -535,11 +521,7 @@ ap.cellraster({stimOn_times(1:n_trials),stim_move_time,wheel_starts(iti_move_idx
 set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
 
 
-
-
-%% ~~~~~~~~~~~ BATCH
-
-%% Set animals
+%% ~~~~~~~~~~~ SET BATCH ANIMALS
 
 animals = { ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
@@ -554,6 +536,10 @@ animals = { ...
 data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 save_fn = fullfile(data_path,'animals');
 save(save_fn,'animals')
+
+
+%% ~~~~~~~~~~~ BATCH (averaged data)
+
 
 %% Set animals (fixed quiescence task)
 
@@ -1131,21 +1117,14 @@ for curr_animal = 1:length(animals)
         load_parts.ephys = true;
         ap.load_recording;
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
-
-        % Discretize spikes by depth
-        depth_group_edges = str_start:mua_length:str_end;
-        if length(depth_group_edges) < 2
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
             continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
 
@@ -1279,21 +1258,14 @@ for curr_animal = 1:length(animals)
         load_parts.ephys = true;
         ap.load_recording;
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
-
-        % Discretize spikes by depth
-        depth_group_edges = str_start:mua_length:str_end;
-        if length(depth_group_edges) < 2
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
             continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
 
@@ -1437,21 +1409,14 @@ for curr_animal = 1:length(animals)
         load_parts.ephys = true;
         ap.load_recording;
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
-
-        % Discretize spikes by depth
-        depth_group_edges = str_start:mua_length:str_end;
-        if length(depth_group_edges) < 2
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
             continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
 
@@ -1585,21 +1550,14 @@ for curr_animal = 1:length(animals)
         load_parts.ephys = true;
         ap.load_recording;
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
-
-        % Discretize spikes by depth
-        depth_group_edges = str_start:mua_length:str_end;
-        if length(depth_group_edges) < 2
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
             continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
 
@@ -1705,7 +1663,6 @@ for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
-    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -1732,21 +1689,14 @@ for curr_animal = 1:length(animals)
         load_parts.ephys = true;
         ap.load_recording;
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
-
-        % Discretize templates by depth
-        depth_group_edges = str_start:mua_length:str_end;
-        if length(depth_group_edges) < 2
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
             continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);       
         template_depth_group = discretize(template_depths,depth_group_edges);
         n_depths = max(template_depth_group);
 
@@ -1785,11 +1735,7 @@ for curr_animal = 1:length(animals)
         event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
         event_response_p = event_response_rank(:,1)./(n_shuff+1);
 
-        responsive_cells = event_response_p > 0.99;
-
-        % % Plot responsive units by depth
-        % unit_dots = ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
-        % unit_dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
+        responsive_cells = event_response_p > 0.95;
 
         depth_responsive_n = accumarray(template_depth_group(~isnan(template_depth_group)), ...
             responsive_cells(~isnan(template_depth_group)),[n_depths,1],@sum);
@@ -1860,19 +1806,15 @@ for curr_animal = 1:length(animals)
         load_parts.ephys = true;
         ap.load_recording;
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
+            continue
+        end
 
-        % Make striatum depth groups
-        depth_group_edges = str_start:mua_length:str_end;
-        depth_group_edges(end) = str_end; % (ensure last bin to str end)
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
+        depth_group_edges(end) = striatum_depth(2);
         n_depths = length(depth_group_edges)-1;
 
         % Initialize TAN PSTH by depth
@@ -1894,7 +1836,7 @@ for curr_animal = 1:length(animals)
         tans = spike_rate >= 4 & spike_rate <= 12 & acg_isi >= 40;
 
         % Use TANs in "striatum" and depth-sort
-        use_tans = find(tans & template_depths >= str_start & template_depths <= str_end);
+        use_tans = find(tans & template_depths >= striatum_depth(1) & template_depths <= striatum_depth(2));
 
         % Stim times (quiescent trials only)
         stim_window = [0,0.5];
@@ -2039,61 +1981,50 @@ for curr_animal = 1:length(animals)
             continue
         end
 
-        % Whole thing in a try/catch
-        try
-
-            % Get striatum start = lowest unit density, end = end of probe
-            unit_density_bins = 0:100:3840;
-            unit_density = histcounts(template_depths,unit_density_bins);
-            [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-            unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-            template_depths_sorted = sort(template_depths);
-            str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-                unit_density_bins(unit_density_min_idx+1),1));
-            str_end = max(channel_positions(:,2));
-
-            % Discretize spikes by depth
-            depth_group_edges = str_start:mua_length:str_end;
-            depth_group = discretize(spike_depths,depth_group_edges);
-
-            % Get MUA binned by widefield
-            sample_rate = (1/mean(diff(wf_t)));
-            skip_seconds = 60;
-            time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
-            time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
-
-            binned_spikes = zeros(max(depth_group),length(time_bins)-1);
-            for curr_depth = 1:max(depth_group)
-                curr_spike_times = spike_times_timelite(depth_group == curr_depth);
-                binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
-            end
-
-            binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
-            binned_spikes_std(isnan(binned_spikes_std)) = 0;
-
-            use_svs = 1:200;
-            kernel_t = [0,0];
-            kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-            lambda = 20;
-            zs = [false,false];
-            cvfold = 5;
-            return_constant = false;
-            use_constant = true;
-
-            fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
-
-            % Regress cortex to spikes
-            [k,predicted_spikes,explained_var] = ...
-                AP_regresskernel(fVdf_deconv_resample, ...
-                binned_spikes_std,kernel_frames, ...
-                lambda,zs,cvfold,return_constant,use_constant);
-
-            ctx_map{curr_recording} = permute(k,[1,3,2]);
-            ctx_expl_var{curr_recording} = explained_var.total;
-
-        catch me
-            % Any errors: do nothing
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
+            continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
+        depth_group = discretize(spike_depths,depth_group_edges);
+
+        % Get MUA binned by widefield
+        sample_rate = (1/mean(diff(wf_t)));
+        skip_seconds = 60;
+        time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+        time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+        binned_spikes = zeros(max(depth_group),length(time_bins)-1);
+        for curr_depth = 1:max(depth_group)
+            curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+            binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+        end
+
+        binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+        binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+        use_svs = 1:200;
+        kernel_t = [0,0];
+        kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+        lambda = 20;
+        zs = [false,false];
+        cvfold = 5;
+        return_constant = false;
+        use_constant = true;
+
+        fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+
+        % Regress cortex to spikes
+        [k,predicted_spikes,explained_var] = ...
+            AP_regresskernel(fVdf_deconv_resample, ...
+            binned_spikes_std,kernel_frames, ...
+            lambda,zs,cvfold,return_constant,use_constant);
+
+        ctx_map{curr_recording} = permute(k,[1,3,2]);
+        ctx_expl_var{curr_recording} = explained_var.total;
 
         % Prep for next loop
         clearvars('-except',preload_vars{:});
@@ -2169,21 +2100,14 @@ for curr_animal = 1:length(animals)
             continue
         end
 
-        % Get striatum start = lowest unit density, end = end of probe
-        unit_density_bins = 0:100:3840;
-        unit_density = histcounts(template_depths,unit_density_bins);
-        [~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-        unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-        template_depths_sorted = sort(template_depths);
-        str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-            unit_density_bins(unit_density_min_idx+1),1));
-        str_end = max(channel_positions(:,2));
-
-        % Discretize spikes by depth
-        depth_group_edges = str_start:mua_length:str_end;
-        if length(depth_group_edges) < 2
+        % Find striatum boundaries (skip if no marked striatum)
+        AP_longstriatum_find_striatum_depth
+        if any(isnan(striatum_depth))
             continue
         end
+
+        % Discretize spikes by depth
+        depth_group_edges = striatum_depth(1):mua_length:striatum_depth(2);
         spike_depth_group = discretize(spike_depths,depth_group_edges);
         n_depths = max(spike_depth_group);
 
@@ -2289,6 +2213,121 @@ save_fn = fullfile(data_path,'ctx_str_prediction');
 save(save_fn,'day_mua_all','day_mua_predicted_all');
 fprintf('Saved %s\n',save_fn);
 
+%% ~~~~~~~~~~~ BATCH (trial data)
+
+%% Passive
+
+% Initialize
+clearvars
+trial_data_all = struct;
+
+% Get animals
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
+
+% Loop through animals
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+
+    use_workflow = 'lcr_passive';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+    recordings = recordings([recordings.ephys]);
+
+    % Loop through recordings
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+
+        load_parts.ephys = true;
+        load_parts.widefield = true;
+        load_parts.widefield_master = true;
+        ap.load_recording;
+
+        % Grab trial data
+        AP_longstriatum_grab_trials;
+
+         % Store trial data in master structure
+        trial_data_fieldnames = fieldnames(trial_data);
+        for curr_trial_data_field = trial_data_fieldnames'
+            trial_data_all.(cell2mat(curr_trial_data_field)){curr_animal,1}{curr_recording,1} = ...
+                trial_data.(cell2mat(curr_trial_data_field));
+        end
+
+        % Prep for next loop
+        clearvars('-except',preload_vars{:});
+        ap.print_progress_fraction(curr_recording,length(recordings));
+
+    end
+    fprintf('Done %s\n',animal);
+end
+
+% Save
+save_fn = fullfile(data_path,'trial_data_passive');
+save(save_fn,'trial_data_all');
+fprintf('Saved %s\n',save_fn);
+
+
+%% Task
+
+% Initialize
+clearvars
+trial_data_all = struct;
+
+% Get animals
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
+
+% Loop through animals
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+
+    use_workflow = 'stim_wheel*';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+    recordings = recordings([recordings.ephys]);
+
+    % Loop through recordings
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+
+        load_parts.ephys = true;
+        load_parts.widefield = true;
+        load_parts.widefield_master = true;
+        ap.load_recording;
+
+        % Grab trial data
+        AP_longstriatum_grab_trials;
+
+         % Store trial data in master structure
+        trial_data_fieldnames = fieldnames(trial_data);
+        for curr_trial_data_field = trial_data_fieldnames'
+            trial_data_all.(cell2mat(curr_trial_data_field)){curr_animal,1}{curr_recording,1} = ...
+                trial_data.(cell2mat(curr_trial_data_field));
+        end
+
+        % Prep for next loop
+        clearvars('-except',preload_vars{:});
+        ap.print_progress_fraction(curr_recording,length(recordings));
+
+    end
+    fprintf('Done %s\n',animal);
+end
+
+% Save
+save_fn = fullfile(data_path,'trial_data_task');
+save(save_fn,'trial_data_all');
+fprintf('Saved %s\n',save_fn);
+
 
 %% |--> ~~~~~~~~~~~ BATCH ANALYSIS
 
@@ -2308,6 +2347,50 @@ for curr_animal = 1:length(animals)
     ccf_draw.draw_probes_nte(animal,probe_color);
 end
 
+%% Plot striatum boundaries
+
+% Get animals
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(data_path,'animals'));
+
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+
+    use_workflow = 'lcr_passive';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+    recordings = recordings([recordings.ephys]);
+
+    figure;
+    h = tiledlayout(1,length(recordings));
+    title(h,animal);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+
+        load_parts = struct;
+        load_parts.ephys = true;
+        ap.load_recording;
+
+        % Find striatum boundaries
+        AP_longstriatum_find_striatum_depth
+
+        % Plot units and striatum boundary
+        ha = nexttile(h);
+        ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas,ha);
+        title(ha,rec_day);
+        yline([striatum_depth(1),striatum_depth(2)],'r','linewidth',3);
+        drawnow;
+    end
+end
+
+
+
 
 %% MUA/responsive/TANs grouped by k-means
 
@@ -2316,7 +2399,8 @@ end
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'mua_passive_.mat'));
+load(fullfile(am_data_path,'mua_passive.mat'));
+% load(fullfile(am_data_path,'mua_passive_notan.mat'));
 
 % load(fullfile(am_data_path,'mua_task.mat'));
 % load(fullfile(am_data_path,'mua_task_k.mat'));
@@ -2362,7 +2446,9 @@ ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),
 % Concatenate data
 ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
 ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+
 str_mua_cat = cell2mat(vertcat(day_mua_all{:}));
+
 stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{:}));
 
 % Get indicies for animal / learned day / depth
@@ -2387,7 +2473,7 @@ xline(expl_var_cutoff,'r','Use maps cutoff');
 
 use_maps = ctx_expl_var_cat > expl_var_cutoff;
 
-n_k = 4;
+n_k = 3;
 kidx = nan(size(ctx_map_cat,3),1);
 [kidx(use_maps),kmeans_map] = kmeans(reshape(ctx_map_cat(:,:,use_maps), ...
     [],sum(use_maps))',n_k,'distance','correlation','replicates',5);
@@ -2407,7 +2493,7 @@ end
 
 % get rid of maps that aren't at least x correlation to template 
 
-k_corr_thresh = 0;
+k_corr_thresh = 0.5;
 
 figure;tiledlayout(n_k,1);
 for curr_kidx = 1:n_k
@@ -2427,61 +2513,84 @@ end
 
 % Plot MUA by k-means cluster
 use_align = 3;
-use_t = [500,750];
+use_t = [500,700];
+plot_ld = -3:3;
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 
     curr_use_ctx = kidx == curr_kidx;
     [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+    
+    use_grp = ismember(grp(:,2),plot_ld);
+    ld_unique = unique(grp(use_grp,2));
 
-    ctx_map_depthgrp = ap.groupfun(@mean,ctx_map_cat(:,:,curr_use_ctx),[],[],grp_idx);
-    ctx_map_ldgrp = ap.groupfun(@mean,ctx_map_depthgrp,[],[],grp(:,2));
-    figure; h2 = tiledlayout('flow','TileSpacing','none');
-    c = max(abs(ctx_map_ldgrp),[],'all').*[-1,1].*0.8;
-    ld_unique = unique(grp(:,2));
-    for i = ld_unique'
-        nexttile(h2);
-        imagesc(ctx_map_ldgrp(:,:,ld_unique==i));
-        axis image off;
-        clim(c);
-        ap.wf_draw('ccf','k');
-        title(i);
-    end
-    colormap(ap.colormap('PWG',[],1.5));
+%     ctx_map_depthgrp = ap.groupfun(@mean,ctx_map_cat(:,:,curr_use_ctx),[],[],grp_idx);
+%     ctx_map_ldgrp = ap.groupfun(@mean,ctx_map_depthgrp,[],[],grp(:,2));
+%     figure; h2 = tiledlayout('flow','TileSpacing','none');
+%     c = max(abs(ctx_map_ldgrp),[],'all').*[-1,1].*0.8;
+%     for i = ld_unique'
+%         nexttile(h2);
+%         imagesc(ctx_map_ldgrp(:,:,ld_unique==i));
+%         axis image off;
+%         clim(c);
+%         ap.wf_draw('ccf','k');
+%         title(i);
+%     end
+%     colormap(ap.colormap('PWG',[],1.5));
 
     str_mua_depthgrp = ap.groupfun(@sum,str_mua_cat(curr_use_ctx,:,use_align),grp_idx,[]);
 
-    softnorm = 0;
+    softnorm = 10;
     str_mua_depthgrp_norm = (str_mua_depthgrp-nanmean(str_mua_depthgrp(:,1:500),2))./ ...
         (nanmean(str_mua_depthgrp(:,1:500),2) + softnorm);
     str_mua_depthgrp_norm_tmax = max(str_mua_depthgrp_norm(:,use_t(1):use_t(2)),[],2);
+    str_mua_ldgrp_norm = ap.groupfun(@mean,str_mua_depthgrp_norm(use_grp,:),grp(use_grp,2),[]);
 
-    str_mua_ldgrp_norm = ap.groupfun(@median,str_mua_depthgrp_norm,grp(:,2),[]);
-    nexttile(h); hold on; colororder(gca,ap.colormap('BKR',7));
-    plot(str_mua_ldgrp_norm(ismember(ld_unique,-3:3),:)','linewidth',2);
+    nexttile(h); hold on; colororder(gca,ap.colormap('BKR',length(ld_unique)));
+    plot(str_mua_ldgrp_norm','linewidth',2);
 
-    nexttile(h); hold on; colororder(gca,lines);
-    arrayfun(@(x) plot(grp(grp(:,1)==x,2), ...
-        str_mua_depthgrp_norm_tmax(grp(:,1)==x)),unique(grp(:,1)));
+    nexttile(h); hold on; colororder(gca,[0.5,0.5,0.5]);
+    arrayfun(@(x) plot(grp(use_grp & grp(:,1)==x,2), ...
+        str_mua_depthgrp_norm_tmax(grp(use_grp,1)==x)),unique(grp(use_grp,1)));
     xlabel('Learned day');
     ylabel('MUA')
 
-    [m,e] = grpstats(str_mua_depthgrp_norm_tmax,grp(:,2),{'median','sem'});
-    errorbar(ld_unique,m,e,'k');
+    [m,e] = grpstats(str_mua_depthgrp_norm_tmax(use_grp),grp(use_grp,2),{'mean','sem'});
+    errorbar(ld_unique,m,e,'k','linewidth',2);
     drawnow;
 
     % Stats
-    [ld_unique,~,ld_grp] = unique(grp(:,2));
-    size_grid = [max(grp(:,1)),max(ld_grp)];
-    idx = sub2ind(size_grid,grp(:,1),ld_grp);
-    act_grid = nan(size_grid);
-    act_grid(idx) = str_mua_depthgrp_norm_tmax;
+%     % (signrank)
+%     [ld_unique,~,ld_grp] = unique(grp(:,2));
+%     size_grid = [max(grp(:,1)),max(ld_grp)];
+%     idx = sub2ind(size_grid,grp(:,1),ld_grp);
+%     act_grid = nan(size_grid);
+%     act_grid(idx) = str_mua_depthgrp_norm_tmax;
+% 
+%     stat_p = signrank(nanmean(act_grid(:,ld_unique <= -2),2),act_grid(:,ld_unique == -1));
 
-    p = signrank(nanmean(act_grid(:,ld_unique == -2),2),act_grid(:,ld_unique == -1));
-    fprintf('MUA stats - Kidx %d: p = %.3f\n',curr_kidx,p);
+    % (shuffle stat LD-1 vs LD<-1)
+    prelearn_days = grp(:,2) <= -1;
+    stat_use_act = str_mua_depthgrp_norm_tmax(prelearn_days);
+    stat_use_grp = grp(prelearn_days,:);
+
+    stat_diff = mean(stat_use_act(stat_use_grp(:,2) == -1)) - mean(stat_use_act(stat_use_grp(:,2) < -1));
+
+    n_shuff = 1000;
+    stat_diff_shuff = nan(n_shuff,1);
+    for i = 1:n_shuff
+        curr_grp_shuff = AP_shake(stat_use_grp(:,2),[],stat_use_grp(:,1));
+        stat_diff_shuff(i) = mean(stat_use_act(curr_grp_shuff == -1)) - mean(stat_use_act(curr_grp_shuff < -1));
+    end
+    stat_rank = tiedrank(vertcat(stat_diff,stat_diff_shuff));
+    stat_p = 1-(stat_rank(1)./(n_shuff+2));
+
+    fprintf('MUA stats - Kidx %d: p = %.3f\n',curr_kidx,stat_p);
 
 end
+linkaxes(h.Children(1:2:end));
 linkaxes(h.Children(2:2:end));
+
 
 
 % Plot responsive cell fraction by k-means cluster
@@ -2558,11 +2667,12 @@ linkaxes(h.Children(2:2:end));
 
 % Quick TAN look
 % (concanenate all TANs by kidx/LD)
-tan_psth_cat = cellfun(@(x) vertcat(x{:}),tan_psth_all,'uni',false);
+% (have to truncate bc more tan depths than ctx sometimes??)
+tan_psth_cat = cellfun(@(x,y) x(1:size(y,2)), ...
+    vertcat(tan_psth_all{:}), vertcat(ctx_map_all{:}),'uni',false);
 tan_psth_cat = vertcat(tan_psth_cat{:});
-tan_psth_cat(cellfun(@isempty,tan_psth_cat)) = {nan(0,1500,3)};
 
-ld_unique = -3:3;
+ld_unique = -2:2;
 tan_grp = cell(n_k,length(ld_unique));
 for curr_kidx = 1:n_k
     for curr_ld_idx = 1:length(ld_unique)
@@ -2579,10 +2689,14 @@ for i = 1:numel(tan_grp)
     if isempty(tan_grp{i})
         continue
     end
-    imagesc(tan_grp{i}(:,:,3));
+    curr_tans = tan_grp{i}(:,:,3);
+    [~,sort_idx] = sort(mean(curr_tans(:,500:700),2));
+    imagesc(curr_tans(sort_idx,:));
     clim([-2,2]);
+    title(sprintf('LD %d',ld_unique(i)));
 end
-colormap(ap.colormap('BWR'));
+colormap(ap.colormap('BWR',[],1.5));
+linkaxes(h.Children);
 
 tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
 figure;
@@ -2591,7 +2705,7 @@ for i = 1:size(tan_grp_mean,1)
     curr_tan = cat(1,tan_grp_mean{i,:});
     nexttile;
     plot(curr_tan(:,:,3)');
-    set(gca,'ColorOrder',ap.colormap('BKR',7));
+    set(gca,'ColorOrder',ap.colormap('BKR',length(ld_unique)));
 end
 
 
@@ -2701,16 +2815,29 @@ ylabel('\DeltaActivity');
 
 % (testing: make template map from visually-responsive regions)
 x = stim_responsive_cells_cat(:,1)./stim_responsive_cells_cat(:,2);
-r = mat2gray(ctx_map_cat.^2).*permute(x,[2,3,1]);
+x(isnan(x)) = 0;
+r = ctx_map_cat.*permute(x,[2,3,1]);
 r2 = sqrt(sum(r.^2,3));
+
 figure;imagesc(r2); 
 axis image off; colormap(ap.colormap('WK',[],2));
-clim([0,0.25]);
-ap.wf_draw('ccf','r');
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
 
 a = corr(r2(:),reshape(ctx_map_cat.^2,[],size(ctx_map_cat,3)));
+a_thresh = 0.45;
+figure;plot(a,'.k')
+yline(a_thresh,'r','thresh');
+
 kidx = nan(size(ctx_map_cat,3),1);
-kidx(a>0.5) = 1;
+kidx(a>a_thresh) = 1;
+n_k = 1;
+
+figure;imagesc(nanmean(ctx_map_cat(:,:,kidx==1),3));axis image
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
 
 
 %% Widefield responses
@@ -2718,8 +2845,8 @@ kidx(a>0.5) = 1;
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-load(fullfile(am_data_path,'wf_passive.mat'));
-% load(fullfile(am_data_path,'wf_task.mat'));
+% load(fullfile(am_data_path,'wf_passive.mat'));
+load(fullfile(am_data_path,'wf_task.mat'));
 
 % Load U master
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -2742,8 +2869,9 @@ V_ldavg = permute(ap.groupfun(@nanmean,V_cat,[],[],[],V_animal_day_idx(:,2)),[1,
 px_ldavg = plab.wf.svd2px(U_master,V_ldavg);
 
 % Plot widefield by learned day
-plot_align = 3;
-ap.imscroll(px_ldavg(:,:,:,ismember(ld_unique,-3:3),plot_align));
+plot_ld = -3:3;
+plot_align = 1;
+ap.imscroll(px_ldavg(:,:,:,ismember(ld_unique,plot_ld),plot_align));
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
@@ -2753,7 +2881,7 @@ colormap(ap.colormap('PWG',[],1));
 figure;
 h = tiledlayout(1,3);
 
-nexttile;imagesc([],-3:3,roi.trace);
+nexttile;imagesc([],plot_ld,roi.trace);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG',[],1.5));
 
@@ -2763,13 +2891,18 @@ colororder(ha,ap.colormap('BKR',size(roi.trace,1)));
 
 use_frames = 15:30;
 roi_max = squeeze(max(ap.wf_roi(U_master,permute(V_cat(:,use_frames,3,:),[1,2,4,3]),[],[],roi.mask),[],2));
+
+use_grps = ismember(V_animal_day_idx(:,2),plot_ld);
 roi_max_avg = ap.groupfun(@nanmedian,roi_max,V_animal_day_idx(:,2),[]);
 roi_max_std = ap.groupfun(@AP_sem,roi_max,V_animal_day_idx(:,2),[]);
 
 nexttile; hold on;
 arrayfun(@(x) plot(V_animal_day_idx(V_animal_day_idx(:,1)==x,2), ...
     roi_max(V_animal_day_idx(:,1)==x)),1:max(V_animal_day_idx(:,1)));
-errorbar(ld_unique,roi_max_avg,roi_max_std,'k','linewidth',2);
+
+plot_grp_idx = ismember(ld_unique,plot_ld);
+errorbar(ld_unique(plot_grp_idx),roi_max_avg(plot_grp_idx), ...
+    roi_max_std(plot_grp_idx),'k','linewidth',2);
 xlabel('Learned day');
 ylabel('Max fluorescence');
 
@@ -3130,6 +3263,541 @@ for curr_day = 1:length(day_mua_all{plot_animal})
 
 end
 linkaxes(h.Children);
+
+
+%% Trial data (striatum)
+
+% Load data
+am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(am_data_path,'bhv.mat'));
+load(fullfile(am_data_path,'ctx_maps_task.mat'));
+% load(fullfile(am_data_path,'trial_data_passive.mat'));
+load(fullfile(am_data_path,'trial_data_task.mat'));
+
+% (time not saved: re-create)
+t = -0.5:1/50:1;
+
+% Convert cortex maps V to px
+master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
+    'widefield_alignment','U_master.mat');
+load(master_U_fn);
+ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),x),x,'uni',false),ctx_map_all,'uni',false);
+
+% Concatenate data
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+
+% Get indicies for animal / learned day / depth
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+
+animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
+    [repmat(animal,size(data,2),1),repmat(ld,size(data,2),1),(1:size(data,2))'], ...
+    num2cell(ld),data,'uni',false), ...
+    num2cell(1:length(ctx_map_all))',ld,ctx_map_all,'uni',false);
+animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
+
+% Concatenate trial data
+striatum_mua_cat = cell2mat(cellfun(@(x)  ...
+    permute(reshape(permute(x,[2,1,3]),size(x,2),[]),[2,1,3]), ...
+    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+% Group area by cortical map k-means
+n_k = 3;
+kidx = nan(size(ctx_map_cat,3),1);
+use_maps = squeeze(any(ctx_map_cat,[1,2]));
+[kidx(use_maps),kmeans_map] = ...
+    kmeans(reshape(ctx_map_cat(:,:,use_maps),[],sum(use_maps))', ...
+    n_k,'distance','correlation','replicates',5);
+kmeans_map = reshape(kmeans_map',[size(ctx_map_cat,[1,2]),n_k]);
+
+figure;tiledlayout(n_k,1,'tilespacing','none');
+colormap(ap.colormap('PWG',[],1.5));
+for i = 1:n_k
+    nexttile;
+    imagesc(kmeans_map(:,:,i));
+    axis image off;
+    clim(max(abs(clim)).*[-1,1]);
+    ap.wf_draw('ccf','k');
+end
+
+kidx_day = mat2cell(kidx,cellfun(@(x) size(x,3),vertcat(ctx_map_px{:})),1);
+
+%%%%% TEMP: fixing number mismatch (end days with no striatum, cell size
+%%%%% wasn't initialized first)
+trial_data_all.striatum_mua{2}{4} = [];
+trial_data_all.striatum_mua{8}{8} = [];
+%%%%%%%%%%
+
+% Make indicies per trial
+day_animal = cell2mat(cellfun(@(x,y) repmat(x,length(y),1), ...
+    num2cell(1:length(bhv)),{bhv.learned_day},'uni',false)');
+trial_animal = cell2mat(cellfun(@(x,y) repmat(x,prod(size(y,[1,3])),1), ...
+    num2cell(day_animal),vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+trial_ld = cell2mat(cellfun(@(x,y) repmat(x,prod(size(y,[1,3])),1), ...
+    num2cell(vertcat(ld{:})),vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+trial_idx = cell2mat(cellfun(@(x) reshape(repmat((1:size(x,1))',size(x,3),1),[],1), ...
+    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+trial_frac_idx = cell2mat(cellfun(@(x) reshape(repmat((1:size(x,1))'./size(x,1),size(x,3),1),[],1), ...
+    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+% (passive)
+if isfield(trial_data_all,'stim')
+    trial_stim = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1)),size(y,3),1), ...
+        vertcat(trial_data_all.stim{:}), ...
+        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+end
+if isfield(trial_data_all,'wheel_move')
+    trial_wheel = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1),:),size(y,3),1), ...
+        vertcat(trial_data_all.wheel_move{:}), ...
+        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+end
+
+% (task)
+if isfield(trial_data_all,'stim_to_move')
+    trial_rxn = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1)),size(y,3),1), ...
+        vertcat(trial_data_all.stim_to_move{:}), ...
+        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+end
+if isfield(trial_data_all,'outcome')
+    trial_outcome = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1)),size(y,3),1), ...
+        vertcat(trial_data_all.outcome{:}), ...
+        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+end
+
+trial_depth = cell2mat(cellfun(@(x) reshape(repmat(1:size(x,3),size(x,1),1),[],1), ...
+    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+trial_kidx = cell2mat(cellfun(@(x,y) reshape(repmat(x',size(y,1),1),[],1), ...
+    kidx_day,vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+
+% (PLOT PASSIVE)
+plot_ld = [-3:3];
+figure; h = tiledlayout(n_k,length(plot_ld),'TileSpacing','tight');
+colormap(ap.colormap('WK',[],1.5));
+
+for curr_kidx = 1:n_k
+
+    use_trials = trial_stim == 90 & ~any(trial_wheel(:,t>0 & t<=0.3),2) & trial_kidx == curr_kidx;
+    [grp,~,grp_idx] = unique([trial_animal(use_trials),trial_ld(use_trials),trial_idx(use_trials)],'rows');
+
+    curr_striatum_mua_sum = ap.groupfun(@sum,striatum_mua_cat(use_trials,:),grp_idx,[]);
+
+    softnorm = 20;
+    curr_striatum_mua_norm = (curr_striatum_mua_sum-nanmean(curr_striatum_mua_sum(:,t<0),2))./ ...
+        (nanmean(curr_striatum_mua_sum(:,t<0),2) + softnorm);
+
+    for curr_ld = plot_ld
+        nexttile(h);
+        imagesc(imgaussfilt(curr_striatum_mua_norm(grp(:,2) == curr_ld,:),[3,1]));
+        colormap(ap.colormap('WK',[],1.5));
+        clim([0,2]);
+        title(sprintf('LD %d',curr_ld));
+    end
+
+    % (Plot average across animals)
+    [trial_grp,~,trial_grp_idx] = unique(grp(:,1:2),'rows');
+    curr_striatum_trialavg = ap.groupfun(@mean,curr_striatum_mua_norm,trial_grp_idx,[]);
+
+    [ld_grp,~,ld_grp_idx] = unique(trial_grp(:,2));
+    curr_striatum_ldavg = ap.groupfun(@mean,curr_striatum_trialavg,ld_grp_idx,[]);
+
+    figure;
+    plot(t,curr_striatum_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
+    colororder(gca,ap.colormap('BKR',length(plot_ld)));
+
+end
+
+% (PLOT TASK)
+plot_ld = [-3:3];
+figure; h = tiledlayout(n_k,length(plot_ld),'TileSpacing','tight');
+colormap(ap.colormap('WK',[],1.5));l
+
+for curr_kidx = 1:n_k
+
+    use_trials = find(trial_kidx == curr_kidx);
+    [grp,grp_first_idx,grp_idx] = unique([trial_animal(use_trials),trial_ld(use_trials),trial_idx(use_trials)],'rows');
+
+    curr_striatum_mua_sum = ap.groupfun(@sum,striatum_mua_cat(use_trials,:),grp_idx,[]);
+
+    softnorm = 20;
+    curr_striatum_mua_norm = (curr_striatum_mua_sum-nanmean(curr_striatum_mua_sum(:,t<0),2))./ ...
+        (nanmean(curr_striatum_mua_sum(:,t<0),2) + softnorm);
+
+    curr_rxn = trial_rxn(use_trials(grp_first_idx));
+
+    for curr_ld = plot_ld
+        plot_trials = find(grp(:,2) == curr_ld);
+        [~,sort_idx] = sort(curr_rxn(plot_trials));
+
+        nexttile(h);
+        imagesc(t,[],imgaussfilt(curr_striatum_mua_norm(plot_trials(sort_idx),:),[5,1]));
+        clim([0,2]); hold on;
+        xline(0,'r','linewidth',2);
+        plot(curr_rxn(plot_trials(sort_idx)),1:length(plot_trials),'b','linewidth',2)
+        title(sprintf('LD %d',curr_ld));
+    end
+
+    % (Plot average across animals)
+    [trial_grp,~,trial_grp_idx] = unique(grp(:,1:2),'rows');
+    curr_striatum_trialavg = ap.groupfun(@mean,curr_striatum_mua_norm,trial_grp_idx,[]);
+
+    [ld_grp,~,ld_grp_idx] = unique(trial_grp(:,2));
+    curr_striatum_ldavg = ap.groupfun(@mean,curr_striatum_trialavg,ld_grp_idx,[]);
+
+    figure;
+    plot(t,curr_striatum_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
+    colororder(gca,ap.colormap('BKR',length(plot_ld)));
+
+end
+
+
+%% Trial data (widefield)
+
+% Load data
+am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(am_data_path,'bhv.mat'));
+load(fullfile(am_data_path,'ctx_maps_task.mat'));
+% load(fullfile(am_data_path,'trial_data_passive.mat'));
+load(fullfile(am_data_path,'trial_data_task.mat'));
+
+% (time not saved: re-create)
+t = -0.5:1/50:1;
+
+% Convert cortex maps V to px
+master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
+    'widefield_alignment','U_master.mat');
+load(master_U_fn);
+ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),x),x,'uni',false),ctx_map_all,'uni',false);
+
+% Concatenate data
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+
+% Get indicies for animal / learned day / depth
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+
+animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
+    [repmat(animal,size(data,2),1),repmat(ld,size(data,2),1),(1:size(data,2))'], ...
+    num2cell(ld),data,'uni',false), ...
+    num2cell(1:length(ctx_map_all))',ld,ctx_map_all,'uni',false);
+animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
+
+% Concatenate trial data (and subtract baseline)
+wf_cat = cell2mat(vertcat(trial_data_all.widefield{:}));
+wf_cat = wf_cat - nanmean(wf_cat(:,t<0,:),2);
+
+n_vs = size(wf_cat,3);
+
+% Make indicies per trial
+day_animal = cell2mat(cellfun(@(x,y) repmat(x,length(y),1), ...
+    num2cell(1:length(bhv)),{bhv.learned_day},'uni',false)');
+trial_animal = cell2mat(cellfun(@(x,y) repmat(x,size(y,1),1), ...
+    num2cell(day_animal),vertcat(trial_data_all.widefield{:}),'uni',false));
+
+trial_ld = cell2mat(cellfun(@(x,y) repmat(x,size(y,1),1), ...
+    num2cell(vertcat(ld{:})),vertcat(trial_data_all.widefield{:}),'uni',false));
+
+trial_idx = cell2mat(cellfun(@(x) repmat((1:size(x,1))',1), ...
+    vertcat(trial_data_all.widefield{:}),'uni',false));
+
+% (passive)
+if isfield(trial_data_all,'stim')
+    trial_stim = cell2mat(vertcat(trial_data_all.stim{:}));
+    trial_wheel = cell2mat(vertcat(trial_data_all.wheel_move{:}));
+end
+
+% (task)
+if isfield(trial_data_all,'stim_to_move')
+    trial_rxn = cell2mat(vertcat(trial_data_all.stim_to_move{:}));
+end
+if isfield(trial_data_all,'outcome')
+    trial_outcome = cell2mat(vertcat(trial_data_all.outcome{:}));
+end
+
+% Plot average movie for drawing ROI
+avg_px = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    permute(nanmean(wf_cat,1),[3,2,1]));
+ap.imscroll(avg_px,t);
+axis image; 
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+ap.wf_draw('ccf','k');
+
+% (draw roi)
+roi_trace = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
+    permute(wf_cat,[3,2,1]),[],[],roi.mask),[3,2,1]);
+
+% (PLOT TASK)
+plot_ld = [-3:3];
+use_trials = find(trial_rxn > 0.3);find(true(size(trial_animal,1),1));
+
+figure; h = tiledlayout(1,length(plot_ld),'TileSpacing','tight');
+colormap(ap.colormap('PWG',[],1.5));
+for curr_ld = plot_ld
+    plot_trials = use_trials(trial_ld(use_trials) == curr_ld);
+    [~,sort_idx] = sort(trial_rxn(plot_trials));
+
+    nexttile(h);
+    imagesc(t,[],imgaussfilt(roi_trace(plot_trials(sort_idx),:),[5,1]));
+    clim([-1,1].*0.015); hold on;
+    xline(0,'r','linewidth',2);
+    plot(trial_rxn(plot_trials(sort_idx)),1:length(plot_trials),'b','linewidth',2)
+    title(sprintf('LD %d',curr_ld));
+end
+
+% (Plot average across animals)
+[grp,grp_first_idx,grp_idx] = unique([trial_animal(use_trials),trial_ld(use_trials),trial_idx(use_trials)],'rows');
+
+[trial_grp,~,trial_grp_idx] = unique(grp(:,1:2),'rows');
+roi_trialavg = ap.groupfun(@mean,roi_trace(use_trials,:),trial_grp_idx,[]);
+
+[ld_grp,~,ld_grp_idx] = unique(trial_grp(:,2));
+roi_ldavg = ap.groupfun(@mean,roi_trialavg,ld_grp_idx,[]);
+
+figure;
+plot(t,roi_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
+colororder(gca,ap.colormap('BKR',length(plot_ld)));
+
+
+% (plot average of specific trials)
+use_trials = trial_ld == -1 & trial_rxn > 0.2;
+avg_px = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    permute(nanmean(wf_cat(use_trials,:,:),1),[3,2,1]));
+ap.imscroll(avg_px,t);
+axis image; 
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+ap.wf_draw('ccf','k');
+
+
+% (PLOT PASSIVE)
+plot_ld = [-3:3];
+
+use_trials = ~any(trial_wheel(:,t>0 & t<=0.3),2) & ...
+    ismember(trial_ld,plot_ld) & trial_stim == 90;
+
+figure; h = tiledlayout(1,length(plot_ld),'TileSpacing','tight');
+colormap(ap.colormap('PWG',[],1.5));
+
+for curr_ld = plot_ld
+    plot_trials = use_trials & trial_ld == curr_ld;
+
+    nexttile(h);
+    imagesc(t,[],imgaussfilt(roi_trace(plot_trials,:),[1,1]));
+    clim([-1,1].*0.015); hold on;
+    xline(0,'r','linewidth',2);
+    title(sprintf('LD %d',curr_ld));
+end
+
+% (Plot average across animals)
+[trial_grp,~,trial_grp_idx] = unique([trial_animal(use_trials),trial_ld(use_trials)],'rows');
+roi_trialavg = ap.groupfun(@mean,roi_trace(use_trials,:),trial_grp_idx,[]);
+
+[ld_grp,~,ld_grp_idx] = unique(trial_grp(:,2));
+roi_ldavg = ap.groupfun(@mean,roi_trialavg,ld_grp_idx,[]);
+
+figure;
+plot(t,roi_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
+colororder(gca,ap.colormap('BKR',length(plot_ld)));
+
+
+%% Trial data (striatum + widefield)
+
+% Load data
+am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+load(fullfile(am_data_path,'bhv.mat'));
+load(fullfile(am_data_path,'ctx_maps_task.mat'));
+load(fullfile(am_data_path,'trial_data_passive.mat'));
+% load(fullfile(am_data_path,'trial_data_task.mat'));
+
+% (time not saved: re-create)
+t = -0.5:1/50:1;
+
+% Convert cortex maps V to px
+master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
+    'widefield_alignment','U_master.mat');
+load(master_U_fn);
+ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),x),x,'uni',false),ctx_map_all,'uni',false);
+
+% Concatenate data
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+
+% Get indicies for animal / learned day / depth
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+
+animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
+    [repmat(animal,size(data,2),1),repmat(ld,size(data,2),1),(1:size(data,2))'], ...
+    num2cell(ld),data,'uni',false), ...
+    num2cell(1:length(ctx_map_all))',ld,ctx_map_all,'uni',false);
+animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
+
+% Make indicies per trial
+day_animal = cell2mat(cellfun(@(x,y) repmat(x,length(y),1), ...
+    num2cell(1:length(bhv)),{bhv.learned_day},'uni',false)');
+trial_animal = cell2mat(cellfun(@(x,y) repmat(x,size(y,1),1), ...
+    num2cell(day_animal),vertcat(trial_data_all.widefield{:}),'uni',false));
+
+trial_ld = cell2mat(cellfun(@(x,y) repmat(x,size(y,1),1), ...
+    num2cell(vertcat(ld{:})),vertcat(trial_data_all.widefield{:}),'uni',false));
+
+trial_idx = cell2mat(cellfun(@(x) repmat((1:size(x,1))',1), ...
+    vertcat(trial_data_all.widefield{:}),'uni',false));
+
+% (passive)
+if isfield(trial_data_all,'stim')
+    trial_stim = cell2mat(vertcat(trial_data_all.stim{:}));
+end
+if isfield(trial_data_all,'wheel_move')
+    trial_wheel = cell2mat(vertcat(trial_data_all.wheel_move{:}));
+end
+if isfield(trial_data_all,'wheel_velocity')
+    trial_wheel_vel = cell2mat(vertcat(trial_data_all.wheel_velocity{:}));
+end
+% (task)
+if isfield(trial_data_all,'stim_to_move')
+    trial_rxn = cell2mat(vertcat(trial_data_all.stim_to_move{:}));
+end
+if isfield(trial_data_all,'outcome')
+    trial_outcome = cell2mat(vertcat(trial_data_all.outcome{:}));
+end
+
+% Widefield: concatenate trial data (and subtract baseline)
+wf_cat = cell2mat(vertcat(trial_data_all.widefield{:}));
+wf_cat = wf_cat - nanmean(wf_cat(:,t<0,:),2);
+
+n_vs = size(wf_cat,3);
+
+% Striatum: concatenate trial data, combine/normalize fraom kidx (above)
+
+%%%%% TEMP: fixing number mismatch (end days with no striatum, cell size
+%%%%% wasn't initialized first)
+trial_data_all.striatum_mua{2}{4} = [];
+trial_data_all.striatum_mua{8}{8} = [];
+%%%%%%%%%%
+
+use_str_depth = kidx == 1;
+use_str_depth_day = mat2cell(use_str_depth,cellfun(@(x) size(x,3),vertcat(ctx_map_px{:})),1);
+
+softnorm = 20;
+str_cat = cellfun(@(x,use_depth) (sum(x(:,:,use_depth),3) - nanmean(sum(x(:,t<0,use_depth),3),2)) ./ ...
+    (nanmean(sum(x(:,t<0,use_depth),3),2) + softnorm), ...
+    vertcat(trial_data_all.striatum_mua{:}),use_str_depth_day,'uni',false, ...
+    'ErrorHandler',@(varargin) []);
+
+% (create NaNs for days w/o striatum: this is shit but it's quick for now)
+x = vertcat(trial_data_all.widefield{:});
+str_cat(cellfun(@isempty,str_cat)) = cellfun(@(x) nan(size(x,1),size(x,2)),x(cellfun(@isempty,str_cat)),'uni',false);
+str_cat = cell2mat(str_cat);
+clear x
+
+% (also dirty for now: days w/o visual striatum are all zeros, NaN-out)
+str_cat(all(str_cat==0,2),:) = NaN;
+
+
+%%%%% Split by one modality, look at other
+
+% Plot average movie for drawing ROI
+avg_px = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    permute(nanmean(wf_cat,1),[3,2,1]));
+ap.imscroll(avg_px,t);
+axis image; 
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+ap.wf_draw('ccf','k');
+
+% (draw roi)
+roi_trace = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
+    permute(wf_cat,[3,2,1]),[],[],roi.mask),[3,2,1]);
+
+
+% (split within day)
+% use_trials = find(trial_stim == 90 &  ~any(trial_wheel(:,t>0 & t<=0.3),2) & trial_ld == 0);
+use_trials = find(trial_ld < 0);
+
+n_split = 4;
+use_trial_split = discretize(tiedrank( ...
+    nanmean(roi_trace(use_trials,t > 0 & t < 0.2),2))./ ...
+    length(use_trials),linspace(0.2,0.8,n_split+1));
+
+figure; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
+str_grp_mean = ap.groupfun(@nanmean,str_cat(use_trials(~isnan(use_trial_split)),:), ...
+    use_trial_split(~isnan(use_trial_split)),[]);
+plot(str_grp_mean','linewidth',2);
+
+curr_wf_split = ap.groupfun(@nanmean,wf_cat(use_trials(~isnan(use_trial_split)),:,:), ...
+    use_trial_split(~isnan(use_trial_split)),[],[]);
+curr_wf_split_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(curr_wf_split,[3,2,1]));
+
+ap.imscroll(curr_wf_split_px,t);
+axis image; 
+clim(max(abs(clim)).*[-1,1]*0.5);
+colormap(ap.colormap('PWG',[],1.5));
+ap.wf_draw('ccf','k');
+
+
+% (split across all data)
+
+use_trials_all = trial_stim == 90 &  ~any(trial_wheel(:,t>0 & t<=0.3),2);
+% use_trials_all = true(size(trial_ld));
+
+n_split = 5;
+trial_split = nan(size(trial_ld));
+
+trial_split(use_trials_all) = discretize(tiedrank( ...
+    nanmean(roi_trace(use_trials_all,t > 0.05 & t < 0.15),2))./ ...
+    sum(use_trials_all),linspace(0.2,0.8,n_split+1));
+
+% trial_split(use_trials_all) = discretize(tiedrank( ...
+%     nanmean(str_cat(use_trials_all,t > 0.05 & t < 0.15),2))./ ...
+%     sum(use_trials_all),linspace(0.2,0.8,n_split+1));
+
+use_trials_split = ~isnan(trial_split) & trial_ld > 0;
+
+str_grp_mean = ap.groupfun(@nanmean,str_cat(use_trials_split,:), ...
+    trial_split(use_trials_split),[]);
+
+curr_wf_split = ap.groupfun(@nanmean,wf_cat(use_trials_split,:,:), ...
+    trial_split(use_trials_split),[],[]);
+wf_roi_grp_mean = squeeze(ap.wf_roi(U_master(:,:,1:n_vs),permute(curr_wf_split,[3,2,1]),[],[],roi.mask));
+
+figure; tiledlayout(1,2); 
+nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
+plot(t,str_grp_mean','linewidth',2);
+nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
+plot(t,wf_roi_grp_mean,'linewidth',2);
+ 
+curr_wf_split_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(curr_wf_split,[3,2,1]));
+ap.imscroll(curr_wf_split_px,t);
+axis image; 
+clim(max(abs(clim)).*[-1,1]*0.8);
+colormap(ap.colormap('PWG',[],1.5));
+ap.wf_draw('ccf','k');
+
+% avg str by animal 
+[grp,~,tr_idx] = unique([trial_animal(use_trials_split),trial_split(use_trials_split)],'rows');
+
+figure; tiledlayout(1,3);
+nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
+x1 = ap.groupfun(@nanmean,str_cat(use_trials_split,:),tr_idx,[]);
+x2 = ap.groupfun(@nanmean,x1,grp(:,2),[]);
+plot(t,x2','linewidth',2);
+title('Striatum');
+
+nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
+x1 = ap.groupfun(@nanmean,roi_trace(use_trials_split,:),tr_idx,[]);
+x2 = ap.groupfun(@nanmean,x1,grp(:,2),[]);
+plot(t,x2','linewidth',2);
+title('Cortex');
+
+nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
+x1 = ap.groupfun(@nanmean,trial_wheel_vel(use_trials_split,:),tr_idx,[]);
+x2 = ap.groupfun(@nanmean,x1,grp(:,2),[]);
+plot(t,x2','linewidth',2);
+title('Wheel');
 
 
 

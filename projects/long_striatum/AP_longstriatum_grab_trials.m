@@ -9,9 +9,6 @@ trial_t_window = [-0.5,1];
 trial_t_rate = 50;
 trial_t = trial_t_window(1):1/trial_t_rate:trial_t_window(2);
 
-align_t = reshape(stimOn_times,[],1);
-interp_t = align_t + trial_t;
-
 % Widefield components to keep 
 n_wf_components = 200;
 
@@ -33,14 +30,22 @@ trial_data = struct;
 %% Trial information
 
 if task_workflow
-    % Task parameters
-    trial_data.stim_to_move = stim_to_move;
+    % Task
+    align_t = reshape(stimOn_times(1:n_trials),[],1);
+    trial_data.stim_to_move = stim_to_move(1:n_trials);
+    trial_data.outcome = vertcat(trial_events.values(1:n_trials).Outcome);
 
 elseif ~task_workflow
-    % Passive parameters
-    trial_data.stim = vertcat(trial_events.values.TrialStimX);
+    % Passive
+    n_stim = length(stimOn_times);
+
+    align_t = reshape(stimOn_times,[],1);
+    stim_x_cat = vertcat(trial_events.values.TrialStimX);
+    trial_data.stim = stim_x_cat(1:n_stim); 
 end
 
+% Set alignment sample times
+interp_t = align_t + trial_t;
 
 %% Wheel
 
@@ -53,24 +58,15 @@ trial_data.wheel_move = interp1(timelite.timestamps, ...
 
 %% Striatum MUA (in length chunks)
 
-% Find striatum boundaries: 
-% start = lowest unit density; end = end of probe
-unit_density_bins = 0:100:3840;
-unit_density = histcounts(template_depths,unit_density_bins);
-[~,unit_density_min_bottom_idx] = min(fliplr(unit_density));
-unit_density_min_idx = length(unit_density_bins) - unit_density_min_bottom_idx;
-template_depths_sorted = sort(template_depths);
-str_start =  template_depths_sorted(find(template_depths_sorted >= ...
-    unit_density_bins(unit_density_min_idx+1),1));
-str_end = max(channel_positions(:,2));
+% Find striatum boundaries
+AP_longstriatum_find_striatum_depth
+
+if ~any(isnan(striatum_depth))
 
 % Discretize spikes by depth
-depth_group_edges = str_start:striatum_mua_length:str_end;
-if length(depth_group_edges) > 2
-    spike_depth_group = discretize(spike_depths,depth_group_edges);
-else
-    error('Only one striatum MUA bin?');
-end
+depth_group_edges = striatum_start:striatum_mua_length:striatum_end;
+spike_depth_group = discretize(spike_depths,depth_group_edges);
+
 n_depths = max(spike_depth_group);
 
 % Get trial PSTH
@@ -78,10 +74,11 @@ n_depths = max(spike_depth_group);
     align_t,spike_depth_group, ...
     'window',trial_t_window,'bin_size',1/trial_t_rate);
 
+end
 
 %% Cortical widefield
 
-trial_data.widefield = interp1(wf_t,wf_V(1:n_wf_components,:)',interp_t);
+trial_data.widefield = interp1(wf_t,wf_V(1:n_wf_components,:)',interp_t,'previous');
 
 
 

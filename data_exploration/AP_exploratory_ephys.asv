@@ -517,7 +517,7 @@ axis image;
 %% Widefield/ephys regression maps (MUA)
 
 % Set upsample value for regression
-upsample_factor = 2;
+upsample_factor = 1;
 sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
 
 % Skip the first/last n seconds to do this
@@ -940,7 +940,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP023','AP025'};
+animals = {'AP023'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};

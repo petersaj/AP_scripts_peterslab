@@ -55,8 +55,8 @@ ylabel('Count');
 %% Batch widefield (master U) - passive V/A 
 
 % Loop through animals
-animals = {'AP021','AP022','DS001', ... & V>A
-    'DS000','DS003','DS004'};           % A>V
+animals = {'AP021','AP022','DS001','DS007','DS010','DS011', ... & V>A
+    'DS000','DS003','DS004','DS013','DS014','DS015','DS016'};           % A>V
 
 % Set times for PSTH        
 raster_window = [-0.5,1];
@@ -74,13 +74,13 @@ for curr_animal = 1:length(animals)
 
     vis_workflow = 'lcr_passive';
     aud_workflow = 'hml_passive_audio';
+    task_workflow = 'stim_wheel*';
 
     vis_recordings = plab.find_recordings(animal,[],vis_workflow);
     aud_recordings = plab.find_recordings(animal,[],aud_workflow);
+    task_recordings = plab.find_recordings(animal,[],task_workflow);
 
-    rec_days = unique(horzcat(...
-        {vis_recordings(cellfun(@any,{vis_recordings.widefield})).day},...
-        {aud_recordings(cellfun(@any,{aud_recordings.widefield})).day}));
+    rec_days = {task_recordings(cellfun(@any,{task_recordings.widefield})).day};
 
     task_workflow = cell(length(rec_days),1);
     day_V = cell(length(rec_days),2);
@@ -90,9 +90,7 @@ for curr_animal = 1:length(animals)
         % Get the task workflow
         task_workflow_name = 'stim_wheel*';
         day_recordings = plab.find_recordings(animal,rec_days{curr_day},task_workflow_name);
-        if ~isempty(day_recordings)
-            task_workflow{curr_day} = day_recordings.workflow{end};
-        end
+        task_workflow{curr_day} = day_recordings.workflow{end};
 
         for curr_modality = 1:2
             switch curr_modality
@@ -106,9 +104,8 @@ for curr_animal = 1:length(animals)
             preload_vars = who;
 
             % Load data
-            try
-                curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
-            catch me
+            curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
+            if isempty(curr_recording)
                 continue
             end
 
@@ -118,7 +115,13 @@ for curr_animal = 1:length(animals)
             load_parts = struct;
             load_parts.widefield = true;
             load_parts.widefield_master = true;
-            ap.load_recording;
+            
+            % (Try/catch: rare catastrophic dropped frames)
+            try
+                ap.load_recording;
+            catch me
+                continue
+            end
 
             % If widefield isn't aligned, skip
             if ~load_parts.widefield_align
@@ -182,6 +185,12 @@ for curr_animal = 1:length(animals)
 
 end
 
+% Save
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data';
+save_fn = fullfile(data_path,'widefield_passive');
+save(save_fn,'rec_days_all','task_workflow_all','day_V_all')
+fprintf('Saved %s\n',save_fn);
+
 
 % Load master U, convert V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -190,21 +199,24 @@ load(master_U_fn);
 
 % Average and plot
 use_modality = 1;
-use_stim = 3;
+use_stim = 2;
 % use_workflow = 'stim_wheel_right_stage2_audio_volume';
 use_workflow = 'stim_wheel_right_stage2';
 % use_workflow = 'stim_wheel_right_stage2_mixed_VA';
 
-x = cellfun(@(x,task) cat(4,x{strcmp(task,use_workflow),use_modality}),day_V_all,task_workflow_all,'uni',false);
+use_animals = 1:6;
+x = cellfun(@(x,task) cat(4,x{strcmp(task,use_workflow),use_modality}), ...
+    day_V_all(use_animals),task_workflow_all(use_animals),'uni',false);
 x2 = cellfun(@(x) plab.wf.svd2px(U_master,squeeze(x(:,:,use_stim,:))),x,'uni',false);
 x3 = cellfun(@(x) nanmean(x,4),x2,'uni',false);
 x4 = nanmean(cat(4,x3{:}),4);
 
-ap.imscroll(x4);
+ap.imscroll(x4,t_centers);
 axis image;
 colormap(AP_colormap('PWG',[],1));
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
+
 
 %% Batch fraction of responsive units 
 

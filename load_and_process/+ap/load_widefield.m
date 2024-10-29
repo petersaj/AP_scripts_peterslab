@@ -77,7 +77,7 @@ end
 % Get timestamps for widefield frames by color
 wf_t_all = arrayfun(@(x) ...
     widefield_expose_times(wf_use_frames & widefield_frame_colors == x), ...
-    1:length(widefield_colors),'uni',false);
+    (1:length(widefield_colors))','uni',false);
 
 % Get framerate from timestamps
 wf_framerate = mean(1./diff(wf_t_all{1}));

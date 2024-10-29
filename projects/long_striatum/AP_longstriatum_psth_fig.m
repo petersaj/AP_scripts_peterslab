@@ -1,8 +1,8 @@
 
 % Set animal/day/units
-animal = 'AM026';
-rec_day = '2024-07-27';
-plot_units = [226];
+animal = 'AP024';
+rec_day = '2024-09-20';
+plot_units = [316];
 
 % Set raster time bins
 raster_window = [-0.2,0.7];
