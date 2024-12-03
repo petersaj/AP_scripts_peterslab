@@ -2469,30 +2469,30 @@ load(fullfile(am_data_path,'ctx_maps_task.mat'));
 load(fullfile(am_data_path,'stim_cells.mat'));
 load(fullfile(am_data_path,'tan_psth_all.mat'));
 
-%%%%%% Load/concatenate normal-task and fixed quiescence mice
-
-am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
-a1 = load(fullfile(am_data_path,'bhv.mat'));
-b1 = load(fullfile(am_data_path,'mua_passive.mat'));
-c1 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
-d1 = load(fullfile(am_data_path,'stim_cells.mat'));
-e1 = load(fullfile(am_data_path,'tan_psth_all.mat'));
-
-am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\fixed_quiescence';
-a2 = load(fullfile(am_data_path,'bhv.mat'));
-b2 = load(fullfile(am_data_path,'mua_passive.mat'));
-c2 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
-d2 = load(fullfile(am_data_path,'stim_cells.mat'));
-e2 = load(fullfile(am_data_path,'tan_psth_all.mat'));
-
-bhv = struct('learned_day',[{a1.bhv.learned_day},{a2.bhv.learned_day}]);
-day_mua_all = vertcat(b1.day_mua_all,b2.day_mua_all);
-ctx_expl_var_all = vertcat(c1.ctx_expl_var_all,c2.ctx_expl_var_all);
-ctx_map_all = vertcat(c1.ctx_map_all,c2.ctx_map_all);
-stim_responsive_cells = vertcat(d1.stim_responsive_cells,d2.stim_responsive_cells);
-tan_psth_all = vertcat(e1.tan_psth_all,e2.tan_psth_all);
-
-%%%%%%%
+% %%%%%% Load/concatenate normal-task and fixed quiescence mice
+% 
+% am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
+% a1 = load(fullfile(am_data_path,'bhv.mat'));
+% b1 = load(fullfile(am_data_path,'mua_passive.mat'));
+% c1 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
+% d1 = load(fullfile(am_data_path,'stim_cells.mat'));
+% e1 = load(fullfile(am_data_path,'tan_psth_all.mat'));
+% 
+% am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\fixed_quiescence';
+% a2 = load(fullfile(am_data_path,'bhv.mat'));
+% b2 = load(fullfile(am_data_path,'mua_passive.mat'));
+% c2 = load(fullfile(am_data_path,'ctx_maps_task.mat'));
+% d2 = load(fullfile(am_data_path,'stim_cells.mat'));
+% e2 = load(fullfile(am_data_path,'tan_psth_all.mat'));
+% 
+% bhv = struct('learned_day',[{a1.bhv.learned_day},{a2.bhv.learned_day}]);
+% day_mua_all = vertcat(b1.day_mua_all,b2.day_mua_all);
+% ctx_expl_var_all = vertcat(c1.ctx_expl_var_all,c2.ctx_expl_var_all);
+% ctx_map_all = vertcat(c1.ctx_map_all,c2.ctx_map_all);
+% stim_responsive_cells = vertcat(d1.stim_responsive_cells,d2.stim_responsive_cells);
+% tan_psth_all = vertcat(e1.tan_psth_all,e2.tan_psth_all);
+% 
+% %%%%%%%
 
 
 % Convert cortex maps V to px
@@ -2903,8 +2903,8 @@ colormap(ap.colormap('PWG',[],1.5));
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
-% load(fullfile(am_data_path,'wf_passive.mat'));
-load(fullfile(am_data_path,'wf_task.mat'));
+load(fullfile(am_data_path,'wf_passive.mat'));
+% load(fullfile(am_data_path,'wf_task.mat'));
 
 % Load U master
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -2928,7 +2928,7 @@ px_ldavg = plab.wf.svd2px(U_master,V_ldavg);
 
 % Plot widefield by learned day
 plot_ld = -2:2;
-plot_align = 2;
+plot_align = 3;
 ap.imscroll(px_ldavg(:,:,:,ismember(ld_unique,plot_ld),plot_align));
 axis image;
 clim(max(abs(clim)).*[-1,1]);
@@ -3329,8 +3329,8 @@ linkaxes(h.Children);
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
 load(fullfile(am_data_path,'ctx_maps_task.mat'));
-% load(fullfile(am_data_path,'trial_data_passive.mat'));
-load(fullfile(am_data_path,'trial_data_task.mat'));
+load(fullfile(am_data_path,'trial_data_passive.mat'));
+% load(fullfile(am_data_path,'trial_data_task.mat'));
 
 % (time not saved: re-create)
 t = -0.5:1/50:1;
@@ -3518,8 +3518,8 @@ end
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
 load(fullfile(am_data_path,'ctx_maps_task.mat'));
-% load(fullfile(am_data_path,'trial_data_passive.mat'));
-load(fullfile(am_data_path,'trial_data_task.mat'));
+load(fullfile(am_data_path,'trial_data_passive.mat'));
+% load(fullfile(am_data_path,'trial_data_task.mat'));
 
 % (time not saved: re-create)
 t = -0.5:1/50:1;
@@ -3620,8 +3620,9 @@ plot(t,roi_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
 colororder(gca,ap.colormap('BKR',length(plot_ld)));
 
 
-% (plot average of specific trials)
-use_trials = trial_ld > 0 & trial_rxn > 0.4 & trial_rxn < 0.6;
+% (plot average movie of specific trials)
+use_trials = trial_ld < -1;
+% use_trials = ~any(trial_wheel(:,t>0 & t<=0.5),2) & trial_stim == 90 & trial_ld == 0;
 avg_px = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
     permute(nanmean(wf_cat(use_trials,:,:),1),[3,2,1]));
 ap.imscroll(avg_px,t);
@@ -3632,10 +3633,11 @@ ap.wf_draw('ccf','k');
 
 
 % (PLOT PASSIVE)
-plot_ld = [-3:3];
+plot_ld = -3:3;
 
-use_trials = ~any(trial_wheel(:,t>0 & t<=0.3),2) & ...
-    ismember(trial_ld,plot_ld) & trial_stim == 90;
+% use_trials = ~any(trial_wheel(:,t>0 & t<=0.3),2) & ...
+%     ismember(trial_ld,plot_ld) & trial_stim == 90;
+use_trials = ismember(trial_ld,plot_ld);
 
 figure; h = tiledlayout(1,length(plot_ld),'TileSpacing','tight');
 colormap(ap.colormap('PWG',[],1.5));
@@ -3660,6 +3662,22 @@ roi_ldavg = ap.groupfun(@mean,roi_trialavg,ld_grp_idx,[]);
 figure;
 plot(t,roi_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
 colororder(gca,ap.colormap('BKR',length(plot_ld)));
+
+% %%%%%%%%%%%
+% % (plot ROI across days, sorted)
+% figure; h = tiledlayout(1,length(plot_ld),'TileSpacing','tight');
+% colormap(ap.colormap('PWG',[],1.5));
+% 
+% for curr_ld = plot_ld
+%     plot_trials = find(use_trials & trial_ld == curr_ld & trial_rxn > 0.2);
+%     [~,x] = sort(trial_rxn(plot_trials));
+% %     [~,x] = sort(nanmean(roi_trace(plot_trials,t>0&t<0.3),2),'descend');
+%     nexttile(h);
+%     imagesc(t,[],imgaussfilt(roi_trace(plot_trials(x),:),[1,1]));
+%     clim([-1,1].*0.015); hold on;
+%     xline(0,'r','linewidth',2);
+%     title(sprintf('LD %d',curr_ld));
+% end
 
 
 %% Trial data (striatum + widefield)
@@ -3777,10 +3795,10 @@ roi_trace = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
 % (split data within animal)
 use_t = t >= 0.05 & t <= 0.15;
 
-% use_trials_all = trial_stim == 90 &  ~any(trial_wheel(:,t>0 & t<=0.3),2) & trial_ld < 0;
-use_trials_all = true(size(trial_ld)) & trial_ld < -1;
+% use_trials_all = trial_stim == 90 &  ~any(trial_wheel(:,t>0 & t<=0.3),2) & trial_ld == -1;
+use_trials_all = trial_ld <= -1;
 
-n_split = 6;
+n_split = 2;
 trial_split = nan(size(trial_ld));
 for curr_animal = unique(trial_animal)'
     curr_animal_trials = trial_animal == curr_animal;
@@ -3788,7 +3806,7 @@ for curr_animal = unique(trial_animal)'
 
     trial_split(curr_trials) = discretize(tiedrank( ...
         nanmean(str_cat(curr_trials,use_t),2))./ ...
-        sum(curr_trials),linspace(0.1,0.9,n_split+1));
+        sum(curr_trials),linspace(0,1,n_split+1));
 end
 
 use_trials_split = ~isnan(trial_split);
@@ -3798,13 +3816,14 @@ str_grp_mean = ap.groupfun(@nanmean,str_cat(use_trials_split,:), ...
 
 curr_wf_split = ap.groupfun(@nanmean,wf_cat(use_trials_split,:,:), ...
     trial_split(use_trials_split),[],[]);
-wf_roi_grp_mean = squeeze(ap.wf_roi(U_master(:,:,1:n_vs),permute(curr_wf_split,[3,2,1]),[],[],roi.mask));
+wf_roi_grp_mean = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
+    permute(curr_wf_split,[3,2,1]),[],[],roi.mask),[3,2,1]);
 
 figure; tiledlayout(1,2); 
 nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
 plot(t,str_grp_mean','linewidth',2);
 nexttile; hold on; set(gca,'colororder',ap.colormap('KR',n_split));
-plot(t,wf_roi_grp_mean,'linewidth',2);
+plot(t,wf_roi_grp_mean','linewidth',2);
  
 curr_wf_split_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(curr_wf_split,[3,2,1]));
 ap.imscroll(curr_wf_split_px,t);
@@ -3812,6 +3831,14 @@ axis image;
 clim(max(abs(clim)).*[-1,1]*0.8);
 colormap(ap.colormap('PWG',[],1.5));
 ap.wf_draw('ccf','k');
+
+wf_max_use_t = t > 0 & t < 0.2;
+ap.imscroll(squeeze(max(curr_wf_split_px(:,:,wf_max_use_t,:),[],3)));
+axis image; 
+clim(max(abs(clim)).*[-1,1]*0.8);
+colormap(ap.colormap('PWG',[],1.5));
+ap.wf_draw('ccf','k');
+
 
 % avg str by animal 
 roi_trace = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
@@ -3842,37 +3869,50 @@ title('Wheel');
 
 
 % Regress cortex to spikes (using trials)
-use_trials = trial_ld > 0;
+for grp = 1:4
 
-kernel_frames = -4:4;
-lambda = 100;
-zs = [false,false];
-cvfold = 1;
-return_constant = false;
-use_constant = true;
+    switch grp
+        case 1
+            use_trials = trial_ld < -1;
+        case 2
+            use_trials = trial_ld == -1;
+        case 3
+            use_trials = trial_ld == 0;
+        case 4
+            use_trials = trial_ld > 0;
+    end
 
-use_t = t > 0.5;
+    kernel_frames = -10:10;
+    lambda = 100;
+    zs = [false,false];
+    cvfold = 1;
+    return_constant = false;
+    use_constant = true;
 
-discontinuities = false(sum(use_trials),sum(use_t));
-discontinuities(:,end) = true;
-discontinuities = reshape(discontinuities',[],1)';
+    use_t = t > 0 & t < 0.5;
 
-[k,predicted_spikes,explained_var] = ...
-    ap.regresskernel( ...
-    reshape(permute(wf_cat(use_trials,use_t,:),[2,1,3]),[],size(wf_cat,3))', ...
-    reshape(str_cat(use_trials,use_t)',[],1)', ...
-    kernel_frames, ...
-    lambda,zs,cvfold,return_constant,use_constant,discontinuities);
+    discontinuities = false(sum(use_trials),sum(use_t));
+    discontinuities(:,end) = true;
+    discontinuities = reshape(discontinuities',[],1)';
 
-k_px = plab.wf.svd2px(U_master(:,:,1:length(k)),k);
+    [k,predicted_spikes,explained_var] = ...
+        ap.regresskernel( ...
+        reshape(permute(wf_cat(use_trials,use_t,:),[2,1,3]),[],size(wf_cat,3))', ...
+        reshape(str_cat(use_trials,use_t)',[],1)', ...
+        kernel_frames, ...
+        lambda,zs,cvfold,return_constant,use_constant,discontinuities);
 
-% figure;imagesc(k_px);
-ap.imscroll(k_px);
-axis image
-clim(max(abs(clim)).*[-1,1]*0.8);
-colormap(ap.colormap('PWG',[],1.5));
-ap.wf_draw('ccf','k');
+    k_px = plab.wf.svd2px(U_master(:,:,1:length(k)),k);
 
+    % figure;imagesc(k_px);
+    ap.imscroll(k_px);
+    axis image
+    clim(max(abs(clim)).*[-1,1]*0.8);
+    colormap(ap.colormap('PWG',[],1.5));
+    ap.wf_draw('ccf','k');
+    drawnow; 
+
+end
 
 
 % splitting by rxn, then striatum
@@ -3934,6 +3974,43 @@ for rxn = 1:2
 end
 linkaxes(h.Children(1:2:end));
 linkaxes(h.Children(2:2:end));
+
+
+
+% Plot trials split by fraction within day
+n_trial_frac = 4;
+str_cat_ld_trialsplit = nan(7,length(t),n_trial_frac);
+figure; tiledlayout(1,n_trial_frac);
+for curr_trial_frac = 1:n_trial_frac
+    use_trials = ismember(trial_ld,-3:3) & ...
+        trial_frac_idx > (curr_trial_frac-1)/n_trial_frac & ...
+        trial_frac_idx <= curr_trial_frac/n_trial_frac;
+    [grp,~,tr_idx] = unique([trial_animal(use_trials),trial_ld(use_trials)],'rows');
+
+    str_cat_trialgrp = ap.groupfun(@nanmean,str_cat(use_trials,:),tr_idx,[]);
+    str_cat_ld = ap.groupfun(@nanmean,str_cat_trialgrp,grp(:,2),[]);
+    
+    nexttile;
+    plot(t,str_cat_ld');
+    colororder(gca,ap.colormap('BKR',7));
+    title(sprintf('Trial %d/%d',curr_trial_frac,n_trial_frac));
+
+    str_cat_ld_trialsplit(:,:,curr_trial_frac) = str_cat_ld;
+end
+
+use_t = t > 0.05 & t < 0.15;
+str_cat_ld_trialsplit_tmean = permute(nanmean(str_cat_ld_trialsplit(:,use_t,:),2),[1,3,2]);
+figure;plot(unique(grp(:,2)),str_cat_ld_trialsplit_tmean);
+
+
+
+
+
+
+
+
+
+
 
 
 

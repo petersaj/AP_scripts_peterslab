@@ -27,7 +27,7 @@ end
 
 % Load data
 [spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, ...
-    pcFeatureIdx, channelPositions] = bc.load.loadEphysData(ephysKilosortPath);
+    pcFeatureIdx, channelPositions] = bc.load.loadEphysData(ephysKilosortPath,savePath);
 
 % Set parameters (load default, overwrite custom)
 param = bc.qm.qualityParamValues(ephysMetaDir, rawFile, ephysKilosortPath, gain_to_uV, kilosortVersion);

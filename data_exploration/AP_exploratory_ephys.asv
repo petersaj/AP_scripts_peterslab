@@ -637,7 +637,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:200;
 kernel_t = [-0.1,0.1];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 20;
+lambda = 10;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -940,7 +940,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures
 
-animals = {'AP023'};
+animals = {'AP024','AP026'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -1030,7 +1030,7 @@ title(h,animal);
 
 %% Batch MUA by depth
 
-animal = 'AM026';
+animal = 'AP024';
 
 use_workflow = 'lcr_passive';
 % use_workflow = 'hml_passive_audio';

@@ -156,7 +156,7 @@ if contains(bonsai_workflow,'stim_wheel')
 
 
 %% LCR passive, visual conditioning
-elseif contains(bonsai_workflow,{'lcr_passive','visual_conditioning','passive_audio','ImageDisplay'})
+elseif contains(bonsai_workflow,{'lcr_passive','visual','passive_audio','ImageDisplay'})
     % Passive protocol stim on times
 
     % Photodiode bug (old, now fixed): screen could flick to black briefly

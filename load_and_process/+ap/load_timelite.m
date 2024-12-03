@@ -88,8 +88,10 @@ reward_downs = timelite.timestamps(find(diff(reward_thresh) == -1)+1);
 reward_valve_flicker_thresh = 0.05;
 reward_times = reward_ups((reward_downs - reward_ups) > reward_valve_flicker_thresh);
 
-
-
+% Lick times (if lick detector included)
+lick_idx = strcmp({timelite.daq_info.channel_name}, 'lick_spout');
+lick_thresh = timelite.data(:,lick_idx) >= ttl_thresh;
+lick_times = timelite.timestamps(find(diff(lick_thresh) == 1)+1);
 
 
 
