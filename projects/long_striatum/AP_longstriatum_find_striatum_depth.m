@@ -71,8 +71,8 @@ if false
     % change in binning often gives nice correlated blocks within DMS vs DLS)
 
     % Get correlation of MUA in sliding windows
-    depth_corr_window = 200; % MUA window in microns
-    depth_corr_window_spacing = 100; % MUA window spacing in microns
+    depth_corr_window = 150; % MUA window in microns
+    depth_corr_window_spacing = 50; % MUA window spacing in microns
 
     max_depths = 3840; % (hardcode, sometimes kilosort drops channels)
 
@@ -97,7 +97,7 @@ if false
 
     % Plot units and MUA correlation with striatum boundaries
     figure('name',sprintf('%s %s',animal,rec_day));
-    tiledlayout(1,2);
+    h = tiledlayout(1,2);
 
     ha = nexttile;
     ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas,ha);
@@ -105,11 +105,12 @@ if false
 
     nexttile;
     imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
-    axis image;
     clim([-1,1].*0.5);
     colormap(ap.colormap('BWR'))
     xline(striatum_depth,'g','linewidth',3);
     yline(striatum_depth,'g','linewidth',3);
+
+    linkaxes(h.Children,'y');
 
 end
 
