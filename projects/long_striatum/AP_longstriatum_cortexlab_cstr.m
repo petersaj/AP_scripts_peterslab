@@ -4,137 +4,21 @@
 % Only 3 animals learned operant, and their expression patterns are very
 % variable, so probably not enough to say anything
 
-%% TESTING: get null times by ITI, rather than quiescence
+%% NOTE ABOUT LOCATION
 
-% (this might not work, because you can only use smaller ITIs, and if
-% there's a change in spontaneous move rate with time that could give
-% difference)
-
-%%% !! might not need to do this - ITIs taken into account anyway. So just
-%%% need to set "possible quiescence times" as fixed value
-
-alt_stimOn_times = cell(n_trials,1);
-alt_stimOn_trialparams = cell(n_trials,1);
-% (skip trial 1: no ITI and bad quiescence watch)
-for curr_trial = 2:n_trials
-
-    %%%%%%%%% STIM RESPONSE VS. NULL
-
-    t = Timeline.rawDAQTimestamps';
-
-    % Get quiescence reset threshold
-    % (only stored in script! whoops, this was dumb)
-    expDef_fn = [fileparts(block_filename) filesep day '_' ...
-        num2str(experiment) '_' animal '_expDef.m'];
-    if ~exist(expDef_fn,'file')
-        error('%s %s: no expDef.m',animal,day)
-    end
-    expDef_text = fileread(expDef_fn);
-    [~,quiescThreshold_txt] = regexp(expDef_text, ...
-        'quiescThreshold = (\d*)','match','tokens');
-    quiescThreshold = str2num(quiescThreshold_txt{1}{1});
-
-    % Get quiescence reset times
-    %             % (real: from new trial onset)
-    %             quiescence_reset_t = AP_find_stimWheel_quiescence;
-    % (extrapolated: from response to response)
-    quiescence_reset_t_extrap = AP_extrap_stimWheel_quiescence;
-
-    alt_stimOn_times = cell(n_trials,1);
-    alt_stimOn_trialparams = cell(n_trials,1);
-    % (skip trial 1: no ITI and bad quiescence watch)
-    for curr_trial = 2:n_trials
-
-        % Pull out current trial times (last to next response)
-        curr_trial_t_idx = t >= signals_events.responseTimes(curr_trial-1) & ...
-            t <= signals_events.responseTimes(curr_trial);
-        curr_trial_t = t(curr_trial_t_idx);
-
-        % Get quiescence reset times for different ITIs
-        param_timestep = 0.1; % (hardcoded in expDef)
-        possible_iti = max([block.paramsValues.itiMin]):param_timestep:max([block.paramsValues.itiMax]);
-        possible_quiescence = max([block.paramsValues.quiescenceMin]):param_timestep:max([block.paramsValues.quiescenceMax]);
-
-        t_from_quiescence_reset_trialitis = nan(length(curr_trial_t),length(possible_iti));
-        for curr_possible_iti = 1:length(possible_iti)
-            curr_possible_itiend = signals_events.responseTimes(curr_trial-1) + ...
-                possible_iti(curr_possible_iti);
-            curr_quiescence_resets = sort([quiescence_reset_t_extrap;curr_possible_itiend]);
-
-            t_from_quiescence_reset_trialitis(:,curr_possible_iti) = ...
-                curr_trial_t - interp1(curr_quiescence_resets, ...
-                curr_quiescence_resets,curr_trial_t,'previous','extrap');
-        end
-
-        % Find alternate stim times which would have given same first move
-
-        % (getting possible iti + quiescence crosses)
-        alt_iti_reached = ((t(curr_trial_t_idx) - curr_trial_t(1)) > possible_iti);
-        alt_quiescence_reached = ...
-            t_from_quiescence_reset_trialitis > permute(possible_quiescence,[1,3,2]);
-
-        % (get possible stim times as iti x quiescence grid)
-        [alt_stim_value,alt_stim_idx] = max( ...
-            permute(alt_iti_reached & alt_quiescence_reached,[2,3,1]),[],3);
-        alt_stim_t = curr_trial_t(alt_stim_idx);
-        alt_stimOn_times_all = alt_stim_t(alt_stim_value);
-
-        % (get alt stim times that would have resulted in the same
-        % first movement since that's the measured value)
-        stim_leeway = 0.1;
-        curr_wheel_move_alt_stim_idx = ...
-            arrayfun(@(stim) find(wheel_starts > stim-stim_leeway,1,'first'), ...
-            alt_stimOn_times_all);
-        use_alt_stimOn_times = ...
-            curr_wheel_move_alt_stim_idx == wheel_move_stim_idx(curr_trial);
-
-        % (make sure that real parameters = real stim time: missed
-        % wheel clicks sometimes give non-reproducible traces, in
-        % which case the trial shouldn't be used for stats)
-        curr_quiescence_idx = find(possible_quiescence == quiescence_t(curr_trial));
-        curr_iti_idx = find(possible_iti == iti_t(curr_trial-1));
-        curr_block_stimOn = signals_events.stimOnTimes(curr_trial);
-        curr_alt_stim_offset = curr_block_stimOn - ...
-            alt_stim_t(curr_iti_idx,curr_quiescence_idx);
-        if curr_alt_stim_offset > 0.01
-            continue
-        end
-
-        % (apply the block vs actual stim on time delay to all
-        % times - note this is regularly backwards in time??)
-        curr_stim_pd_offset = stimOn_times(curr_trial) - curr_block_stimOn;
-        alt_stimOn_times_all_pd = alt_stimOn_times_all + curr_stim_pd_offset;
-
-        % (store alternate stim times)
-        alt_stimOn_times{curr_trial} = alt_stimOn_times_all_pd(use_alt_stimOn_times);
-
-        % (trial plot)
-        figure; hold on;
-        t_plot_scale = 0.1;
-        plot(t(curr_trial_t_idx),wheel_velocity(curr_trial_t_idx),'k')
-        plot(t(curr_trial_t_idx),[0;diff(wheel_position(curr_trial_t_idx))]*0.1,'g')
-        plot(alt_stimOn_times_all,0,'ob');
-        plot(alt_stimOn_times{curr_trial},0,'.r');
-        line(repmat(curr_trial_t(1)+signals_events.trialITIValues(curr_trial-1),2,1),ylim);
-        line(xlim,repmat(signals_events.trialQuiescenceValues(curr_trial),2,1)*t_plot_scale,'color','m');
-        line(repmat(curr_block_stimOn,1,2),ylim,'color','r','linestyle','--');
-        line(repmat(stimOn_times(curr_trial),1,2),ylim,'color','k','linestyle','--');
-        drawnow;
-
-    end
-end
-
-
-
+% Was on EHD
+% Moving to server/Users/Andy/cortexlab_corticostriatal_data
 
 
 %% Grab and save behavior (operant)
 
-animal_group = 'cstr_fixedq';
+animal_group = 'cstr';
 % animals = {'AP092','AP093','AP094','AP095','AP096','AP097'}; % standard task, only 3 learned well?]
 % animals = {'AP092','AP094','AP096'}; % 3 that learned above
 % animals = {'AP093','AP095','AP097'}; % 3 that didn't learn above
-animals = {'AP089','AP090','AP091'}; % fixed-quiescence
+% animals = {'AP089','AP090','AP091'}; % fixed-quiescence
+
+animals = {'AP089','AP090','AP091','AP092','AP093','AP094','AP095','AP096','AP097'}; 
 
 protocol = 'AP_stimWheelRight';
 flexible_name = false;
@@ -142,7 +26,7 @@ bhv = struct;
 
 % Flags
 plot_flag = true;
-save_bhv = false;
+save_bhv = true;
 
 for curr_animal = 1:length(animals)
     
@@ -211,7 +95,7 @@ for curr_animal = 1:length(animals)
             quiescThreshold = str2num(quiescThreshold_txt{1}{1});
             % - quiscence step size
             [~,quiescenceStepSize_txt] = regexp(expDef_text, ...
-                'quiescence_interval = (\d*)','match','tokens');
+                'quiescence_interval = (\d+(\.\d+)?)','match','tokens');
             if ~isempty(quiescenceStepSize_txt)
                 quiescence_step_size = str2num(quiescenceStepSize_txt{1}{1});
             else
@@ -220,7 +104,7 @@ for curr_animal = 1:length(animals)
             end
             % - ITI step size
             [~,itiStepSize_txt] = regexp(expDef_text, ...
-                'iti_interval = (\d*)','match','tokens');
+                'iti_interval = (\d+(\.\d+)?)','match','tokens');
             if ~isempty(itiStepSize_txt)
                 iti_step_size = str2num(itiStepSize_txt{1}{1});
             else
@@ -228,7 +112,7 @@ for curr_animal = 1:length(animals)
                 iti_step_size = 1;
             end
             % - possible ITI times
-            if isfield(block.paramsValues,itiMin)
+            if isfield(block.paramsValues,'itiMin')
                 possible_iti = max([block.paramsValues.itiMin]):iti_step_size:max([block.paramsValues.itiMax]);
             else
                 % (if not parameterized, was hard-coded)
@@ -237,7 +121,7 @@ for curr_animal = 1:length(animals)
                 possible_iti = str2num(itiRange_txt{1}{1}):str2num(itiRange_txt{1}{2});
             end
             % -possible quiescence times
-            if isfield(block.paramsValues,quiescenceMin) 
+            if isfield(block.paramsValues,'quiescenceMin') 
                 possible_quiescence = max([block.paramsValues.quiescenceMin]):quiescence_step_size:max([block.paramsValues.quiescenceMax]);
             else
                 % (if not parameterized, was fixed and hard-coded)
@@ -374,20 +258,18 @@ for curr_animal = 1:length(animals)
                 % (store alternate stim times)
                 alt_stimOn_times{curr_trial} = alt_stimOn_times_all_pd(use_alt_stimOn_times);
                 
-                % (trial plot)
-                figure; hold on;
-                t_plot_scale = 0.1;
-                plot(t(curr_trial_t_idx),wheel_velocity(curr_trial_t_idx),'k')
-                plot(t(curr_trial_t_idx),[0;diff(wheel_position(curr_trial_t_idx))]*0.1,'g')
-                line(repmat(curr_trial_t(1)+signals_events.trialITIValues(curr_trial-1),2,1),ylim);
-                line(xlim,repmat(signals_events.trialQuiescenceValues(curr_trial),2,1)*t_plot_scale,'color','m');
-                line(repmat(curr_block_stimOn,1,2),ylim,'color','r','linestyle','--');
-                line(repmat(stimOn_times(curr_trial),1,2),ylim,'color','k','linestyle','--');
-                
-                plot(alt_stimOn_times_all,0,'ob');
-                plot(alt_stimOn_times{curr_trial},0,'.r');
-
-                drawnow;
+%                 % (trial plot)
+%                 figure; hold on;
+%                 t_plot_scale = 0.1;
+%                 plot(t(curr_trial_t_idx),wheel_velocity(curr_trial_t_idx),'k')
+%                 plot(t(curr_trial_t_idx),[0;diff(wheel_position(curr_trial_t_idx))]*0.1,'g')
+%                 line(repmat(curr_trial_t(1)+signals_events.trialITIValues(curr_trial-1),2,1),ylim);
+%                 line(xlim,repmat(signals_events.trialQuiescenceValues(curr_trial),2,1)*t_plot_scale,'color','m');
+%                 line(repmat(curr_block_stimOn,1,2),ylim,'color','r','linestyle','--');
+%                 line(repmat(stimOn_times(curr_trial),1,2),ylim,'color','k','linestyle','--');
+%                 plot(alt_stimOn_times_all,0,'ob');
+%                 plot(alt_stimOn_times{curr_trial},0,'.r');
+%                 drawnow;
                 
             end
             
@@ -630,13 +512,10 @@ end
 
 % Load behavior from above
 data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\cstr_data_test';
-% bhv_fn = [data_path filesep 'bhv_cstr'];
-bhv_fn = [data_path filesep 'bhv_cstr_fixedq'];
+bhv_fn = [data_path filesep 'bhv_cstr'];
 load(bhv_fn);
 
 % Define "learned" days by median reaction time
-% (exclude rxn < 0.1: too fast for stim, doesn't change with learning)
-% (keeping window defined, but not used for stats)
 n_sample = 10000;
 learned_days = cell(size(bhv));
 for curr_animal = 1:length(bhv)
@@ -654,10 +533,9 @@ for curr_animal = 1:length(bhv)
         curr_alt_rxn = cell2mat(cellfun(@(x) datasample(x,n_sample)', ...
             bhv(curr_animal).alt_stim_move_t{curr_day}(use_trials),'uni',false));     
         
-        % Get measured and null medians (exclude rxn < 0.1)
-%         rxn_stat = nanmedian(curr_rxn.*AP_nanout(curr_rxn < 0.1),1);
-%         alt_rxn_stat = nanmedian(curr_alt_rxn.*AP_nanout(curr_alt_rxn < 0.1),1);
+        rxn_med = nanmedian(curr_rxn.*AP_nanout(curr_rxn < 0),1);
 
+        % Get measured and null MAD (exclude rxn < 0.1)
         rxn_stat = mad(curr_rxn.*AP_nanout(curr_rxn < 0),1);
         alt_rxn_stat = mad(curr_alt_rxn.*AP_nanout(curr_alt_rxn < 0),1);
         
@@ -665,9 +543,8 @@ for curr_animal = 1:length(bhv)
         rxn_stat_p = rxn_stat_rank(1)./(n_sample+1);
         
         % (null rejected at 5%)
-        rxn_window_frac_h = rxn_stat_p < 0.05;
+        learned_days{curr_animal}(curr_day) = rxn_stat_p < 0.01 & rxn_med < 1;
 
-        learned_days{curr_animal}(curr_day) = rxn_window_frac_h;
     end
 end
 
@@ -697,12 +574,8 @@ disp('Passive trial activity')
 clear all
 trial_data_all = struct;
 
-% animals = {'AP092','AP094','AP096'}; % learned operant
-% animals = {'AP093','AP095','AP097'}; % didn't learn operant?
-% animals = {'AP089','AP090','AP091'}; % fixed quiescence 
-
-% (combined)
-animals = {'AP092','AP094','AP096','AP093','AP095','AP097','AP089','AP090','AP091'};
+% Set animals
+animals = {'AP089','AP090','AP091','AP092','AP093','AP094','AP095','AP096','AP097'}; 
 
 for curr_animal = 1:length(animals)
     
@@ -722,15 +595,16 @@ for curr_animal = 1:length(animals)
         muscimol_experiments = false(size({passive_experiments.day}));
     end
 
-    % Get days with standard task (to exclude other tasks)
+    % Get days with standard task (excludes passive-only and other tasks)
     task_protocol = 'AP_stimWheelRight';
     task_experiments = AP_find_experiments_externalhd(animal,task_protocol);
     standard_task_experiments =  datenum({passive_experiments.day})' <= ...
         datenum(task_experiments(end).day);
+    task_days = ismember(datenum({passive_experiments.day})',datenum({task_experiments.day}));
     
-    % Set experiments to use (imaging, not muscimol, standard task)
+    % Set experiments to use (imaging, not muscimol, task)
     experiments = passive_experiments([passive_experiments.imaging] & ...
-        ~muscimol_experiments & standard_task_experiments);
+        ~muscimol_experiments & task_days);
     
     disp(['Loading ' animal]);
     
@@ -783,14 +657,13 @@ disp(['Saved: ' save_fn])
 trial_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\cstr_data_test';
 data_fn = 'trial_activity_passive_cstr';
 AP_load_trials_operant_externalhd;
-n_naive = 3; % (number of naive passive-only days, just hard-coding)
 
-% Load behavior, exclude animals not in dataset, get learned day
+% Load behavior and get learned day
 data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\cstr_data_test';
 bhv_fn = [data_path filesep 'bhv_cstr'];
 load(bhv_fn);
 bhv = bhv(ismember({bhv.animal},animals)); 
-learned_day = cellfun(@(x) find(x,1),{bhv.learned_days})';
+learned_day = cellfun(@(x) nanmax(cat(1,find(x,1),nan)),{bhv.learned_days})';
 
 % Get animal and day index for each trial
 trial_animal = cell2mat(arrayfun(@(x) ...
@@ -804,14 +677,7 @@ trials_recording = cellfun(@(x) size(x,1),vertcat(wheel_all{:}));
 % Get "learned day" for each trial
 trial_learned_day = cell2mat(cellfun(@(x,ld) cell2mat(cellfun(@(curr_day,x) ...
     curr_day*ones(size(x,1),1),num2cell([1:length(x)]-ld)',x,'uni',false)), ...
-    wheel_all,num2cell(learned_day + n_naive),'uni',false));
-
-% Define learning stages
-% (learning stages: day 1-3 passive-only, then pre/post learning)
-trial_stage = 1*(trial_day <= 3) + ...
-    2*(trial_day > 3 & trial_learned_day < 0) + ...
-    3*(trial_learned_day >= 0);
-n_stages = length(unique(trial_stage));
+    wheel_all,num2cell(learned_day),'uni',false));
 
 % Get trials with movement during stim to exclude
 quiescent_trials = ~any(abs(wheel_allcat(:,t >= 0 & t <= 0.5)) > 0,2);
@@ -823,68 +689,112 @@ q_exp_frac = cell2mat(cellfun(@(q,s) grpstats(q,s),q_exp,s_exp,'uni',false)');
 fprintf('Quiescent trial frac: \n%.2f+-%.2f (left),%.2f+-%.2f (center),%.2f+-%.2f (right)\n', ...
     reshape([nanmean(q_exp_frac,2),nanstd(q_exp_frac,[],2)]',[],1))
 
-% Turn values into IDs for grouping
-stim_unique = unique(trial_stim_allcat);
-[~,trial_stim_id] = ismember(trial_stim_allcat,stim_unique);
-
-learned_day_unique = unique(trial_learned_day);
-[~,trial_learned_day_id] = ismember(trial_learned_day,learned_day_unique);
-
-% Get average fluorescence by animal/day/stim
-stim_v_avg = cell(length(animals),1);
-stim_roi_avg = cell(length(animals),1);
-for curr_animal = 1:length(animals)
-    for curr_day = 1:max(trial_day(trial_animal == curr_animal))
-        for curr_stim_idx = 1:length(stim_unique)
-
-            use_trials = quiescent_trials & ...
-                trial_animal == curr_animal & ...
-                trial_day == curr_day & ...
-                trial_stim_allcat == stim_unique(curr_stim_idx);
-
-            stim_v_avg{curr_animal}(:,:,curr_day,curr_stim_idx) = ...
-                permute(nanmean(fluor_allcat_deconv(use_trials,:,:),1),[3,2,1]);
-
-            stim_roi_avg{curr_animal}(:,:,curr_day,curr_stim_idx) = ...
-                permute(nanmean(fluor_roi_deconv(use_trials,:,:),1),[3,2,1]);
-            
-        end
-    end
-end
-
-% Plot average across animals
-use_trials = quiescent_trials & trial_stim_allcat == 1;
+% Plot average by learned day
+plot_ld = -2:2;
+use_trials = quiescent_trials & trial_stim_allcat == 1 & ismember(trial_learned_day,plot_ld);
 [trial_groups,~,trial_group_idx] = unique([trial_animal(use_trials),trial_learned_day(use_trials)],'rows');
 fluor_trialavg = ap.groupfun(@nanmean,fluor_allcat_deconv(use_trials,:,:),trial_group_idx,[],[]);
 fluor_animalavg = ap.groupfun(@nanmean,fluor_trialavg,trial_groups(:,2),[],[]);
 
-ld_x = unique(trial_groups(:,2));
-
 fluor_animalavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_animalavg,[3,2,1]));
 
-ap.imscroll(fluor_animalavg_px(:,:,:,ismember(ld_x,-3:3)))
-axis image;
-
-
-% (manual - avg and plot)
-
-use_trials = trial_day < 5 & trial_stim_allcat == 1 & quiescent_trials;
-% use_trials = trial_day > 8 & trial_stim_allcat == 1 & quiescent_trials;
-
-px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(nanmean(fluor_allcat_deconv(use_trials,:,:),1),[3,2,1]));
-ap.imscroll(px,t); 
+ap.imscroll(fluor_animalavg_px)
 axis image;
 colormap(AP_colormap('PWG',[],1.5));
-clim(max(abs(clim)).*[-1,1]*0.8);l
+clim(max(abs(clim)).*[-1,1]*0.8);
 
-use_trials = trial_day < 5 & trial_stim_allcat == 0 & quiescent_trials;
-% use_trials = trial_day > 8 & trial_stim_allcat == 0 & quiescent_trials;
+max_t = t > 0 & t < 0.2;
+figure;imagesc(reshape((max(fluor_animalavg_px(:,:,max_t,:),[],3)),size(fluor_animalavg_px,1),[]));
+axis image off;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
 
-px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(nanmean(fluor_allcat_deconv(use_trials,:,:),1),[3,2,1]));
-ap.imscroll(px,t); 
+% Draw ROI, get average by learned day
+fluor_roi = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
+    permute(fluor_allcat_deconv,[3,2,1]),[],[],roi.mask),[3,2,1]);
+fluor_roi_trialavg = ap.groupfun(@nanmean,fluor_roi(use_trials,:),trial_group_idx,[]);
+fluor_roi_animalavg = ap.groupfun(@nanmean,fluor_roi_trialavg,trial_groups(:,2),[]);
+fluor_roi_animalsem = ap.groupfun(@AP_sem,fluor_roi_trialavg,trial_groups(:,2),[]);
+figure; h = tiledlayout(1,length(plot_ld)+1);
+nexttile;
+ld_col = ap.colormap('BKR',length(plot_ld));
+ap.errorfill(t,fluor_roi_animalavg',fluor_roi_animalsem',ld_col);
+for curr_ld_idx = 1:length(plot_ld)
+    nexttile;
+    ap.errorfill(t,fluor_roi_animalavg(curr_ld_idx,:), ...
+        fluor_roi_animalsem(curr_ld_idx,:),ld_col(curr_ld_idx,:));
+end
+linkaxes(h.Children);
+
+max_t = t > 0 & t < 0.2;
+fluor_roi_trialavg_maxt = max(fluor_roi_trialavg(:,max_t),[],2);
+fluor_roi_maxt_animalavg = ap.groupfun(@nanmean,fluor_roi_trialavg_maxt,trial_groups(:,2),[]);
+fluor_roi_maxt_animalsem = ap.groupfun(@AP_sem,fluor_roi_trialavg_maxt,trial_groups(:,2),[]);
+figure;errorbar(plot_ld,fluor_roi_maxt_animalavg,fluor_roi_maxt_animalsem,'k','linewidth',2);
+xlim(xlim + [-0.5,0.5]);
+
+% (testing stats: shuffle 0 vs <0)
+prelearn_days = trial_groups(:,2) <= 0;
+stat_use_act = fluor_roi_trialavg_maxt(prelearn_days);
+stat_use_grp = trial_groups(prelearn_days,:);
+
+stat_diff = mean(stat_use_act(stat_use_grp(:,2) == 0)) - mean(stat_use_act(stat_use_grp(:,2) < 0));
+
+n_shuff = 1000;
+stat_diff_shuff = nan(n_shuff,1);
+for i = 1:n_shuff
+    curr_grp_shuff = AP_shake(stat_use_grp(:,2),[],stat_use_grp(:,1));
+    stat_diff_shuff(i) = mean(stat_use_act(curr_grp_shuff == 0)) - mean(stat_use_act(curr_grp_shuff < 0));
+end
+stat_rank = tiedrank(vertcat(stat_diff,stat_diff_shuff));
+stat_p = 1-(stat_rank(1)./(n_shuff+2));
+
+
+% Plot average by pre/post learned
+use_trials = trial_stim_allcat == 1 & quiescent_trials & ~isnan(trial_learned_day);
+
+[trial_groups,~,trial_group_idx] = unique([trial_animal(use_trials),trial_learned_day(use_trials)>=0],'rows');
+fluor_trialavg = ap.groupfun(@nanmean,fluor_allcat_deconv(use_trials,:,:),trial_group_idx,[],[]);
+fluor_animalavg = ap.groupfun(@nanmean,fluor_trialavg,trial_groups(:,2),[],[]);
+fluor_animalavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_animalavg,[3,2,1]));
+
+ap.imscroll(fluor_animalavg_px)
 axis image;
 colormap(AP_colormap('PWG',[],1.5));
-clim(max(abs(clim)).*[-1,1]*0.8);l
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+max_t = t > 0 & t < 0.2;
+figure;imagesc(reshape((max(fluor_animalavg_px(:,:,max_t,:),[],3)),size(fluor_animalavg_px,1),[]));
+axis image off;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+
+% (Just checking: plot day pre/post 5 for non-learners)
+use_trials = trial_stim_allcat == 1 & quiescent_trials & isnan(trial_learned_day);
+
+[trial_groups,~,trial_group_idx] = unique([trial_animal(use_trials),trial_day(use_trials)>=5],'rows');
+fluor_trialavg = ap.groupfun(@nanmean,fluor_allcat_deconv(use_trials,:,:),trial_group_idx,[],[]);
+fluor_animalavg = ap.groupfun(@nanmean,fluor_trialavg,trial_groups(:,2),[],[]);
+fluor_animalavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_animalavg,[3,2,1]));
+
+ap.imscroll(fluor_animalavg_px)
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+max_t = t > 0 & t < 0.2;
+figure;imagesc(reshape((max(fluor_animalavg_px(:,:,max_t,:),[],3)),size(fluor_animalavg_px,1),[]));
+axis image off;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+
+
+
+
+
+
 
 
 

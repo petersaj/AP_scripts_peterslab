@@ -193,13 +193,13 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'HA001';
-
-% Create across-day alignments
-plab.wf.wf_align([],animal,[],'new_days');
+animal = 'AP010';
 
 % Get and save VFS maps for animal
 plab.wf.retinotopy_vfs_batch(animal);
+
+% Create across-day alignments
+plab.wf.wf_align([],animal,[],'new_days');
 
 % Create across-animal alignments
 plab.wf.wf_align([],animal,[],'new_animal');
