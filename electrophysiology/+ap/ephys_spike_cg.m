@@ -8,8 +8,8 @@ spike_times_timelite = evalin('base','spike_times_timelite');
 spike_templates = evalin('base','spike_templates');
 
 % Parameters
-bin_size_expt = 100; % experiment size chunk to get ACG from (s)
-max_lag = 500; % max correlation lag (ms)
+bin_size_expt = 300; % experiment size chunk to get ACG from (s)
+max_lag = 1000; % max correlation lag (ms)
 t_smooth = 50; % gaussian smoothing window size (ms)
 
 if nargin < 3 || isempty(plot_flag)
