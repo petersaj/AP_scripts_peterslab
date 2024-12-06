@@ -120,12 +120,8 @@ end
 
 % Get the waveform of all templates (channel with largest amplitude)
 [~,max_site] = max(max(abs(templates),[],2),[],3);
-templates_max = nan(size(templates,1),size(templates,2));
-for curr_template = 1:size(templates,1)
-    templates_max(curr_template,:) = ...
-        templates(curr_template,:,max_site(curr_template));
-end
-waveforms = templates_max;
+waveforms = cell2mat(arrayfun(@(x) templates(x,:,max_site(x)), ...
+    (1:size(templates,1))','uni',false));
 
 % Get depth of each template
 % (get min-max range for each channel)
@@ -143,20 +139,20 @@ spike_depths = template_depths(spike_templates);
 ephys_sample_rate = 30000; % (just hardcoded for now, it never changes)
 
 % (use smoothed waveform - Kilosort often has bumps)
-templates_max_movmean = movmean(templates_max,3,2);
+waveforms_movmean = movmean(waveforms,3,2);
 
 % 1) trough-to-peak
-[~,waveform_trough] = min(templates_max_movmean,[],2);
+[~,waveform_trough] = min(waveforms_movmean,[],2);
 [~,waveform_peak_rel] = arrayfun(@(x) ...
-    max(templates_max_movmean(x,waveform_trough(x):end),[],2), ...
-    transpose(1:size(templates_max_movmean,1)));
+    max(waveforms_movmean(x,waveform_trough(x):end),[],2), ...
+    transpose(1:size(waveforms_movmean,1)));
 waveform_peak = waveform_peak_rel + waveform_trough - 1;
 waveform_duration_peaktrough = ...
     1e6*(waveform_peak - waveform_trough)/ephys_sample_rate;
 
 % 2) full width half max
 waveform_duration_fwhm = arrayfun(@(x) ...
-    sum(templates_max_movmean(x,:) <= min(templates_max_movmean(x,:))/2) * ...
+    sum(waveforms_movmean(x,:) <= min(waveforms_movmean(x,:))/2) * ...
     1e6/ephys_sample_rate,1:size(templates,1));
 
 

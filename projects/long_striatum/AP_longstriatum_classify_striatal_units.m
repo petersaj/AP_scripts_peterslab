@@ -2,7 +2,9 @@
 % Only for quality metric "single units": MSN, FSI, TAN
 
 % (Should be done elsewhere - this finds striatal depth on probe)
-% AP_longstriatum_find_striatum_depth
+if ~exist('striatum_depth','var')
+    AP_longstriatum_find_striatum_depth
+end
 
 % Only use quality-controlled "single units", within striatum
 striatal_single_units = ...
@@ -32,43 +34,59 @@ striatum_celltypes = struct;
 
 striatum_celltypes.msn = striatal_single_units & ... % striatal single unit
     waveform_duration_peaktrough >= 400 & ... wide waveform
-    acg_steadystate < 20; % long time to steady state
+    acg_steadystate < 20; % fast time to steady state
 
 striatum_celltypes.fsi = striatal_single_units & ... % striatal single unit
-    waveform_duration_peaktrough < 400; % narrow waveform
+    waveform_duration_peaktrough < 400 & ... % narrow waveform
+    acg_steadystate < 20; % slow time to steady state
 
+% striatum_celltypes.tan = striatal_single_units & ... % striatal single unit
+%     spike_rate >= 4 & spike_rate <= 12 & ... % steady firing rate
+%     waveform_duration_peaktrough >= 400 & ... wide waveform
+%     acg_steadystate >= 20; % slow time to steady state
+
+% !! NOT USING WAVEFORM DURATION HERE - some clear TANs with short wfs
 striatum_celltypes.tan = striatal_single_units & ... % striatal single unit
     spike_rate >= 4 & spike_rate <= 12 & ... % steady firing rate
-    waveform_duration_peaktrough >= 400 & ... wide waveform
-    acg_steadystate >= 20; % fast time to steady state
+    acg_steadystate >= 20; % slow time to steady state
 
-str_celltype_colors = lines(4);
-str_unit_colors = str_celltype_colors( ...
-    sum([striatum_celltypes.msn, ...
-    striatum_celltypes.fsi, ...
-    striatum_celltypes.tan].*[1:3],2)+1,:);
+% Plot units by cell type
+if false
 
-figure; hold on
-scatter3( ...
-    waveform_duration_peaktrough(striatal_single_units), ...
-    acg_steadystate(striatal_single_units), ...
-    spike_rate(striatal_single_units), ...
-    20,str_unit_colors(striatal_single_units,:),'filled');
-xlabel('Peak-trough duration');
-ylabel('ACG steady state time');
-zlabel('Spike rate');
-set(gca,'xscale','log','zscale','log');
-view(45,45);
-axis tight vis3d;
+    str_celltype_colors = lines(4);
+    str_unit_colors = str_celltype_colors( ...
+        sum([striatum_celltypes.msn, ...
+        striatum_celltypes.fsi, ...
+        striatum_celltypes.tan].*[1:3],2)+1,:);
 
-% (just testing)
-str_grp_idx = sum([striatum_celltypes.msn, ...
-    striatum_celltypes.fsi, ...
-    striatum_celltypes.tan].*[1:3],2);
+    figure; tiledlayout(1,2);
 
-spike_acg_grp = ap.groupfun(@mean,normalize(spike_acg,2,'range'),str_grp_idx,[]);
+    % Scatter plot units by properties
+    nexttile; hold on
+    scatter3( ...
+        waveform_duration_peaktrough(striatal_single_units), ...
+        acg_steadystate(striatal_single_units), ...
+        spike_rate(striatal_single_units), ...
+        20,str_unit_colors(striatal_single_units,:),'filled');
+    xlabel('Peak-trough duration');
+    ylabel('ACG steady state time');
+    zlabel('Spike rate');
+    set(gca,'xscale','log','zscale','log');
+    view(45,45);
+    axis tight vis3d;
 
-figure;plot(spike_acg_grp(2:end,:)');
+    % Plot average ACG by cell type
+    str_grp_idx = sum([striatum_celltypes.msn, ...
+        striatum_celltypes.fsi, ...
+        striatum_celltypes.tan].*[1:3],2);
+
+    spike_acg_grp = ap.groupfun(@mean,normalize(spike_acg,2,'range'),str_grp_idx,[]);
+
+    nexttile;plot(spike_acg_grp(2:end,:)');
+    ylabel('Range-normalized ACG');
+    legend({'MSN','FSI','TAN'});
+
+end
 
 
 
