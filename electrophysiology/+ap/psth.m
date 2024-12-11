@@ -1,11 +1,11 @@
-function [psth_avg,psth_trial,psth_t] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
+function [psth_avg,psth_trial,psth_t] = psth(event_times,align_times,event_groups,psth_opts)
 
 arguments
 
-    % Spike data
-    spike_times
+    % Discrete data
+    event_times
     align_times
-    spike_groups = ones(size(spike_times))
+    event_groups = ones(size(event_times))
 
     % PSTH window options
     psth_opts.window (2,1) = [-0.5,1]
@@ -18,13 +18,14 @@ arguments
 
 end
 
-% [psth_avg,psth_trial,psth_t] = ephys_psth(spike_times,align_times,spike_groups,psth_opts)
+% [psth_avg,psth_trial,psth_t] = psth(event_times,align_times,event_groups,psth_opts)
 % 
-% Make PSTHs for spike data
+% Make PSTHs for discrete data (e.g. event times)
 %
 % INPUTS
-% align_times = cell array of times to align
-% spike_groups (optional) = grouping variable for spike times (ignore
+% event_times = vector of event times
+% align_times = vector or cell array of times to align events
+% event_groups (optional) = grouping variable for event times (ignore
 % NaNs). Currently: must be indicies (e.g. 1,2,3), not categorical.
 % 
 % Name-Value arguments: 
@@ -50,8 +51,8 @@ end
 t_centers = psth_opts.window(1):psth_opts.bin_size:psth_opts.window(2);
 t_bins = [t_centers-(psth_opts.bin_size/2),t_centers(end)+(psth_opts.bin_size/2)];
 
-% Set spike groups
-spike_groups_unique = 1:max(spike_groups);
+% Set event groups
+event_groups_unique = 1:max(event_groups);
 
 % Get PSTH unit x t x align
 % (Use 2D histogram because it's much faster than loop. This requires
@@ -66,7 +67,7 @@ for curr_align = 1:length(align_times)
     n_split = max(sum(abs(align_time_diff)<max_t_diff));
 
     % Split align times by the max number of overlaps above
-    curr_psth = nan(length(align_times{curr_align}),length(t_centers),length(spike_groups_unique));
+    curr_psth = nan(length(align_times{curr_align}),length(t_centers),length(event_groups_unique));
 
     for curr_split = 1:n_split
 
@@ -78,35 +79,35 @@ for curr_align = 1:length(align_times)
         align_bins = reshape(curr_align_times,[],1) + t_bins;
         align_bins_vector = reshape(align_bins',[],1);
 
-        % Make spike group "bins" (centered on integers)
-        spike_group_bins = 0.5:1:length(spike_groups_unique)+1;
+        % Make event group "bins" (centered on integers)
+        event_group_bins = 0.5:1:length(event_groups_unique)+1;
 
-        % Set spikes to use (non-NaN group, within time range)
-        use_spikes = ...
-            spike_times >= min(align_bins_vector) & ...
-            spike_times <= max(align_bins_vector) & ...
-            ~isnan(spike_groups);
+        % Set events to use (non-NaN group, within time range)
+        use_events = ...
+            event_times >= min(align_bins_vector) & ...
+            event_times <= max(align_bins_vector) & ...
+            ~isnan(event_groups);
 
-        % Bin spikes
-        spikes_binned_continuous = histcounts2( ...
-            spike_times(use_spikes), ...
-            spike_groups(use_spikes), ...
+        % Bin events
+        events_binned_continuous = histcounts2( ...
+            event_times(use_events), ...
+            event_groups(use_events), ...
             align_bins_vector, ...
-            spike_group_bins);
+            event_group_bins);
 
         % Throw away between-event bins and reshape to expected size
         use_continuous_bins = reshape(padarray( ...
             true(size(align_bins(:,1:end-1)')), ...
             [1,0],false,'post'),[],1);
 
-        spikes_binned_aligned = ...
-            permute(reshape(spikes_binned_continuous(use_continuous_bins,:), ...
-            size(align_bins,2)-1,size(align_bins,1),length(spike_groups_unique)), ...
+        events_binned_aligned = ...
+            permute(reshape(events_binned_continuous(use_continuous_bins,:), ...
+            size(align_bins,2)-1,size(align_bins,1),length(event_groups_unique)), ...
             [2,1,3]);
 
-        spikes_binned_aligned_rate = spikes_binned_aligned./psth_opts.bin_size;
+        events_binned_aligned_rate = events_binned_aligned./psth_opts.bin_size;
 
-        curr_psth(curr_align_idx,:,:) = spikes_binned_aligned_rate;
+        curr_psth(curr_align_idx,:,:) = events_binned_aligned_rate;
 
     end
 

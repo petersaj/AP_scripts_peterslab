@@ -61,10 +61,14 @@ elseif contains(bonsai_workflow,'sparse_noise')
 
     baseline_times = align_times;
 
-elseif contains(bonsai_workflow,'visual_conditioning')
+elseif contains(bonsai_workflow,'visual')
 
     % Visual conditioning: stim and reward
-    stim_x = vertcat(trial_events.values.TrialX);
+    if isfield(trial_events.values,'TrialX')
+        stim_x = vertcat(trial_events.values.TrialX);
+    else
+        stim_x = repmat(90,length(stimOn_times),1);
+    end
     align_times = [stimOn_times;reward_times];
     align_category = [stim_x;inf(size(reward_times))];
 
@@ -316,13 +320,13 @@ colormap(AP_colormap('PWG'));
 
 %% TESTING BATCH PASSIVE WIDEFIELD
 
-animal = 'AP028';
+animal = 'HA002';
 passive_workflow = 'lcr_passive';
 % passive_workflow = 'hml_passive_audio';
 recordings_passive = plab.find_recordings(animal,[],passive_workflow);
 
-training_workflow = 'stim_wheel*';
-% training_workflow = 'visual_conditioning*';
+% training_workflow = 'stim_wheel*';
+training_workflow = 'visual*';
 % training_workflow = '*audio_volume*';
 recordings_training = plab.find_recordings(animal,[],training_workflow);
 
@@ -413,13 +417,13 @@ for i = 1:length(a)
     nexttile;imagesc(a{i}); axis image off;
     clim(c); colormap(AP_colormap('PWG'));
 end
-AP_imscroll(cat(3,a{:}));
+ap.imscroll(cat(3,a{:}));
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 
 a = cat(5,wf_px{:});
 b = squeeze(a(:,:,:,3,:));
-AP_imscroll(b);
+ap.imscroll(b);
 axis image;
 clim(max(abs(clim)).*[-1,1]); colormap(AP_colormap('PWG'));
 
