@@ -32,3 +32,8 @@ Scripts written after opening lab
 #### Plotting
 - `ccf_draw` - draw CCF flat and 3D views, draw areas. plot probe trajectories
 - `plot_probe_positions` - draw all probe positions (NTE and histology) for animal
+
+#### Histology
+- `where2slice` - show anterior/posterior extents of coronal slices from saved NTE trajectories
+
+
