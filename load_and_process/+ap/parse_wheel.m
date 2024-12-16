@@ -46,7 +46,7 @@ if length(unique(wheel_velocity_thresh)) ~= 2
 end
 
 velocity_starts_all = find(diff([false;wheel_velocity_thresh;false]) == 1);
-velocity_stops_all = find(diff([wheel_velocity_thresh;false]) == -1);
+velocity_stops_all = find(diff([wheel_velocity_thresh;false]) == -1)+1;
 
 % Combine movements with small gaps between
 combine_move_t = 0.3; % in s (empirical/arbitrary)
