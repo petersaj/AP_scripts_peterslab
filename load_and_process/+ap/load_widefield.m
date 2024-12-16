@@ -59,9 +59,19 @@ elseif wf_cam_tl_frame_diff < 0
     if -wf_cam_tl_frame_diff == length(wf_dropped_frames)
         % If dropped frames were all identified, use non-dropped frames
         wf_use_frames = ~wf_dropped_frame_idx;
+
     elseif (-wf_cam_tl_frame_diff - length(wf_dropped_frames)) < 300
-        % If few dropped frames and not all identified, error out
-        error('Widefield: could not identify dropped frames')
+        if wf_cam_tl_frame_diff == -1 && isempty(wf_dropped_frames)
+            % RARE CASE: if one missing frame and no dropped frames
+            % detected, assume it was the last frame that was dropped (since
+            % this drop is undetectable. Discovered in AP029 2024-12-09 1356)
+            wf_use_frames = [true(length(widefield_expose_times)-1,1);false];
+            warning('Widefield: dropped 1 frame that could not be detected, assuming it was last frame');
+        else
+            % If few dropped frames and not all identified, error out
+            error('Widefield: could not identify dropped frames')
+        end
+
     elseif (-wf_cam_tl_frame_diff - length(wf_dropped_frames)) > 300
         % If large number of dropped frames, assume the remainder at end
         % (note: this is very messy - made to handle cases where the camera
@@ -70,6 +80,7 @@ elseif wf_cam_tl_frame_diff < 0
         wf_use_frames(1:length(wf_dropped_frame_idx)) = ~wf_dropped_frame_idx;
         warning('Widefield: %d dropped frames could not be identified, assuming at end of recording', ...
             -wf_cam_tl_frame_diff - length(wf_dropped_frames));
+
     end
 
 end
