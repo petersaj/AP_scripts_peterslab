@@ -65,7 +65,7 @@ end
 %% --- Workflow-specific loading ---
 
 %% Stim wheel (task)
-if contains(bonsai_workflow,'stim_wheel')
+if contains(bonsai_workflow,'stim')
     % Task: stim and response times
 
     % Use only trials with outcome

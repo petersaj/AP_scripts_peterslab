@@ -3,21 +3,31 @@
 
 %% Find gaps in units
 
-unit_gap_thresh = 150;
-template_depths_sorted = sort(template_depths);
-template_gap = template_depths_sorted(find(diff(template_depths_sorted) > ...
-    unit_gap_thresh)+1)-1; % back up 1um
+% Based on number of units in a window less than a threshold
 
-% If there's no gap - just use the first unit
-if isempty(template_gap)
-    template_gap = min(template_depths)-1;
+unit_gap_window = 200; % window to count units
+unit_gap_window_slide = 10; % sliding time for window
+unit_gap_thresh = 3; % number of units in window to be called a "gap"
+
+unit_gap_bins = (0:unit_gap_window_slide:(max(channel_positions(:,2))-unit_gap_window)) + ...
+    [0;unit_gap_window];
+unit_gap_bin_ends = unit_gap_bins(2,:);
+
+unit_bin_counts = cellfun(@(x) histcounts(template_depths,x),num2cell(unit_gap_bins,1));
+unit_bin_thresh = unit_bin_counts <= unit_gap_thresh;
+
+unit_gap_ends = unit_gap_bin_ends(diff(unit_bin_thresh) == -1);
+
+% If there's no gap, just call the start of the probe an end of a gap
+if isempty(unit_gap_ends)
+    unit_gap_ends = min(template_depths)-1;
 end
 
-%% Start of striatum: last gap before halfway
+%% Start of striatum: last gap in the top portion of probe
 
-probe_halfway_point = 3840/2;
+late_gap_threshold = max(channel_positions(:,2))*0.6;
 
-striatum_start = max(template_gap(template_gap < probe_halfway_point));
+striatum_start = max(unit_gap_ends(unit_gap_ends < late_gap_threshold));
 
 %% End of striatum: end of probe, or before correlated MUA block near tip
 
@@ -54,15 +64,14 @@ mua_corr_end(triu(true(length(mua_corr_end)),0)) = nan;
 mean_corr_dim1 = nanmean(mua_corr_end,2);
 mean_corr_dim2 = nanmean(mua_corr_end,1)';
 
-
 if max(mean_corr_dim2) > max(mean_corr_dim1)*0.5 && ...
-    min(mean_corr_dim1-mean_corr_dim2) < -max(mean_corr_dim1)*0.5
+    diff(prctile(max(mean_corr_dim1,mean_corr_dim2,'includenan'),[0,100])) > max(mean_corr_dim1)*0.2
 
     % If there's a correlated block at end: end of probe is correlated, and
-    % end of probe is not correlated with middle of probe
+    % there's a dip in correlation between the middle and end
     [~,mua_corr_min_idx] = min(max(mean_corr_dim1,mean_corr_dim2,'includenan'));
     depths_back_centers = depth_corr_bin_centers(end-groups_back+1:end);
-    striatum_end = depths_back_centers(mua_corr_min_idx);
+    striatum_end = depths_back_centers(mua_corr_min_idx-1);
 
 else
 
@@ -70,7 +79,6 @@ else
     striatum_end = max(template_depths)+1;
 
 end
-
 
 %% Set striatum depth
 
@@ -112,7 +120,7 @@ end
 
 %% Drop recording: if there's a gap in units more than halfway
 
-if template_gap(end) > probe_halfway_point
+if unit_gap_ends(end) > late_gap_threshold
     striatum_depth = NaN(2,1);
 end
 
@@ -122,7 +130,7 @@ if false
 
     % Plot units and MUA correlation with striatum boundaries
     figure('name',sprintf('%s %s',animal,rec_day));
-    h = tiledlayout(1,2);
+    mua_plot = tiledlayout(1,2);
 
     ha = nexttile;
     ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas,ha);
@@ -135,7 +143,7 @@ if false
     xline(striatum_depth,'g','linewidth',3);
     yline(striatum_depth,'g','linewidth',3);
 
-    linkaxes(h.Children,'y');
+    linkaxes(mua_plot.Children,'y');
 
 end
 

@@ -24,15 +24,18 @@ wheel_smooth_samples_t = wheel_smooth_samples/sample_rate;
 wheel_position = reshape(wheel_position,[],1);
 
 % Turn position into single clicks (position diff with leading 0)
-wheel_clicks = [0;diff(wheel_position)]; % rotary encoder clicks
+% (turn into -1/1: sometimes not exactly integer?)
+wheel_clicks = sign([0;diff(wheel_position)]); % rotary encoder clicks
 
 % Get rid of single-timepoint wheel clicks within smoothing window
 % (otherwise it's below meaningful velocity detection threshold)
-wheel_clicks_use = movsum(abs(wheel_clicks) > 0,wheel_smooth_samples) > 1;
+wheel_clicks_use = movsum(abs(wheel_clicks),wheel_smooth_samples) > 1;
+
 wheel_clicks_clean = wheel_clicks.*wheel_clicks_use;
 
-% Get velocity (in clicks/s: sum in window, divide by window time)
-wheel_velocity = movsum(wheel_clicks_clean,wheel_smooth_samples)/wheel_smooth_samples_t;
+% Get velocity (in clicks/s: sum in window from preceeding points so clicks
+% only contribute to velocity forward in time, divide by window time)
+wheel_velocity = movsum(wheel_clicks_clean,[wheel_smooth_samples,0],'endpoints','fill')/wheel_smooth_samples_t;
 
 % Threshold wheel for movement, get start/stops
 wheel_velocity_thresh = abs(wheel_velocity) > 0;
@@ -53,6 +56,7 @@ velocity_starts_trim = velocity_starts_all([1;combine_move+1]);
 velocity_stops_trim = velocity_stops_all([combine_move;end]);
 
 % Refine wheel start/stops to first/last wheel click within movement
+% (should already be from starts because window is causal)
 wheel_starts = cellfun(@(curr_start,curr_stop) ...
     (curr_start-1)+find(wheel_clicks(curr_start:curr_stop)~= 0,1,'first'), ...
     num2cell(velocity_starts_trim),num2cell(velocity_stops_trim));

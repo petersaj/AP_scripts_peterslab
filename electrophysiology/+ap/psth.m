@@ -1,4 +1,4 @@
-function [psth_avg,psth_trial,psth_t] = psth(event_times,align_times,event_groups,psth_opts)
+function [psth,raster,t] = psth(event_times,align_times,event_groups,opts)
 
 arguments
 
@@ -7,18 +7,18 @@ arguments
     align_times
     event_groups = ones(size(event_times))
 
-    % PSTH window options
-    psth_opts.window (2,1) = [-0.5,1]
-    psth_opts.bin_size = 0.001
+    % Raster window options
+    opts.window (2,1) = [-0.5,1]
+    opts.bin_size = 0.001
 
     % PSTH post-processing options
-    psth_opts.smoothing {mustBeNonnegative} = 0
-    psth_opts.norm_window (2,1) = [NaN,NaN]
-    psth_opts.softnorm {mustBeNonnegative} = 0
+    opts.smoothing {mustBeNonnegative} = 0
+    opts.norm_window (2,1) = [NaN,NaN]
+    opts.softnorm {mustBeNonnegative} = 0
 
 end
 
-% [psth_avg,psth_trial,psth_t] = psth(event_times,align_times,event_groups,psth_opts)
+% [psth_avg,psth_trial,t] = psth(event_times,align_times,event_groups,opts)
 % 
 % Make PSTHs for discrete data (e.g. event times)
 %
@@ -38,9 +38,9 @@ end
 %
 % OUTPUTS
 %
-% psth_avg = group x t x align (averaged across instances within alignment)
-% psth_trial = trial x t x align
-% psth_t = timepoints for psth (bin centers)
+% psth = group x t x align
+% raster = trial x t x align
+% t = timepoints (bin centers)
 
 % If 'align_times' is a vector, convert it into a cell
 if ~iscell(align_times)
@@ -48,17 +48,17 @@ if ~iscell(align_times)
 end
 
 % Set time bins
-t_centers = psth_opts.window(1):psth_opts.bin_size:psth_opts.window(2);
-t_bins = [t_centers-(psth_opts.bin_size/2),t_centers(end)+(psth_opts.bin_size/2)];
+t = opts.window(1):opts.bin_size:opts.window(2);
+t_bins = [t-(opts.bin_size/2),t(end)+(opts.bin_size/2)];
 
 % Set event groups
 event_groups_unique = 1:max(event_groups);
 
-% Get PSTH unit x t x align
+% Get raster [group x t x align]
 % (Use 2D histogram because it's much faster than loop. This requires
 % monotonic bins: if there is overlap in windows, split the alignments into
 % groups until they're not overlapping)
-psth = cell(length(align_times),1);
+raster = cell(length(align_times),1);
 for curr_align = 1:length(align_times)
 
     % Get max number of align times that fall within overlapping window
@@ -67,7 +67,7 @@ for curr_align = 1:length(align_times)
     n_split = max(sum(abs(align_time_diff)<max_t_diff));
 
     % Split align times by the max number of overlaps above
-    curr_psth = nan(length(align_times{curr_align}),length(t_centers),length(event_groups_unique));
+    curr_raster = nan(length(align_times{curr_align}),length(t),length(event_groups_unique));
 
     for curr_split = 1:n_split
 
@@ -105,48 +105,47 @@ for curr_align = 1:length(align_times)
             size(align_bins,2)-1,size(align_bins,1),length(event_groups_unique)), ...
             [2,1,3]);
 
-        events_binned_aligned_rate = events_binned_aligned./psth_opts.bin_size;
+        events_binned_aligned_rate = events_binned_aligned./opts.bin_size;
 
-        curr_psth(curr_align_idx,:,:) = events_binned_aligned_rate;
+        curr_raster(curr_align_idx,:,:) = events_binned_aligned_rate;
 
     end
 
     % Check for NaNs (should be none if all filled)
-    if any(isnan(curr_psth(:)))
-        error('PSTH contains NaN: problem in filling all bins')
+    if any(isnan(curr_raster(:)))
+        error('Raster contains NaN: problem in filling all bins')
     end
 
-    % Store full PSTH
-    psth{curr_align} = curr_psth;
+    % Store full raster
+    raster{curr_align} = curr_raster;
 
 end
 
-% Post-processing (if selected)
+% Get PSTH
+psth = permute(cell2mat(reshape(cellfun(@(x) nanmean(x,1),raster,'uni',false),[],1)),[3,2,1]);
+
+% PSTH post-processing (if selected)
 
 % Smooth
-if psth_opts.smoothing > 0
-    psth = cellfun(@(x) smoothdata(x,2,'gaussian', ...
-        psth_opts.smoothing),psth,'uni',false);
+if opts.smoothing > 0
+    psth = smoothdata(psth,2,'gaussian',opts.smoothing);
 end
 
 % Normalize
-if ~all(isnan(psth_opts.norm_window))
-    t_baseline = t_centers >= psth_opts.norm_window(1) & ...
-        t_centers <= psth_opts.norm_window(2);
+if ~all(isnan(opts.norm_window))
+    t_baseline = t >= opts.norm_window(1) & ...
+        t <= opts.norm_window(2);
     % (compute baseline as average across all alignments)
     psth_baseline = cellfun(@(x) nanmean(x(:,t_baseline,:),[1,2]),psth,'uni',false);
-    psth = cellfun(@(x,bl) (x - bl)./(bl + psth_opts.softnorm),psth,psth_baseline,'uni',false);
+    psth = cellfun(@(x,bl) (x - bl)./(bl + opts.softnorm),psth,psth_baseline,'uni',false);
 end
 
-% Set outputs
-% (one alignment group: psth = matrix, multiple alignments: psth = cell)
+% If one alignment group, set raster as matrix
+% (if multiple groups, leave as cell)
 if length(align_times) == 1
-    psth_trial = cell2mat(psth);
-else
-    psth_trial = psth;
+    raster = cell2mat(raster);
 end
-psth_avg = permute(cell2mat(reshape(cellfun(@(x) nanmean(x,1),psth,'uni',false),[],1)),[3,2,1]);
-psth_t = t_centers;
+
 
 
 
