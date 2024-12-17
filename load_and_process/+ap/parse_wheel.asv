@@ -35,8 +35,8 @@ wheel_clicks_use = movsum(abs(wheel_clicks),wheel_smooth_samples) > 1 & ...
 wheel_clicks_clean = wheel_clicks.*wheel_clicks_use;
 
 % Get velocity (from gaussian-averaged window, in clicks/s)
-wheel_velocity = smoothdata(wheel_clicks_clean, ...
-    'gaussian',wheel_smooth_samples)*sample_rate;
+wheel_velocity = movsum(wheel_clicks_clean,wheel_smooth_samples)/wheel_smooth_samples_t;
+wheel_velocity = smoothdata(wheel_clicks_clean,'gaussian',wheel_smooth_samples)*sample_rate;
 
 % Threshold wheel for movement, get start/stops
 wheel_velocity_thresh = abs(wheel_velocity) > 0;
