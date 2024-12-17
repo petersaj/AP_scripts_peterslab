@@ -1148,7 +1148,6 @@ for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
     use_workflow = 'lcr_passive';
-    %     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
@@ -1441,7 +1440,6 @@ day_mua_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
 
-    %     use_workflow = 'lcr_passive';
     use_workflow = 'stim_wheel*';
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
@@ -2587,6 +2585,9 @@ animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
     num2cell(1:length(ctx_map_all))',ld,ctx_map_all,'uni',false);
 animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
 
+animal_idx = cellfun(@(animal,data) repmat(animal,size(horzcat(data{:}),2),1), ...
+    num2cell(1:length(ctx_map_all)),ctx_map_all,'uni',false);
+
 % K-means cortex maps
 % (only use maps that explain x% variance)
 expl_var_cutoff = 0.00; 
@@ -2678,7 +2679,7 @@ for curr_kidx = 1:n_k
 
     nexttile(h); hold on; colororder(gca,[0.5,0.5,0.5]);
     arrayfun(@(x) plot(grp(use_grp & grp(:,1)==x,2), ...
-        str_mua_depthgrp_norm_tmax(grp(use_grp,1)==x)),unique(grp(use_grp,1)));
+        str_mua_depthgrp_norm_tmax(use_grp & grp(:,1)==x)),unique(grp(use_grp,1)));
     xlabel('Learned day');
     ylabel('MUA')
 
@@ -2686,17 +2687,7 @@ for curr_kidx = 1:n_k
     errorbar(ld_unique,m,e,'k','linewidth',2);
     drawnow;
 
-    % Stats
-%     % (signrank)
-%     [ld_unique,~,ld_grp] = unique(grp(:,2));
-%     size_grid = [max(grp(:,1)),max(ld_grp)];
-%     idx = sub2ind(size_grid,grp(:,1),ld_grp);
-%     act_grid = nan(size_grid);
-%     act_grid(idx) = str_mua_depthgrp_norm_tmax;
-% 
-%     stat_p = signrank(nanmean(act_grid(:,ld_unique <= -2),2),act_grid(:,ld_unique == -1));
-
-    % (shuffle stat LD-1 vs LD<-1)
+    % Stats (shuffle stat LD-1 vs LD<-1)
     prelearn_days = grp(:,2) <= -1;
     stat_use_act = str_mua_depthgrp_norm_tmax(prelearn_days);
     stat_use_grp = grp(prelearn_days,:);
@@ -2718,6 +2709,30 @@ end
 linkaxes(h.Children(1:2:end));
 linkaxes(h.Children(2:2:end));
 
+
+%%%%%%%%% testing
+
+figure;
+h = tiledlayout(1,6);
+for curr_day = 1:6
+    x = str_mua_depthgrp_norm_tmax(grp(:,2) == curr_day);
+    curr_animals = grp(grp(:,2) == curr_day,1);
+    nexttile; hold on;
+    plot(ldx(curr_animals),x,'.');
+    plot(unique(ldx(curr_animals)),ap.groupfun(@mean,x,ldx(curr_animals),[]),'k');
+end
+
+
+figure; hold on;
+set(gca,'ColorOrder',copper(6));
+for curr_day = 1:6
+    x = str_mua_depthgrp_norm_tmax(grp(:,2) == curr_day);
+    curr_animals = grp(grp(:,2) == curr_day,1);
+    plot(unique(ldx(curr_animals)),ap.groupfun(@mean,x,ldx(curr_animals),[]));
+end
+
+
+%%%%%%%%%%%%%
 
 
 % Plot responsive cell fraction by k-means cluster
@@ -2790,94 +2805,6 @@ for curr_kidx = 1:n_k
 
 end
 linkaxes(h.Children(2:2:end));
-
-
-% Quick TAN look
-% (concanenate all TANs by kidx/LD)
-tan_psth_cat = vertcat(tan_psth_all{:});
-tan_psth_cat = vertcat(tan_psth_cat{:});
-
-tan_info_cat = vertcat(tan_info_all{:});
-tan_info_cat = vertcat(tan_info_cat{:});
-
-% Combine all TANs by LD
-plot_ld = -2:2;
-figure;tiledlayout(3,length(plot_ld),'TileIndexing','ColumnMajor');
-for curr_ld = plot_ld
-    curr_psth = vertcat(tan_psth_cat{animal_ld_idx(:,2) == curr_ld});
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,:),[2,3]);
-    
-    [~,sort_idx] = sort(mean(curr_psth(:,500:700,1),2));
-
-    for curr_align = 1:size(curr_psth,3)
-        nexttile;
-        imagesc(curr_psth(sort_idx,:,curr_align));
-        clim([-10,10]);
-    end
-end
-colormap(ap.colormap('BWR',[],1.5));
-
-% Combine TANs by LD section
-ld_split = [animal_ld_idx(:,2) < -1, ...
-    animal_ld_idx(:,2) == -1, ... 
-    animal_ld_idx(:,2) >= 0];
-figure; tiledlayout(3,size(ld_split,2),'TileIndexing','ColumnMajor');
-for curr_ld = 1:size(ld_split,2)
-    curr_psth = vertcat(tan_psth_cat{ld_split(:,curr_ld)});
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,1),[2,3]);
-
-    [~,sort_idx] = sort(mean(curr_psth(:,550:700,1),2));
-
-    for curr_align = 1:size(curr_psth,3)
-        nexttile;
-        imagesc(curr_psth(sort_idx,:,curr_align));
-        clim([-10,10]);
-    end
-end
-colormap(ap.colormap('BWR',[],1.5));
-
-% Group TANs by depth/LD
-ld_unique = -2:2;
-tan_grp = cell(n_k,length(ld_unique));
-tan_info_grp = cell(n_k,length(ld_unique));
-for curr_kidx = 1:n_k
-    for curr_ld_idx = 1:length(ld_unique)
-        tan_grp{curr_kidx,curr_ld_idx} = vertcat(tan_psth_cat{ ...
-            kidx == curr_kidx &  ...
-            animal_ld_idx(:,2) == ld_unique(curr_ld_idx)});
-
-        tan_info_grp{curr_kidx,curr_ld_idx} = tan_info_cat( ...
-            kidx == curr_kidx &  ...
-            animal_ld_idx(:,2) == ld_unique(curr_ld_idx),:);
-    end
-end
-
-figure;
-h = tiledlayout(n_k,length(ld_unique),'tileindexing','columnmajor');
-for i = 1:numel(tan_grp)
-    nexttile;
-    if isempty(tan_grp{i})
-        continue
-    end
-    curr_psth = tan_grp{i}(:,:,3);
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,:),[2,3]);
-
-    [~,sort_idx] = sort(mean(curr_psth(:,500:700),2));
-    imagesc(curr_psth(sort_idx,:));
-    clim([-10,10]);
-end
-colormap(ap.colormap('BWR',[],1.5));
-linkaxes(h.Children);
-
-tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
-figure;
-h = tiledlayout(1,n_k);
-for i = 1:size(tan_grp_mean,1)
-    curr_tan = cat(1,tan_grp_mean{i,:});
-    nexttile;
-    plot(curr_tan(:,:,3)');
-    set(gca,'ColorOrder',ap.colormap('BKR',length(ld_unique)));
-end
 
 
 % Plot behavior by LD
@@ -3011,7 +2938,7 @@ ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
 
 
-%% TANs
+%% TAN analysis
 
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
@@ -3066,6 +2993,7 @@ clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
 
+
 % Load TANs from task and passive
 load(fullfile(am_data_path,'tan_psth_all_passive.mat'));
 
@@ -3078,9 +3006,10 @@ tan_psth_task_cat = vertcat(tan_psth_all{:});
 tan_psth_task_cat = vertcat(tan_psth_task_cat{:});
 
 % Combine TANs by LD section
-ld_split = [animal_ld_idx(:,2) < -1, ...
-    animal_ld_idx(:,2) == -1, ... 
-    animal_ld_idx(:,2) >= 0];
+% ld_split = [animal_ld_idx(:,2) < -1, ...
+%     animal_ld_idx(:,2) == -1, ... 
+%     animal_ld_idx(:,2) >= 0];
+ld_split = animal_ld_idx(:,2) == (-3:2);
 
 figure; colormap(ap.colormap('BWR',[],1.5));
 task_tl = tiledlayout(3,size(ld_split,2),'TileIndexing','ColumnMajor');
@@ -3110,26 +3039,6 @@ for curr_ld = 1:size(ld_split,2)
 end
 title(task_tl,'Task');
 title(passive_tl,'Passive');
-
-
-% Combine all TANs by LD
-plot_ld = -2:2;
-figure;tiledlayout(3,length(plot_ld),'TileIndexing','ColumnMajor');
-for curr_ld = plot_ld
-    curr_psth = vertcat(tan_psth_cat{kidx == 1 & animal_ld_idx(:,2) == curr_ld});
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,:),[2,3]);
-    
-    [~,sort_idx] = sort(mean(curr_psth(:,500:700,1),2));
-
-    for curr_align = 1:size(curr_psth,3)
-        nexttile;
-        imagesc(curr_psth(sort_idx,:,curr_align));
-        clim([-10,10]);
-    end
-end
-colormap(ap.colormap('BWR',[],1.5));
-
-
 
 
 
@@ -3564,8 +3473,8 @@ linkaxes(h.Children);
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
 load(fullfile(am_data_path,'ctx_maps_task.mat'));
-load(fullfile(am_data_path,'trial_data_passive.mat'));
-% load(fullfile(am_data_path,'trial_data_task.mat'));
+% load(fullfile(am_data_path,'trial_data_passive.mat'));
+load(fullfile(am_data_path,'trial_data_task.mat'));
 
 % (time not saved: re-create)
 t = -0.5:1/50:1;
@@ -3713,7 +3622,7 @@ end
 % (PLOT TASK)
 plot_ld = [-3:3];
 figure; h = tiledlayout(n_k,length(plot_ld),'TileSpacing','tight');
-colormap(ap.colormap('WK',[],1.5));l
+colormap(ap.colormap('WK',[],1.5));
 
 for curr_kidx = 1:n_k
 
@@ -4245,9 +4154,31 @@ str_cat_ld_trialsplit_tmean = permute(nanmean(str_cat_ld_trialsplit(:,use_t,:),2
 figure;plot(unique(grp(:,2)),str_cat_ld_trialsplit_tmean);
 
 
+%% Utility: count days with given kidx
 
+kidx_set = reshape(unique(kidx(~isnan(kidx))),1,[]);
+kidx_day = mat2cell(kidx,cellfun(@(x) size(x,2), vertcat(ctx_map_all{:})));
 
+kidx_day_setmatch = cell2mat(cellfun(@(kidx) any(kidx == kidx_set,1), ...
+    kidx_day,'uni',false));
 
+[kidx_ld_n,ld_grp] = grpstats(kidx_day_setmatch,vertcat(ld{:}),{'sum','gname'});
+ld_grp = cellfun(@str2num,ld_grp);
+
+figure;
+tiledlayout(1,2);
+
+nexttile;
+imagesc(AP_padcatcell(kidx_day));
+xlabel('Day');
+ylabel('Depth');
+title('Kidx');
+clim([-0.5,max(kidx_set)]);
+
+nexttile;
+plot(ld_grp,kidx_ld_n)
+xlabel('Learned day');
+ylabel('Kidx count');
 
 
 

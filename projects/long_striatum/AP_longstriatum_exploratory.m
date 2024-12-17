@@ -2576,14 +2576,21 @@ str_mua_cat = cell2mat(vertcat(day_mua_all{:}));
 
 stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{:}));
 
-% Get indicies for animal / learned day / depth
+% Get grouping indicies for each depth
 ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
 
-animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
-    [repmat(animal,size(data,2),1),repmat(ld,size(data,2),1),(1:size(data,2))'], ...
-    num2cell(ld),data,'uni',false), ...
-    num2cell(1:length(ctx_map_all))',ld,ctx_map_all,'uni',false);
-animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
+animal_idx = cell2mat(cellfun(@(animal,data) repmat(animal,size(horzcat(data{:}),2),1), ...
+    num2cell(1:length(ctx_map_all))',ctx_map_all,'uni',false));
+
+day_idx = cell2mat(cellfun(@(ld,data) repmat(ld,size(data,2),1), ...
+    num2cell(cell2mat(cellfun(@(x) (1:length(x))',ctx_map_all,'uni',false))), ...
+    vertcat(ctx_map_all{:}),'uni',false));
+
+ld_idx = cell2mat(cellfun(@(ld,data) repmat(ld,size(data,2),1), ...
+    num2cell(vertcat(ld{:})),vertcat(ctx_map_all{:}),'uni',false));
+
+depth_idx = cell2mat(cellfun(@(data) (1:size(data,2))', ...
+    vertcat(ctx_map_all{:}),'uni',false));
 
 % K-means cortex maps
 % (only use maps that explain x% variance)
@@ -2639,12 +2646,12 @@ end
 % Plot MUA by k-means cluster
 use_align = 3;
 use_t = [500,700];
-plot_ld = -4:4;
+plot_ld = -3:3;
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 
     curr_use_ctx = kidx == curr_kidx;
-    [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+    [grp,~,grp_idx] = unique([animal_idx(curr_use_ctx),ld_idx(curr_use_ctx)],'rows');
     
     use_grp = ismember(grp(:,2),plot_ld);
     ld_unique = unique(grp(use_grp,2));
@@ -2676,7 +2683,7 @@ for curr_kidx = 1:n_k
 
     nexttile(h); hold on; colororder(gca,[0.5,0.5,0.5]);
     arrayfun(@(x) plot(grp(use_grp & grp(:,1)==x,2), ...
-        str_mua_depthgrp_norm_tmax(grp(use_grp,1)==x)),unique(grp(use_grp,1)));
+        str_mua_depthgrp_norm_tmax(use_grp & grp(:,1)==x)),unique(grp(use_grp,1)));
     xlabel('Learned day');
     ylabel('MUA')
 
@@ -2684,17 +2691,7 @@ for curr_kidx = 1:n_k
     errorbar(ld_unique,m,e,'k','linewidth',2);
     drawnow;
 
-    % Stats
-%     % (signrank)
-%     [ld_unique,~,ld_grp] = unique(grp(:,2));
-%     size_grid = [max(grp(:,1)),max(ld_grp)];
-%     idx = sub2ind(size_grid,grp(:,1),ld_grp);
-%     act_grid = nan(size_grid);
-%     act_grid(idx) = str_mua_depthgrp_norm_tmax;
-% 
-%     stat_p = signrank(nanmean(act_grid(:,ld_unique <= -2),2),act_grid(:,ld_unique == -1));
-
-    % (shuffle stat LD-1 vs LD<-1)
+    % Stats (shuffle stat LD-1 vs LD<-1)
     prelearn_days = grp(:,2) <= -1;
     stat_use_act = str_mua_depthgrp_norm_tmax(prelearn_days);
     stat_use_grp = grp(prelearn_days,:);
@@ -2717,37 +2714,46 @@ linkaxes(h.Children(1:2:end));
 linkaxes(h.Children(2:2:end));
 
 
-
 % Plot responsive cell fraction by k-means cluster
 figure;h = tiledlayout(1,n_k);
 for curr_kidx = 1:n_k
 
     curr_use_ctx = kidx == curr_kidx;
-    [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+    [grp,~,grp_idx] = unique([animal_idx(curr_use_ctx),ld_idx(curr_use_ctx)],'rows');
 
     stim_cells_combine = ap.groupfun(@sum,stim_responsive_cells_cat(curr_use_ctx,:),grp_idx,[]);
     stim_cells_frac  = stim_cells_combine(:,1)./stim_cells_combine(:,2);
 
     nexttile(h); hold on;
-    arrayfun(@(x) plot(grp(grp(:,1)==x,2), stim_cells_frac(grp(:,1)==x),'.-'),unique(grp(:,1)));
+    arrayfun(@(x) plot(grp(grp(:,1)==x,2), stim_cells_frac(grp(:,1)==x), ...
+        'color',[0.5,0.5,0.5]),unique(grp(:,1)));
     xlabel('Learned day');
     ylabel('Frac stim-responsive')
 
     [m,e] = grpstats(stim_cells_frac,grp(:,2),{'mean','sem'});
-    errorbar(unique(grp(:,2)),m,e,'k');
+    errorbar(unique(grp(:,2)),m,e,'k','linewidth',2);
     drawnow;
 
-    % Stats
-    [ld_unique,~,ld_grp] = unique(grp(:,2));
-    size_grid = [max(grp(:,1)),max(ld_grp)];
-    idx = sub2ind(size_grid,grp(:,1),ld_grp);
-    act_grid = nan(size_grid);
-    act_grid(idx) = stim_cells_frac;
+    % Stats (shuffle stat LD-1 vs LD<-1)
+    prelearn_days = grp(:,2) <= -1;
+    stat_use_act = stim_cells_frac(prelearn_days);
+    stat_use_grp = grp(prelearn_days,:);
 
-    p = signrank(nanmean(act_grid(:,ld_unique == -2),2),act_grid(:,ld_unique == -1));
-    fprintf('Frac responsive stats - Kidx %d: p = %.3f\n',curr_kidx,p);
+    stat_diff = mean(stat_use_act(stat_use_grp(:,2) == -1)) - mean(stat_use_act(stat_use_grp(:,2) < -1));
+
+    n_shuff = 1000;
+    stat_diff_shuff = nan(n_shuff,1);
+    for i = 1:n_shuff
+        curr_grp_shuff = AP_shake(stat_use_grp(:,2),[],stat_use_grp(:,1));
+        stat_diff_shuff(i) = mean(stat_use_act(curr_grp_shuff == -1)) - mean(stat_use_act(curr_grp_shuff < -1));
+    end
+    stat_rank = tiedrank(vertcat(stat_diff,stat_diff_shuff));
+    stat_p = 1-(stat_rank(1)./(n_shuff+2));
+
+    fprintf('MUA stats - Kidx %d: p = %.3f\n',curr_kidx,stat_p);
 
 end
+
 
 % Plot task kernel by k-means cluster
 plot_kernel = 1;
@@ -2761,7 +2767,7 @@ figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 
     curr_use_ctx = kidx == curr_kidx;
-    [grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+    [grp,~,grp_idx] = unique([animal_idx(curr_use_ctx),ld_idx(curr_use_ctx)],'rows');
     ld_unique = unique(grp(:,2));
 
     str_mua_depthgrp = ap.groupfun(@sum,str_mua_cat(curr_use_ctx,:,1),grp_idx,[]);
@@ -2788,94 +2794,6 @@ for curr_kidx = 1:n_k
 
 end
 linkaxes(h.Children(2:2:end));
-
-
-% Quick TAN look
-% (concanenate all TANs by kidx/LD)
-tan_psth_cat = vertcat(tan_psth_all{:});
-tan_psth_cat = vertcat(tan_psth_cat{:});
-
-tan_info_cat = vertcat(tan_info_all{:});
-tan_info_cat = vertcat(tan_info_cat{:});
-
-% Combine all TANs by LD
-plot_ld = -2:2;
-figure;tiledlayout(3,length(plot_ld),'TileIndexing','ColumnMajor');
-for curr_ld = plot_ld
-    curr_psth = vertcat(tan_psth_cat{animal_ld_idx(:,2) == curr_ld});
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,:),[2,3]);
-    
-    [~,sort_idx] = sort(mean(curr_psth(:,500:700,1),2));
-
-    for curr_align = 1:size(curr_psth,3)
-        nexttile;
-        imagesc(curr_psth(sort_idx,:,curr_align));
-        clim([-10,10]);
-    end
-end
-colormap(ap.colormap('BWR',[],1.5));
-
-% Combine TANs by LD section
-ld_split = [animal_ld_idx(:,2) < -1, ...
-    animal_ld_idx(:,2) == -1, ... 
-    animal_ld_idx(:,2) >= 0];
-figure; tiledlayout(3,size(ld_split,2),'TileIndexing','ColumnMajor');
-for curr_ld = 1:size(ld_split,2)
-    curr_psth = vertcat(tan_psth_cat{ld_split(:,curr_ld)});
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,1),[2,3]);
-
-    [~,sort_idx] = sort(mean(curr_psth(:,550:700,1),2));
-
-    for curr_align = 1:size(curr_psth,3)
-        nexttile;
-        imagesc(curr_psth(sort_idx,:,curr_align));
-        clim([-10,10]);
-    end
-end
-colormap(ap.colormap('BWR',[],1.5));
-
-% Group TANs by depth/LD
-ld_unique = -2:2;
-tan_grp = cell(n_k,length(ld_unique));
-tan_info_grp = cell(n_k,length(ld_unique));
-for curr_kidx = 1:n_k
-    for curr_ld_idx = 1:length(ld_unique)
-        tan_grp{curr_kidx,curr_ld_idx} = vertcat(tan_psth_cat{ ...
-            kidx == curr_kidx &  ...
-            animal_ld_idx(:,2) == ld_unique(curr_ld_idx)});
-
-        tan_info_grp{curr_kidx,curr_ld_idx} = tan_info_cat( ...
-            kidx == curr_kidx &  ...
-            animal_ld_idx(:,2) == ld_unique(curr_ld_idx),:);
-    end
-end
-
-figure;
-h = tiledlayout(n_k,length(ld_unique),'tileindexing','columnmajor');
-for i = 1:numel(tan_grp)
-    nexttile;
-    if isempty(tan_grp{i})
-        continue
-    end
-    curr_psth = tan_grp{i}(:,:,3);
-    curr_psth = curr_psth - mean(curr_psth(:,1:500,:),[2,3]);
-
-    [~,sort_idx] = sort(mean(curr_psth(:,500:700),2));
-    imagesc(curr_psth(sort_idx,:));
-    clim([-10,10]);
-end
-colormap(ap.colormap('BWR',[],1.5));
-linkaxes(h.Children);
-
-tan_grp_mean = cellfun(@(x) permute(nanmean(x,1),[1,2,3]),tan_grp,'uni',false);
-figure;
-h = tiledlayout(1,n_k);
-for i = 1:size(tan_grp_mean,1)
-    curr_tan = cat(1,tan_grp_mean{i,:});
-    nexttile;
-    plot(curr_tan(:,:,3)');
-    set(gca,'ColorOrder',ap.colormap('BKR',length(ld_unique)));
-end
 
 
 % Plot behavior by LD
@@ -2910,7 +2828,7 @@ colororder(gca,ap.colormap('BKR',7));
 % Behavior vs striatal activity
 curr_kidx = 3;
 curr_use_ctx = kidx == curr_kidx;
-[grp,~,grp_idx] = unique(animal_ld_idx(curr_use_ctx,1:2),'rows');
+[grp,~,grp_idx] = unique([animal_idx(curr_use_ctx),ld_idx(curr_use_ctx)],'rows');
 str_mua_depthgrp = ap.groupfun(@sum,str_mua_cat(curr_use_ctx,:,use_align),grp_idx,[]);
 str_mua_depthgrp_norm = (str_mua_depthgrp-nanmean(str_mua_depthgrp(:,1:500),2))./ ...
     nanmean(str_mua_depthgrp(:,1:500),2);
@@ -3009,7 +2927,7 @@ ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
 
 
-%% TANs
+%% TAN analysis
 
 % Load data
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
@@ -3063,6 +2981,7 @@ figure;imagesc(nanmean(ctx_map_cat(:,:,kidx==1),3));axis image
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+
 
 % Load TANs from task and passive
 load(fullfile(am_data_path,'tan_psth_all_passive.mat'));
@@ -4224,9 +4143,31 @@ str_cat_ld_trialsplit_tmean = permute(nanmean(str_cat_ld_trialsplit(:,use_t,:),2
 figure;plot(unique(grp(:,2)),str_cat_ld_trialsplit_tmean);
 
 
+%% Utility: count days with given kidx
 
+kidx_set = reshape(unique(kidx(~isnan(kidx))),1,[]);
+kidx_day = mat2cell(kidx,cellfun(@(x) size(x,2), vertcat(ctx_map_all{:})));
 
+kidx_day_setmatch = cell2mat(cellfun(@(kidx) any(kidx == kidx_set,1), ...
+    kidx_day,'uni',false));
 
+[kidx_ld_n,ld_grp] = grpstats(kidx_day_setmatch,vertcat(ld{:}),{'sum','gname'});
+ld_grp = cellfun(@str2num,ld_grp);
+
+figure;
+tiledlayout(1,2);
+
+nexttile;
+imagesc(AP_padcatcell(kidx_day));
+xlabel('Day');
+ylabel('Depth');
+title('Kidx');
+clim([-0.5,max(kidx_set)]);
+
+nexttile;
+plot(ld_grp,kidx_ld_n)
+xlabel('Learned day');
+ylabel('Kidx count');
 
 
 
