@@ -3,10 +3,10 @@ function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times
 % Get p-value for whether reaction times are faster than chance (the animal
 % has a stim-wheel association)
 %
-% Does this by conditional resampling: determines all valid stim on times
-% for each trial if other quiescence periods had been selected, gets what
-% the reaction times would have been for each of those valid stim times,
-% compares to actual reactin times.
+% Does this by conditional resampling: determines all valid stim onset
+% times for each trial if other quiescence periods had been selected, gets
+% what the reaction times would have been for each of those valid stim
+% times, compares to actual reaction times.
 %
 % Inputs:
 % stimOn_times: stim times from Timelite
@@ -41,16 +41,25 @@ for curr_trial = 1:n_trials
     % there's fewer "valid" stim times, so less statistical power, and may
     % err on the side of missing learned days.
 
-    % Get quiescence durations
-    response_move_timestamp = trial_events.timestamps(curr_trial).StimOn(1) + ...
-        seconds(stim_to_move(curr_trial));
+    % Get time of last quiescence reset (Timelite)
+    % (define as stim time - trial quiescence time)
+    last_quiescence_reset = stimOn_times(curr_trial) - trial_events.values(curr_trial).TrialQuiescence;
 
-    curr_quiescence_resets = vertcat(...
+    % Get quiescence reset times (Timelite)
+    curr_quiescence_resets_bonsai = vertcat(...
         trial_events.timestamps(curr_trial).QuiescenceStart, ... % start of quiescence period
-        trial_events.timestamps(curr_trial).QuiescenceReset, ... % all quiescence resets
-        response_move_timestamp);                                % first post-stim movement
+        trial_events.timestamps(curr_trial).QuiescenceReset);    % all quiescence resets
 
-    curr_quiescence_durations = seconds(diff(curr_quiescence_resets));
+    curr_quiescence_resets_timelite = last_quiescence_reset + ...
+        seconds(curr_quiescence_resets_bonsai - ...
+        curr_quiescence_resets_bonsai(end,:));
+
+    % Get quiescence durations between resets, including post-stim move
+    curr_poststim_move_timelite = stimOn_times(curr_trial) + stim_to_move(curr_trial);
+
+    curr_quiescence_durations = ...
+        diff(vertcat(curr_quiescence_resets_timelite, ...
+        curr_poststim_move_timelite));
 
     % Get valid quiescence times that would yield same response movement
     % (i.e. last quiescence duration was first over-threshold)
@@ -65,6 +74,29 @@ for curr_trial = 1:n_trials
         valid_quiescence_times - trial_events.values(curr_trial).TrialQuiescence;
 
     stimOn_times_valid{curr_trial} = stimOn_times(curr_trial) + valid_quiescence_offsets;
+
+    % (debugging: plot trial)
+    if false
+
+        trial_start_t = min(curr_quiescence_resets_timelite) - 2;
+        trial_end_t = stimOn_times(curr_trial) + 4;
+        curr_t_idx = timelite.timestamps > trial_start_t & timelite.timestamps < trial_end_t;
+
+        figure;
+        % (wheel velocity)
+        plot(timelite.timestamps(curr_t_idx),wheel_velocity(curr_t_idx));
+        % (quiescence resets)
+        xline(curr_quiescence_resets_timelite,'c')
+        % (stim onset)
+        xline(stimOn_times(curr_trial),'g','linewidth',2);
+        % (move onset)
+        xline(stimOn_times(curr_trial)+stim_to_move(curr_trial),'r','linewidth',2);
+        % (possible stim times)
+        xline(stimOn_times_valid{curr_trial},'--m');
+        % (last quiescence reset)
+        xline(stimOn_times(curr_trial)-trial_events.values(curr_trial).TrialQuiescence,'k')
+
+    end
 
 end
 
@@ -83,8 +115,16 @@ stim_to_move_null(null_use_trials,:) = ...
     stim_to_move_valid(null_use_trials),'uni',false));
 
 % Get reaction statistic
+% (2 options: MAD or mean)
+% (using median doesn't look reliable) 
+
+% (option 1: median absolute devation) 
 rxn_stat = mad(stim_to_move(null_use_trials),1,1);
 rxn_null_stat = mad(stim_to_move_null(null_use_trials,:),1,1);
+
+% % (option 2: mean)
+% rxn_stat = mean(stim_to_move(null_use_trials),1);
+% rxn_null_stat = mean(stim_to_move_null(null_use_trials,:),1);
 
 rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
 p = rxn_stat_rank(1)./(n_samples+1);

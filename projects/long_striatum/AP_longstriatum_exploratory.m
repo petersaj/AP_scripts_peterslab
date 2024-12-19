@@ -2901,30 +2901,91 @@ ylabel('\DeltaActivity');
 
 
 % (testing: make template map from visually-responsive regions)
-x = stim_responsive_cells_cat(:,1)./stim_responsive_cells_cat(:,2);
-x(isnan(x)) = 0;
-r = ctx_map_cat.*permute(x,[2,3,1]);
-r2 = sqrt(sum(r.^2,3));
 
-figure;imagesc(r2); 
-axis image off; colormap(ap.colormap('WK',[],2));
-clim(max(abs(clim)).*[-1,1]);
-ap.wf_draw('ccf','k');
-colormap(ap.colormap('PWG',[],1.5));
+% % (OLD: weighted sum of maps by stim cell fraction)
+% x = stim_responsive_cells_cat(:,1)./stim_responsive_cells_cat(:,2);
+% x(isnan(x)) = 0;
+% r = ctx_map_cat.*permute(x,[2,3,1]);
+% r2 = sqrt(sum(r.^2,3));
+% 
+% figure;imagesc(r2); 
+% axis image off; colormap(ap.colormap('WK',[],2));
+% clim(max(abs(clim)).*[-1,1]);
+% ap.wf_draw('ccf','k');
+% colormap(ap.colormap('PWG',[],1.5));
+% 
+% a = corr(r2(:),reshape(ctx_map_cat.^2,[],size(ctx_map_cat,3)));
+% a_thresh = 0.45;
+% figure;plot(a,'.k')
+% yline(a_thresh,'r','thresh');
+% 
+% kidx = nan(size(ctx_map_cat,3),1);
+% kidx(a>a_thresh) = 1;
+% n_k = 1;
+% 
+% figure;imagesc(nanmean(ctx_map_cat(:,:,kidx==1),3));axis image
+% clim(max(abs(clim)).*[-1,1]);
+% ap.wf_draw('ccf','k');
+% colormap(ap.colormap('PWG',[],1.5));
 
-a = corr(r2(:),reshape(ctx_map_cat.^2,[],size(ctx_map_cat,3)));
-a_thresh = 0.45;
-figure;plot(a,'.k')
-yline(a_thresh,'r','thresh');
+% NEW: threshold for fraction of stim cells, nonvis maps are maps from same
+% day under threshold, vis maps are more correlated to vis than nonvis
+% (above included more data and looked better after analysis for some
+% reason)
 
+vis_rec_idx = x >= 0.1;
+
+use_animaldays = unique([animal_idx(vis_maps),day_idx(vis_rec_idx)],'rows');
+nonvis_rec_idx = ismember([animal_idx,day_idx],use_animaldays,'rows') & ~vis_rec_idx;
+
+vis_map = nanmean(ctx_map_cat(:,:,vis_rec_idx),3);
+nonvis_map = nanmean(ctx_map_cat(:,:,nonvis_rec_idx),3);
+
+vis_map_corr = corr(vis_map(:),reshape(ctx_map_cat,[],size(ctx_map_cat,3)));
+nonvis_map_corr = corr(nonvis_map(:),reshape(ctx_map_cat,[],size(ctx_map_cat,3)));
+
+vis_map_idx = vis_map_corr - nonvis_map_corr > 0;
+
+% (to use kidx code)
+n_k = 2;
 kidx = nan(size(ctx_map_cat,3),1);
-kidx(a>a_thresh) = 1;
-n_k = 1;
+kidx(vis_map_idx) = 1;
+kidx(~vis_map_idx) = 2;
 
-figure;imagesc(nanmean(ctx_map_cat(:,:,kidx==1),3));axis image
+figure;tiledlayout(2,2);
+
+nexttile;
+imagesc(vis_map);
+axis image off
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+title('Vis template');
+
+nexttile;
+imagesc(nonvis_map);
+axis image off
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
+title('Non-vis template');
+
+nexttile;
+imagesc(nanmean(ctx_map_cat(:,:,vis_map_idx),3));
+axis image off
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
+title('Vis map mean');
+
+nexttile;
+imagesc(nanmean(ctx_map_cat(:,:,~vis_map_idx),3));
+axis image off
+clim(max(abs(clim)).*[-1,1]);
+ap.wf_draw('ccf','k');
+colormap(ap.colormap('PWG',[],1.5));
+title('Non-vis map mean');
+
 
 
 %% TAN analysis
@@ -3462,8 +3523,8 @@ linkaxes(h.Children);
 am_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(am_data_path,'bhv.mat'));
 load(fullfile(am_data_path,'ctx_maps_task.mat'));
-% load(fullfile(am_data_path,'trial_data_passive.mat'));
-load(fullfile(am_data_path,'trial_data_task.mat'));
+load(fullfile(am_data_path,'trial_data_passive.mat'));
+% load(fullfile(am_data_path,'trial_data_task.mat'));
 
 % (time not saved: re-create)
 t = -0.5:1/50:1;
@@ -3493,7 +3554,7 @@ striatum_mua_cat = cell2mat(cellfun(@(x)  ...
     vertcat(trial_data_all.striatum_mua{:}),'uni',false));
 
 % Group area by cortical map k-means
-n_k = 4;
+n_k = 3;
 kidx = nan(size(ctx_map_cat,3),1);
 use_maps = squeeze(any(ctx_map_cat,[1,2]));
 [kidx(use_maps),kmeans_map] = ...
@@ -3610,8 +3671,11 @@ end
 
 % (PLOT TASK)
 plot_ld = [-3:3];
-figure; h = tiledlayout(n_k,length(plot_ld),'TileSpacing','tight');
+
+figure; h1 = tiledlayout(n_k,length(plot_ld),'TileSpacing','tight');
 colormap(ap.colormap('WK',[],1.5));
+
+figure; h2 = tiledlayout(n_k,1,'TileSpacing','tight');
 
 for curr_kidx = 1:n_k
 
@@ -3630,7 +3694,7 @@ for curr_kidx = 1:n_k
         plot_trials = find(grp(:,2) == curr_ld);
         [~,sort_idx] = sort(curr_rxn(plot_trials));
 
-        nexttile(h);
+        nexttile(h1);
         imagesc(t,[],imgaussfilt(curr_striatum_mua_norm(plot_trials(sort_idx),:),[5,1]));
         clim([0,2]); hold on;
         xline(0,'r','linewidth',2);
@@ -3645,7 +3709,7 @@ for curr_kidx = 1:n_k
     [ld_grp,~,ld_grp_idx] = unique(trial_grp(:,2));
     curr_striatum_ldavg = ap.groupfun(@mean,curr_striatum_trialavg,ld_grp_idx,[]);
 
-    figure;
+    nexttile(h2);
     plot(t,curr_striatum_ldavg(ismember(ld_grp,plot_ld),:)','linewidth',2);
     colororder(gca,ap.colormap('BKR',length(plot_ld)));
 
