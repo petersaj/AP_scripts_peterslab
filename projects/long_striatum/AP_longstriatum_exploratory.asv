@@ -2561,6 +2561,8 @@ load(fullfile(am_data_path,'tan_psth_all_task.mat'));
 % 
 % %%%%%%%
 
+% Only use animals that learned
+use_animals = cellfun(@any,{bhv.learned_day});
 
 % Convert cortex maps V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -2569,28 +2571,28 @@ load(master_U_fn);
 ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),x),x,'uni',false),ctx_map_all,'uni',false);
 
 % Concatenate data
-ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
-ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{use_animals}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{use_animals}));
 
-str_mua_cat = cell2mat(vertcat(day_mua_all{:}));
+str_mua_cat = cell2mat(vertcat(day_mua_all{use_animals}));
 
-stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{:}));
+stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{use_animals}));
 
 % Get grouping indicies for each depth
-ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv(use_animals).learned_day}','uni',false);
 
 animal_idx = cell2mat(cellfun(@(animal,data) repmat(animal,size(horzcat(data{:}),2),1), ...
-    num2cell(1:length(ctx_map_all))',ctx_map_all,'uni',false));
+    num2cell(1:sum(use_animals))',ctx_map_all(use_animals),'uni',false));
 
 day_idx = cell2mat(cellfun(@(ld,data) repmat(ld,size(data,2),1), ...
-    num2cell(cell2mat(cellfun(@(x) (1:length(x))',ctx_map_all,'uni',false))), ...
-    vertcat(ctx_map_all{:}),'uni',false));
+    num2cell(cell2mat(cellfun(@(x) (1:length(x))',ctx_map_all(use_animals),'uni',false))), ...
+    vertcat(ctx_map_all{use_animals}),'uni',false));
 
 ld_idx = cell2mat(cellfun(@(ld,data) repmat(ld,size(data,2),1), ...
-    num2cell(vertcat(ld{:})),vertcat(ctx_map_all{:}),'uni',false));
+    num2cell(vertcat(ld{:})),vertcat(ctx_map_all{use_animals}),'uni',false));
 
 depth_idx = cell2mat(cellfun(@(data) (1:size(data,2))', ...
-    vertcat(ctx_map_all{:}),'uni',false));
+    vertcat(ctx_map_all{use_animals}),'uni',false));
 
 % K-means cortex maps
 % (only use maps that explain x% variance)
@@ -2646,7 +2648,7 @@ end
 % Plot MUA by k-means cluster
 use_align = 3;
 use_t = [500,700];
-plot_ld = -3:3;
+plot_ld = -2:2;
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 
@@ -2901,6 +2903,7 @@ ylabel('\DeltaActivity');
 
 
 % (testing: make template map from visually-responsive regions)
+
 % % (OLD: weighted sum of maps by stim cell fraction)
 % x = stim_responsive_cells_cat(:,1)./stim_responsive_cells_cat(:,2);
 % x(isnan(x)) = 0;
@@ -2929,6 +2932,8 @@ ylabel('\DeltaActivity');
 
 % NEW: threshold for fraction of stim cells, nonvis maps are maps from same
 % day under threshold, vis maps are more correlated to vis than nonvis
+% (above included more data and looked better after analysis for some
+% reason)
 
 vis_rec_idx = x >= 0.1;
 
@@ -2943,6 +2948,12 @@ nonvis_map_corr = corr(nonvis_map(:),reshape(ctx_map_cat,[],size(ctx_map_cat,3))
 
 vis_map_idx = vis_map_corr - nonvis_map_corr > 0;
 
+% (to use kidx code)
+n_k = 2;
+kidx = nan(size(ctx_map_cat,3),1);
+kidx(vis_map_idx) = 1;
+kidx(~vis_map_idx) = 2;
+
 figure;tiledlayout(2,2);
 
 nexttile;
@@ -2951,6 +2962,7 @@ axis image off
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+title('Vis template');
 
 nexttile;
 imagesc(nonvis_map);
@@ -2958,6 +2970,7 @@ axis image off
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+title('Non-vis template');
 
 nexttile;
 imagesc(nanmean(ctx_map_cat(:,:,vis_map_idx),3));
@@ -2965,13 +2978,15 @@ axis image off
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+title('Vis map mean');
 
 nexttile;
-imagesc(nonvis_map);
+imagesc(nanmean(ctx_map_cat(:,:,~vis_map_idx),3));
 axis image off
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
 colormap(ap.colormap('PWG',[],1.5));
+title('Non-vis map mean');
 
 
 
@@ -4197,7 +4212,7 @@ figure;plot(unique(grp(:,2)),str_cat_ld_trialsplit_tmean);
 %% Utility: count days with given kidx
 
 kidx_set = reshape(unique(kidx(~isnan(kidx))),1,[]);
-kidx_day = mat2cell(kidx,cellfun(@(x) size(x,2), vertcat(ctx_map_all{:})));
+kidx_day = mat2cell(kidx,cellfun(@(x) size(x,2), vertcat(ctx_map_all{use_animals})));
 
 kidx_day_setmatch = cell2mat(cellfun(@(kidx) any(kidx == kidx_set,1), ...
     kidx_day,'uni',false));

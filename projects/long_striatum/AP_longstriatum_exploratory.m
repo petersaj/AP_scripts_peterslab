@@ -2561,6 +2561,8 @@ load(fullfile(am_data_path,'tan_psth_all_task.mat'));
 % 
 % %%%%%%%
 
+% Only use animals that learned
+use_animals = cellfun(@any,{bhv.learned_day});
 
 % Convert cortex maps V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
@@ -2569,28 +2571,28 @@ load(master_U_fn);
 ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),x),x,'uni',false),ctx_map_all,'uni',false);
 
 % Concatenate data
-ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
-ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{use_animals}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{use_animals}));
 
-str_mua_cat = cell2mat(vertcat(day_mua_all{:}));
+str_mua_cat = cell2mat(vertcat(day_mua_all{use_animals}));
 
-stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{:}));
+stim_responsive_cells_cat = cell2mat(vertcat(stim_responsive_cells{use_animals}));
 
 % Get grouping indicies for each depth
-ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv(use_animals).learned_day}','uni',false);
 
 animal_idx = cell2mat(cellfun(@(animal,data) repmat(animal,size(horzcat(data{:}),2),1), ...
-    num2cell(1:length(ctx_map_all))',ctx_map_all,'uni',false));
+    num2cell(1:sum(use_animals))',ctx_map_all(use_animals),'uni',false));
 
 day_idx = cell2mat(cellfun(@(ld,data) repmat(ld,size(data,2),1), ...
-    num2cell(cell2mat(cellfun(@(x) (1:length(x))',ctx_map_all,'uni',false))), ...
-    vertcat(ctx_map_all{:}),'uni',false));
+    num2cell(cell2mat(cellfun(@(x) (1:length(x))',ctx_map_all(use_animals),'uni',false))), ...
+    vertcat(ctx_map_all{use_animals}),'uni',false));
 
 ld_idx = cell2mat(cellfun(@(ld,data) repmat(ld,size(data,2),1), ...
-    num2cell(vertcat(ld{:})),vertcat(ctx_map_all{:}),'uni',false));
+    num2cell(vertcat(ld{:})),vertcat(ctx_map_all{use_animals}),'uni',false));
 
 depth_idx = cell2mat(cellfun(@(data) (1:size(data,2))', ...
-    vertcat(ctx_map_all{:}),'uni',false));
+    vertcat(ctx_map_all{use_animals}),'uni',false));
 
 % K-means cortex maps
 % (only use maps that explain x% variance)
@@ -2930,12 +2932,12 @@ ylabel('\DeltaActivity');
 
 % NEW: threshold for fraction of stim cells, nonvis maps are maps from same
 % day under threshold, vis maps are more correlated to vis than nonvis
-% (above included more data and looked better after analysis for some
-% reason)
+% (OLD ABOVE LOOKS BETTER FOR SOME REASON?)
 
+x = stim_responsive_cells_cat(:,1)./stim_responsive_cells_cat(:,2);
 vis_rec_idx = x >= 0.1;
 
-use_animaldays = unique([animal_idx(vis_maps),day_idx(vis_rec_idx)],'rows');
+use_animaldays = unique([animal_idx(vis_rec_idx),day_idx(vis_rec_idx)],'rows');
 nonvis_rec_idx = ismember([animal_idx,day_idx],use_animaldays,'rows') & ~vis_rec_idx;
 
 vis_map = nanmean(ctx_map_cat(:,:,vis_rec_idx),3);
@@ -3105,23 +3107,26 @@ master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
     'widefield_alignment','U_master.mat');
 load(master_U_fn);
 
+% Only use animals that learned
+use_animals = cellfun(@any,{bhv.learned_day});
+
 % Concatenate data
-V_cat = cat(4,day_V_all{:});
+V_cat = cat(4,day_V_all{use_animals});
 
 % Get indicies for animal / learned day
-ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv(use_animals).learned_day}','uni',false);
 ld_unique = unique(vertcat(ld{:}));
 
 V_animal_day_idx = cell2mat(cellfun(@(x,animal,ld) ...
     [repmat(animal,size(x,4),1),ld], ...
-    day_V_all,num2cell(1:length(day_V_all))',ld,'uni',false));
+    day_V_all(use_animals),num2cell(1:sum(use_animals))',ld,'uni',false));
 
 % Average widefield by learned day
 V_ldavg = permute(ap.groupfun(@nanmean,V_cat,[],[],[],V_animal_day_idx(:,2)),[1,2,4,3]);
 px_ldavg = plab.wf.svd2px(U_master,V_ldavg);
 
 % Plot widefield by learned day
-plot_ld = -2:2;
+plot_ld = -3:3;
 plot_align = 3;
 ap.imscroll(px_ldavg(:,:,:,ismember(ld_unique,plot_ld),plot_align));
 axis image;
@@ -4210,7 +4215,7 @@ figure;plot(unique(grp(:,2)),str_cat_ld_trialsplit_tmean);
 %% Utility: count days with given kidx
 
 kidx_set = reshape(unique(kidx(~isnan(kidx))),1,[]);
-kidx_day = mat2cell(kidx,cellfun(@(x) size(x,2), vertcat(ctx_map_all{:})));
+kidx_day = mat2cell(kidx,cellfun(@(x) size(x,2), vertcat(ctx_map_all{use_animals})));
 
 kidx_day_setmatch = cell2mat(cellfun(@(kidx) any(kidx == kidx_set,1), ...
     kidx_day,'uni',false));
