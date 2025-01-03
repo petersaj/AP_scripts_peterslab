@@ -1,4 +1,4 @@
-function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
+function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move,use_stat)
 % [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
 % Get p-value for whether reaction times are faster than chance (the animal
 % has a stim-wheel association)
@@ -12,6 +12,7 @@ function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times
 % stimOn_times: stim times from Timelite
 % trial_events: Bonsai trial event structure from ap.load_bonsai
 % stim_to_move: measured reaction times
+% use_stat (optional): reaction statistic to use, 'mad' (default) or 'mean'
 %
 % Output:
 % p: p-value for median reaction time
@@ -115,16 +116,24 @@ stim_to_move_null(null_use_trials,:) = ...
     stim_to_move_valid(null_use_trials),'uni',false));
 
 % Get reaction statistic
-% (2 options: MAD or mean)
-% (using median doesn't look reliable) 
+% (mad or mean, no median because doesn't look reliable)
 
-% (option 1: median absolute devation) 
-rxn_stat = mad(stim_to_move(null_use_trials),1,1);
-rxn_null_stat = mad(stim_to_move_null(null_use_trials,:),1,1);
+% (default is mad)
+if nargin < 4 || isempty(use_stat)
+    use_stat = 'mad';
+end
 
-% % (option 2: mean)
-% rxn_stat = mean(stim_to_move(null_use_trials),1);
-% rxn_null_stat = mean(stim_to_move_null(null_use_trials,:),1);
+switch use_stat
+    case 'mad'
+        % (median absolute devation)
+        rxn_stat = mad(stim_to_move(null_use_trials),1,1);
+        rxn_null_stat = mad(stim_to_move_null(null_use_trials,:),1,1);
+
+    case 'mean'
+        % (mean)
+        rxn_stat = mean(stim_to_move(null_use_trials),1);
+        rxn_null_stat = mean(stim_to_move_null(null_use_trials,:),1);
+end
 
 rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
 p = rxn_stat_rank(1)./(n_samples+1);

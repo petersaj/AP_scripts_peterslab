@@ -165,7 +165,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'HA003','HA004'};
+animals = {'HA003'};
 
 % Create master tiled layout
 figure;
@@ -210,13 +210,6 @@ for curr_animal_idx = 1:length(animals)
             [length([trial_events.values.Outcome]), ...
             sum([trial_events.values.Outcome])];
 
-        % Get median stim-outcome time
-        n_trials = length([trial_events.values.Outcome]);
-%         rxn_med(curr_recording) = median(seconds([trial_events.timestamps(1:n_trials).Outcome] - ...
-%             cellfun(@(x) x(1),{trial_events.timestamps(1:n_trials).StimOn})));
-        % (use photodiode on/off)
-        rxn_med(curr_recording) = median(stimOff_times-stimOn_times);
-
         % Align wheel movement to stim onset
         align_times = stimOn_times;
         pull_times = align_times + surround_time_points;
@@ -236,8 +229,10 @@ for curr_animal_idx = 1:length(animals)
             continue
         end
 
-        rxn_stat_p(curr_recording) = AP_stimwheel_association_pvalue( ...
-            stimOn_times,trial_events,stim_to_move);
+        rxn_stat = 'mad';
+        [rxn_stat_p(curr_recording),rxn_med(curr_recording)] = ...
+            AP_stimwheel_association_pvalue( ...
+            stimOn_times,trial_events,stim_to_move,rxn_stat);
 
         % Clear vars except pre-load for next loop
         clearvars('-except',preload_vars{:});
