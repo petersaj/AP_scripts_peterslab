@@ -3584,12 +3584,13 @@ kidx_day = mat2cell(kidx,cellfun(@(x) size(x,3),vertcat(ctx_map_px{:})),1);
 
 %%%%% TEMP: fixing number mismatch (end days with no striatum, cell size
 %%%%% wasn't initialized first)
-for curr_animal = find(use_animals)
-    if length(trial_data_all.striatum_mua{curr_animal}) ~= ...
-            length(bhv(curr_animal).learned_day)
+use_animal_idx = find(use_animals);
+for curr_animal_idx = 1:length(use_animal_idx)
+    if length(trial_data_all.striatum_mua{curr_animal_idx}) ~= ...
+            length(bhv(use_animal_idx(curr_animal_idx)).learned_day)
 
-        trial_data_all.striatum_mua{curr_animal}{ ...
-            length(bhv(curr_animal).learned_day)} = [];
+        trial_data_all.striatum_mua{curr_animal_idx}{ ...
+            length(bhv(use_animal_idx(curr_animal_idx)).learned_day)} = [];
     end
 end
 %%%%%%%%%%
@@ -3942,20 +3943,20 @@ trial_frac_idx = cell2mat(cellfun(@(x) repmat((1:size(x,1))'./size(x,1),1), ...
 
 % (passive)
 if isfield(trial_data_all,'stim')
-    trial_stim = cell2mat(vertcat(trial_data_all.stim{use_animals}));
+    trial_stim = cell2mat(vertcat(trial_data_all.stim{:}));
 end
 if isfield(trial_data_all,'wheel_move')
-    trial_wheel = cell2mat(vertcat(trial_data_all.wheel_move{use_animals}));
+    trial_wheel = cell2mat(vertcat(trial_data_all.wheel_move{:}));
 end
 if isfield(trial_data_all,'wheel_velocity')
-    trial_wheel_vel = cell2mat(vertcat(trial_data_all.wheel_velocity{use_animals}));
+    trial_wheel_vel = cell2mat(vertcat(trial_data_all.wheel_velocity{:}));
 end
 % (task)
 if isfield(trial_data_all,'stim_to_move')
-    trial_rxn = cell2mat(vertcat(trial_data_all.stim_to_move{use_animals}));
+    trial_rxn = cell2mat(vertcat(trial_data_all.stim_to_move{:}));
 end
 if isfield(trial_data_all,'outcome')
-    trial_outcome = cell2mat(vertcat(trial_data_all.outcome{use_animals}));
+    trial_outcome = cell2mat(vertcat(trial_data_all.outcome{:}));
 end
 
 % Widefield: concatenate trial data (and subtract baseline)
@@ -3968,19 +3969,19 @@ n_vs = size(wf_cat,3);
 
 %%%%% TEMP: fixing number mismatch (end days with no striatum, cell size
 %%%%% wasn't initialized first)
-for curr_animal = find(use_animals)
-    if length(trial_data_all.striatum_mua{curr_animal}) ~= ...
-            length(bhv(curr_animal).learned_day)
+use_animal_idx = find(use_animals);
+for curr_animal_idx = 1:length(use_animal_idx)
+    if length(trial_data_all.striatum_mua{curr_animal_idx}) ~= ...
+            length(bhv(use_animal_idx(curr_animal_idx)).learned_day)
 
-        trial_data_all.striatum_mua{curr_animal}{ ...
-            length(bhv(curr_animal).learned_day)} = [];
+        trial_data_all.striatum_mua{curr_animal_idx}{ ...
+            length(bhv(use_animal_idx(curr_animal_idx)).learned_day)} = [];
     end
 end
 %%%%%%%%%%
 
-% (need to get kidx elsewhere, choose kidx to use here)
-use_str_depth = kidx == 3;
-use_str_depth_day = mat2cell(use_str_depth,cellfun(@(x) size(x,3),vertcat(ctx_map_px{use_animals})),1);
+use_str_depth = kidx == 1;
+use_str_depth_day = mat2cell(use_str_depth,cellfun(@(x) size(x,3),vertcat(ctx_map_px{use_anima})),1);
 
 softnorm = 20;
 str_cat = cellfun(@(x,use_depth) (sum(x(:,:,use_depth),3) - nanmean(sum(x(:,t<0,use_depth),3),2)) ./ ...
@@ -4016,10 +4017,10 @@ roi_trace = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
 % (split data within animal)
 use_t = t >= 0.05 & t <= 0.15;
 
-use_trials_all = trial_stim == 90 &  ~any(trial_wheel(:,t>0 & t<=0.3),2) & trial_ld > 0;
-% use_trials_all = trial_ld <= -1;
+% use_trials_all = trial_stim == 90 &  ~any(trial_wheel(:,t>0 & t<=0.3),2) & trial_ld == -1;
+use_trials_all = trial_ld <= -1;
 
-n_split = 5;
+n_split = 2;
 trial_split = nan(size(trial_ld));
 for curr_animal = unique(trial_animal)'
     curr_animal_trials = trial_animal == curr_animal;
