@@ -3537,6 +3537,9 @@ load(fullfile(am_data_path,'trial_data_passive.mat'));
 % (time not saved: re-create)
 t = -0.5:1/50:1;
 
+% Only use animals that learned
+use_animals = cellfun(@any,{bhv.learned_day});
+
 % Convert cortex maps V to px
 master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
     'widefield_alignment','U_master.mat');
@@ -3544,22 +3547,17 @@ load(master_U_fn);
 ctx_map_px = cellfun(@(x) cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:size(x,1)),x),x,'uni',false),ctx_map_all,'uni',false);
 
 % Concatenate data
-ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{:}),[2,3,1]));
-ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{:}));
+ctx_map_cat = cell2mat(permute(vertcat(ctx_map_px{use_animals}),[2,3,1]));
+ctx_expl_var_cat = cell2mat(vertcat(ctx_expl_var_all{use_animals}));
 
 % Get indicies for animal / learned day / depth
-ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv.learned_day}','uni',false);
+ld = cellfun(@(x) (1:length(x))'-find(x,1),{bhv(use_animals).learned_day}','uni',false);
 
 animal_ld_idx_cell = cellfun(@(animal,ld,data) cellfun(@(ld,data) ...
     [repmat(animal,size(data,2),1),repmat(ld,size(data,2),1),(1:size(data,2))'], ...
     num2cell(ld),data,'uni',false), ...
-    num2cell(1:length(ctx_map_all))',ld,ctx_map_all,'uni',false);
+    num2cell(1:sum(use_animals))',ld,ctx_map_all(use_animals),'uni',false);
 animal_ld_idx = cell2mat(vertcat(animal_ld_idx_cell{:}));
-
-% Concatenate trial data
-striatum_mua_cat = cell2mat(cellfun(@(x)  ...
-    permute(reshape(permute(x,[2,1,3]),size(x,2),[]),[2,1,3]), ...
-    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
 
 % Group area by cortical map k-means
 n_k = 3;
@@ -3580,7 +3578,7 @@ for i = 1:n_k
     ap.wf_draw('ccf','k');
 end
 
-kidx_day = mat2cell(kidx,cellfun(@(x) size(x,3),vertcat(ctx_map_px{:})),1);
+kidx_day = mat2cell(kidx,cellfun(@(x) size(x,3),vertcat(ctx_map_px{use_animals})),1);
 
 %%%%% TEMP: fixing number mismatch (end days with no striatum, cell size
 %%%%% wasn't initialized first)
@@ -3594,50 +3592,55 @@ for curr_animal = find(use_animals)
 end
 %%%%%%%%%%
 
+% Concatenate trial data
+striatum_mua_cat = cell2mat(cellfun(@(x)  ...
+    permute(reshape(permute(x,[2,1,3]),size(x,2),[]),[2,1,3]), ...
+    vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
+
 % Make indicies per trial
 day_animal = cell2mat(cellfun(@(x,y) repmat(x,length(y),1), ...
     num2cell(1:length(bhv)),{bhv.learned_day},'uni',false)');
 trial_animal = cell2mat(cellfun(@(x,y) repmat(x,prod(size(y,[1,3])),1), ...
-    num2cell(day_animal),vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+    num2cell(day_animal),vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 
 trial_ld = cell2mat(cellfun(@(x,y) repmat(x,prod(size(y,[1,3])),1), ...
-    num2cell(vertcat(ld{:})),vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+    num2cell(vertcat(ld{:})),vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 
 trial_idx = cell2mat(cellfun(@(x) reshape(repmat((1:size(x,1))',size(x,3),1),[],1), ...
-    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+    vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 
 trial_frac_idx = cell2mat(cellfun(@(x) reshape(repmat((1:size(x,1))'./size(x,1),size(x,3),1),[],1), ...
-    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+    vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 
 % (passive)
 if isfield(trial_data_all,'stim')
     trial_stim = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1)),size(y,3),1), ...
-        vertcat(trial_data_all.stim{:}), ...
-        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+        vertcat(trial_data_all.stim{use_animals}), ...
+        vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 end
 if isfield(trial_data_all,'wheel_move')
     trial_wheel = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1),:),size(y,3),1), ...
-        vertcat(trial_data_all.wheel_move{:}), ...
-        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+        vertcat(trial_data_all.wheel_move{use_animals}), ...
+        vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 end
 
 % (task)
 if isfield(trial_data_all,'stim_to_move')
     trial_rxn = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1)),size(y,3),1), ...
-        vertcat(trial_data_all.stim_to_move{:}), ...
-        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+        vertcat(trial_data_all.stim_to_move{use_animals}), ...
+        vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 end
 if isfield(trial_data_all,'outcome')
     trial_outcome = cell2mat(cellfun(@(x,y) repmat(x(1:size(y,1)),size(y,3),1), ...
-        vertcat(trial_data_all.outcome{:}), ...
-        vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+        vertcat(trial_data_all.outcome{use_animals}), ...
+        vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 end
 
 trial_depth = cell2mat(cellfun(@(x) reshape(repmat(1:size(x,3),size(x,1),1),[],1), ...
-    vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+    vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 
 trial_kidx = cell2mat(cellfun(@(x,y) reshape(repmat(x',size(y,1),1),[],1), ...
-    kidx_day,vertcat(trial_data_all.striatum_mua{:}),'uni',false));
+    kidx_day,vertcat(trial_data_all.striatum_mua{use_animals}),'uni',false));
 
 % (PLOT PASSIVE)
 plot_ld = [-3:3];

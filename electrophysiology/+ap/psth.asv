@@ -136,8 +136,8 @@ if ~all(isnan(opts.norm_window))
     t_baseline = t >= opts.norm_window(1) & ...
         t <= opts.norm_window(2);
     % (compute baseline as average across all alignments)
-    psth_baseline = nanmean(psth(:,t_baseline,:),2);
-    psth = (psth - psth_baseline)./(psth_baseline + opts.softnorm);
+    psth_baseline = nanmean(psth(:,t_baseline,:),[1,2]);
+    psth = (psth - psth_baseline)./(psth_baseline + opts.softnorm),psth,psth_baseline,'uni',false);
 end
 
 % If one alignment group, set raster as matrix

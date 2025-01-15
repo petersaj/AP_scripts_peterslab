@@ -116,7 +116,9 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 
 %% Align wheel to event
 
-align_times = photodiode_times(1:2:end);
+% align_times = photodiode_times(1:2:end);
+align_times = stimOn_times(align_category_all == 90 & quiescent_trials);
+
 
 surround_time = [-10,10];
 surround_sample_rate = 100;
@@ -165,7 +167,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'HA003'};
+animals = {'DS019'};
 
 % Create master tiled layout
 figure;
@@ -229,7 +231,7 @@ for curr_animal_idx = 1:length(animals)
             continue
         end
 
-        rxn_stat = 'mad';
+        rxn_stat = 'mean';
         [rxn_stat_p(curr_recording),rxn_med(curr_recording)] = ...
             AP_stimwheel_association_pvalue( ...
             stimOn_times,trial_events,stim_to_move,rxn_stat);
