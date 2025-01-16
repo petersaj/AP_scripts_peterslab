@@ -255,6 +255,21 @@ for slice = 1:18
     imwrite(curr_im,curr_save_filename);
 end
 
+%%
+
+a = rand(30,1
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

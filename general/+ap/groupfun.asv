@@ -1,7 +1,7 @@
 function grouped_data = groupfun(group_function,data,varargin)
 % grouped_data = groupfun(group_function, data, dim1 group, dim2 group...)
 %
-% Perform function on groups of data along any/multiple dimensions
+% Perform function on grouped data
 % 
 % INPUTS
 % group_function: handle for function to perform on group
@@ -12,12 +12,10 @@ function grouped_data = groupfun(group_function,data,varargin)
 % grouped_data: ND data with function performed on group, with size reduced
 % to number of groups in each grouped dimension.
 %
-% EXAMPLE: 
-% Average values in groups along the 3rd and 4th dimensions
-% rand_data = rand(3,4,5,6);
-% group_3d = [1,1,1,2,2];
-% group_4d = [1,1,2,2,3,3];
-% grouped_data = ap.groupfun(@mean,rand_data,[],[],group_3d,group_4d)
+% EXAMPLE
+%
+%
+%
 
 % Check that there's a group variable for each dimension
 groups = varargin;
