@@ -43,7 +43,8 @@ group_grid = cell(1,length(groups_dims));
 [group_grid{:}] = ndgrid(groups{groups_dims});
 group_flat = cell2mat(cellfun(@(x) reshape(x,[],1),group_grid,'uni',false));
 
-[~,~,group_flat_unique] = unique(group_flat,'rows','stable');
+% (flip groups so that the sorting hierarchy higher > lower)
+[~,~,group_flat_unique] = unique(fliplr(group_flat),'rows');
 
 % Loop through groups and do function
 grouped_data = nan(max(group_flat_unique),size(data_reshape,2),class(data));

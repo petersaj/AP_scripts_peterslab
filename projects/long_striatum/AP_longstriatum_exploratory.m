@@ -2648,7 +2648,7 @@ end
 % Plot MUA by k-means cluster
 use_align = 3;
 use_t = [500,700];
-plot_ld = -3:3;
+plot_ld = -2:2;
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 

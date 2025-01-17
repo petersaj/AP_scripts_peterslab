@@ -255,6 +255,23 @@ for slice = 1:18
     imwrite(curr_im,curr_save_filename);
 end
 
+%% fixing and testing groupfun
+
+a = rand(30,100,10,6);
+
+a3 = [1,1,1,1,2,2,2,2,2,2];
+a4 = [1,1,2,2,2,3];
+
+x = ap.groupfun(@mean,a,[],[],a3,a4);
+
+a_grp = nan([size(a,[1,2]),length(unique(a3)),length(unique(a4))]);
+
+a_test = nanmean(a(:,:,a3==2,a4==1),[3,4]);
+
+isequal(x(:,:,2,1),a_test)
+
+
+
 
 
 
