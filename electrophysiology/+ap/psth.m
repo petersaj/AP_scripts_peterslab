@@ -18,7 +18,7 @@ arguments
 
 end
 
-% [psth_avg,psth_trial,t] = psth(event_times,align_times,event_groups,opts)
+% [psth,raster,t] = psth(event_times,align_times,event_groups,opts)
 % 
 % Make PSTHs for discrete data (e.g. event times)
 %
