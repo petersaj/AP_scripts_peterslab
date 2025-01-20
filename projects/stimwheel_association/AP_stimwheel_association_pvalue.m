@@ -1,5 +1,5 @@
-function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move,use_stat)
-% [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
+function [p,rxn_stat,rxn_null_stat] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move,use_stat)
+% [p,rxn_stat,rxn_null_stat] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
 % Get p-value for whether reaction times are faster than chance (the animal
 % has a stim-wheel association)
 %
@@ -16,8 +16,8 @@ function [p,rxn_med,rxn_null_med] = AP_stimwheel_association_pvalue(stimOn_times
 %
 % Output:
 % p: p-value for median reaction time
-% rxn_med: median used reaction times
-% rxn_null_med: median null reaction times
+% rxn_stat: statistic for reaction times
+% rxn_null_stat: statistic for null reaction times
 
 % Only look at completed trials
 n_trials = length([trial_events.timestamps.Outcome]);
@@ -105,9 +105,12 @@ move_times = stimOn_times(1:n_trials) + stim_to_move;
 stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
     stimOn_times_valid,num2cell(move_times),'uni',false);
 
-% Create null reaction distribution (only from trials with reaction
-% times > 0ms: these are bad quiescence clock)
-null_use_trials = (stim_to_move > 0) & ~cellfun(@isempty,stim_to_move_valid);
+% Create null reaction distribution 
+% (only from trials with reaction times > 50ms: if it's shorter, either the
+% quiescence clock was bad (e.g. negative reaction time) or the short
+% reaction time was a lucky guess)
+stim_rxn_threshold = 0.05;
+null_use_trials = (stim_to_move > stim_rxn_threshold) & ~cellfun(@isempty,stim_to_move_valid);
 
 n_samples = 10000;
 stim_to_move_null = nan(length(stim_to_move),n_samples);
@@ -127,20 +130,19 @@ switch use_stat
     case 'mad'
         % (median absolute devation)
         rxn_stat = mad(stim_to_move(null_use_trials),1,1);
-        rxn_null_stat = mad(stim_to_move_null(null_use_trials,:),1,1);
+        rxn_null_stat_distribution = mad(stim_to_move_null(null_use_trials,:),1,1);
 
     case 'mean'
         % (mean)
         rxn_stat = mean(stim_to_move(null_use_trials),1);
-        rxn_null_stat = mean(stim_to_move_null(null_use_trials,:),1);
+        rxn_null_stat_distribution = mean(stim_to_move_null(null_use_trials,:),1);
 end
 
-rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat));
+rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat_distribution));
 p = rxn_stat_rank(1)./(n_samples+1);
 
-% Output median real and null reaction times
-rxn_med = median(stim_to_move(null_use_trials));
-rxn_null_med = mean(median(stim_to_move_null(null_use_trials,:),1),2);
+% Output mean statistic of null reaction times
+rxn_null_stat = mean(rxn_null_stat_distribution);
 
 
 

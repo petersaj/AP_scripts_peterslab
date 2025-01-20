@@ -191,7 +191,7 @@ for curr_animal_idx = 1:length(animals)
 
     n_trials_success = nan(length(recordings),2);
     frac_move_day = nan(length(recordings),1);
-    rxn_med = nan(length(recordings),1);
+    rxn_stat = nan(length(recordings),1);
     frac_move_stimalign = nan(length(recordings),length(surround_time_points));
     rxn_stat_p = nan(length(recordings),1);
 
@@ -231,10 +231,10 @@ for curr_animal_idx = 1:length(animals)
             continue
         end
 
-        rxn_stat = 'mean';
-        [rxn_stat_p(curr_recording),rxn_med(curr_recording)] = ...
+        use_stat = 'mean';
+        [rxn_stat_p(curr_recording),rxn_stat(curr_recording)] = ...
             AP_stimwheel_association_pvalue( ...
-            stimOn_times,trial_events,stim_to_move,rxn_stat);
+            stimOn_times,trial_events,stim_to_move,use_stat);
 
         % Clear vars except pre-load for next loop
         clearvars('-except',preload_vars{:});
@@ -243,7 +243,7 @@ for curr_animal_idx = 1:length(animals)
     end
 
     % Define learned day from reaction stat p-value and reaction time
-    learned_day = rxn_stat_p < 0.05 & rxn_med < 5;
+    learned_day = rxn_stat_p < 0.05;
 
     relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
     nonrecorded_day = setdiff(1:length(recordings),relative_day);
@@ -268,7 +268,7 @@ for curr_animal_idx = 1:length(animals)
 
     nexttile(t_animal);
     yyaxis left
-    plot(relative_day,rxn_med)
+    plot(relative_day,rxn_stat)
     set(gca,'YScale','log');
     ylabel('Med. rxn');
     xlabel('Day');
@@ -311,7 +311,7 @@ for curr_animal_idx = 1:length(animals)
             0.02,[0,1,0],0.1,false);
         
         % Store behavior across animals
-        bhv(curr_animal_idx).rxn_med = rxn_med;
+        bhv(curr_animal_idx).rxn_med = rxn_stat;
         bhv(curr_animal_idx).stim_move_frac_ratio = stim_move_frac_ratio;
         bhv(curr_animal_idx).learned_day = learned_day;
 
