@@ -106,10 +106,9 @@ stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
     stimOn_times_valid,num2cell(move_times),'uni',false);
 
 % Create null reaction distribution 
-% (only from trials with reaction times > 50ms: if it's shorter, either the
-% quiescence clock was bad (e.g. negative reaction time) or the short
-% reaction time was a lucky guess)
-stim_rxn_threshold = 0.05;
+% (only from trials with reaction times > 0ms: negative reaction times mean
+% the quiescence time wasn't working exactly)
+stim_rxn_threshold = 0;
 null_use_trials = (stim_to_move > stim_rxn_threshold) & ~cellfun(@isempty,stim_to_move_valid);
 
 n_samples = 10000;
