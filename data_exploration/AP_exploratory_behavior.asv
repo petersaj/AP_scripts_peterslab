@@ -13,8 +13,8 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 % stim_x = vertcat(trial_events.values.StimFrequence);
 % use_align = stimOn_times(stim_x == 12000 & quiescent_trials);
 
-% stim_x = vertcat(trial_events.values.TrialStimX);
-% use_align = stimOn_times(stim_x == 90 & quiescent_trials);
+stim_x = vertcat(trial_events.values.TrialStimX);
+use_align = stimOn_times(stim_x == 90 & quiescent_trials);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x == 90);
@@ -27,8 +27,6 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 % % (task)
 % use_align = stimOn_times;
 % use_align = stim_move_time;
-
-use_align = a;
 
 % Initialize video reader, get average and average difference
 vr = VideoReader(mousecam_fn);
