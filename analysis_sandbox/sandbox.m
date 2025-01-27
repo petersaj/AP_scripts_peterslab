@@ -22,11 +22,12 @@ animal = 'DS004';
 
 % workflow = 'lcr_passive';
 % workflow = 'lcr_passive_fullscreen';
-workflow = 'stim_wheel_right*';
-workflow = 'stim_wheel_right_stage2_audio_volume';
+% workflow = 'stim_wheel_right*';
+% workflow = 'stim_wheel_right_stage2_audio_volume';
 % workflow = 'sparse_noise';
 % workflow = 'visual_conditioning*';
 % workflow = 'hml_passive_audio';
+workflow = '*angle*';
 
 recordings = plab.find_recordings(animal,[],workflow);
 

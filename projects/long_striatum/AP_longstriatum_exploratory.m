@@ -5,7 +5,7 @@
 ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
 
 % Get bursts
-use_depth = [2000,2500];
+use_depth = [1000,2000];
 yline(use_depth,'r','linewidth',2)
 
 spike_binning_t = 0.005; % seconds

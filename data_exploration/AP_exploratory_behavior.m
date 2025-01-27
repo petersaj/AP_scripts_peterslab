@@ -117,7 +117,7 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 %% Align wheel to event
 
 % align_times = photodiode_times(1:2:end);
-align_times = stimOn_times(align_category_all == 90 & quiescent_trials);
+align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
 
 
 surround_time = [-10,10];
@@ -167,7 +167,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'DS019'};
+animals = {'AP023'};
 
 % Create master tiled layout
 figure;

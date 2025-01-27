@@ -166,6 +166,167 @@ for curr_id = 1:max(align_id)
 end
 colormap(AP_colormap('PWG'));
 
+%% TESTING
+
+
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
+
+stim_x = vertcat(trial_events.values.TrialStimX);
+
+use_trials = true(size(quiescent_trials));
+
+align_times = stimOn_times(use_trials);
+align_category = stim_x(use_trials);
+baseline_times = stimOn_times(use_trials);
+
+surround_window = [0.05,0.2];
+baseline_window = [-0.5,-0.1];
+
+surround_samplerate = 35;
+
+t = surround_window(1):1/surround_samplerate:surround_window(2);
+baseline_t = baseline_window(1):1/surround_samplerate:baseline_window(2);
+
+peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
+baseline_event_t = reshape(baseline_times,[],1) + reshape(baseline_t,1,[]);
+
+use_U = wf_U;
+use_V = wf_V;
+use_wf_t = wf_t;
+
+aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
+    length(align_times),length(t),[]);
+aligned_baseline_v = nanmean(reshape(interp1(use_wf_t,use_V',baseline_event_t,'previous'), ...
+    length(baseline_times),length(baseline_t),[]),2);
+
+aligned_v_baselinesub = aligned_v - aligned_baseline_v;
+
+% (mean)
+aligned_v_use = permute(nanmean(aligned_v_baselinesub,2),[3,1,2]);
+aligned_px = plab.wf.svd2px(imresize(wf_U,1/5,'nearest'),aligned_v_use);
+
+x = ap.groupfun(@mean,aligned_px,[],[],align_category);
+
+use_trials_shuff = ismember(align_category,[-90,90]);
+aligned_px_shuff = aligned_px(:,:,use_trials_shuff);
+
+n_shuff = 1000;
+x_shuff = nan([size(x,[1,2]),n_shuff]);
+for curr_shuff = 1:n_shuff
+    x_shuff(:,:,curr_shuff) = ...
+        nanmean(aligned_px_shuff(:,:,AP_shake(align_category(use_trials_shuff)) == 90),3);
+    ap.print_progress_fraction(curr_shuff,n_shuff);
+end
+
+
+r_full = tiedrank(([reshape(x(:,:,3),[],1),reshape(x_shuff,[],n_shuff)])');
+r = reshape(r_full(1,:),size(x,[1,2]))./(n_shuff+1);
+figure;imagesc(r>0.95);
+
+
+
+
+%% KDH: stim power and variance
+
+% Get stim-aligned pixels
+
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
+
+stim_x = vertcat(trial_events.values.TrialStimX);
+
+use_trials = quiescent_trials;
+
+align_times = stimOn_times(use_trials);
+align_category = stim_x(use_trials);
+baseline_times = stimOn_times(use_trials);
+
+surround_window = [0.05,0.15];
+baseline_window = [-0.5,-0.1];
+
+surround_samplerate = 35;
+
+t = surround_window(1):1/surround_samplerate:surround_window(2);
+baseline_t = baseline_window(1):1/surround_samplerate:baseline_window(2);
+
+peri_event_t = reshape(align_times,[],1) + reshape(t,1,[]);
+baseline_event_t = reshape(baseline_times,[],1) + reshape(baseline_t,1,[]);
+
+use_U = wf_U;
+use_V = wf_V;
+use_wf_t = wf_t;
+
+aligned_v = reshape(interp1(use_wf_t,use_V',peri_event_t,'previous'), ...
+    length(align_times),length(t),[]);
+aligned_baseline_v = nanmean(reshape(interp1(use_wf_t,use_V',baseline_event_t,'previous'), ...
+    length(baseline_times),length(baseline_t),[]),2);
+
+aligned_v_baselinesub = aligned_v - aligned_baseline_v;
+
+% (mean)
+aligned_v_use = permute(nanmean(aligned_v_baselinesub,2),[3,1,2]);
+aligned_px = plab.wf.svd2px(imresize(wf_U,1/5,'nearest'),aligned_v_use);
+
+% % (max)
+% aligned_px = max(plab.wf.svd2px(imresize(wf_U,1/5,'nearest'),permute(aligned_v_baselinesub,[3,1,2])),[],4);
+
+
+%%% testing KDH stat
+px_stim_power = nan(size(aligned_px,[1,2]));
+px_stim_var = nan(size(aligned_px,[1,2]));
+
+unique_stim = unique(align_category);
+
+figure; tiledlayout(1,2);
+nexttile; c_power = imagesc(px_stim_power); axis image;
+nexttile; c_var = imagesc(px_stim_var); axis image;
+for curr_px = 1:numel(px_stim_var)
+
+    [curr_y,curr_x] = ind2sub(size(px_stim_var),curr_px);
+
+    x = squeeze(aligned_px(curr_y,curr_x,:));
+
+    % Stim power
+    s_p = nan(length(unique_stim),1);
+    for curr_stim_idx = 1:length(unique_stim)
+        curr_trials = align_category == unique_stim(curr_stim_idx);
+        s_p(curr_stim_idx) = sum(AP_itril(x(curr_trials).*x(curr_trials)',-1))/ ...
+            (sum(curr_trials).*(sum(curr_trials)-1));
+    end 
+    s_p_avg = mean(s_p);
+    px_stim_power(curr_y,curr_x) = s_p_avg;
+
+    % Stim variance
+    s = sum((ap.groupfun(@mean,x,align_category,[]) - ...
+        mean(ap.groupfun(@mean,x,align_category,[]))).^2)/length(unique_stim);
+
+    v_hat = nan(length(unique_stim),1);
+    for curr_stim_idx = 1:length(unique_stim)
+        curr_trials = align_category == unique_stim(curr_stim_idx);
+        v_hat(curr_stim_idx) = sum((x(curr_trials) - mean(x(curr_trials))).^2)/(sum(curr_trials)-1);
+    end
+
+    v = ((length(unique_stim)-1)./length(unique_stim).^2)* ...
+        sum(v_hat./ap.groupfun(@sum,ones(size(align_category)),align_category,[]));
+
+    s_hat = s-v;
+
+    px_stim_var(curr_y,curr_x) = s_hat;
+
+    set(c_power,'CData',px_stim_power);
+    set(c_var,'CData',px_stim_var);
+    drawnow;
+
+end
+
+
 
 %% Sparse noise retinotopy (single day)
 
@@ -197,7 +358,7 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'AP010';
+animal = 'AP005';
 
 % Get and save VFS maps for animal
 plab.wf.retinotopy_vfs_batch(animal);
@@ -211,7 +372,7 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'AP026';
+animal = 'AP005';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

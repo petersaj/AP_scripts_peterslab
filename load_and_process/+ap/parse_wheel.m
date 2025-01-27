@@ -27,9 +27,11 @@ wheel_position = reshape(wheel_position,[],1);
 % (round to ensure integer, but should be since on DAQ counter)
 wheel_clicks = round([0;diff(wheel_position)]); % rotary encoder clicks
 
-% Get rid of single-timepoint wheel clicks or wheel clicks that sum to zero
-% within window (velocity is not meaningful within window in these cases)
-wheel_clicks_use = movsum(abs(wheel_clicks),wheel_smooth_samples) > 1 & ...
+% Clean wheel clicks by removing cases where: 
+% - single-timepoint wheel clicks
+% - clicks that sum to zero within window
+wheel_clicks_use = ...
+    movsum(wheel_clicks ~= 0,wheel_smooth_samples) > 1 & ...
     movsum(wheel_clicks,wheel_smooth_samples) ~= 0;
 
 wheel_clicks_clean = wheel_clicks.*wheel_clicks_use;

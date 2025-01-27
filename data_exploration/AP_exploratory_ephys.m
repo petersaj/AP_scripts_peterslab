@@ -232,18 +232,10 @@ elseif contains(bonsai_workflow,'stim_wheel')
     use_align = stimOn_times;
 end
 
-baseline_t = [-0.2,0];
-response_t = [0,0.2];
-
-baseline_bins = use_align + baseline_t;
-response_bins = use_align + response_t;
-
-event_bins = [baseline_bins,response_bins];
-spikes_binned_continuous = histcounts2(spike_times_timelite,spike_templates, ...
-    reshape([baseline_bins,response_bins]',[],1),1:size(templates,1)+1);
-
-event_spikes = permute(reshape(spikes_binned_continuous(1:2:end,:),2, ...
-    size(event_bins,1),[]),[2,1,3]);
+window_center = [-0.1,0.1];
+bin_size = 0.2;
+[~,event_spikes] = ap.psth(spike_times_timelite,use_align,spike_templates, ...
+    'window',window_center,'bin_size',bin_size);
 
 event_response = squeeze(mean(diff(event_spikes,[],2),1));
 
@@ -938,9 +930,9 @@ colormap(AP_colormap('BWR'));
 
 %% ~~~~~~~~ BATCH
 
-%% Grab and plot histology pictures
+%% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'DS010'};
+animals = {'AM014'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -967,6 +959,53 @@ for curr_animal = 1:length(animals)
     end
 end
 
+%% Grab and plot histology pictures (SMZ)
+
+animal = 'AP024';
+
+% Just load all images
+histology_path = plab.locations.filename('server',animal,[],[],'histology');
+histology_dir = dir(fullfile(histology_path,'*.tif'));
+
+histology_filenames = cellfun(@(path,name) fullfile(path,name), ...
+    {histology_dir.folder},{histology_dir.name},'uni',false);
+[~,sort_idx] = natsortfiles(histology_filenames);
+
+histology_im = cell(size(histology_dir));
+for curr_im = 1:length(sort_idx)
+    histology_im{curr_im} = tiffreadVolume( ...
+        histology_filenames{sort_idx(curr_im)});
+end
+
+n_chan = size(histology_im{1},3);
+
+% % Plot channel montage separately
+% figure('Name',animal); tiledlayout(1,n_chan);
+% for curr_chan = 1:n_chan
+%     nexttile;
+%     m = montage(cellfun(@(im) im(:,:,curr_chan),histology_im,'uni',false));
+%     clim(mean(m.CData,[1,2])*[0.25,4]);
+% end
+
+% Grab image montage and display as RGB
+im_montage = uint16([]);
+chan_cols = [0,1,0;1,0,0];
+for curr_chan = 1:n_chan
+    h = figure;
+    m = montage(cellfun(@(im) im(:,:,curr_chan),histology_im,'uni',false));
+    im_montage = cat(3,im_montage,m.CData);
+    close(h);
+end
+
+m_clim = arrayfun(@(chan) double(prctile(im_montage(:,:,chan),[20,90],'all')).*[1;1.5],1:n_chan,'uni',false);
+
+im_montage_rgb = min(sum(cell2mat(arrayfun(@(chan) ...
+    mat2gray(im_montage(:,:,chan),double(m_clim{chan})).* ...
+    permute(chan_cols(chan,:),[1,3,2]), ...
+    permute(1:n_chan,[1,3,4,2]),'uni',false)),4),1);
+
+figure;image(im_montage_rgb);axis image off;
+title(animal);
 
 %% Plot units by area
 
