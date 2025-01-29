@@ -31,10 +31,11 @@ widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');
 widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
 widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
 % clean noisy widefield trace if there are flips within 2 samples
-% (have seen once: DS019 2025-01-20 0906)
-if min(diff(widefield_expose_times)) <= 2/timelite.daq_info(1).rate
+% (have seen twice: DS019 2025-01-20 0906, HA000 2025-01-21 1327)
+if min(diff(find(diff(widefield_thresh) ~= 0))) == 1
     widefield_expose_times = timelite.timestamps(find(diff( ...
         logical(medfilt1(+widefield_thresh,3))) == 1) + 1);
+    warning('%s %s %s: noisy widefield expose signal,median-filtering',animal,rec_day,rec_time);
 end
 % (if stuck high at start, long dark exposure as first frame, add first timepoint as timestamp)
 if widefield_thresh(1)
