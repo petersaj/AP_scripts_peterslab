@@ -167,7 +167,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'AP015'};
+animals = {'DS019'};
 
 % Create master tiled layout
 figure;
@@ -180,9 +180,10 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    use_workflow = {'stim_wheel*'};
+%     use_workflow = {'stim_wheel*'};
 %     use_workflow = {'*audio_volume*'};
 %     use_workflow = {'*no_change*'};
+    use_workflow = {'*size*'};
     recordings = plab.find_recordings(animal,[],use_workflow);
 
     surround_time = [-5,5];

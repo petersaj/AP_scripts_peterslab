@@ -1,0 +1,25 @@
+%% Da's secondary-ish project with multiple visual stimuli
+
+
+
+%%
+
+
+x = dir(fullfile(plab.locations.server_data_path,'**','bonsai','**','*size_up*.bonsai'));
+
+
+
+
+
+
+a = strtok(x(3).folder,fullfile(plab.locations.server_data_path));
+
+
+a = extractBetween(x(3).folder, ...
+plab.locations.server_data_path), ...
+    digitsPattern)
+
+
+
+
+
