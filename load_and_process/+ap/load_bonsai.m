@@ -128,10 +128,12 @@ if contains(bonsai_workflow,'stim')
             reward_times_manual = reward_times(bonsai_reward_grp(bonsai_reward_sortidx) == 2);
         end
     else
-        % Without Bonsai event: closest reward to stim off on rewarded trials
+        % Without Bonsai event: closest reward to stim off on rewarded trials       
         trial_outcome = vertcat(trial_events.values(1:n_trials).Outcome);
-        reward_times_task = interp1(reward_times,reward_times, ...
-            stimOff_times(trial_outcome(1:min(n_trials,length(stimOff_times)))==1),'nearest','extrap');
+        if n_trials > 1
+            reward_times_task = interp1(reward_times,reward_times, ...
+                stimOff_times(trial_outcome(1:min(n_trials,length(stimOff_times)))==1),'nearest','extrap');
+        end
     end    
     
 %     % Get all outcome times (interleaved reward/punish)

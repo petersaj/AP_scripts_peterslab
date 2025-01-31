@@ -12,7 +12,7 @@ function [p,rxn_stat,rxn_null_stat] = AP_stimwheel_association_pvalue(stimOn_tim
 % stimOn_times: stim times from Timelite
 % trial_events: Bonsai trial event structure from ap.load_bonsai
 % stim_to_move: measured reaction times
-% use_stat (optional): reaction statistic to use, 'mad' (default) or 'mean'
+% use_stat (optional): reaction statistic to use, 'mad' (default), 'mean', 'median'
 %
 % Output:
 % p: p-value for median reaction time
@@ -135,6 +135,11 @@ switch use_stat
         % (mean)
         rxn_stat = mean(stim_to_move(null_use_trials),1);
         rxn_null_stat_distribution = mean(stim_to_move_null(null_use_trials,:),1);
+
+    case 'median'
+        % (median)
+        rxn_stat = median(stim_to_move(null_use_trials),1);
+        rxn_null_stat_distribution = median(stim_to_move_null(null_use_trials,:),1);
 end
 
 rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat_distribution));

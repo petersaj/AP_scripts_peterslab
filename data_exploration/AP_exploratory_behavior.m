@@ -169,6 +169,9 @@ xlabel('Time from event');
 
 animals = {'DS019'};
 
+% Set reaction statistic to use
+use_stat = 'mean';
+
 % Create master tiled layout
 figure;
 t = tiledlayout(1,length(animals),'TileSpacing','tight');
@@ -182,8 +185,12 @@ for curr_animal_idx = 1:length(animals)
 
 %     use_workflow = {'stim_wheel*'};
 %     use_workflow = {'*audio_volume*'};
+    use_workflow = {'*audio_frequency*'};
 %     use_workflow = {'*no_change*'};
-    use_workflow = {'*size*'};
+%     use_workflow = {'*size*'};
+%     use_workflow = {'*opacity*'};
+%     use_workflow = {'*angle*'};
+
     recordings = plab.find_recordings(animal,[],use_workflow);
 
     surround_time = [-5,5];
@@ -192,9 +199,11 @@ for curr_animal_idx = 1:length(animals)
 
     n_trials_success = nan(length(recordings),2);
     frac_move_day = nan(length(recordings),1);
-    rxn_stat = nan(length(recordings),1);
     frac_move_stimalign = nan(length(recordings),length(surround_time_points));
+
     rxn_stat_p = nan(length(recordings),1);
+    rxn_stat = nan(length(recordings),1);
+    rxn_null_stat = nan(length(recordings),1);
 
     for curr_recording = 1:length(recordings)
 
@@ -231,9 +240,9 @@ for curr_animal_idx = 1:length(animals)
         if n_trials < 10
             continue
         end
-
-        use_stat = 'mean';
-        [rxn_stat_p(curr_recording),rxn_stat(curr_recording)] = ...
+       
+        [rxn_stat_p(curr_recording), ...
+            rxn_stat(curr_recording),rxn_null_stat(curr_recording)] = ...
             AP_stimwheel_association_pvalue( ...
             stimOn_times,trial_events,stim_to_move,use_stat);
 
@@ -271,7 +280,7 @@ for curr_animal_idx = 1:length(animals)
     yyaxis left
     plot(relative_day,rxn_stat)
     set(gca,'YScale','log');
-    ylabel('Med. rxn');
+    ylabel(sprintf('Rxn stat: %s',use_stat));
     xlabel('Day');
     if any(nonrecorded_day)
         xline(nonrecorded_day,'--k');
@@ -280,13 +289,19 @@ for curr_animal_idx = 1:length(animals)
         xline(relative_day(learned_day),'g');
     end
 
+%     yyaxis right
+%     prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);
+%     poststim_max = max(frac_move_stimalign(:,surround_time_points > 0),[],2);
+%     stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
+%     plot(relative_day,stim_move_frac_ratio);
+%     yline(0);
+%     ylabel('pre/post move idx');
+%     xlabel('Day');
+
     yyaxis right
-    prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);
-    poststim_max = max(frac_move_stimalign(:,surround_time_points > 0),[],2);
-    stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
-    plot(relative_day,stim_move_frac_ratio);
+    plot(relative_day,(rxn_stat-rxn_null_stat)./(rxn_stat+rxn_null_stat));
     yline(0);
-    ylabel('pre/post move idx');
+    ylabel(sprintf('Rxn stat idx: %s',use_stat));
     xlabel('Day');
 
     nexttile(t_animal);
@@ -312,8 +327,7 @@ for curr_animal_idx = 1:length(animals)
             0.02,[0,1,0],0.1,false);
         
         % Store behavior across animals
-        bhv(curr_animal_idx).rxn_med = rxn_stat;
-        bhv(curr_animal_idx).stim_move_frac_ratio = stim_move_frac_ratio;
+        bhv(curr_animal_idx).rxn_stat = rxn_stat;
         bhv(curr_animal_idx).learned_day = learned_day;
 
     end
