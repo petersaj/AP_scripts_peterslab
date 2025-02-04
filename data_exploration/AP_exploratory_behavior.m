@@ -167,7 +167,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'DS019'};
+animals = {'DS011'};
 
 % Set reaction statistic to use
 use_stat = 'mean';
@@ -183,9 +183,9 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-%     use_workflow = {'stim_wheel*'};
+    use_workflow = {'stim_wheel*'};
 %     use_workflow = {'*audio_volume*'};
-    use_workflow = {'*audio_frequency*'};
+%     use_workflow = {'*audio_frequency*'};
 %     use_workflow = {'*no_change*'};
 %     use_workflow = {'*size*'};
 %     use_workflow = {'*opacity*'};
