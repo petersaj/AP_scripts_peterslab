@@ -50,11 +50,14 @@ mousecam_first_frame_idx = mode( ...
     mousecam_match_epoch_startframe_timelite - ...
     mousecam_match_epoch_startframe_mousecam)+1;
 
-% Get mousecam times from first recorded frame to mousecam N frames
-% (or to the end, if recorded frames extend beyond timelite)
-mousecam_times = mousecam_exposeOn_times(mousecam_first_frame_idx: ...
-    min(mousecam_first_frame_idx+length(mousecam_header.timestamps)-1, ...
-    length(mousecam_exposeOn_times)));
+% Get mousecam frame times on timelite clock
+% (extrapolate pre/post-timelite times)
+mousecam_frame_timelite_idx = mousecam_first_frame_idx: ...
+    mousecam_first_frame_idx+length(mousecam_header.timestamps)-1;
+mousecam_times = interp1(1:length(mousecam_exposeOn_times),mousecam_exposeOn_times, ...
+    mousecam_frame_timelite_idx,'linear','extrap');
+
+
 
 
 

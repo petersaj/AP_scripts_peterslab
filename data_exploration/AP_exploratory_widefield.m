@@ -31,7 +31,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
         use_trials = rewarded_trials(1:n_trials) & ...
             vertcat(trial_events.values(1:n_trials).TaskType) == 0;
     else
-        use_trials = stim_to_move > 0.2;
+        use_trials = true(size(stim_to_move));
     end
 
     align_times = [ ...
@@ -64,15 +64,19 @@ elseif contains(bonsai_workflow,'sparse_noise')
 elseif contains(bonsai_workflow,'visual')
 
     % Visual conditioning: stim and reward
-    if isfield(trial_events.values,'TrialX')
-        stim_x = vertcat(trial_events.values.TrialX);
-    else
-        stim_x = repmat(90,length(stimOn_times),1);
-    end
-    align_times = [stimOn_times;reward_times];
-    align_category = [stim_x;inf(size(reward_times))];
+%     if isfield(trial_events.values,'TrialX')
+%         stim_x = vertcat(trial_events.values.TrialX);
+%     else
+%         stim_x = repmat(90,length(stimOn_times),1);
+%     end
+%     align_times = [stimOn_times;reward_times];
+%     align_category = [stim_x;inf(size(reward_times))];
+%     baseline_times = [stimOn_times;align_times(stim_x==90)];
 
-    baseline_times = [stimOn_times;align_times(stim_x==90)];
+    % (new: just one stim)
+    align_times = stimOn_times;
+    align_category = ones(size(align_times));
+    baseline_times = stimOn_times;
 
 end
 
@@ -165,6 +169,8 @@ for curr_id = 1:max(align_id)
     xline(0);
 end
 colormap(AP_colormap('PWG'));
+
+
 
 %% TESTING
 

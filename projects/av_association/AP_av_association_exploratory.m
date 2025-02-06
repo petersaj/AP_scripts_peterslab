@@ -193,18 +193,19 @@ fprintf('Saved %s\n',save_fn);
 
 
 % Load master U, convert V to px
-master_U_fn = fullfile(plab.locations.server_path,'Lab', ...
-    'widefield_alignment','U_master.mat');
-load(master_U_fn);
+U_master = plab.wf.load_master_U;
 
 % Average and plot
-use_modality = 1;
-use_stim = 2;
+use_modality = 2;
+use_stim = 1;
+% use_workflow = 'stim_wheel_right_stage1';
+% use_workflow = 'stim_wheel_right_stage2';
+use_workflow = 'stim_wheel_right_stage1_audio_volume';
 % use_workflow = 'stim_wheel_right_stage2_audio_volume';
-use_workflow = 'stim_wheel_right_stage2';
 % use_workflow = 'stim_wheel_right_stage2_mixed_VA';
 
-use_animals = 1:6;
+% use_animals = 1:6; % VA
+use_animals = 7:13; % AV
 x = cellfun(@(x,task) cat(4,x{strcmp(task,use_workflow),use_modality}), ...
     day_V_all(use_animals),task_workflow_all(use_animals),'uni',false);
 x2 = cellfun(@(x) plab.wf.svd2px(U_master,squeeze(x(:,:,use_stim,:))),x,'uni',false);
@@ -216,6 +217,7 @@ axis image;
 colormap(AP_colormap('PWG',[],1));
 clim(max(abs(clim)).*[-1,1]);
 ap.wf_draw('ccf','k');
+
 
 
 %% Batch fraction of responsive units 

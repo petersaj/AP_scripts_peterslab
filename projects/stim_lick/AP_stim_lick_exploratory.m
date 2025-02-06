@@ -29,6 +29,7 @@ linkaxes(h.Children,'x');
 
 stimOn_times = photodiode_on_times(1:2:end);
 stim_move_times = photodiode_off_times(1:2:end);
+stim_center_times = photodiode_off_times(2:2:end);
 
 [lick_psth,lick_raster,lick_t] = ap.psth(lick_times,stimOn_times,...
     'window',[-8,8],'bin_size',0.01,'smoothing',10);
@@ -45,19 +46,23 @@ nexttile([3,1]);
 % stim_static_t = vertcat(trial_events.values(1:n_trials).TrialStimStaticTime);
 % [~,sort_idx] = sort(stim_static_t);
 % 
-[~,sort_idx] = sort(reward_times - stimOn_times);
+% [~,sort_idx] = sort(reward_times - stimOn_times(1:n_trials));
 
 [lick_trial,lick_t_raster_idx] = find(lick_raster(sort_idx,:));
 lick_t_raster = lick_t(lick_t_raster_idx);
 
 plot(lick_t_raster,lick_trial,'.k');
+hold on;
+plot(stim_move_times(sort_idx)-stimOn_times(sort_idx),1:n_trials,'b')
+plot(stim_center_times(sort_idx)-stimOn_times(sort_idx),1:n_trials,'c')
+
 xline(0,'r');
 set(gca,'YDir','reverse');
 
 linkaxes(h.Children,'x');
 
 % (hacked at the moment)
-figure;plot(reward_times - stim_move_times - 1,'.k')
+figure;plot(reward_times - stim_move_times(1:n_trials) - 1,'.k')
 ylabel('Stim to reward time')
 
 
