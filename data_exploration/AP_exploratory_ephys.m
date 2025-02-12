@@ -932,7 +932,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'AM014'};
+animals = {'DS004'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -961,7 +961,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP024';
+animal = 'DS013';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');

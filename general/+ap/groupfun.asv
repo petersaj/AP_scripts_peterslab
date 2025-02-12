@@ -31,9 +31,9 @@ elseif sum(size(data)~=1) == 1 && find(~cellfun(@isempty,groups)) == 1
     % non-singleton dimension slot
     data_orientation = find(size(data) ~= 1);
     groups{data_orientation} = groups{1};
-    if length(groups) ~= 1
-        groups(setdiff(1:length(groups),data_orientation)) = {[]};
-    end
+    
+    
+    %%%%%%%%%%%% WORKING HERE
 end
 
 groups_dims = find(~cellfun(@isempty,groups));

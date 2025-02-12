@@ -82,7 +82,7 @@ linkaxes(h.Children,'x');
 
 lick_xcorr_timebin = 0.01;
 [lick_xcorr,lick_lags] = xcorr(histcounts(lick_times,lick_times(1): ...
-    lick_xcorr_timebin:lick_times(end)),10/lick_xcorr_timebin,'coeff');
+    lick_xcorr_timebin:lick_times(end)),2/lick_xcorr_timebin,'coeff');
 figure;plot(lick_lags*lick_xcorr_timebin,lick_xcorr,'k');
 xlabel('Lag');
 ylabel('Lick autocorr');

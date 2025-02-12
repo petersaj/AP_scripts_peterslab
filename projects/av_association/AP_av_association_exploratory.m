@@ -1,4 +1,4 @@
-%% Behavior (quick)
+%% Mixed-task behavior
 
 trial_modality = [trial_events.values(1:n_trials).TaskType]';
 
@@ -47,6 +47,137 @@ histogram(stim_to_move(trial_modality == 0),[0:0.01:0.5]);
 histogram(stim_to_move(trial_modality == 1),[0:0.01:0.5]);
 xlabel('Reaction time');
 ylabel('Count');
+
+%% Grab average passive widefield for one animal
+
+animal = 'AP018';
+
+% task_workflow = 'stim_wheel_right_stage\d_size_up';
+% task_workflow = 'stim_wheel_right_stage\d_angle_size60';
+task_workflow = 'stim_wheel_right_stage\d_audio_volume';
+% task_workflow = 'stim_wheel_right_stage\d';
+
+% passive_workflow = 'lcr_passive';
+passive_workflow = 'hml_passive_audio';
+
+% Set times for PSTH        
+raster_window = [-0.5,1];
+psth_bin_size = 0.03;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+task_recordings = plab.find_recordings(animal,[],task_workflow);
+passive_recordings = plab.find_recordings(animal,[],passive_workflow);
+
+
+
+vis_workflow = 'lcr_passive';
+aud_workflow = 'hml_passive_audio';
+task_workflow = 'stim_wheel*';
+
+vis_recordings = plab.find_recordings(animal,[],vis_workflow);
+aud_recordings = plab.find_recordings(animal,[],aud_workflow);
+task_recordings = plab.find_recordings(animal,[],task_workflow);
+
+rec_days = {task_recordings(cellfun(@any,{task_recordings.widefield})).day};
+
+task_workflow = cell(length(rec_days),1);
+day_V = cell(length(rec_days),2);
+
+for curr_day = 1:length(rec_days)
+
+    % Get the task workflow
+    task_workflow_name = 'stim_wheel*';
+    day_recordings = plab.find_recordings(animal,rec_days{curr_day},task_workflow_name);
+    task_workflow{curr_day} = day_recordings.workflow{end};
+
+    for curr_modality = 1:2
+        switch curr_modality
+            case 1
+                curr_workflow = vis_workflow;
+            case 2
+                curr_workflow = aud_workflow;
+        end
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
+        if isempty(curr_recording)
+            continue
+        end
+
+        rec_day = curr_recording.day;
+        rec_time = curr_recording.recording{end};
+
+        load_parts = struct;
+        load_parts.widefield = true;
+        load_parts.widefield_master = true;
+
+        % (Try/catch: rare catastrophic dropped frames)
+        try
+            ap.load_recording;
+        catch me
+            continue
+        end
+
+        % If widefield isn't aligned, skip
+        if ~load_parts.widefield_align
+            continue
+        end
+
+        % Stim times (quiescent trials only)
+        switch curr_modality
+            case 1
+                stim_type = vertcat(trial_events.values.TrialStimX);
+            case 2
+                stim_type = vertcat(trial_events.values.StimFrequence);
+        end
+
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            1:length(stimOn_times))';
+
+        % sometimes not all trials shown?
+        stim_type = stim_type(1:length(stimOn_times));
+        align_times = cellfun(@(x) stimOn_times(stim_type == x & quiescent_trials), ...
+            num2cell(unique(stim_type)),'uni',false);
+
+        % Align ROI trace to align times
+        aligned_V_mean = nan(size(wf_V,1),length(t_centers),length(align_times));
+        for curr_align = 1:length(align_times)
+
+            % (skip if <5 usable trials)
+            if length(align_times{curr_align}) < 5
+                continue
+            end
+
+            peri_event_t = align_times{curr_align} + t_centers;
+
+            aligned_V = interp1(wf_t,wf_V',peri_event_t);
+
+            aligned_V_baselinesub = aligned_V - ...
+                mean(aligned_V(:,t_centers < 0,:),2);
+
+            aligned_V_mean(:,:,curr_align) = ...
+                permute(nanmean(aligned_V_baselinesub,1),[3,2,1]);
+        end
+
+        % Store mean aligned ROI trace
+        day_V{curr_day,curr_modality} = aligned_V_mean;
+
+        % Prep for next loop
+        clearvars('-except',preload_vars{:});
+
+    end
+
+    ap.print_progress_fraction(curr_day,length(rec_days));
+end
+
+
 
 
 

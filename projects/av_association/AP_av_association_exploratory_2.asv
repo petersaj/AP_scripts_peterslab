@@ -62,25 +62,14 @@ save(save_fn,'learned_days');
 
 % task_workflow = 'stim_wheel_right_stage\d_size_up';
 % task_workflow = 'stim_wheel_right_stage\d_angle_size60';
-% task_workflow = 'stim_wheel_right_stage\d_audio_volume';
-task_workflow = 'stim_wheel_right_stage\d_audio*';
-
+task_workflow = 'stim_wheel_right_stage\d_audio_volume';
 
 % passive_workflow = 'lcr_passive';
 passive_workflow = 'hml_passive_audio';
 
 % animals = {'AP021','AP022','DS001','DS007','DS010','DS011'}; % V>A
 % animals = {'DS000','DS003','DS004','DS013','DS014','DS015','DS016'}; % A>V
-% animals = {'DS006','DS013'}; % A>no-learn V
-
-animals = { ...
-    'AP019','AP021','AP022','DS001','DS007','DS010','DS011', ...
-    'DS000','DS003','DS004','DS014','DS015','DS016','DS005', ...
-    'DS019','DS020','DS021','AP027','AP028','AP029', ...
-    'AP020','AP018', ...
-    'DS006','DS013', ...
-    'HA003','HA004', ...
-    'HA000','HA001','HA002'};
+animals = {'DS006','DS013'}; % A>no-learn V
 
 % Grab V's from passive stimuli on post-learning days
 stim_v = cell(size(animals));
@@ -400,7 +389,8 @@ disp('Done.');
 
 U_master = plab.wf.load_master_U;
 
-stim_v_avg = nanmean(cell2mat(permute(horzcat(stim_v{:}),[1,3,2])),3);
+stim_v_avg = nanmean(cell2mat(permute(cellfun(@(x) ...
+    nanmean(cat(4,x{:}),4),stim_v,'uni',false),[1,3,4,2])),4);
 
 stim_v_px = plab.wf.svd2px(U_master(:,:,1:size(stim_v_avg,1)),stim_v_avg);
 ap.imscroll(stim_v_px);
@@ -408,6 +398,7 @@ axis image;
 clim(max(abs(clim)).*[-1,1]);
 colormap(AP_colormap('PWG'));
 ap.wf_draw('ccf','k');
+
 
 
 % x = cellfun(@(x) plab.wf.svd2px(U_master(:,:,1:200),x),cat(2,stim_v{:}),'uni',false);

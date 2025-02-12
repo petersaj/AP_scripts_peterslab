@@ -12,10 +12,10 @@
 % use_align = stimOn_times(quiescent_trials);
 
 stim_x = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_x == 4000);
+use_align = stimOn_times(stim_x == 8000);
 
 % stim_x = vertcat(trial_events.values.TrialStimX);
-% use_align = stimOn_times(stim_x == 90 & quiescent_trials);
+% use_align = stimOn_times(stim_x == 90);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x == 90);
@@ -171,7 +171,8 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'DS011'};
+% animals = {'AP018','AP020'};
+animals = {'DS006','DS013'}; 
 
 % Set reaction statistic to use
 use_stat = 'mean';
@@ -188,7 +189,8 @@ for curr_animal_idx = 1:length(animals)
     animal = animals{curr_animal_idx};
 
 %     use_workflow = {'stim_wheel*'};
-    use_workflow = {'*audio_volume*'};
+    use_workflow = {'*audio*'};
+%     use_workflow = {'*audio_volume*'};
 %     use_workflow = {'*audio_frequency*'};
 %     use_workflow = {'*no_change*'};
 %     use_workflow = {'*size*'};
