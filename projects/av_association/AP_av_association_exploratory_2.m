@@ -57,15 +57,392 @@ save_path = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data';
 save_fn = fullfile(save_path,'position_learned_days');
 save(save_fn,'learned_days');
 
+%% ~~~~~~~~~~~~~ All animals, all save
+
+%% Grab behavior info for all animals
+
+animals = { ...
+    'AP019','AP021','AP022','DS001','DS007','DS010','DS011', ... % V > A
+    'DS000','DS003','DS004','DS014','DS015','DS016','DS005', ... % A > V
+    'DS019','DS020','DS021','AP027','AP028','AP029', ... % V-alt > V > Afreq
+    'AP020','AP018', ... % V > A-nonlearn
+    'DS006','DS013', ... % A > V-nonlearn
+    'HA003','HA004', ... % V-alt > V
+    'HA000','HA001','HA002' ... % V-alt > V
+    };
+
+bhv_fieldnames = ...
+    {'animal','day','workflow','rxn_stat_p','rxn_stat','rxn_stat_null'};
+bhv = cell2struct(cell(length(bhv_fieldnames),0),bhv_fieldnames);
+
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+    fprintf([animal,'\n']);
+
+    % Find learned days
+    task_recordings = plab.find_recordings(animal,[],'stim_wheel*');
+    use_recordings = task_recordings(cellfun(@any,{task_recordings.widefield}));
+
+    bhv(curr_animal).animal = animal;
+    bhv(curr_animal).day = cell(size(use_recordings));
+    bhv(curr_animal).workflow = cell(size(use_recordings));
+    bhv(curr_animal).rxn_stat_p = nan(size(use_recordings));
+    bhv(curr_animal).rxn_stat = nan(size(use_recordings));
+    bhv(curr_animal).rxn_stat_null = nan(size(use_recordings));
+
+    for curr_recording = 1:length(use_recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = use_recordings(curr_recording).day;
+        rec_time = use_recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        if n_trials < 10
+            continue
+        end
+
+        % Store workflow info
+        bhv(curr_animal).day{curr_recording} = rec_day;
+        bhv(curr_animal).workflow{curr_recording} = bonsai_workflow;
+
+        % Get reaction stat
+        use_stat = 'mean';
+        [bhv(curr_animal).rxn_stat_p(curr_recording), ...
+            bhv(curr_animal).rxn_stat(curr_recording), ...
+            bhv(curr_animal).rxn_stat_null(curr_recording)] = AP_stimwheel_association_pvalue( ...
+            stimOn_times,trial_events,stim_to_move,use_stat);
+
+        ap.print_progress_fraction(curr_recording,length(use_recordings));
+
+    end
+
+end
+
+% Save
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data';
+save_fn = fullfile(data_path,'bhv');
+save(save_fn,'bhv')
+fprintf('Saved %s\n',save_fn);
+
+%% (testing: grab matching days from bhv)
+
+bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
+load(bhv_filename);
+
+task_workflow = 'stim_wheel_right_stage\d$';
+task_workflow = 'stim_wheel_right_stage\d_audio*';
+
+workflow_match = cellfun(@(bhv) cellfun(@(x) ~isempty(regexp(x,task_workflow)), ...
+    bhv,'ErrorHandler',@(varargin) false),{bhv.workflow},'uni',false);
+workflow_learned = cellfun(@(x) x < 0.05,{bhv.rxn_stat_p},'uni',false);
+
+use_days = cellfun(@(x,y) find(x(y)),workflow_match,workflow_learned,'uni',false);
+
+
+%% Stim average all animals
+
+bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
+load(bhv_filename);
+
+% Set workflows
+vis_workflow = 'lcr_passive';
+aud_workflow = 'hml_passive_audio';
+task_workflow = 'stim_wheel*';
+
+% Set times for PSTH        
+raster_window = [-0.5,1];
+psth_bin_size = 0.03;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+stim_V = cell(length(bhv),1);
+
+for curr_animal = 18:length(bhv)
+   
+    animal = bhv(curr_animal).animal;
+    fprintf([animal,'\n']);
+
+    rec_days = bhv(curr_animal).day;
+
+    for curr_day = find(~cellfun(@isempty,rec_days))
+        for curr_modality = 1:2
+            switch curr_modality
+                case 1
+                    curr_workflow = vis_workflow;
+                case 2
+                    curr_workflow = aud_workflow;
+            end
+
+            % Grab pre-load vars
+            preload_vars = who;
+
+            % Load data
+            curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
+            if isempty(curr_recording)
+                continue
+            end
+
+            rec_day = curr_recording.day;
+            rec_time = curr_recording.recording{end};
+
+            load_parts = struct;
+            load_parts.widefield = true;
+            load_parts.widefield_master = true;
+            
+            % (Try/catch: rare catastrophic dropped frames)
+            try
+                ap.load_recording;
+            catch me
+                continue
+            end
+
+            % If widefield isn't aligned, skip
+            if ~load_parts.widefield_align
+                continue
+            end
+
+            % Stim times (quiescent trials only)
+            switch curr_modality
+                case 1
+                    stim_type = vertcat(trial_events.values.TrialStimX);             
+                case 2
+                    stim_type = vertcat(trial_events.values.StimFrequence);
+            end
+            
+            stim_window = [0,0.5];
+            quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+                timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+                timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+                1:length(stimOn_times))';
+      
+            % sometimes not all trials shown?
+            stim_type = stim_type(1:length(stimOn_times));
+            align_times = cellfun(@(x) stimOn_times(stim_type == x & quiescent_trials), ...
+                num2cell(unique(stim_type)),'uni',false);
+
+            % Align V to align times
+            aligned_V_mean = nan(size(wf_V,1),length(t_centers),length(align_times));
+            for curr_align = 1:length(align_times)
+
+                % (skip if <5 usable trials)
+                if length(align_times{curr_align}) < 5
+                    continue
+                end
+
+                peri_event_t = align_times{curr_align} + t_centers;
+
+                aligned_V = interp1(wf_t,wf_V',peri_event_t);
+
+                aligned_V_baselinesub = aligned_V - ...
+                    mean(aligned_V(:,t_centers < 0,:),2);
+
+                aligned_V_mean(:,:,curr_align) = ...
+                    permute(nanmean(aligned_V_baselinesub,1),[3,2,1]);
+            end
+
+            % Store mean aligned ROI trace
+            stim_V{curr_animal}{curr_day,curr_modality} = aligned_V_mean;
+
+            % Prep for next loop
+            clearvars('-except',preload_vars{:});
+
+        end
+        ap.print_progress_fraction(curr_day,length(rec_days));
+    end
+    disp(['Done ' animal]);
+end
+
+% Save
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data';
+save_fn = fullfile(data_path,'passive_avg');
+save(save_fn,'stim_V','-v7.3')
+fprintf('Saved %s\n',save_fn);
+
+%% Stim kernel all animals
+
+bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
+load(bhv_filename);
+
+% Set workflows
+vis_workflow = 'lcr_passive';
+aud_workflow = 'hml_passive_audio';
+task_workflow = 'stim_wheel*';
+
+% Set times for PSTH        
+raster_window = [-0.5,1];
+psth_bin_size = 0.03;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+t_centers = conv2(t_bins,[1,1]/2,'valid');
+
+stim_V = cell(length(bhv),1);
+
+for curr_animal = 1:length(bhv)
+   
+    animal = bhv(curr_animal).animal;
+    fprintf([animal,'\n']);
+
+    rec_days = bhv(curr_animal).day;
+
+    for curr_day = find(~cellfun(@isempty,rec_days))
+        for curr_modality = 1:2
+            switch curr_modality
+                case 1
+                    curr_workflow = vis_workflow;
+                case 2
+                    curr_workflow = aud_workflow;
+            end
+
+            % Grab pre-load vars
+            preload_vars = who;
+
+            % Load data
+            curr_recording = plab.find_recordings(animal,rec_days{curr_day},curr_workflow);
+            if isempty(curr_recording)
+                continue
+            end
+
+            rec_day = curr_recording.day;
+            rec_time = curr_recording.recording{end};
+
+            load_parts = struct;
+            load_parts.widefield = true;
+            load_parts.widefield_master = true;
+            
+            % (Try/catch: rare catastrophic dropped frames)
+            try
+                ap.load_recording;
+            catch me
+                continue
+            end
+
+            % If widefield isn't aligned, skip
+            if ~load_parts.widefield_align
+                continue
+            end
+
+            % Stim times (quiescent trials only)
+            switch curr_modality
+                case 1
+                    stim_type = vertcat(trial_events.values.TrialStimX);             
+                case 2
+                    stim_type = vertcat(trial_events.values.StimFrequence);
+            end
+
+            time_bins = [wf_t;wf_t(end)+1/wf_framerate];
+
+            stim_regressors = cell2mat(arrayfun(@(x) ...
+                histcounts(stimOn_times(stim_type == x),time_bins), ...
+                unique(stim_type),'uni',false));
+
+            n_components = 500;
+
+            frame_shifts = 0:30;
+            lambda = 20;
+
+            skip_t = 3; % seconds start/end to skip for artifacts
+            skip_frames = round(skip_t*wf_framerate);
+            [kernels,predicted_signals,explained_var] = ...
+                ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
+                stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda);
+
+            % Store mean aligned ROI trace
+            stim_V{curr_animal}{curr_day,curr_modality} = kernels;
+
+            % Prep for next loop
+            clearvars('-except',preload_vars{:});
+
+        end
+        ap.print_progress_fraction(curr_day,length(rec_days));
+    end
+    disp(['Done ' animal]);
+end
+
+% Save
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data';
+save_fn = fullfile(data_path,'passive_kernel');
+save(save_fn,'stim_V','-v7.3')
+fprintf('Saved %s\n',save_fn);
+
+%% >>>>>> Batch analysis
+
+
+%% Kernel testing
+
+kernel_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_kernel.mat';
+load(kernel_fn);
+
+bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
+load(bhv_filename);
+
+U_master = plab.wf.load_master_U;
+
+%%% PROBLEM! bhv doesn't match kernels (sometime extra bhv day), don't know
+%%% why at the moment, maybe just truncated if error on last day, but
+%%% didn't see error on example one
+
+stim_V_cat = vertcat(stim_V{:});
+
+% just truncate bhv values for now
+rxn_stat_p_animal = {bhv.rxn_stat_p}';
+rxn_stat_p_animal_trunc = cellfun(@(x,y) x(1:size(y,1))',rxn_stat_p_animal,stim_V,'uni',false);
+rxn_stat_p_cat = vertcat(rxn_stat_p_animal_trunc{:});
+
+workflow_animal = {bhv.workflow}';
+workflow_animal_trunc = cellfun(@(x,y) x(1:size(y,1))',workflow_animal,stim_V,'uni',false);
+workflow_cat = vertcat(workflow_animal_trunc{:});
+
+vis_workflow = 'stim_wheel_right_stage\d$';
+aud_workflow = 'stim_wheel_right_stage\d_audio*';
+va_animals = cellfun(@(x) max([...
+    find(cellfun(@any,regexp(x,vis_workflow)),1) < ...
+    find(cellfun(@any,regexp(x,aud_workflow)),1), ...
+    false]),workflow_animal);
+av_animals = cellfun(@(x) max([...
+    find(cellfun(@any,regexp(x,vis_workflow)),1) > ...
+    find(cellfun(@any,regexp(x,aud_workflow)),1), ...
+    false]),workflow_animal);
+
+va_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(va_animals),workflow_animal_trunc,'uni',false));
+av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_animals),workflow_animal_trunc,'uni',false));
+
+% task_workflow = 'stim_wheel_right_stage\d$';
+task_workflow = 'stim_wheel_right_stage\d_audio*';
+
+use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+
+v = plab.wf.svd2px(U_master(:,:,1:500),nanmean(cat(4,stim_V_cat{use_rec,1}),4));
+a = plab.wf.svd2px(U_master(:,:,1:500),nanmean(cat(4,stim_V_cat{use_rec,2}),4));
+
+ap.imscroll(v);
+% ap.imscroll(v-imgaussfilt(v,10))
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+
+ap.imscroll(a)
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+
+
+%% ~~~~~~~~~~~~~ Specific animals, grand average
 
 %% Task-specific: AVERAGE passive stim
 
+% Set task workflow
 % task_workflow = 'stim_wheel_right_stage\d_size_up';
 % task_workflow = 'stim_wheel_right_stage\d_angle_size60';
 % task_workflow = 'stim_wheel_right_stage\d_audio_volume';
 task_workflow = 'stim_wheel_right_stage\d_audio*';
+task_workflow = 'stim_wheel_right_stage\d';
 
-
+% Set passive workflow
 % passive_workflow = 'lcr_passive';
 passive_workflow = 'hml_passive_audio';
 
@@ -74,13 +451,14 @@ passive_workflow = 'hml_passive_audio';
 % animals = {'DS006','DS013'}; % A>no-learn V
 
 animals = { ...
-    'AP019','AP021','AP022','DS001','DS007','DS010','DS011', ...
-    'DS000','DS003','DS004','DS014','DS015','DS016','DS005', ...
-    'DS019','DS020','DS021','AP027','AP028','AP029', ...
-    'AP020','AP018', ...
-    'DS006','DS013', ...
-    'HA003','HA004', ...
-    'HA000','HA001','HA002'};
+    'AP019','AP021','AP022','DS001','DS007','DS010','DS011', ... % V > A
+    'DS000','DS003','DS004','DS014','DS015','DS016','DS005', ... % A > V
+    'DS019','DS020','DS021','AP027','AP028','AP029', ... % V-alt > V > Afreq
+    'AP020','AP018', ... % V > A-nonlearn
+    'DS006','DS013', ... % A > V-nonlearn
+    'HA003','HA004', ... % V-alt > V
+    'HA000','HA001','HA002' ... % V-alt > V
+    };
 
 % Grab V's from passive stimuli on post-learning days
 stim_v = cell(size(animals));
@@ -104,6 +482,10 @@ for curr_animal = 1:length(animals)
         load_parts = struct;
         load_parts.behavior = true;
         ap.load_recording;
+
+        if n_trials < 10
+            continue
+        end
 
         % Get reaction stat
         use_stat = 'mean';
@@ -168,7 +550,7 @@ disp('Done.');
 U_master = plab.wf.load_master_U;
 
 stim_v_avg = nanmean(cell2mat(permute(cellfun(@(x) ...
-    nanmean(cat(4,x{:}),4),stim_v,'uni',false),[1,3,4,2])),4);
+    nanmean(cat(4,x{:}),4),stim_v(~cellfun(@isempty,stim_v)),'uni',false),[1,3,4,2])),4);
 
 stim_v_avg = stim_v_avg - nanmean(stim_v_avg(:,trial_t<0,:),2);
 

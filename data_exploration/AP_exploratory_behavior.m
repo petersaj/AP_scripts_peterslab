@@ -11,14 +11,14 @@
 %     1:length(stimOn_times))';
 % use_align = stimOn_times(quiescent_trials);
 
-stim_x = vertcat(trial_events.values.StimFrequence);
-use_align = stimOn_times(stim_x == 8000);
+% stim_x = vertcat(trial_events.values.StimFrequence);
+% use_align = stimOn_times(stim_x == 8000);
 
 % stim_x = vertcat(trial_events.values.TrialStimX);
 % use_align = stimOn_times(stim_x == 90);
 
-% stim_x = vertcat(trial_events.values.TrialX);
-% use_align = stimOn_times(stim_x == 90);
+stim_x = vertcat(trial_events.values.TrialX);
+use_align = stimOn_times(stim_x == 90);
 
 % use_align = stimOn_times;
 

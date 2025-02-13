@@ -24,8 +24,7 @@ linkaxes(h.Children,'x');
 
 %% Lick raster (stim move conditioning)
 
-% stimOn_times = [photodiode_on_times(1);interp1(photodiode_on_times,photodiode_on_times,reward_times(1:n_trials-1)+1,'next')];
-% stim_move_times = [photodiode_off_times(1);interp1(photodiode_off_times,photodiode_off_times,stimOn_times(2:n_trials),'next')];
+n_trials = length([trial_events.timestamps.Outcome]);
 
 stimOn_times = photodiode_on_times(1:2:end);
 stim_move_times = photodiode_off_times(1:2:end);
@@ -51,14 +50,14 @@ trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence)
 % % trial order 
 % sort_idx = 1:n_trials;
 % 
-% % stim static time
-% [~,sort_idx] = sort(trial_static_stim_time);
+% stim static time
+[~,sort_idx] = sort(trial_static_stim_time);
 % 
 % % reward time
 % [~,sort_idx] = sort(reward_times - stimOn_times(1:n_trials));
 %
-% quiescence time
-[~,sort_idx] = sort(trial_quiescence_time);
+% % quiescence time
+% [~,sort_idx] = sort(trial_quiescence_time);
 
 
 [lick_trial,lick_t_raster_idx] = find(lick_raster(sort_idx,:));
@@ -210,10 +209,62 @@ xline(lick_stim,'r');
 %%% might run into real reward time)
 
 
+%% Lick raster (two-stim move conditioning)
+
+stim_x = vertcat(trial_events.values.TrialX);
+
+stim_pd_on_grouped = mat2cell(photodiode_on_times,(stim_x==-90)*1 + (stim_x==90)*2);
+stim_pd_off_grouped = mat2cell(photodiode_off_times,(stim_x==-90)*1 + (stim_x==90)*2);
+
+% 2 PD ups for right (on, move), 1 for left (on)
+stimOn_times = cellfun(@(x) x(1), stim_pd_on_grouped);
+
+stim_move_times = nan(size(stim_x));
+stim_move_times(stim_x == 90) = cellfun(@(x) x(1), stim_pd_off_grouped(stim_x == 90));
+
+stim_center_times = nan(size(stim_x));
+stim_center_times(stim_x == 90) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == 90));
 
 
+use_trials = find(stim_x == 90);
+
+[lick_psth,lick_raster,lick_t] = ap.psth(lick_times,stimOn_times(use_trials),...
+    'window',[-7,10],'bin_size',0.03,'smoothing',10);
+
+figure('name',sprintf('%s %s',animal,rec_day));
+h = tiledlayout(4,1);
+
+nexttile(1)
+plot(lick_t,lick_psth,'k');
+xline(0,'color',[0.7,0.7,0]);
+
+nexttile([3,1]);
+
+% Trial params
+trial_static_stim_time = vertcat(trial_events.values(1:n_trials).TrialStimStaticTime);
+trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence);
+
+% Sort by: 
+% % trial order 
+% sort_idx = 1:length(use_trials);
+%
+% stim static time
+[~,sort_idx] = sort(trial_static_stim_time(use_trials));
+% 
+% % reward time
+% [~,sort_idx] = sort(reward_times(use_trials) - stimOn_times(use_trials));
+%
+% % quiescence time
+% [~,sort_idx] = sort(trial_quiescence_time(use_trials));
 
 
+[lick_trial,lick_t_raster_idx] = find(lick_raster(sort_idx,:));
+lick_t_raster = lick_t(lick_t_raster_idx);
+
+plot(lick_t_raster,lick_trial,'.k');
+hold on;
+plot(-trial_quiescence_time(use_trials(sort_idx)),1:length(use_trials),'m')
+xline(0,'color',[0.7,0.7,0]);
 
 
 

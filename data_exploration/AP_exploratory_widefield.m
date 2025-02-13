@@ -64,19 +64,19 @@ elseif contains(bonsai_workflow,'sparse_noise')
 elseif contains(bonsai_workflow,'visual')
 
     % Visual conditioning: stim and reward
-%     if isfield(trial_events.values,'TrialX')
-%         stim_x = vertcat(trial_events.values.TrialX);
-%     else
-%         stim_x = repmat(90,length(stimOn_times),1);
-%     end
-%     align_times = [stimOn_times;reward_times];
-%     align_category = [stim_x;inf(size(reward_times))];
-%     baseline_times = [stimOn_times;align_times(stim_x==90)];
-
-    % (new: just one stim)
+    if isfield(trial_events.values,'TrialX')
+        stim_x = vertcat(trial_events.values.TrialX);
+    else
+        stim_x = repmat(90,length(stimOn_times),1);
+    end
     align_times = stimOn_times;
-    align_category = ones(size(align_times));
+    align_category = stim_x;
     baseline_times = stimOn_times;
+
+%     % (new: just one stim)
+%     align_times = stimOn_times;
+%     align_category = ones(size(align_times));
+%     baseline_times = stimOn_times;
 
 end
 

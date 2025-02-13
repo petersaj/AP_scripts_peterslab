@@ -278,7 +278,7 @@ for curr_animal = 1:length(animals)
             align_times = cellfun(@(x) stimOn_times(stim_type == x & quiescent_trials), ...
                 num2cell(unique(stim_type)),'uni',false);
 
-            % Align ROI trace to align times
+            % Align V to align times
             aligned_V_mean = nan(size(wf_V,1),length(t_centers),length(align_times));
             for curr_align = 1:length(align_times)
 
@@ -328,7 +328,7 @@ U_master = plab.wf.load_master_U;
 
 % Average and plot
 use_modality = 2;
-use_stim = 1;
+use_stim = 2;
 % use_workflow = 'stim_wheel_right_stage1';
 % use_workflow = 'stim_wheel_right_stage2';
 use_workflow = 'stim_wheel_right_stage1_audio_volume';

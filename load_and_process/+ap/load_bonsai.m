@@ -65,7 +65,7 @@ end
 %% --- Workflow-specific loading ---
 
 %% Stim wheel (task)
-if contains(bonsai_workflow,'stim')
+if contains(bonsai_workflow,'stim_wheel')
     % Task: stim and response times
 
     % Use only trials with outcome
@@ -230,6 +230,8 @@ elseif strcmp(bonsai_workflow,'sparse_noise')
     stim_times = interp1(photodiode_stim_idx,photodiode_times, ...
         1:size(noise_locations,3),'linear','extrap')';
 
+%% Operant
+elseif contains(bonsai_workflow,'operant')
 
 %% End
 
