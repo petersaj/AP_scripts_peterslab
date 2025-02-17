@@ -41,7 +41,7 @@ unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ..
 unit_kidx = nan(size(unit_rec_idx));
 unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 
-% Concatenate unit data (responsive, single, psth)
+% Concatenate unit data (responsive, single, psth, mean)
 unit_resp_cat = cell2mat(cellfun(@(x) cell2mat(x)', ...
     horzcat(ephys.unit_resp_p_value{:})','uni',false));
 
@@ -51,22 +51,7 @@ unit_psth_cat = arrayfun(@(stim) cell2mat(cellfun(@(x) x{stim}, ...
     ephys.unit_smooth_event_psths,'ErrorHandler',@(varargin) [],'uni',false)), ...
     1:size(unit_resp_cat,2),'uni',false);
 
-
-% Group data (WORKING ON NESTED GROUPING HERE)
-curr_stim = 3;
-use_units = unit_resp_cat(:,curr_stim) & unit_single_cat & ~isnan(unit_kidx);
-
-[unit_grp,~,unit_grp_idx] = unique([unit_rec_idx(use_units),unit_kidx(use_units)],'rows');
-
-unit_grp_ld = bhv.days_from_learning(unit_grp(:,1));
-
-unit_kidx_rec_grouped = ap.groupfun(@mean,unit_psth_cat{curr_stim}(use_units,:),unit_grp_idx,[]);
-
-
-
-[grp2idx(bhv.animal),bhv.days_from_learning,unit_kidx]
-
-
+unit_mean_post_stim_cat = cell2mat(vertcat(ephys.mean_post_stim{:}));
 
 % Make index of recording per unit
 
@@ -81,12 +66,28 @@ unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ..
 unit_kidx = nan(size(unit_rec_idx));
 unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 
+% Group data and plot
+group = [unit_kidx,unit_ld,unit_animal];
+group_use = ~any(isnan(group),2);
+
+unit_group_idx = nan(size(group,1),1);
+[group_unique,~,unit_group_idx(group_use)] = unique(use_grp(group_use,:),'rows');
+
+unit_kidx_rec_grouped = ap.groupfun(@mean,unit_mean_post_stim_cat(:,curr_stim),unit_group_idx,[]);
+
+figure;
+for curr_k = 1:n_k
+    nexttile
+end
 
 
-use_grp = [unit_kidx,unit_ld,unit_animal];
-[grp,~,grp_idx] = unique(use_grp,'rows');
 
-unit_kidx_rec_grouped = ap.groupfun(@mean,unit_psth_cat{curr_stim},unit_grp_idx,[]);
+
+
+
+
+
+
 
 
 
