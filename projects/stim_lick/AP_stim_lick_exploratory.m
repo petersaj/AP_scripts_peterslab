@@ -211,10 +211,14 @@ xline(lick_stim,'r');
 
 %% Lick raster (two-stim move conditioning)
 
-stim_x = vertcat(trial_events.values.TrialX);
+n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
-stim_pd_on_grouped = mat2cell(photodiode_on_times,(stim_x==-90)*1 + (stim_x==90)*2);
-stim_pd_off_grouped = mat2cell(photodiode_off_times,(stim_x==-90)*1 + (stim_x==90)*2);
+stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+
+use_pd_times = sum((stim_x==-90)*1 + (stim_x==90)*2);
+    
+stim_pd_on_grouped = mat2cell(photodiode_on_times(1:use_pd_times),(stim_x==-90)*1 + (stim_x==90)*2);
+stim_pd_off_grouped = mat2cell(photodiode_off_times(1:use_pd_times),(stim_x==-90)*1 + (stim_x==90)*2);
 
 % 2 PD ups for right (on, move), 1 for left (on)
 stimOn_times = cellfun(@(x) x(1), stim_pd_on_grouped);
@@ -245,11 +249,11 @@ trial_static_stim_time = vertcat(trial_events.values(1:n_trials).TrialStimStatic
 trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence);
 
 % Sort by: 
-% % trial order 
-% sort_idx = 1:length(use_trials);
+% trial order 
+sort_idx = 1:length(use_trials);
 %
-% stim static time
-[~,sort_idx] = sort(trial_static_stim_time(use_trials));
+% % stim static time
+% [~,sort_idx] = sort(trial_static_stim_time(use_trials));
 % 
 % % reward time
 % [~,sort_idx] = sort(reward_times(use_trials) - stimOn_times(use_trials));

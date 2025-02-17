@@ -69,27 +69,9 @@ unit_kidx_rec_grouped = ap.groupfun(@mean,unit_psth_cat{curr_stim}(use_units,:),
 
 
 % Make index of recording per unit
-
-unit_animal = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
-    num2cell(grp2idx(bhv.animal)),ephys.single_unit_idx,'uni',false));
-
-unit_ld = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
-    num2cell(bhv.days_from_learning),ephys.single_unit_idx,'uni',false));
-
-unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ...
-    ephys.unit_depth_group,kidx_rec,'uni',false));
-unit_kidx = nan(size(unit_rec_idx));
-unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
-
-
-
-use_grp = [unit_kidx,unit_ld,unit_animal];
-[grp,~,grp_idx] = unique(use_grp,'rows');
-
-unit_kidx_rec_grouped = ap.groupfun(@mean,unit_psth_cat{curr_stim},unit_grp_idx,[]);
-
-
-
+[~,rec_idx] = unique([grp2idx(bhv.animal),bhv.days_from_learning],'rows');
+unit_rec_idx = cell2mat(cellfun(@(rec,units) repmat(rec,length(units),1), ...
+    num2cell(rec_idx),ephys.single_unit_idx,'uni',false));
 
 
 

@@ -490,8 +490,8 @@ av_animals = cellfun(@(x) max([...
 va_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(va_animals),workflow_animal_trunc,'uni',false));
 av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_animals),workflow_animal_trunc,'uni',false));
 
-task_workflow = 'stim_wheel_right_stage\d$';
-% task_workflow = 'stim_wheel_right_stage\d_audio*';
+% task_workflow = 'stim_wheel_right_stage\d$';
+task_workflow = 'stim_wheel_right_stage\d_audio*';
 
 use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
 

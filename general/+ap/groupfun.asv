@@ -7,8 +7,7 @@ function grouped_data = groupfun(group_function,data,varargin)
 % group_function: handle for function to perform on group
 % data - ND matrix of data
 % dimN group - grouping vector for each dimension, or empty if no group (if
-% both data and group are vectors, can be any orientation). Groups that are
-% NaN are ignored.
+% both data and group are vectors, can be any orientation)
 %
 % OUTPUT
 % grouped_data: ND data with function performed on group, with size reduced
@@ -69,7 +68,7 @@ end
 
 % Reshape data to expected size and permutation
 grouped_data_permuted_size = ...
-    [cellfun(@(x) length(unique(x(~isnan(x)))),groups(groups_dims)), ...
+    [cellfun(@(x) length(unique(x)),groups(groups_dims)), ...
     size(data,setdiff(1:ndims(data),groups_dims))];
 
 grouped_data = permute(reshape(grouped_data,grouped_data_permuted_size), ...
