@@ -18,7 +18,7 @@
 % use_align = stimOn_times(stim_x == 90);
 
 stim_x = vertcat(trial_events.values.TrialX);
-use_align = stimOn_times(stim_x == 90);
+use_align = stim_center_times(stim_x(1:n_trials) == 90);
 
 % use_align = stimOn_times;
 

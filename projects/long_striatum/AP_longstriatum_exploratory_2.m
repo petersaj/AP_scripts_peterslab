@@ -14,6 +14,7 @@ U_master = plab.wf.load_master_U;
 maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
+%%%% CHANGE KMEANS TO CORRELATION AND REPLICATES?
 n_k = 4;
 kidx = nan(size(maps_cat,3),1);
 kidx_use_maps = expl_var_cat > 0;
@@ -42,8 +43,9 @@ unit_kidx = nan(size(unit_rec_idx));
 unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 
 % Concatenate unit data (responsive, single, psth, mean)
+unit_resp_p_thresh = 0.05;
 unit_resp_cat = cell2mat(cellfun(@(x) cell2mat(x)', ...
-    horzcat(ephys.unit_resp_p_value{:})','uni',false));
+    horzcat(ephys.unit_resp_p_value{:})','uni',false)) < unit_resp_p_thresh;
 
 unit_single_cat = cell2mat(cellfun(@logical,ephys.single_unit_idx,'uni',false));
 
@@ -67,32 +69,37 @@ unit_kidx = nan(size(unit_rec_idx));
 unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 
 % Group data and plot
-group = [unit_kidx,unit_ld,unit_animal];
-group_use = ~any(isnan(group),2);
 
-unit_group_idx = nan(size(group,1),1);
-[group_unique,~,unit_group_idx(group_use)] = unique(use_grp(group_use,:),'rows');
+group_labels = [unit_rec_idx];
+split_labels = [unit_ld,unit_kidx];
 
-unit_kidx_rec_grouped = ap.groupfun(@mean,unit_mean_post_stim_cat(:,curr_stim),unit_group_idx,[]);
+% (response amplitude)
+curr_stim = 3;
+use_units = unit_single_cat;
 
-figure;
-for curr_k = 1:n_k
-    nexttile
-end
+[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
+    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
+unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
+figure; hold on;
+h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
+legend(h,string(num2cell(unique(groups(:,2)))));
 
+% (frac responsive cells)
+curr_stim = 3;
+use_units = true(size(unit_single_cat));
 
+[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
+    +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
+unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
-
-
-
-
-
-
-
-
+figure; hold on;
+h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
+legend(h,string(num2cell(unique(groups(:,2)))));
 
 
 

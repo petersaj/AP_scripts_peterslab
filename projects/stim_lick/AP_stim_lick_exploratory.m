@@ -232,7 +232,7 @@ stim_center_times(stim_x == 90) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x 
 
 use_trials = find(stim_x == 90);
 
-[lick_psth,lick_raster,lick_t] = ap.psth(lick_times,stimOn_times(use_trials),...
+[lick_psth,lick_raster,lick_t] = ap.psth(lick_times,stim_center_times(use_trials),...
     'window',[-7,10],'bin_size',0.03,'smoothing',10);
 
 figure('name',sprintf('%s %s',animal,rec_day));
@@ -252,8 +252,7 @@ trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence)
 % trial order 
 sort_idx = 1:length(use_trials);
 %
-% % stim static time
-% [~,sort_idx] = sort(trial_static_stim_time(use_trials));
+% stim staix] = sort(trial_static_stim_time(use_trials));
 % 
 % % reward time
 % [~,sort_idx] = sort(reward_times(use_trials) - stimOn_times(use_trials));
@@ -266,12 +265,15 @@ sort_idx = 1:length(use_trials);
 lick_t_raster = lick_t(lick_t_raster_idx);
 
 plot(lick_t_raster,lick_trial,'.k');
-hold on;
+hold on; set(gca,'YDir','reverse');
 plot(-trial_quiescence_time(use_trials(sort_idx)),1:length(use_trials),'m')
 xline(0,'color',[0.7,0.7,0]);
 
+% plot(stim_move_times(use_trials(sort_idx))-stimOn_times(use_trials(sort_idx)),1:length(use_trials),'color',[0,0.8,0])
+% plot(stim_center_times(use_trials(sort_idx))-stimOn_times(use_trials(sort_idx)),1:length(use_trials),'r')
+% plot(reward_times(sort_idx)-stimOn_times(use_trials(sort_idx)),1:length(use_trials),'c')
 
-
+linkaxes(h.Children,'x');
 
 
 

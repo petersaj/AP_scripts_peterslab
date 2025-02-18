@@ -626,20 +626,30 @@ end
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
-use_svs = 1:200;
-kernel_t = [-0.1,0.1];
+% use_svs = 1:200;
+% kernel_t = [-0.1,0.1];
+% kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+% lambda = 10;
+% zs = [false,false];
+% cvfold = 5;
+% return_constant = false;
+% use_constant = true;
+
+use_svs = 1:500;
+kernel_t = [0,0];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 10;
+lambda = 5;
 zs = [false,false];
-cvfold = 5;
+cvfold = 1;
 return_constant = false;
 use_constant = true;
+
 
 fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
 
 % Regress cortex to spikes
 [k,predicted_spikes,explained_var] = ...
-    AP_regresskernel(fVdf_deconv_resample, ...
+    ap.regresskernel(fVdf_deconv_resample, ...
     binned_spikes_std,kernel_frames, ...
     lambda,zs,cvfold,return_constant,use_constant);
 
