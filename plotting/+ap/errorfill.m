@@ -33,16 +33,11 @@ if sum(size(y) > 1) == 1
 end
 
 % If no color set, continue through axis color order
-% (after max number of any object type already on plot)
+% (counting all lines currently in axis)
 if ~exist('color','var') || isempty(color)
     ax_color_order = get(gca,'ColorOrder');
-    ax_children = get(gca,'Children');
-    if ~isempty(ax_children)
-        ax_child_type = get(ax_children,'type');
-        child_type_max_n = max(accumarray(findgroups(ax_child_type),1));
-    else
-        child_type_max_n = 0;
-    end
+    ax_lines = findall(gca,'Type','line');
+    child_type_max_n = length(ax_lines);
     color_idx = mod(child_type_max_n+[1:size(y,2)]-1,size(ax_color_order,1))+1;
     color = ax_color_order(color_idx,:);
 elseif size(color,1) == 1 && size(y,2) > 1
@@ -82,20 +77,23 @@ end
 hold on;
 h = gobjects(size(y,2),1);
 for curr_line = 1:size(y,2)
+
     % Error polygon (separate shapes if NaN breaks)
-    if ~any(isnan(ye_pos(:,curr_line)))
-        h_fill = fill([x;flipud(x)], ...
-            [ye_pos(:,curr_line);flipud(ye_neg(:,curr_line))], ...
-            color(curr_line,:),'FaceAlpha',alpha,'EdgeColor','none');
-    else
-        fill_starts = [find(diff([true;isnan(ye_pos(:,curr_line))]) == -1)];
-        fill_stops = [find(diff(isnan(ye_pos(:,curr_line))) == 1); ...
-            find(~isnan(ye_pos(:,curr_line)),1,'last')];
-        for curr_fill = 1:length(fill_starts)
-            curr_idx = fill_starts(curr_fill):fill_stops(curr_fill);
-            h_fill = fill([x(curr_idx);flipud(x(curr_idx))], ...
-                [ye_pos(curr_idx,curr_line);flipud(ye_neg(curr_idx,curr_line))], ...
+    if size(ye_pos,2) >= curr_line
+        if ~any(isnan(ye_pos(:,curr_line)))
+            h_fill = fill([x;flipud(x)], ...
+                [ye_pos(:,curr_line);flipud(ye_neg(:,curr_line))], ...
                 color(curr_line,:),'FaceAlpha',alpha,'EdgeColor','none');
+        else
+            fill_starts = [find(diff([true;isnan(ye_pos(:,curr_line))]) == -1)];
+            fill_stops = [find(diff(isnan(ye_pos(:,curr_line))) == 1); ...
+                find(~isnan(ye_pos(:,curr_line)),1,'last')];
+            for curr_fill = 1:length(fill_starts)
+                curr_idx = fill_starts(curr_fill):fill_stops(curr_fill);
+                h_fill = fill([x(curr_idx);flipud(x(curr_idx))], ...
+                    [ye_pos(curr_idx,curr_line);flipud(ye_neg(curr_idx,curr_line))], ...
+                    color(curr_line,:),'FaceAlpha',alpha,'EdgeColor','none');
+            end
         end
     end
 
@@ -107,6 +105,7 @@ for curr_line = 1:size(y,2)
         % (if no central line, set the fill as the handle)
         h(curr_line) = h_fill(1);
     end
+
 end
 
 
