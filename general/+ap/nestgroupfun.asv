@@ -1,21 +1,32 @@
-function grouped_data = groupfun(group_function,data,varargin)
-% STARTED BUT DIDN'T FINISH: WASN'T ACTUALLY NEEDED FOR APPLICATION
+function [grouped_data,groups] = nestgroupfun(group_functions,data,group_labels,split_labels)
+% [grouped_data,groups] = nestgroupfun(group_functions,data,group_labels,split_labels)
 %
-% To finish in future: call groupfun in for loop across nested group labels
-
-
-unit_animal;
-
-group_labels = [unit_rec_idx];
-split_labels = [unit_ld,unit_kidx];
+% Perform nested group functions
+% NOTE: at the moment, this ONLY groups in the first dimension of 'data'
+% 
+% INPUTS 
+% group_functions: cell array of figure handles for each level of grouping,
+% N groups +1 (extra is for first-level grouping)
+% data: ND matrix of data to group
+% group_labels: labels to group data in grouping order, size(data,1) x  N labels
+% split labels: labels to retain data splits, size(data,1) x  N labels
+%
+% OUTPUTS
+% grouped_data: data grouped hierarchically by 'group_labels'
+% groups: group labels corresponding to grouped data, according to unique entires
+% in 'split_labels'
+%
+% EXAMPLE
+% x = rand(1000,1);
 
 groups = [group_labels,split_labels];
-use_groups = ~any(isnan(groups),2);
 
-groups_nest = cell(size(group_labels,2),1);
+groups_nest = cell(size(group_labels,2)+1,1);
 groups_nest{1} = groups;
 
-data_group_nest = cell(size(group_labels,2),1);
+data_group_nest = cell(size(group_labels,2)+1,1);
+data_group_nest{1} = data;
+
 for curr_nest = 1:size(group_labels,2)+1
 
     curr_group = groups_nest{curr_nest};
@@ -24,6 +35,10 @@ for curr_nest = 1:size(group_labels,2)+1
     groups_nest_idx = nan(size(curr_group,1),1);
     [curr_group_nest,~,groups_nest_idx(use_curr_group)] = ...
         unique(curr_group(use_curr_group,:),'rows');
+
+    data_group_nest{curr_nest+1} = ...
+        ap.groupfun(group_functions{curr_nest},data_group_nest{curr_nest}, ...
+        groups_nest_idx);
 
     if curr_nest <= size(group_labels,2)
         % For all but last grouping: drop successive labels
@@ -35,7 +50,9 @@ for curr_nest = 1:size(group_labels,2)+1
 
 end
 
-
+% Output final grouped data and groups
+grouped_data = data_group_nest{end};
+groups = groups_nest{end};
 
 
 

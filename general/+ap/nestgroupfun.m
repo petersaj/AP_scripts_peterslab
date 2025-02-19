@@ -1,6 +1,40 @@
 function [grouped_data,groups] = nestgroupfun(group_functions,data,group_labels,split_labels)
-%%% IN PROGRESS
-% To finish in future: call groupfun in for loop across nested group labels
+% [grouped_data,groups] = nestgroupfun(group_functions,data,group_labels,split_labels)
+%
+% Perform nested group functions
+% NOTE: at the moment, this ONLY groups in the first dimension of 'data'
+% 
+% INPUTS 
+% group_functions: cell array of figure handles for each level of grouping,
+% N groups +1 (extra is for first-level grouping, which combines all data
+% with the same labels across [group_labels,split_labels]).
+% data: ND matrix of data to group
+% group_labels: labels to group data in grouping order, size(data,1) x  N labels
+% split labels: labels to retain data splits, size(data,1) x  N labels
+%
+% OUTPUTS
+% grouped_data: data grouped hierarchically by 'group_labels'
+% groups: group labels corresponding to grouped data, according to unique entires
+% in 'split_labels'
+%
+% EXAMPLE Define groups by data halves, thirds, and odd/even. First,
+% average all data with the same entries in all of these categories. Next,
+% combine in order data by 1) averaging in the same half, then 2) median
+% across odd or even. Retain the splitting of data by thirds.
+% (define data and groups)
+% x = (1:1000)';
+% group_halves = max(1,ceil(linspace(0,2,length(x))'));
+% group_thirds = max(1,ceil(linspace(0,3,length(x))'));
+% group_odds = mod(x,2)+1;
+% % (define grouping functions: number of grouping labels + 1)
+% grouping_functions = {@mean,@mean,@median};
+% % (define groups to combine, in nested order)
+% group_labels = [group_halves,group_odds];
+% % (define groups to retain split)
+% split_labels = group_thirds;
+% % (perform nested grouping)
+% [grouped_data,groups] = ap.nestgroupfun(grouping_functions,x,group_labels,split_labels);
+
 
 groups = [group_labels,split_labels];
 

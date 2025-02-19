@@ -5,8 +5,8 @@ function grouped_data = groupfun(group_function,data,varargin)
 % 
 % INPUTS
 % group_function: handle for function to perform on group
-% data - ND matrix of data
-% dimN group - grouping vector for each dimension, or empty if no group (if
+% data: ND matrix of data
+% dimN group: grouping vector for each dimension, or empty if no group (if
 % both data and group are vectors, can be any orientation). Groups that are
 % NaN are ignored.
 %
@@ -25,8 +25,11 @@ function grouped_data = groupfun(group_function,data,varargin)
 groups = varargin;
 
 if sum(size(data)~=1) ~= 1 && length(groups) ~= ndims(data)
-    % If data has >1 non-singleton dimension, check that dim data == groups 
-    error('Number groups needs to match number of dimensions');   
+    % If data has >1 non-singleton dimension, fill in empty groups for
+    % number of dimensions (i.e. if no grouping specified for dimension,
+    % don't group).
+    groups{setdiff(1:ndims(data),find(~cellfun(@isempty,groups)))} = [];
+
 elseif sum(size(data)~=1) == 1 && find(~cellfun(@isempty,groups)) == 1
     % If data has 1 non-singleton dimension and one group, put group in
     % non-singleton dimension slot
@@ -35,6 +38,7 @@ elseif sum(size(data)~=1) == 1 && find(~cellfun(@isempty,groups)) == 1
     if length(groups) ~= 1
         groups(setdiff(1:length(groups),data_orientation)) = {[]};
     end
+
 end
 
 groups_dims = find(~cellfun(@isempty,groups));

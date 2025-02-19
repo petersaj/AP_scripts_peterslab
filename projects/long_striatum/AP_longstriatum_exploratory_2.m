@@ -71,21 +71,8 @@ unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 % Group data and plot
 
 group_labels = [unit_rec_idx];
-split_labels = [unit_ld,unit_kidx];
+split_labels = [unit_kidx,unit_ld];
 
-% (response amplitude)
-curr_stim = 3;
-use_units = unit_single_cat;
-
-[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
-    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
-
-unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
-
-figure; hold on;
-h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
-legend(h,string(num2cell(unique(groups(:,2)))));
 
 % (frac responsive cells)
 curr_stim = 3;
@@ -103,9 +90,33 @@ legend(h,string(num2cell(unique(groups(:,2)))));
 
 
 
+% (response amplitude)
+curr_stim = 3;
+use_units = unit_single_cat;
 
+[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
+    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
+unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
+figure; hold on;
+h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
+legend(h,string(num2cell(unique(groups(:,2)))));
+
+% (psth)
+curr_stim = 3;
+use_units = true(size(unit_single_cat));
+
+[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
+    unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
+
+unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
+
+figure; hold on;
+h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
+legend(h,string(num2cell(unique(groups(:,2)))));
 
 
 
