@@ -32,7 +32,7 @@ end
 % window = window around align times to gather (default = [-0.5,1])
 % bin_size = bin size (default = 0.001)
 % 
-% smoothing = gaussian smoothing window size (units in bins) (default = off)
+% smoothing = half (causal)-gaussian smoothing window size (units in bins) (default = off)
 % norm_window = averaging window to define "baseline" for normalizing (default = off)
 % softnorm = softening factor for normalizing (default = 0)
 %
@@ -128,7 +128,7 @@ psth = permute(cell2mat(reshape(cellfun(@(x) nanmean(x,1),raster,'uni',false),[]
 
 % Smooth
 if opts.smoothing > 0
-    psth = smoothdata(psth,2,'gaussian',opts.smoothing);
+    psth = smoothdata(psth,2,'gaussian',[opts.smoothing,0]);
 end
 
 % Normalize

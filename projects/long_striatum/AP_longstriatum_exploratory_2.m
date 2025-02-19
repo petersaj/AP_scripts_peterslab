@@ -10,16 +10,16 @@ load(fullfile(data_path,'ephys'));
 U_master = plab.wf.load_master_U;
 
 % K-means cluster maps
-% (why is expt 2 crazy?)
+% (experiment 2 is bad - AM will re-run) 
 maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
-%%%% CHANGE KMEANS TO CORRELATION AND REPLICATES?
 n_k = 4;
 kidx = nan(size(maps_cat,3),1);
 kidx_use_maps = expl_var_cat > 0;
 [kidx(kidx_use_maps),kmeans_map] = kmeans(...
-    reshape(maps_cat(:,:,kidx_use_maps),prod(size(U_master,[1,2])),[])',n_k);
+    reshape(maps_cat(:,:,kidx_use_maps),prod(size(U_master,[1,2])),[])',n_k, ...
+    'Distance','Correlation','Replicates',5);
 kmeans_map = reshape(kmeans_map',size(U_master,1),size(U_master,2),[]);
 
 figure;
@@ -71,7 +71,7 @@ unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 % Group data and plot
 
 group_labels = [unit_rec_idx];
-split_labels = [unit_kidx,unit_ld];
+split_labels = [unit_ld,unit_kidx];
 
 
 % (frac responsive cells)
@@ -89,7 +89,6 @@ h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups
 legend(h,string(num2cell(unique(groups(:,2)))));
 
 
-
 % (response amplitude)
 curr_stim = 3;
 use_units = unit_single_cat;
@@ -104,19 +103,45 @@ figure; hold on;
 h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
 legend(h,string(num2cell(unique(groups(:,2)))));
 
+
 % (psth)
-curr_stim = 3;
-use_units = true(size(unit_single_cat));
+curr_stim = 2;
+use_units = true(size(unit_kidx));
+% use_units = unit_single_cat;
+use_units = unit_resp_cat(:,2);
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
 
 unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
+    unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
 
-figure; hold on;
-h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
-legend(h,string(num2cell(unique(groups(:,2)))));
+plot_days = -3:2;
+
+day_colormap_sym = ap.colormap('BKR',max(abs(plot_days))*2+1);
+day_colormap = day_colormap_sym(ismember( ...
+    -max(abs(plot_days)):max(abs(plot_days)),plot_days),:);
+
+figure; 
+h = tiledlayout(n_k,1);
+for curr_k = 1:n_k
+    nexttile; set(gca,'ColorOrder',day_colormap);
+    arrayfun(@(x) ...
+        ap.errorfill([], ...
+        unit_group_mean(groups(:,1) == x & groups(:,2) == curr_k,:), ...
+        unit_group_sem(groups(:,1) == x & groups(:,2) == curr_k,:)), ...
+        plot_days);
+end
+linkaxes(h.Children,'xy');
+
+
+
+
+
+
+
+
+
 
 
 
