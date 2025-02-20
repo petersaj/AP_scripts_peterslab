@@ -36,12 +36,6 @@ kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
 unit_rec_idx = cell2mat(cellfun(@(rec,units) repmat(rec,length(units),1), ...
     num2cell(rec_idx),ephys.single_unit_idx,'uni',false));
 
-% Make index of kidx per unit
-unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ...
-    ephys.unit_depth_group,kidx_rec,'uni',false));
-unit_kidx = nan(size(unit_rec_idx));
-unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
-
 % Concatenate unit data (responsive, single, psth, mean)
 unit_resp_p_thresh = 0.05;
 unit_resp_cat = cell2mat(cellfun(@(x) cell2mat(x)', ...
@@ -56,27 +50,28 @@ unit_psth_cat = arrayfun(@(stim) cell2mat(cellfun(@(x) x{stim}, ...
 unit_mean_post_stim_cat = cell2mat(vertcat(ephys.mean_post_stim{:}));
 
 % Make index of recording per unit
-
 unit_animal = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
     num2cell(grp2idx(bhv.animal)),ephys.single_unit_idx,'uni',false));
 
+% Make learning day per unit
 unit_ld = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
     num2cell(bhv.days_from_learning),ephys.single_unit_idx,'uni',false));
 
+% Make kmeans cluster per unit
 unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ...
     ephys.unit_depth_group,kidx_rec,'uni',false));
 unit_kidx = nan(size(unit_rec_idx));
 unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
 
-% Group data and plot
 
+% Group data and plot
 group_labels = [unit_rec_idx];
 split_labels = [unit_ld,unit_kidx];
-
 
 % (frac responsive cells)
 curr_stim = 3;
 use_units = true(size(unit_single_cat));
+% use_units = unit_single_cat;
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
@@ -105,13 +100,15 @@ legend(h,string(num2cell(unique(groups(:,2)))));
 
 
 % (psth)
-curr_stim = 2;
-use_units = true(size(unit_kidx));
+curr_stim = 3;
+% use_units = true(size(unit_kidx));
 % use_units = unit_single_cat;
-use_units = unit_resp_cat(:,2);
+use_units = unit_resp_cat(:,3);
 
+tic
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
+toc
 
 unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
     unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
@@ -133,6 +130,16 @@ for curr_k = 1:n_k
         plot_days);
 end
 linkaxes(h.Children,'xy');
+
+
+
+
+[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
+    +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
+
+
+
+
 
 
 

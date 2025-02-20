@@ -244,7 +244,7 @@ stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+
 use_trials = find(stim_x == 90);
 
 [lick_psth,lick_raster,lick_t] = ap.psth(lick_times,stim_center_times(use_trials),...
-    'window',[-7,10],'bin_size',0.03,'smoothing',10);
+    'window',[-7,10],'bin_size',0.01,'smoothing',20);
 
 figure('name',sprintf('%s %s',animal,rec_day));
 h = tiledlayout(4,1);

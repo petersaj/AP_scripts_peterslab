@@ -66,30 +66,29 @@ group_nonan = ~any(isnan(group_flat),2);
 [groups_flat_unique,~,group_flat_unique_idx(group_nonan)] = unique(fliplr(group_flat(group_nonan,:)),'rows');
 
 % Loop through groups and do function
-% (apply function to whole data if known dimension argument, otherwise
-% apply function to data columns separately but slower)
-grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(data));
-switch func2str(group_function)
+% (apply function to whole data or in loop by columns, as function allows)
+switch func2string(group_function)
     case {'mean','median'}
-        % Functions with dimension as 1st argument
-        for curr_grp = 1:max(group_flat_unique_idx)
-            grouped_data(curr_grp,:) = group_function(data_reshape(group_flat_unique_idx == curr_grp,:),1);
-        end
-
-    case {'std'}
-        % Functions with dimension as 2nd argument
-        for curr_grp = 1:max(group_flat_unique_idx)
-            grouped_data(curr_grp,:) = group_function(data_reshape(group_flat_unique_idx == curr_grp,:),[],1);
-        end
+%         % (If the function is a known function with second argument being
+%         % dimension, hard-code dimension argument and run on all columns together)
+%         grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(data));
+%         for curr_grp = 1:max(group_flat_unique_idx)
+%             grouped_data(curr_grp,:) = group_function(data_reshape(group_flat_unique_idx == curr_grp,:),1);
+%         end
+disp('x')
 
     otherwise
-        % Function with no/unknown dimension argument: loop over columns
+        % (Otherwise, can't hard-code dimension argument becuase it might not be in
+        % the second position or be included at all. Only option is to run on each
+        % column separately, which can be slow.)
+        grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(data));
         for curr_grp = 1:max(group_flat_unique_idx)
             for curr_column = 1:size(data_reshape,2)
                 grouped_data(curr_grp,curr_column) = ...
                     group_function(data_reshape(group_flat_unique_idx == curr_grp,curr_column));
             end
         end
+        disp('r')
 end
 
 % Reshape data to expected size and permutation

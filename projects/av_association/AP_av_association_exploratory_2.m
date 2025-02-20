@@ -493,14 +493,15 @@ av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_anima
 task_workflow = 'stim_wheel_right_stage\d$';
 % task_workflow = 'stim_wheel_right_stage\d_audio*';
 
-use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+% use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+use_rec = cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
 
 n_components = size(stim_V_cat{1},1);
 v = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,1}),4));
 a = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,2}),4));
 
 ap.imscroll(v);
-% ap.imscroll(v-imgaussfilt(v,15))
+ap.imscroll(v-imgaussfilt(v,15))
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
