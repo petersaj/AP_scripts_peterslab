@@ -70,16 +70,18 @@ group_nonan = ~any(isnan(group_flat),2);
 % apply function to data columns separately but slower)
 grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(data));
 switch func2str(group_function)
-    case {'mean','median'}
-        % Functions with dimension as 1st argument
+    case {'mean','nanmean','median','nanmedian'}
+        % Functions with dimension as argument 2
         for curr_grp = 1:max(group_flat_unique_idx)
-            grouped_data(curr_grp,:) = group_function(data_reshape(group_flat_unique_idx == curr_grp,:),1);
+            grouped_data(curr_grp,:) = ...
+                group_function(data_reshape(group_flat_unique_idx == curr_grp,:),1);
         end
 
-    case {'std'}
-        % Functions with dimension as 2nd argument
+    case {'std','nanstd','prctile','mad'}
+        % Functions with dimension as argument 3
         for curr_grp = 1:max(group_flat_unique_idx)
-            grouped_data(curr_grp,:) = group_function(data_reshape(group_flat_unique_idx == curr_grp,:),[],1);
+            grouped_data(curr_grp,:) = ...
+                group_function(data_reshape(group_flat_unique_idx == curr_grp,:),[],1);
         end
 
     otherwise
