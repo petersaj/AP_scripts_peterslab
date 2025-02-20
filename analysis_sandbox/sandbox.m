@@ -2,53 +2,6 @@
 %
 % dev/test code
 
-%% Load data (specific day)
-clear all
-
-% animal = 'AP019';
-% rec_day = '2024-05-06';
-
-% load_parts.widefield = true;
-% load_parts.ephys = true;
-% load_parts.mousecam = true;
-
-verbose = true;
-ap.load_recording;
-
-
-%% Load data (relative day)
-
-animal = 'DS004';
-
-% workflow = 'lcr_passive';
-% workflow = 'lcr_passive_fullscreen';
-% workflow = 'stim_wheel_right*';
-% workflow = 'stim_wheel_right_stage2_audio_volume';
-% workflow = 'sparse_noise';
-% workflow = 'visual_conditioning*';
-% workflow = 'hml_passive_audio';
-workflow = '*angle*';
-
-recordings = plab.find_recordings(animal,[],workflow);
-
-% (include only ephys days)
-% recordings = recordings([recordings.ephys]);
-
-use_day = 2;
-% use_day = length(recordings);
-
-rec_day = recordings(use_day).day;
-rec_time = recordings(use_day).recording{end};
-
-verbose = true;
-
-% load_parts.mousecam = true;
-% load_parts.widefield = true;
-load_parts.ephys = true;
-
-
-ap.load_recording;
-
 %% Testing MCMS API
 
 % MCMS API documentation is here:
@@ -256,21 +209,17 @@ for slice = 1:18
     imwrite(curr_im,curr_save_filename);
 end
 
-%% fixing and testing groupfun
+%% Find all animals that have done specific task
+% (this takes a long time because it looks through all server folders)
 
-a = rand(30,100,10,6);
+workflow = '*opacity*';
 
-a3 = [1,1,1,1,2,2,2,2,2,2];
-a4 = [1,1,2,2,2,3];
+task_dir = dir(fullfile(plab.locations.server_data_path, ...
+    '**','bonsai','**',strcat(workflow,'.bonsai')));
 
-x = ap.groupfun(@mean,a,[],[],a3,a4);
-
-a_grp = nan([size(a,[1,2]),length(unique(a3)),length(unique(a4))]);
-
-a_test = nanmean(a(:,:,a3==2,a4==1),[3,4]);
-
-isequal(x(:,:,2,1),a_test)
-
+animals = unique(extractBetween({task_dir.folder}, ...
+    [plab.locations.server_data_path,filesep], ...
+    filesep));
 
 
 

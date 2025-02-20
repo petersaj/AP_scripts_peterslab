@@ -1,4 +1,4 @@
-function grouped_data = groupfun(group_function,data,varargin)
+function [grouped_data,groups_output] = groupfun(group_function,data,varargin)
 % grouped_data = groupfun(group_function, data, dim1 group, dim2 group...)
 %
 % Perform function on groups of data along any/multiple dimensions
@@ -13,6 +13,7 @@ function grouped_data = groupfun(group_function,data,varargin)
 % OUTPUT
 % grouped_data: ND data with function performed on group, with size reduced
 % to number of groups in each grouped dimension.
+% groups_output: groups corresponding to grouped data
 %
 % EXAMPLE: 
 % Average values in groups along the 3rd and 4th dimensions
@@ -63,7 +64,7 @@ group_flat = cell2mat(cellfun(@(x) reshape(x,[],1),group_grid,'uni',false));
 % (flip groups so that the sorting hierarchy higher > lower)
 group_flat_unique_idx = nan(size(group_flat,1),1);
 group_nonan = ~any(isnan(group_flat),2);
-[groups_flat_unique,~,group_flat_unique_idx(group_nonan)] = unique(fliplr(group_flat(group_nonan,:)),'rows');
+[groups_output,~,group_flat_unique_idx(group_nonan)] = unique(fliplr(group_flat(group_nonan,:)),'rows');
 
 % Loop through groups and do function
 % (apply function to whole data if known dimension argument, otherwise

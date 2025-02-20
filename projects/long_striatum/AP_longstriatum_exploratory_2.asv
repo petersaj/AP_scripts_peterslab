@@ -132,18 +132,21 @@ end
 linkaxes(h.Children,'xy');
 
 
-
+% Define group labels
 group_labels = [unit_rec_idx];
 split_labels = [unit_ld,unit_kidx];
+
+% Run grouping: first the mean (or whatever function you do to do this
+% analysis), then length (
 [group_n,groups] = ap.nestgroupfun({@mean,@length}, ...
     unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
 figure; hold on;
 h = arrayfun(@(x) plot(groups(groups(:,2) == x,1),group_n(groups(:,2) == x)),unique(groups(:,2)));
-legend(h,string(num2cell(unique(groups(:,2)))));
+legend(h,append('Kmeans cluster ',string(num2cell(unique(groups(:,2))))),'location','nw');
 
 xlabel('Learned day');
-ylabel('Nume
+ylabel('Number of recordings');
 
 
 

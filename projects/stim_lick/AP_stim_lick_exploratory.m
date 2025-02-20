@@ -241,50 +241,101 @@ stim_center_times = nan(size(stim_x));
 stim_center_times(stim_x == 90) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == 90));
 stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+1;
 
-use_trials = find(stim_x == 90);
-
-[lick_psth,lick_raster,lick_t] = ap.psth(lick_times,stim_center_times(use_trials),...
-    'window',[-7,10],'bin_size',0.01,'smoothing',20);
-
-figure('name',sprintf('%s %s',animal,rec_day));
-h = tiledlayout(4,1);
-
-nexttile(1)
-plot(lick_t,lick_psth,'k');
-xline(0,'color',[0.7,0.7,0]);
-
-nexttile([3,1]);
-
 % Trial params
 trial_static_stim_time = vertcat(trial_events.values(1:n_trials).TrialStimStaticTime);
 trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence);
 
-% Sort by: 
-% trial order 
-sort_idx = 1:length(use_trials);
-%
-% stim staix] = sort(trial_static_stim_time(use_trials));
-% 
-% % reward time
-% [~,sort_idx] = sort(reward_times(use_trials) - stimOn_times(use_trials));
-%
-% % quiescence time
-% [~,sort_idx] = sort(trial_quiescence_time(use_trials));
+% Plot licks aligned to stim onset / (would-be) center
+figure('name',sprintf('%s %s',animal,rec_day));
+h = tiledlayout(4,2,'TileIndexing','ColumnMajor');
 
+for curr_align = 1:2
+    switch curr_align
+        case 1
+            plot_align = stimOn_times;
+        case 2
+            plot_align = stim_center_times;
+    end
+    [lick_psth_r,lick_raster_r,lick_t] = ap.psth(lick_times,plot_align(stim_x == 90),...
+        'window',[-7,10],'bin_size',0.01,'smoothing',20);
+    [lick_psth_l,lick_raster_l] = ap.psth(lick_times,plot_align(stim_x == -90),...
+        'window',[-7,10],'bin_size',0.01,'smoothing',20);
 
-[lick_trial,lick_t_raster_idx] = find(lick_raster(sort_idx,:));
-lick_t_raster = lick_t(lick_t_raster_idx);
+    nexttile(h,tilenum(h,1,curr_align)); hold on;
+    plot(lick_t,lick_psth_r,'r');
+    plot(lick_t,lick_psth_l,'b');
+    xline(0,'color',[0.7,0.7,0]);
 
-plot(lick_t_raster,lick_trial,'.k');
-hold on; set(gca,'YDir','reverse');
-plot(-trial_quiescence_time(use_trials(sort_idx)),1:length(use_trials),'m')
-xline(0,'color',[0.7,0.7,0]);
+    nexttile(h,tilenum(h,2,curr_align),[3,1]); hold on;
 
-% plot(stim_move_times(use_trials(sort_idx))-stimOn_times(use_trials(sort_idx)),1:length(use_trials),'color',[0,0.8,0])
-% plot(stim_center_times(use_trials(sort_idx))-stimOn_times(use_trials(sort_idx)),1:length(use_trials),'r')
-% plot(reward_times(sort_idx)-stimOn_times(use_trials(sort_idx)),1:length(use_trials),'c')
+    [lick_trial_r,lick_t_raster_r_idx] = find(lick_raster_r);
+    [lick_trial_l,lick_t_raster_l_idx] = find(lick_raster_l);
+
+    lick_t_raster_r = lick_t(lick_t_raster_r_idx);
+    lick_t_raster_l = lick_t(lick_t_raster_l_idx);
+
+    plot(lick_t_raster_r,lick_trial_r,'.r');
+    plot(lick_t_raster_l,lick_trial_l+size(lick_raster_r,1),'.b');
+    hold on; set(gca,'YDir','reverse');
+    xline(0,'color',[0.7,0.7,0]);
+    axis tight
+
+end
 
 linkaxes(h.Children,'x');
+axis tight
+
+%% Task stim kernel
+
+n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
+
+stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+
+use_pd_times = sum((stim_x==-90)*1 + (stim_x==90)*2);
+    
+stim_pd_on_grouped = mat2cell(photodiode_on_times(1:use_pd_times),(stim_x==-90)*1 + (stim_x==90)*2);
+stim_pd_off_grouped = mat2cell(photodiode_off_times(1:use_pd_times),(stim_x==-90)*1 + (stim_x==90)*2);
+
+% 2 PD ups for right (on, move), 1 for left (on)
+stimOn_times = cellfun(@(x) x(1), stim_pd_on_grouped);
+
+stim_move_times = nan(size(stim_x));
+stim_move_times(stim_x == 90) = cellfun(@(x) x(1), stim_pd_off_grouped(stim_x == 90));
+
+% (stim center times, or would-be for -90 stim)
+stim_center_times = nan(size(stim_x));
+stim_center_times(stim_x == 90) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == 90));
+stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+1;
+
+
+
+time_bins = [wf_t;wf_t(end)+1/wf_framerate];
+
+task_events = zeros(0,length(time_bins)-1);
+task_events(end+1,:) = histcounts(stimOn_times(stim_x == 90),time_bins);
+task_events(end+1,:) = histcounts(stim_center_times(stim_x == 90),time_bins);
+task_events(end+1,:) = histcounts(stim_move_times(stim_x == 90),time_bins);
+task_events(end+1,:) = histcounts(stimOn_times(stim_x == -90),time_bins);
+
+n_components = 200;
+
+frame_shifts = -5:20;
+lambda = 20;
+cv_fold = 3;
+
+skip_t = 60; % seconds start/end to skip for artifacts
+skip_frames = round(skip_t*wf_framerate);
+[kernels,predicted_signals,explained_var] = ...
+    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
+    task_events(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv_fold);
+
+ap.imscroll(plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels));
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image
+
+
+
 
 
 

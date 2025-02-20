@@ -484,6 +484,7 @@ a_day = cell2mat(cellfun(@(x) ...
     workflow_animal,'uni',false));
 
 % Get and plot learned days
+% (!! something wrong - one animal has 17 days)
 v_learned_day = cellfun(@(x,p) ...
      sum(cellfun(@any,regexp( ...
      x(1:find(cellfun(@any,regexp(x,vis_workflow)) & p < 0.05,1)),vis_workflow))), ...
@@ -495,16 +496,16 @@ a_learned_day = cellfun(@(x,p) ...
      workflow_animal,{bhv.rxn_stat_p}');
  
 order_grp = sum([va_animals,av_animals].*[1,2],2).*AP_nanout(sum([va_animals,av_animals],2) == 0);
-v_ld_avg = ap.groupfun(@median,v_learned_day,order_grp);
+v_ld_avg = ap.groupfun(@mean,v_learned_day,order_grp);
 v_ld_sem = ap.groupfun(@AP_sem,v_learned_day,order_grp);
 
-a_ld_avg = ap.groupfun(@median,a_learned_day,order_grp);
+a_ld_avg = ap.groupfun(@mean,a_learned_day,order_grp);
 a_ld_sem = ap.groupfun(@AP_sem,a_learned_day,order_grp);
 
 figure; hold on
 errorbar(categorical({'Vis','Aud'}),[v_ld_avg,a_ld_avg]',[v_ld_sem,a_ld_sem]');
 legend({'VA','AV'});
-ylabel('Med. days to learn');
+ylabel('Days to learn');
 
 %%%% to do: plot
 figure; tiledlayout(1,2);
