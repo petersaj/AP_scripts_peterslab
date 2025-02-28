@@ -42,7 +42,7 @@ depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); .
 depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
 
 spike_binning_t = 0.1; % seconds
-spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spike_times_timelite);
+spike_binning_t_edges = nanmin(spike_times_openephys):spike_binning_t:nanmax(spike_times_openephys);
 
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
 for curr_depth = 1:size(depth_corr_bins,2)
@@ -50,7 +50,7 @@ for curr_depth = 1:size(depth_corr_bins,2)
         find(template_depths >= depth_corr_bins(1,curr_depth) & ...
         template_depths < depth_corr_bins(2,curr_depth));
 
-    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_openephys( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
 end
 

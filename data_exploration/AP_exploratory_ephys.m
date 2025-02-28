@@ -517,7 +517,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % even, click, define
+mua_method = 'click'; % even, click, define
 
 switch mua_method
 
@@ -626,24 +626,14 @@ end
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
 
-% use_svs = 1:200;
-% kernel_t = [-0.1,0.1];
-% kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-% lambda = 10;
-% zs = [false,false];
-% cvfold = 5;
-% return_constant = false;
-% use_constant = true;
-
-use_svs = 1:500;
-kernel_t = [0,0];
+use_svs = 1:200;
+kernel_t = [-1,1];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 5;
+lambda = 100;
 zs = [false,false];
-cvfold = 1;
+cvfold = 5;
 return_constant = false;
 use_constant = true;
-
 
 fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
 

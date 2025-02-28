@@ -1,5 +1,5 @@
 
-%% Load AM-packaged data, do K-means on maps
+%% Load AM-packaged data
 
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 
@@ -8,6 +8,9 @@ load(fullfile(data_path,'ctx_maps_to_str'));
 % load(fullfile(data_path,'ctx_wf'));
 load(fullfile(data_path,'ephys'));
 U_master = plab.wf.load_master_U;
+
+
+%% K-means on maps 
 
 % K-means cluster maps
 % (experiment 2 is bad - AM will re-run) 
@@ -20,33 +23,124 @@ n_k = 4;
     'Distance','Correlation','Replicates',5);
 kmeans_map = reshape(kmeans_map',size(U_master,1),size(U_master,2),[]);
 
+kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
+    all_ctx_maps_to_str.cortex_kernel_px));
+
+
 figure;
 imagesc(reshape(permute(kmeans_map,[1,3,2]),[],size(kmeans_map,2)))
 axis image off
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 
+
+figure; hold on; axis image; set(gca,'ydir','reverse')
+max_map = imgaussfilt(maps_cat,10).* repmat(round(linspace(1,0,size(maps_cat,2))),size(maps_cat,1),1);
+[~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
+[kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
+for plot_kidx = 1:n_k
+    plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x');
+end
+ap.wf_draw('ccf','k');
+legend(string(1:n_k))
+
+
+
+%% Map group by max within ROI
+
+maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
+
+% Plot sum of maps
+figure;imagesc(sum(max(0,maps_cat),3));axis image
+colormap(ap.colormap('WK'));
+ap.wf_draw('ccf','r');
+
+% Overlay max weight location
+max_map = imgaussfilt(maps_cat,10).* repmat(round(linspace(1,0,size(maps_cat,2))),size(maps_cat,1),1);
+[~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
+[kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
+hold on;
+plot(squeeze(kernel_max_x),squeeze(kernel_max_y),'.b');
+
+% Draw ROIs (manually do for N ROIs)
+roi = images.roi.Polygon;roi(:) = [];
+
+roi(end+1) = drawpolygon;
+
+roi_masks = arrayfun(@(x) roi(x).createMask,1:length(roi),'uni',false);
+
+% Label masks with maxima within ROIs
+roi_maps = cell2mat(cellfun(@(x) squeeze(ismember(sub2ind(size(maps_cat,[1,2]), ...
+    kernel_max_y,kernel_max_x),find(x))),roi_masks,'uni',false));
+
+[~,roi_maps_idx] = max(roi_maps,[],2);
+kidx = nan(size(roi_maps_idx));
+kidx(any(roi_maps,2)) = roi_maps_idx(any(roi_maps,2));
+
+n_k = size(roi_maps,2);
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
 
-%% (testing: map group by ROI)
+% Plot average maps and maxima
+figure; colormap(ap.colormap('KWG'));
+h = tiledlayout(n_k,1,'tilespacing','none');
+for curr_k = 1:n_k
+    nexttile;
+    imagesc(mean(maps_cat(:,:,kidx==curr_k),3));
+    axis image off
+    clim(max(abs(clim)).*[-1,1]); ap.wf_draw('ccf','r');
+end
+
+figure; hold on; axis image; set(gca,'ydir','reverse')
+max_map = imgaussfilt(maps_cat,10).* repmat(round(linspace(1,0,size(maps_cat,2))),size(maps_cat,1),1);
+[~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
+[kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
+plot(squeeze(kernel_max_x(isnan(kidx))),squeeze(kernel_max_y(isnan(kidx))),'x','color',[0.5,0.5,0.5]);
+for plot_kidx = 1:n_k
+    plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x');
+end
+ap.wf_draw('ccf','k');
+legend(["Excluded",string(1:n_k)])
 
 
-% try: instead of thresholding, get maps with largest within ROI?
+%% Map weights by visual cells
 
-ap.imscroll(sum(maps_cat.^2,3));axis image
 
-vis = (roi.mask(:)'*reshape(maps_cat,[],size(maps_cat,3)))./sum(roi.mask(:));
+% Concatenate unit data (responsive, single, psth, mean)
+unit_resp_p_thresh = 0.05;
+unit_resp_cat = cell2mat(cellfun(@(x) cell2mat(x)', ...
+    horzcat(ephys.unit_resp_p_value{:})','uni',false)) < unit_resp_p_thresh;
 
-mpfc = (roi.mask(:)'*reshape(maps_cat,[],size(maps_cat,3)))./sum(roi.mask(:));
+ephys.unit_depth_group
 
-kidx = zeros(size(maps_cat,3),1);
-kidx(vis>0.015 & mpfc<0.015) = 1;
-kidx(vis<0.015 & mpfc>0.015) = 2;
 
-n_k = 3;
-kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
-    all_ctx_maps_to_str.cortex_kernel_px));
+
+unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ...
+    ephys.unit_depth_group,kidx_rec,'uni',false));
+
+use_stim = 3;
+depth_frac_resp = cell2mat(cellfun(@(p,depth) ap.groupfun(@mean,+(p<0.05),depth), ...
+    cellfun(@(x) cell2mat(x{use_stim})',ephys.unit_resp_p_value,'ErrorHandler',@(varargin) [],'uni',false), ...
+    ephys.unit_depth_group,'uni',false));
+
+figure;
+nexttile;
+imagesc(sum(maps_cat,3));
+title('All');
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+ap.wf_draw('ccf','k');
+
+nexttile;
+% imagesc(sum(maps_cat.*permute(depth_frac_resp,[2,3,1]),3));
+imagesc(mean(maps_cat(:,:,depth_frac_resp > 0.05),3));
+title('Weighted');
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+ap.wf_draw('ccf','k');
+
 
 
 %% Unit analysis
@@ -142,7 +236,7 @@ day_colormap = day_colormap_sym(ismember( ...
 
 figure; 
 h = tiledlayout(n_k,length(plot_days),'TileSpacing','none');
-for curr_k = 1:n_k
+for curr_k = unique(groups(:,2))'
     for curr_day = plot_days
         nexttile; axis off;
         ap.errorfill([], ...
@@ -154,7 +248,7 @@ linkaxes(h.Children,'xy');
 
 figure; 
 h = tiledlayout(n_k,1);
-for curr_k = 1:n_k
+for curr_k = unique(groups(:,2))'
     nexttile; set(gca,'ColorOrder',day_colormap);
     arrayfun(@(x) ...
         ap.errorfill([], ...
