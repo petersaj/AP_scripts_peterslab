@@ -483,7 +483,7 @@ a_day = cell2mat(cellfun(@(x) ...
     (cumsum(cellfun(@any,regexp(x,aud_workflow))).*AP_nanout(~cellfun(@any,regexp(x,aud_workflow))))', ...
     workflow_animal,'uni',false));
 
-% Get and plot learned days
+% Get and plot number of days to learning
 v_learned_day = cellfun(@(x,p) ...
      sum(cellfun(@any,regexp( ...
      x(1:find(cellfun(@any,regexp(x,vis_workflow)) & p < 0.05,1)),vis_workflow))), ...
@@ -494,19 +494,31 @@ a_learned_day = cellfun(@(x,p) ...
      x(1:find(cellfun(@any,regexp(x,aud_workflow)) & p < 0.05,1)),aud_workflow))), ...
      workflow_animal,{bhv.rxn_stat_p}');
  
-order_grp = sum([va_animals,av_animals].*[1,2],2).*AP_nanout(sum([va_animals,av_animals],2) == 0);
-v_ld_avg = ap.groupfun(@median,v_learned_day,order_grp);
-v_ld_sem = ap.groupfun(@AP_sem,v_learned_day,order_grp);
+order_grp = sum([va_animals,av_animals].*[1:2],2).*AP_nanout(sum([va_animals,av_animals],2) == 0);
+va_ld_avg = [ap.groupfun(@mean,v_learned_day,order_grp), ...
+    ap.groupfun(@mean,a_learned_day,order_grp)];
+va_ld_sem = [ap.groupfun(@AP_sem,v_learned_day,order_grp), ...
+    ap.groupfun(@AP_sem,a_learned_day,order_grp)];
 
-a_ld_avg = ap.groupfun(@median,a_learned_day,order_grp);
-a_ld_sem = ap.groupfun(@AP_sem,a_learned_day,order_grp);
-
-figure; hold on
-errorbar(categorical({'Vis','Aud'}),[v_ld_avg,a_ld_avg]',[v_ld_sem,a_ld_sem]');
+% (plot modality by group)
+figure; h = tiledlayout(1,2);
+nexttile;
+cats = categorical({'Vis','Aud'});
+cats = reordercats(cats,cellstr(cats));
+errorbar(cats,va_ld_avg',va_ld_sem','linewidth',2);
 legend({'VA','AV'});
 ylabel('Med. days to learn');
 
-%%%% to do: plot
+% (plot modality order by group)
+nexttile;
+cats = categorical({'Modality 1','Modality 2'});
+cats = reordercats(cats,cellstr(cats));
+errorbar(cats,[va_ld_avg(1,:)',fliplr(va_ld_avg(2,:))'], ...
+    [va_ld_sem(1,:)',fliplr(va_ld_sem(2,:))'],'linewidth',2);
+legend({'VA','AV'});
+ylabel('Med. days to learn');
+
+% Plot reaction time stat
 figure; tiledlayout(1,2);
 plot_bhv = rxn_stat_idx_cat;
 
@@ -636,13 +648,12 @@ av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_anima
 % task_workflow = 'stim_wheel_right_stage\d$';
 task_workflow = 'stim_wheel_right_stage\d_audio*';
 
-use_rec = va_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
 
 n_components = size(stim_V_cat{1},1);
 task_kernel = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(3,stim_V_cat{use_rec}),3));
 
 ap.imscroll(task_kernel);
-% ap.imscroll(v-imgaussfilt(v,15))
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));

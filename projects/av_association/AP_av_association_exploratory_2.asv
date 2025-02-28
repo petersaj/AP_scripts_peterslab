@@ -483,8 +483,7 @@ a_day = cell2mat(cellfun(@(x) ...
     (cumsum(cellfun(@any,regexp(x,aud_workflow))).*AP_nanout(~cellfun(@any,regexp(x,aud_workflow))))', ...
     workflow_animal,'uni',false));
 
-% Get and plot learned days
-% (!! something wrong - one animal has 17 days)
+% Get and plot number of days to learning
 v_learned_day = cellfun(@(x,p) ...
      sum(cellfun(@any,regexp( ...
      x(1:find(cellfun(@any,regexp(x,vis_workflow)) & p < 0.05,1)),vis_workflow))), ...
@@ -495,19 +494,29 @@ a_learned_day = cellfun(@(x,p) ...
      x(1:find(cellfun(@any,regexp(x,aud_workflow)) & p < 0.05,1)),aud_workflow))), ...
      workflow_animal,{bhv.rxn_stat_p}');
  
-order_grp = sum([va_animals,av_animals].*[1,2],2).*AP_nanout(sum([va_animals,av_animals],2) == 0);
+order_grp = sum([va_animals,av_animals].*[1:2],2).*AP_nanout(sum([va_animals,av_animals],2) == 0);
 v_ld_avg = ap.groupfun(@mean,v_learned_day,order_grp);
 v_ld_sem = ap.groupfun(@AP_sem,v_learned_day,order_grp);
 
 a_ld_avg = ap.groupfun(@mean,a_learned_day,order_grp);
 a_ld_sem = ap.groupfun(@AP_sem,a_learned_day,order_grp);
 
-figure; hold on
-errorbar(categorical({'Vis','Aud'}),[v_ld_avg,a_ld_avg]',[v_ld_sem,a_ld_sem]');
+figure; h = tiledlayout(1,2);
+nexttile;
+cats = categorical({'Vis','Aud'});
+cats = reordercats(cats,cellstr(cats));
+errorbar(cats,[v_ld_avg,a_ld_avg]',[v_ld_sem,a_ld_sem]','linewidth',2);
 legend({'VA','AV'});
-ylabel('Days to learn');
+ylabel('Med. days to learn');
 
-%%%% to do: plot
+nexttile;
+cats = categorical({'Modality 1','Modality 2'});
+cats = reordercats(cats,cellstr(cats));
+errorbar(cats,[v_ld_avg,flipud(a_ld_avg)]',[v_ld_sem,flipud(a_ld_sem)]','linewidth',2);
+legend({'VA','AV'});
+ylabel('Med. days to learn');
+
+% Plot reaction time stat
 figure; tiledlayout(1,2);
 plot_bhv = rxn_stat_idx_cat;
 

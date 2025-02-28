@@ -69,9 +69,9 @@ elseif contains(bonsai_workflow,'visual')
     else
         stim_x = repmat(90,length(stimOn_times),1);
     end
-    align_times = stimOn_times;
-    align_category = stim_x;
-    baseline_times = stimOn_times;
+    align_times = stimOn_times(1:n_trials);
+    align_category = stim_x(1:n_trials);
+    baseline_times = align_times;
 
 %     % (new: just one stim)
 %     align_times = stimOn_times;

@@ -25,7 +25,7 @@ function [grouped_data,groups_output] = groupfun(group_function,data,varargin)
 % Check that there's a group variable for each dimension
 groups = varargin;
 
-if sum(size(data)~=1) ~= 1 && length(groups) ~= ndims(data)
+if sum(size(data)>1) > 1 && length(groups) ~= ndims(data)
     % If data has >1 non-singleton dimension, fill in empty groups for
     % number of dimensions (i.e. if no grouping specified for dimension,
     % don't group).
@@ -40,6 +40,11 @@ elseif sum(size(data)~=1) == 1 && find(~cellfun(@isempty,groups)) == 1
         groups(setdiff(1:length(groups),data_orientation)) = {[]};
     end
 
+elseif isempty(data)
+    % If no data entered, return empty outputs
+    grouped_data = [];
+    groups_output = [];
+    return
 end
 
 groups_dims = find(~cellfun(@isempty,groups));
@@ -71,7 +76,7 @@ group_nonan = ~any(isnan(group_flat),2);
 % apply function to data columns separately but slower)
 grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(data));
 switch func2str(group_function)
-    case {'mean','nanmean','median','nanmedian'}
+    case {'mean','nanmean','median','nanmedian','sum','nansum'}
         % Functions with dimension as argument 2
         for curr_grp = 1:max(group_flat_unique_idx)
             grouped_data(curr_grp,:) = ...

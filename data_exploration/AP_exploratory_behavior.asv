@@ -14,11 +14,11 @@
 % stim_x = vertcat(trial_events.values.StimFrequence);
 % use_align = stimOn_times(stim_x == 8000);
 
-% stim_x = vertcat(trial_events.values.TrialStimX);
-% use_align = stimOn_times(stim_x == 90);
+stim_x = vertcat(trial_events.values.TrialStimX);
+use_align = stimOn_times(stim_x == 90);
 
-stim_x = vertcat(trial_events.values.TrialX);
-use_align = stim_center_times(stim_x(1:n_trials) == 90);
+% stim_x = vertcat(trial_events.values.TrialX);
+% use_align = stim_center_times(stim_x(1:n_trials) == 90);
 
 % use_align = stimOn_times;
 
@@ -121,7 +121,8 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 %% Align wheel to event
 
 % align_times = photodiode_times(1:2:end);
-align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
+% align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
+align_times = stimOn_times(stim_x == 90);
 
 
 surround_time = [-10,10];
