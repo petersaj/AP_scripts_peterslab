@@ -35,7 +35,7 @@ colormap(ap.colormap('PWG'));
 
 
 figure; hold on; axis image; set(gca,'ydir','reverse')
-max_map = imgaussfilt(maps_cat,10).* repmat(round(linspace(1,0,size(maps_cat,2))),size(maps_cat,1),1);
+max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
 [~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
 [kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
 for plot_kidx = 1:n_k
@@ -48,7 +48,8 @@ legend(string(1:n_k))
 
 %% Map group by max within ROI
 
-maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
+maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}).^2;
+maps_cat = maps_cat - imgaussfilt(maps_cat,15);
 
 % Plot sum of maps
 figure;imagesc(sum(max(0,maps_cat),3));axis image
@@ -56,11 +57,13 @@ colormap(ap.colormap('WK'));
 ap.wf_draw('ccf','r');
 
 % Overlay max weight location
-max_map = imgaussfilt(maps_cat,10).* repmat(round(linspace(1,0,size(maps_cat,2))),size(maps_cat,1),1);
+% (exclude right half of image)
+max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
 [~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
 [kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
 hold on;
 plot(squeeze(kernel_max_x),squeeze(kernel_max_y),'.b');
+
 
 % Draw ROIs (manually do for N ROIs)
 roi = images.roi.Polygon;roi(:) = [];
@@ -82,11 +85,22 @@ kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
 
 % Plot average maps and maxima
+maps_cat_mean = ap.groupfun(@mean,maps_cat,[],[],kidx);
+
+maps_com = sum(maps_cat_mean.*permute(1:n_k,[1,3,2]),3)./sum(maps_cat_mean,3);
+figure;
+im_h = imagesc(maps_com);
+ap.wf_draw('ccf','k');
+set(im_h,'AlphaData',mat2gray(max(maps_cat_mean,[],3), ...
+    [0,double(prctile(reshape(max(maps_cat_mean,[],3),[],1),95))]));
+colormap(jet); clim([1,n_k]);
+axis image off;
+
 figure; colormap(ap.colormap('KWG'));
 h = tiledlayout(n_k,1,'tilespacing','none');
 for curr_k = 1:n_k
     nexttile;
-    imagesc(mean(maps_cat(:,:,kidx==curr_k),3));
+    imagesc(maps_cat_mean(:,:,curr_k));
     axis image off
     clim(max(abs(clim)).*[-1,1]); ap.wf_draw('ccf','r');
 end
@@ -101,45 +115,6 @@ for plot_kidx = 1:n_k
 end
 ap.wf_draw('ccf','k');
 legend(["Excluded",string(1:n_k)])
-
-
-%% Map weights by visual cells
-
-
-% Concatenate unit data (responsive, single, psth, mean)
-unit_resp_p_thresh = 0.05;
-unit_resp_cat = cell2mat(cellfun(@(x) cell2mat(x)', ...
-    horzcat(ephys.unit_resp_p_value{:})','uni',false)) < unit_resp_p_thresh;
-
-ephys.unit_depth_group
-
-
-
-unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ...
-    ephys.unit_depth_group,kidx_rec,'uni',false));
-
-use_stim = 3;
-depth_frac_resp = cell2mat(cellfun(@(p,depth) ap.groupfun(@mean,+(p<0.05),depth), ...
-    cellfun(@(x) cell2mat(x{use_stim})',ephys.unit_resp_p_value,'ErrorHandler',@(varargin) [],'uni',false), ...
-    ephys.unit_depth_group,'uni',false));
-
-figure;
-nexttile;
-imagesc(sum(maps_cat,3));
-title('All');
-axis image;
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-ap.wf_draw('ccf','k');
-
-nexttile;
-% imagesc(sum(maps_cat.*permute(depth_frac_resp,[2,3,1]),3));
-imagesc(mean(maps_cat(:,:,depth_frac_resp > 0.05),3));
-title('Weighted');
-axis image;
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-ap.wf_draw('ccf','k');
 
 
 
@@ -183,9 +158,10 @@ group_labels = [unit_rec_idx];
 split_labels = [unit_ld,unit_kidx];
 
 % (frac responsive cells)
-curr_stim = 2;
+curr_stim = 3;
 use_units = true(size(unit_single_cat));
 % use_units = unit_single_cat;
+% use_units = logical(vertcat(ephys.str_msn_idx{:})) & unit_single_cat;
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
@@ -197,13 +173,13 @@ figure; hold on;
 h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
 xline(0,'k');
 legend(h,string(num2cell(unique(groups(:,2)))));
-
+ylabel('Frac responsive cells')
 
 % (response amplitude)
 curr_stim = 3;
-use_units = true(size(unit_kidx));
+% use_units = true(size(unit_kidx));
 % use_units = unit_single_cat;
-% use_units = unit_resp_cat(:,3);
+use_units = unit_resp_cat(:,3);
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     unit_mean_post_stim_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
@@ -214,13 +190,15 @@ unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
 figure; hold on;
 h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
 legend(h,string(num2cell(unique(groups(:,2)))));
+ylabel('Amplitude responsive cells')
 
 
 % (psth: average of single units)
 curr_stim = 3;
-use_units = true(size(unit_kidx));
+% use_units = true(size(unit_kidx));
 % use_units = unit_single_cat;
 % use_units = unit_resp_cat(:,3);
+use_units = logical(vertcat(ephys.str_msn_idx{:}));
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
@@ -258,8 +236,23 @@ for curr_k = unique(groups(:,2))'
 end
 linkaxes(h.Children,'xy');
 
+%% Plot TAN heatmap
+
+plot_kidx = [1,3];
+
+figure;
+colormap(ap.colormap('BWR'));
+for curr_ld = -3:3
+    nexttile;
+    imagesc(unit_psth_cat{3}(ismember(unit_kidx,plot_kidx) & unit_ld == curr_ld & ...
+        unit_single_cat & vertcat(ephys.str_tan_idx{:}),:));
+    clim(max(abs(clim)).*[-1,1]);
+end
+
 
 %% MUA
+
+animal_groupfun = @mean;
 
 [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
     ephys.binned_spikes_stim_align,kidx_rec,'uni',false);
@@ -289,11 +282,11 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
 stim_grp = cell2mat(cellfun(@(x) reshape(x,[],1),stim_grp_sq,'uni',false));
 kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
 
-[psth_avg,psth_grp] = ap.nestgroupfun({@mean,@mean},psth_norm_cat_smooth,animal_grp, ...
+[psth_avg,psth_grp] = ap.nestgroupfun({@mean,animal_groupfun},psth_norm_cat_smooth,animal_grp, ...
     [ld_grp,stim_grp,kidx_grp]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
-psth_max = ap.nestgroupfun({@mean,@mean}, ...
+psth_max = ap.nestgroupfun({@mean,animal_groupfun}, ...
     max(psth_norm_cat_smooth(:,max_t),[],2),animal_grp, ...
     [ld_grp,stim_grp,kidx_grp]);
 psth_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...

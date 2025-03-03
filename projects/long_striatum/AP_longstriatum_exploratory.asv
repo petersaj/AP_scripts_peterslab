@@ -2607,7 +2607,7 @@ xline(expl_var_cutoff,'r','Use maps cutoff');
 
 use_maps = ctx_expl_var_cat > expl_var_cutoff;
 
-n_k = 3;
+n_k = 4;
 kidx = nan(size(ctx_map_cat,3),1);
 [kidx(use_maps),kmeans_map] = kmeans(reshape(ctx_map_cat(:,:,use_maps), ...
     [],sum(use_maps))',n_k,'distance','correlation','replicates',5);
@@ -2648,7 +2648,7 @@ end
 % Plot MUA by k-means cluster
 use_align = 3;
 use_t = [500,700];
-plot_ld = -2:2;
+plot_ld = -3:2;
 figure;h = tiledlayout(2,n_k,'tileindexing','columnmajor');
 for curr_kidx = 1:n_k
 
@@ -3130,7 +3130,7 @@ px_ldavg = plab.wf.svd2px(U_master,V_ldavg);
 
 % Plot widefield by learned day
 plot_ld = -3:3;
-plot_align = 3;
+plot_align = 2;
 ap.imscroll(px_ldavg(:,:,:,ismember(ld_unique,plot_ld),plot_align));
 axis image;
 clim(max(abs(clim)).*[-1,1]);
@@ -3150,7 +3150,7 @@ plot(roi.trace','linewidth',2);
 colororder(ha,ap.colormap('BKR',size(roi.trace,1)));
 
 use_frames = 15:30;
-roi_max = squeeze(max(ap.wf_roi(U_master,permute(V_cat(:,use_frames,3,:),[1,2,4,3]),[],[],roi.mask),[],2));
+roi_max = squeeze(max(ap.wf_roi(U_master,permute(V_cat(:,use_frames,plot_align,:),[1,2,4,3]),[],[],roi.mask),[],2));
 
 use_grps = ismember(V_animal_day_idx(:,2),plot_ld);
 roi_max_avg = ap.groupfun(@nanmedian,roi_max,V_animal_day_idx(:,2),[]);

@@ -363,7 +363,7 @@ end
 
 linkaxes(h.Children,'x');
 
-%% Task kernel
+%% Task kernel (move task)
 
 rewarded_x = trial_events.parameters.RewardedX;
 
@@ -413,6 +413,40 @@ colormap(ap.colormap('PWG'));
 axis image;
 
 
+%% Task kernel (static task)
+
+rewarded_x = trial_events.parameters.RewardedX;
+
+n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
+
+stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+stimOn_times = photodiode_on_times(1:n_trials);
+stimOff_times = photodiode_off_times(1:n_trials);
+
+time_bins = [wf_t;wf_t(end)+1/wf_framerate];
+
+task_events = zeros(0,length(time_bins)-1);
+task_events(end+1,:) = histcounts(stimOn_times(stim_x == rewarded_x),time_bins);
+task_events(end+1,:) = histcounts(stimOn_times(stim_x == -90),time_bins);
+
+n_components = 200;
+
+frame_shifts = -5:20;
+lambda = 20;
+cv_fold = 3;
+
+skip_t = 60; % seconds start/end to skip for artifacts
+skip_frames = round(skip_t*wf_framerate);
+[kernels,predicted_signals,explained_var] = ...
+    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
+    task_events(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv_fold);
+
+ap.imscroll(plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels),frame_shifts);
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image;
+
+
 %% Passive kernel
 
 switch bonsai_workflow
@@ -430,9 +464,9 @@ stim_regressors = cell2mat(arrayfun(@(x) ...
 
 n_components = 500;
 
-frame_shifts = 0:30;
+frame_shifts = -5:20;
 lambda = 20;
-cv = 5;
+cv = 3;
 
 skip_t = 3; % seconds start/end to skip for artifacts
 skip_frames = round(skip_t*wf_framerate);
