@@ -11,10 +11,9 @@ end
 % Grab current figure
 curr_fig = gcf;
 
-% Set renderer as painters for EPS
-if strcmp(format_type,'eps')
-    set(gcf,'Renderer','painters');
-end
+% Set renderer as painters
+% (default is OpenGL, which can copy as image to PPT, or weird artifacts as EPS)
+set(gcf,'Renderer','painters');
 
 % Set figure background white
 curr_fig.Color = 'w';

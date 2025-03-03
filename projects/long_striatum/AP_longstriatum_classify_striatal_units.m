@@ -7,6 +7,7 @@ if ~exist('striatum_depth','var')
 end
 
 % Only use quality-controlled "single units", within striatum
+% (REMOVED FROM BELOW - this can be done at later step)
 striatal_single_units = ...
     ismember(template_qc_labels,{'singleunit'}) & ...
     ~isnan(discretize(template_depths,striatum_depth));
@@ -53,11 +54,11 @@ spike_rate = accumarray(spike_templates,1)/diff(prctile(spike_times_timelite,[0,
 % (NOTE: Julie uses acg_steadystate of 40, seemed better here for 20)
 striatum_celltypes = struct;
 
-striatum_celltypes.msn = striatal_single_units & ... % striatal single unit
+striatum_celltypes.msn = ... % striatal_single_units & ... % striatal single unit
     waveform_duration_peaktrough >= 400 & ... wide waveform
     acg_steadystate < 20; % fast time to steady state
 
-striatum_celltypes.fsi = striatal_single_units & ... % striatal single unit
+striatum_celltypes.fsi = ... % striatal_single_units & ... % striatal single unit
     waveform_duration_peaktrough < 400 & ... % narrow waveform
     acg_steadystate < 20; % slow time to steady state
 
@@ -67,7 +68,7 @@ striatum_celltypes.fsi = striatal_single_units & ... % striatal single unit
 %     acg_steadystate >= 20; % slow time to steady state
 
 % !! NOT USING WAVEFORM DURATION HERE - some clear TANs with short wfs
-striatum_celltypes.tan = striatal_single_units & ... % striatal single unit
+striatum_celltypes.tan = ... % striatal_single_units & ... % striatal single unit
     spike_rate >= 4 & spike_rate <= 16 & ... % steady firing rate
     acg_steadystate >= 20; % slow time to steady state
 

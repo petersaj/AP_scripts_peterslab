@@ -26,20 +26,23 @@ kmeans_map = reshape(kmeans_map',size(U_master,1),size(U_master,2),[]);
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
 
-
 figure;
-imagesc(reshape(permute(kmeans_map,[1,3,2]),[],size(kmeans_map,2)))
-axis image off
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-
+h = tiledlayout(n_k,1,'tilespacing','none');
+for curr_k = 1:n_k
+    nexttile;
+    imagesc(kmeans_map(:,:,curr_k));
+    axis image off
+    clim(max(abs(clim)).*[-1,1]);
+    colormap(ap.colormap('PWG'));
+    ap.wf_draw('ccf','k');
+end
 
 figure; hold on; axis image; set(gca,'ydir','reverse')
 max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
 [~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
 [kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
 for plot_kidx = 1:n_k
-    plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x');
+    plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x','linewidth',2.5);
 end
 ap.wf_draw('ccf','k');
 legend(string(1:n_k))
@@ -48,21 +51,27 @@ legend(string(1:n_k))
 
 %% Map group by max within ROI
 
-maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}).^2;
-maps_cat = maps_cat - imgaussfilt(maps_cat,15);
+% maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}).^2;
+% maps_cat = maps_cat - imgaussfilt(maps_cat,15);
+
+maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
+
 
 % Plot sum of maps
-figure;imagesc(sum(max(0,maps_cat),3));axis image
-colormap(ap.colormap('WK'));
-ap.wf_draw('ccf','r');
+figure;
+imagesc(mean(max(0,maps_cat),3));
+colormap(ap.colormap('WG'));
+ap.wf_draw('ccf','k');
+axis image; 
+
 
 % Overlay max weight location
 % (exclude right half of image)
-max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
+max_map = imgaussfilt(maps_cat,5).*round(linspace(1,0,size(maps_cat,2)));
 [~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
 [kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
 hold on;
-plot(squeeze(kernel_max_x),squeeze(kernel_max_y),'.b');
+plot(squeeze(kernel_max_x),squeeze(kernel_max_y),'x','LineWidth',2,'color',[0.5,0.5,0.5]);
 
 
 % Draw ROIs (manually do for N ROIs)
@@ -106,9 +115,6 @@ for curr_k = 1:n_k
 end
 
 figure; hold on; axis image; set(gca,'ydir','reverse')
-max_map = imgaussfilt(maps_cat,10).* repmat(round(linspace(1,0,size(maps_cat,2))),size(maps_cat,1),1);
-[~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
-[kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
 plot(squeeze(kernel_max_x(isnan(kidx))),squeeze(kernel_max_y(isnan(kidx))),'x','color',[0.5,0.5,0.5]);
 for plot_kidx = 1:n_k
     plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x');
@@ -159,9 +165,9 @@ split_labels = [unit_ld,unit_kidx];
 
 % (frac responsive cells)
 curr_stim = 3;
-use_units = true(size(unit_single_cat));
+% use_units = true(size(unit_single_cat));
 % use_units = unit_single_cat;
-% use_units = logical(vertcat(ephys.str_msn_idx{:})) & unit_single_cat;
+use_units = logical(vertcat(ephys.str_fsi_idx{:})); %& unit_single_cat;
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
@@ -169,11 +175,17 @@ use_units = true(size(unit_single_cat));
 unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
     +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
-figure; hold on;
-h = arrayfun(@(x) ap.errorfill(groups(groups(:,2) == x,1),unit_group_mean(groups(:,2) == x,1),unit_group_sem(groups(:,2) == x,1)),unique(groups(:,2)));
-xline(0,'k');
-legend(h,string(num2cell(unique(groups(:,2)))));
-ylabel('Frac responsive cells')
+figure; 
+h = tiledlayout(n_k,1);
+plot_days = -3:2;
+for curr_k = 1:n_k
+    nexttile;
+    plot_data = ismember(groups(:,1),plot_days) & groups(:,2) == curr_k;
+    errorbar(groups(plot_data,1),unit_group_mean(plot_data,1), ...
+        unit_group_sem(plot_data,1),'k','linewidth',2);
+    ylabel('Frac responsive cells')
+end
+linkaxes(h.Children,'xy');
 
 % (response amplitude)
 curr_stim = 3;
@@ -236,23 +248,63 @@ for curr_k = unique(groups(:,2))'
 end
 linkaxes(h.Children,'xy');
 
-%% Plot TAN heatmap
 
-plot_kidx = [1,3];
+%% Plot cell type heatmap
+
+plot_celltype = vertcat(ephys.str_fsi_idx{:});
+plot_kidx = [2,3];
+plot_days = -3:2;
+plot_st
+
+psth_t = -0.5:0.001:1;
+stim_t = psth_t > 0 & psth_t < 0.2;
+basieline_t = psth_t > -0.2 & psth_t < 0;
 
 figure;
-colormap(ap.colormap('BWR'));
-for curr_ld = -3:3
+colormap(ap.colormap('BWR',[],2));
+h = tiledlayout(2,length(plot_days),'TileIndexing','column');
+for curr_ld = plot_days
     nexttile;
-    imagesc(unit_psth_cat{3}(ismember(unit_kidx,plot_kidx) & unit_ld == curr_ld & ...
-        unit_single_cat & vertcat(ephys.str_tan_idx{:}),:));
-    clim(max(abs(clim)).*[-1,1]);
+
+    curr_data = unit_psth_cat{3}(ismember(unit_kidx,plot_kidx) & unit_ld == curr_ld & ...
+        unit_single_cat & plot_celltype,:);
+    [~,sort_idx] = sort(max(curr_data(:,stim_t),[],2),'descend');
+    imagesc(psth_t,[],curr_data(sort_idx,:));
+    clim([-10,10])
+
+    nexttile;
+    curr_data = unit_psth_cat{3}(ismember(unit_kidx,plot_kidx) & unit_ld == curr_ld & ...
+        unit_single_cat & vertcat(ephys.str_tan_idx{:}),:);
+    ap.errorfill(psth_t,mean(curr_data,1),AP_sem(curr_data,1),'k');
 end
+
+linkaxes(h.Children(1:2:end),'xy');
+linkaxes(h.Children(2:2:end),'xy'); 
+
+
+figure;
+colormap(ap.colormap('BWR',[],2));
+h = tiledlayout(2,1,'TileIndexing','column');
+for curr_ld = 0
+    nexttile;
+
+    curr_data = unit_psth_cat{3}(ismember(unit_kidx,plot_kidx) & unit_ld < 0 & ...
+        unit_single_cat & plot_celltype,:);
+    [~,sort_idx] = sort(max(curr_data(:,stim_t),[],2),'descend');
+    imagesc(psth_t,[],curr_data(sort_idx,:));
+    clim([-10,10])
+
+    nexttile;
+    curr_data = unit_psth_cat{3}(ismember(unit_kidx,plot_kidx) & unit_ld <0 & ...
+        unit_single_cat & vertcat(ephys.str_tan_idx{:}),:);
+    ap.errorfill(psth_t,mean(curr_data,1),AP_sem(curr_data,1),'k');
+end
+
 
 
 %% MUA
 
-animal_groupfun = @median;
+animal_groupfun = @mean;
 
 [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
     ephys.binned_spikes_stim_align,kidx_rec,'uni',false);
@@ -284,6 +336,8 @@ kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
 
 [psth_avg,psth_grp] = ap.nestgroupfun({@mean,animal_groupfun},psth_norm_cat_smooth,animal_grp, ...
     [ld_grp,stim_grp,kidx_grp]);
+psth_sem = ap.nestgroupfun({@mean,@AP_sem},psth_norm_cat_smooth,animal_grp, ...
+    [ld_grp,stim_grp,kidx_grp]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
 psth_max = ap.nestgroupfun({@mean,animal_groupfun}, ...
@@ -298,6 +352,7 @@ day_colormap_sym = ap.colormap('BKR',max(abs(plot_days))*2+1);
 day_colormap = day_colormap_sym(ismember( ...
     -max(abs(plot_days)):max(abs(plot_days)),plot_days),:);
 
+% Plot overlaid PSTH by learning day for stim
 figure;
 h = tiledlayout(n_k,length(unique(stim_grp)),'TileIndexing','column');
 for curr_stim = unique(stim_grp)'
@@ -310,6 +365,26 @@ for curr_stim = unique(stim_grp)'
 end
 linkaxes(h.Children,'xy');
 
+% Plot PSTH by learning day for stim
+plot_stim = 90;
+figure('Name','MUA by LD');
+h = tiledlayout(n_k,length(plot_days),'TileSpacing','none');
+for curr_k = unique(groups(:,2))'
+    for curr_day = plot_days
+        nexttile; axis off;
+        plot_data = psth_grp(:,1) == curr_day & ...
+            psth_grp(:,2) == plot_stim & ...
+            psth_grp(:,3) == curr_k;
+        if ~any(plot_data)
+            continue
+        end
+        ap.errorfill(psth_t,psth_avg(plot_data,:),psth_sem(plot_data,:), ...
+            day_colormap(curr_day==plot_days,:));
+    end
+end
+linkaxes(h.Children,'xy');
+
+% Plot PSTH max by learning day
 figure;
 h = tiledlayout(n_k,length(unique(stim_grp)),'TileIndexing','column');
 for curr_stim = unique(stim_grp)'
@@ -324,7 +399,31 @@ for curr_stim = unique(stim_grp)'
 end
 linkaxes(h.Children,'xy');
 
+% Plot pre/post-learn PSTH
+ld_prepost = +(ld_grp >= 0) + 1;
+[psth_learn_avg,psth_learn_grp] = ap.nestgroupfun({@mean,animal_groupfun},psth_norm_cat_smooth,animal_grp, ...
+    [ld_prepost,stim_grp,kidx_grp]);
+psth_learn_sem = ap.nestgroupfun({@mean,@AP_sem},psth_norm_cat_smooth,animal_grp, ...
+    [ld_prepost,stim_grp,kidx_grp]);
+prepost_cmap = [0,0,0.7;0.7,0,0.];
 
+plot_stim = 90;
+figure('Name','Post-learn MUA'); 
+h = tiledlayout(n_k,2,'TileSpacing','none');
+for curr_k = unique(groups(:,2))'
+    for curr_ld = 1:2
+        nexttile; axis off;
+        plot_data = psth_learn_grp(:,1) == curr_ld & ...
+            psth_learn_grp(:,2) == plot_stim & ...
+            psth_learn_grp(:,3) == curr_k;
+        if ~any(plot_data)
+            continue
+        end
+        ap.errorfill(psth_t,psth_learn_avg(plot_data,:), ...
+            psth_learn_sem(plot_data,:),prepost_cmap(curr_ld,:));
+    end
+end
+linkaxes(h.Children,'xy');
 
 
 
