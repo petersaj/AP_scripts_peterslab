@@ -38,6 +38,9 @@ function [k,predicted_signals,explained_var,predicted_signals_reduced] = ...
 % CurrentControlSet > Control > GraphicsDrivers, add new DWORD (32bit Value) called
 % "TdrDelay" and having a value of something like 30 (seconds)
 
+% Look for GPU
+gpu_flag = gpuDeviceCount ~= 0;
+
 % Use no temporal delay if none specified
 if ~exist('t_shifts','var') || isempty(t_shifts)
     t_shifts = 0;
@@ -163,10 +166,14 @@ sparse_regressors = sum(regressor_design(:) == 0)/(numel(regressor_design)) > 0.
 if sparse_regressors
     regressors_gpu = sparse(double([[regressor_design,constant];ridge_matrix]));
     signals_gpu = sparse(double([signals';zeros(length(ridge_matrix),size(signals,1))]));
-else
-    % Otherwise, do on the GPU
+elseif gpu_flag
+    % If not sparse and GPU exists, do on the GPU
     regressors_gpu = gpuArray([[regressor_design,constant];ridge_matrix]);
     signals_gpu = gpuArray([signals';zeros(length(ridge_matrix),size(signals,1))]);
+else
+    % If not sparse and no GPU, do on CPU
+    regressors_gpu = double([[regressor_design,constant];ridge_matrix]);
+    signals_gpu = double([signals';zeros(length(ridge_matrix),size(signals,1))]);
 end
 
 % Regression (and cross validation if selected)
@@ -220,9 +227,12 @@ for curr_cv = 1:cvfold
     if sparse_regressors
         predicted_signals(predictable_signals,test_idx) = ...
             full(regressors_gpu(test_idx,:)*sparse(double(k_cv(:,predictable_signals,curr_cv))))';
-    else
+    elseif gpu_flag
         predicted_signals(predictable_signals,test_idx) = ...
             gather(regressors_gpu(test_idx,:)*gpuArray(k_cv(:,predictable_signals,curr_cv)))';
+    else
+        predicted_signals(predictable_signals,test_idx) = ...
+            (regressors_gpu(test_idx,:)*double(k_cv(:,predictable_signals,curr_cv)))';
     end
     
     % Reduced predictions on test set for each regressor modality (if > 1)
@@ -248,10 +258,14 @@ for curr_cv = 1:cvfold
                 curr_predicted = ...
                     full(regressors_gpu(test_idx,regressor_omitted_idx{curr_regressor})* ...
                     sparse(double(k_cv(regressor_omitted_idx{curr_regressor},predictable_signals,curr_cv))));
-            else
+            elseif gpu_flag
                 curr_predicted = ...
                     gather(regressors_gpu(test_idx,regressor_omitted_idx{curr_regressor})* ...
                     gpuArray(k_cv(regressor_omitted_idx{curr_regressor},predictable_signals,curr_cv)));
+            else
+                curr_predicted = ...
+                    regressors_gpu(test_idx,regressor_omitted_idx{curr_regressor}* ...
+                    double(k_cv(regressor_omitted_idx{curr_regressor},predictable_signals,curr_cv)));
             end
             
             predicted_signals_reduced(predictable_signals,test_idx,curr_regressor) = ...
@@ -280,10 +294,14 @@ for curr_cv = 1:cvfold
                 curr_predicted = ...
                     full(regressors_gpu(test_idx,regressor_split_idx{curr_regressor})* ...
                     sparse(double(k_cv_reduced)));
-            else
+            elseif gpu_flag
                 curr_predicted = ...
                     gather(regressors_gpu(test_idx,regressor_split_idx{curr_regressor})* ...
                     gpuArray(k_cv_reduced));
+            else
+                curr_predicted = ...
+                    regressors_gpu(test_idx,regressor_split_idx{curr_regressor})* ...
+                    double(k_cv_reduced);
             end
             
             predicted_signals_partial(predictable_signals,test_idx,curr_regressor,curr_partial) = ...

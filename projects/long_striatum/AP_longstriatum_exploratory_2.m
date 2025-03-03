@@ -1,13 +1,24 @@
 
-%% Load AM-packaged data
+%% Load ephys
 
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 
 load(fullfile(data_path,'swr_bhv'));
 load(fullfile(data_path,'ctx_maps_to_str'));
-% load(fullfile(data_path,'ctx_wf'));
+load(fullfile(data_path,'ctx_wf'));
 load(fullfile(data_path,'ephys'));
 U_master = plab.wf.load_master_U;
+
+%% Load widefield
+
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+
+load(fullfile(data_path,'swr_bhv'));
+load(fullfile(data_path,'ctx_wf'));
+U_master = plab.wf.load_master_U;
+
+% need to load ephys too because that's where stim info is, change this
+load(fullfile(data_path,'ephys'));
 
 
 %% K-means on maps 
@@ -429,6 +440,12 @@ for curr_k = unique(groups(:,2))'
     end
 end
 linkaxes(h.Children,'xy');
+
+
+%% Widefield
+
+
+wf.V_stim_align
 
 
 
