@@ -221,13 +221,13 @@ if strcmp(animal,'DS017') && strcmp(rec_day,'2025-02-18') && ~fix_flag
     fix_flag = true;
 end
 
-rewarded_x = trial_events.parameters.RewardedX;
+rewarded_x = 90;%trial_events.parameters.RewardedX;
 
 n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
 stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
 
-stim_pd_n = (stim_x==-90)*1 + (stim_x==rewarded_x)*2;
+stim_pd_n = (stim_x==-90)*2 + (stim_x==rewarded_x)*2;
     
 stim_pd_on_grouped = mat2cell(photodiode_on_times(1:sum(stim_pd_n)),stim_pd_n);
 stim_pd_off_grouped = mat2cell(photodiode_off_times(1:sum(stim_pd_n)),stim_pd_n);
@@ -241,7 +241,7 @@ stim_move_times(stim_x == rewarded_x) = cellfun(@(x) x(1), stim_pd_off_grouped(s
 % (stim center times, or would-be for CS-)
 stim_center_times = nan(size(stim_x));
 stim_center_times(stim_x == rewarded_x) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == rewarded_x));
-stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+1;
+stim_center_times(stim_x == -90) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == -90)); %cell2mat(stim_pd_off_grouped(stim_x == -90))+1;
 
 % (reward times, or would-be for CS-)
 stim_reward_times = nan(size(stim_x));
@@ -296,18 +296,20 @@ linkaxes(h.Children,'x');
 
 %% Lick raster (two-stim static)
 
-rewarded_x = trial_events.parameters.RewardedX;
+rewarded_x = trial_events.parameters.RewardedFrequency;
+% rewarded_x = trial_events.parameters.RewardedX;
 
 n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
-stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+stim_x = vertcat(trial_events.values(1:n_trials).TrialFrequency);
+% stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
 stimOn_times = photodiode_on_times(1:n_trials);
 stimOff_times = photodiode_off_times(1:n_trials);
 
 % (reward times, or would-be for CS-)
 stim_reward_times = nan(size(stim_x));
 stim_reward_times(stim_x == rewarded_x) = reward_times;
-stim_reward_times(stim_x == -90) = interp1(lick_times,lick_times,stimOn_times(stim_x == -90),'next');
+stim_reward_times(stim_x ~= rewarded_x) = interp1(lick_times,lick_times,stimOn_times(stim_x ~= rewarded_x),'next');
 
 % Trial params
 trial_static_stim_time = vertcat(trial_events.values(1:n_trials).TrialStimStaticTime);
@@ -329,8 +331,8 @@ for curr_align = 1:2
             plot_align = stim_reward_times;
     end
 
-    r_trials = stim_x == rewarded_x & ~isnan(plot_align);
-    l_trials = stim_x == -90 & ~isnan(plot_align);
+    r_trials = find(stim_x == rewarded_x & ~isnan(plot_align));
+    l_trials = find(stim_x ~= rewarded_x & ~isnan(plot_align));
 
     [lick_psth_r,lick_raster_r,lick_t] = ap.psth(lick_times,plot_align(r_trials),...
         'window',[-7,10],'bin_size',0.01,'smoothing',20);
@@ -354,6 +356,8 @@ for curr_align = 1:2
     lick_t_raster_l = lick_t(lick_t_raster_l_idx);
 
     plot(lick_t_raster_r,lick_trial_r,'.r');
+    plot(trial_static_stim_time(r_trials(sort_r)),1:length(r_trials),'k','linewidth',2)
+
     plot(lick_t_raster_l,lick_trial_l+size(lick_raster_r,1),'.b');
     hold on; set(gca,'YDir','reverse');
     xline(0,'color',[0.7,0.7,0]);
@@ -415,11 +419,13 @@ axis image;
 
 %% Task kernel (static task)
 
-rewarded_x = trial_events.parameters.RewardedX;
+% rewarded_x = trial_events.parameters.RewardedX;
+rewarded_x = trial_events.parameters.RewardedFrequency;
 
 n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
-stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+% stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+stim_x = vertcat(trial_events.values(1:n_trials).TrialFrequency);
 stimOn_times = photodiode_on_times(1:n_trials);
 stimOff_times = photodiode_off_times(1:n_trials);
 
@@ -427,7 +433,7 @@ time_bins = [wf_t;wf_t(end)+1/wf_framerate];
 
 task_events = zeros(0,length(time_bins)-1);
 task_events(end+1,:) = histcounts(stimOn_times(stim_x == rewarded_x),time_bins);
-task_events(end+1,:) = histcounts(stimOn_times(stim_x == -90),time_bins);
+task_events(end+1,:) = histcounts(stimOn_times(stim_x ~= rewarded_x),time_bins);
 
 n_components = 200;
 
@@ -441,10 +447,33 @@ skip_frames = round(skip_t*wf_framerate);
     ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
     task_events(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv_fold);
 
-ap.imscroll(plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels),frame_shifts);
+kernels_px = plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels);
+ap.imscroll(kernels_px,frame_shifts);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image;
+
+t = frame_shifts/wf_framerate;
+cs_minus_color = ap.colormap('WB');
+cs_plus_color = ap.colormap('WR');
+
+stim_t = t > 0 & t < 0.2;
+kernels_px_max = squeeze(max(kernels_px(:,:,stim_t,:),[],3));
+
+col_lim = [0,1e-4];
+
+figure;
+h = tiledlayout(1,2,'TileSpacing','none');
+
+nexttile; imagesc(kernels_px_max(:,:,1)); 
+clim(col_lim); axis image off;
+colormap(gca,cs_plus_color);
+ap.wf_draw('ccf','k');
+
+nexttile; imagesc(kernels_px_max(:,:,2)); 
+clim(col_lim); axis image off;
+colormap(gca,cs_minus_color);
+ap.wf_draw('ccf','k');
 
 
 %% Passive kernel
@@ -480,7 +509,6 @@ clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image
 
-
 % trying SVM/SVR
 % mdl = fitcsvm(wf_V',stim_regressors(1,:)');
 % cvmodel = crossval(mdl);
@@ -488,8 +516,27 @@ axis image
 % 
 % r = mdl.predict(wf_V');
 
+t = frame_shifts/wf_framerate;
+cs_minus_color = ap.colormap('WB');
+cs_plus_color = ap.colormap('WR');
 
+stim_t = t > 0 & t < 0.2;
+kernels_px_max = squeeze(max(kernels_px(:,:,stim_t,:),[],3));
 
+col_lim = [0,1e-4];
+
+figure;
+h = tiledlayout(1,2,'TileSpacing','none');
+
+nexttile; imagesc(kernels_px_max(:,:,1)); 
+clim(col_lim); axis image off;
+colormap(gca,cs_plus_color);
+ap.wf_draw('ccf','k');
+
+nexttile; imagesc(kernels_px_max(:,:,3)); 
+clim(col_lim); axis image off;
+colormap(gca,cs_minus_color);
+ap.wf_draw('ccf','k');
 
 
 

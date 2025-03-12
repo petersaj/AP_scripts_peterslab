@@ -9,6 +9,7 @@
 % Was on EHD
 % Moving to server/Users/Andy/cortexlab_corticostriatal_data
 
+%% ~~~~~~~~~~~ PACKAGING
 
 %% Grab and save behavior (operant)
 
@@ -167,7 +168,6 @@ for curr_animal = 1:length(animals)
                 wheel_starts < stimOn_times(x+1))./ ...
                 (stimOn_times(x+1) - signals_events.responseTimes(x)), ...
                 1:n_trials-1);
-
 
             wheel_iti_move_rate = arrayfun(@(x) ...
                 sum(wheel_starts > signals_events.responseTimes(x) & ...
@@ -535,7 +535,7 @@ for curr_animal = 1:length(bhv)
         
         rxn_med = nanmedian(curr_rxn.*AP_nanout(curr_rxn < 0),1);
 
-        % Get measured and null MAD (exclude rxn < 0.1)
+        % Get measured and null stat (exclude rxn < 0)
         rxn_stat = nanmean(curr_rxn.*AP_nanout(curr_rxn < 0),1);
         alt_rxn_stat = nanmean(curr_alt_rxn.*AP_nanout(curr_alt_rxn < 0),1);
         
@@ -650,6 +650,7 @@ save_fn = fullfile(save_path,'trial_activity_passive_cstr');
 save(save_fn,'-v7.3');
 disp(['Saved: ' save_fn])
 
+%% ~~~~~~~~~~~ ANALYSIS
 
 %% Load and plot passive data
 
@@ -658,12 +659,12 @@ trial_data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_st
 data_fn = 'trial_activity_passive_cstr';
 AP_load_trials_operant_externalhd;
 
-% Load behavior and get learned day
+% Load behavior and get learned day (only if within imaged days)
 data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\cstr_data_test';
 bhv_fn = [data_path filesep 'bhv_cstr'];
 load(bhv_fn);
 bhv = bhv(ismember({bhv.animal},animals)); 
-learned_day = cellfun(@(x) nanmax(cat(1,find(x,1),nan)),{bhv.learned_days})';
+learned_day = cellfun(@(x,fluor) nanmax(cat(1,find(x(1:length(fluor)),1),nan)),{bhv.learned_days}',fluor_all);
 
 % Get animal and day index for each trial
 trial_animal = cell2mat(arrayfun(@(x) ...
@@ -672,6 +673,9 @@ trial_animal = cell2mat(arrayfun(@(x) ...
 trial_day = cell2mat(cellfun(@(x) cell2mat(cellfun(@(curr_day,x) ...
     curr_day*ones(size(x,1),1),num2cell(1:length(x))',x,'uni',false)), ...
     wheel_all,'uni',false));
+trial_recording = cell2mat(cellfun(@(rec,tr) repmat(rec,size(tr,1),1), ...
+    num2cell(1:length(vertcat(wheel_all{:})))',vertcat(wheel_all{:}),'uni',false));
+
 trials_recording = cellfun(@(x) size(x,1),vertcat(wheel_all{:}));
 
 % Get "learned day" for each trial
@@ -680,7 +684,7 @@ trial_learned_day = cell2mat(cellfun(@(x,ld) cell2mat(cellfun(@(curr_day,x) ...
     wheel_all,num2cell(learned_day),'uni',false));
 
 % Get trials with movement during stim to exclude
-quiescent_trials = ~any(abs(wheel_allcat(:,t >= 0 & t <= 0.5)) > 0,2);
+quiescent_trials = ~any(abs(wheel_allcat(:,t >= 0 & t <= 0.7)) > 0,2);
 
 % (print total fraction of quiescent trials)
 q_exp = mat2cell(quiescent_trials,cellfun(@(x) size(x,1),vertcat(wheel_all{:})),1);
@@ -689,49 +693,91 @@ q_exp_frac = cell2mat(cellfun(@(q,s) grpstats(q,s),q_exp,s_exp,'uni',false)');
 fprintf('Quiescent trial frac: \n%.2f+-%.2f (left),%.2f+-%.2f (center),%.2f+-%.2f (right)\n', ...
     reshape([nanmean(q_exp_frac,2),nanstd(q_exp_frac,[],2)]',[],1))
 
-% Plot average by learned day
-plot_ld = -2:2;
-use_trials = quiescent_trials & trial_stim_allcat == 1 & ismember(trial_learned_day,plot_ld);
-[trial_groups,~,trial_group_idx] = unique([trial_animal(use_trials),trial_learned_day(use_trials)],'rows');
-fluor_trialavg = ap.groupfun(@nanmean,fluor_allcat_deconv(use_trials,:,:),trial_group_idx,[],[]);
-fluor_animalavg = ap.groupfun(@nanmean,fluor_trialavg,trial_groups(:,2),[],[]);
 
-fluor_animalavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_animalavg,[3,2,1]));
+% Average by learned day/stim
+[fluor_avg,fluor_grp] = ap.nestgroupfun({@mean,@mean}, ...
+    fluor_allcat_deconv(quiescent_trials,:,:),trial_animal(quiescent_trials), ...
+    [trial_learned_day(quiescent_trials),trial_stim_allcat(quiescent_trials)]);
 
-ap.imscroll(fluor_animalavg_px)
+fluor_avg_px_cat = cell2mat(arrayfun(@(x) plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    permute(fluor_avg(fluor_grp(:,2) == x,:,:),[3,2,1])), ...
+    unique(fluor_grp(:,2))','uni',false));
+
+ap.imscroll(fluor_avg_px_cat)
 axis image;
 colormap(AP_colormap('PWG',[],1.5));
 clim(max(abs(clim)).*[-1,1]*0.8);
 
 max_t = t > 0 & t < 0.2;
-figure;imagesc(reshape((max(fluor_animalavg_px(:,:,max_t,:),[],3)),size(fluor_animalavg_px,1),[]));
+ap.imscroll(squeeze(max(fluor_avg_px_cat(:,:,max_t,:),[],3)),unique(fluor_grp(:,1)));
 axis image off;
 colormap(AP_colormap('PWG',[],1.5));
 clim(max(abs(clim)).*[-1,1]*0.8);
 
 % Draw ROI, get average by learned day
+ap.imscroll(plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    permute(mean(fluor_avg(fluor_grp(:,2)==1,:,:),1),[3,2,1])),t);
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+% Plot timecourse
 fluor_roi = permute(ap.wf_roi(U_master(:,:,1:n_vs), ...
     permute(fluor_allcat_deconv,[3,2,1]),[],[],roi.mask),[3,2,1]);
-fluor_roi_trialavg = ap.groupfun(@nanmean,fluor_roi(use_trials,:),trial_group_idx,[]);
-fluor_roi_animalavg = ap.groupfun(@nanmean,fluor_roi_trialavg,trial_groups(:,2),[]);
-fluor_roi_animalsem = ap.groupfun(@AP_sem,fluor_roi_trialavg,trial_groups(:,2),[]);
-figure; h = tiledlayout(1,length(plot_ld)+1);
-nexttile;
-ld_col = ap.colormap('BKR',length(plot_ld));
-ap.errorfill(t,fluor_roi_animalavg',fluor_roi_animalsem',ld_col);
-for curr_ld_idx = 1:length(plot_ld)
+
+[fluor_roi_avg,fluor_roi_group] = ap.nestgroupfun({@mean,@mean},fluor_roi(quiescent_trials,:), ...
+    trial_animal(quiescent_trials),[trial_learned_day(quiescent_trials),trial_stim_allcat(quiescent_trials)]);
+
+fluor_roi_sem = ap.nestgroupfun({@mean,@AP_sem},fluor_roi(quiescent_trials,:), ...
+    trial_animal(quiescent_trials),[trial_learned_day(quiescent_trials),trial_stim_allcat(quiescent_trials)]);
+
+plot_ld = -3:2;
+plot_stim = 1;
+
+figure; 
+h = tiledlayout(1,length(plot_ld));
+ld_col_sym = ap.colormap('BKR',max(abs(plot_ld))*2+1);
+ld_col = ld_col_sym(ismember( ...
+    -max(abs(plot_ld)):max(abs(plot_ld)),plot_ld),:);
+for curr_ld = plot_ld
     nexttile;
-    ap.errorfill(t,fluor_roi_animalavg(curr_ld_idx,:), ...
-        fluor_roi_animalsem(curr_ld_idx,:),ld_col(curr_ld_idx,:));
+    plot_idx = fluor_roi_group(:,1) == curr_ld & ...
+        fluor_roi_group(:,2) == plot_stim;
+    ap.errorfill(t,fluor_roi_avg(plot_idx,:), ...
+        fluor_roi_sem(plot_idx,:),ld_col(plot_ld==curr_ld,:));
 end
 linkaxes(h.Children);
 
+% Plot max
 max_t = t > 0 & t < 0.2;
-fluor_roi_trialavg_maxt = max(fluor_roi_trialavg(:,max_t),[],2);
-fluor_roi_maxt_animalavg = ap.groupfun(@nanmean,fluor_roi_trialavg_maxt,trial_groups(:,2),[]);
-fluor_roi_maxt_animalsem = ap.groupfun(@AP_sem,fluor_roi_trialavg_maxt,trial_groups(:,2),[]);
-figure;errorbar(plot_ld,fluor_roi_maxt_animalavg,fluor_roi_maxt_animalsem,'k','linewidth',2);
+
+[fluor_roi_recavg,fluor_roi_recavg_grp] = ap.nestgroupfun({@mean,@mean},fluor_roi(quiescent_trials,:), ...
+    trial_recording(quiescent_trials), ...
+    [trial_animal(quiescent_trials),trial_learned_day(quiescent_trials),trial_stim_allcat(quiescent_trials)]);
+
+fluor_roi_recavg_max = max(fluor_roi_recavg(:,max_t),[],2);
+
+[fluor_roi_max_avg,fluor_roi_max_avg_grp] = ap.nestgroupfun({@mean,@mean}, ...
+    fluor_roi_recavg_max,fluor_roi_recavg_grp(:,1),fluor_roi_recavg_grp(:,2:3));
+fluor_roi_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    fluor_roi_recavg_max,fluor_roi_recavg_grp(:,1),fluor_roi_recavg_grp(:,2:3));
+
+figure;
+plot_stim = 1;
+
+hold on
+arrayfun(@(x) plot( ...
+    fluor_roi_recavg_grp(fluor_roi_recavg_grp(:,1) == x & fluor_roi_recavg_grp(:,3) == plot_stim,2), ...
+    fluor_roi_recavg_max(fluor_roi_recavg_grp(:,1) == x & fluor_roi_recavg_grp(:,3) == plot_stim)),...
+    1:max(trial_animal))
+
+plot_idx = fluor_roi_max_avg_grp(:,2) == plot_stim & ismember(fluor_roi_max_avg_grp(:,1),plot_ld);
+errorbar(fluor_roi_group(plot_idx,1),fluor_roi_max_avg(plot_idx), ...
+    fluor_roi_max_sem(plot_idx),'k','linewidth',2);
+xlabel('Learned day');
+ylabel('Max ROI');
 xlim(xlim + [-0.5,0.5]);
+legend(animals(unique(fluor_roi_recavg_grp(:,1))))
 
 % (testing stats: shuffle 0 vs <0)
 prelearn_days = trial_groups(:,2) <= 0;
@@ -750,14 +796,34 @@ stat_rank = tiedrank(vertcat(stat_diff,stat_diff_shuff));
 stat_p = 1-(stat_rank(1)./(n_shuff+2));
 
 
-% Plot average by pre/post learned
+% Plot average by pre/post learned (animals separately and averaged)
 use_trials = trial_stim_allcat == 1 & quiescent_trials & ~isnan(trial_learned_day);
 
 [trial_groups,~,trial_group_idx] = unique([trial_animal(use_trials),trial_learned_day(use_trials)>=0],'rows');
+
 fluor_trialavg = ap.groupfun(@nanmean,fluor_allcat_deconv(use_trials,:,:),trial_group_idx,[],[]);
+fluor_trialavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_trialavg,[3,2,1]));
+fluor_trialavg_px_prepost = [fluor_trialavg_px(:,:,:,trial_groups(:,2)==0), ...
+    fluor_trialavg_px(:,:,:,trial_groups(:,2)==1)];
+ap.imscroll(fluor_trialavg_px_prepost);
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+ap.imscroll(max(fluor_trialavg_px(:,:,max_t,trial_groups(:,2)==1),[],3));
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+figure;
+imagesc(reshape(permute(max(fluor_trialavg_px_prepost(:,:,max_t,:),[],3), ...
+    [2,1,4,3]),size(U_master,2)*2,[])');
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
 fluor_animalavg = ap.groupfun(@nanmean,fluor_trialavg,trial_groups(:,2),[],[]);
 fluor_animalavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_animalavg,[3,2,1]));
-
 ap.imscroll(fluor_animalavg_px)
 axis image;
 colormap(AP_colormap('PWG',[],1.5));
@@ -770,14 +836,29 @@ colormap(AP_colormap('PWG',[],1.5));
 clim(max(abs(clim)).*[-1,1]*0.8);
 
 
-% (Just checking: plot day pre/post 5 for non-learners)
+% Plot non-learner average early/late (animals separately and averaged)
 use_trials = trial_stim_allcat == 1 & quiescent_trials & isnan(trial_learned_day);
 
 [trial_groups,~,trial_group_idx] = unique([trial_animal(use_trials),trial_day(use_trials)>=5],'rows');
+
 fluor_trialavg = ap.groupfun(@nanmean,fluor_allcat_deconv(use_trials,:,:),trial_group_idx,[],[]);
+fluor_trialavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_trialavg,[3,2,1]));
+fluor_trialavg_px_prepost = [fluor_trialavg_px(:,:,:,trial_groups(:,2)==0), ...
+    fluor_trialavg_px(:,:,:,trial_groups(:,2)==1)];
+ap.imscroll(fluor_trialavg_px_prepost);
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
+figure;
+imagesc(reshape(permute(max(fluor_trialavg_px_prepost(:,:,max_t,:),[],3), ...
+    [2,1,4,3]),size(U_master,2)*2,[])');
+axis image;
+colormap(AP_colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]*0.8);
+
 fluor_animalavg = ap.groupfun(@nanmean,fluor_trialavg,trial_groups(:,2),[],[]);
 fluor_animalavg_px = plab.wf.svd2px(U_master(:,:,1:n_vs),permute(fluor_animalavg,[3,2,1]));
-
 ap.imscroll(fluor_animalavg_px)
 axis image;
 colormap(AP_colormap('PWG',[],1.5));
@@ -788,6 +869,7 @@ figure;imagesc(reshape((max(fluor_animalavg_px(:,:,max_t,:),[],3)),size(fluor_an
 axis image off;
 colormap(AP_colormap('PWG',[],1.5));
 clim(max(abs(clim)).*[-1,1]*0.8);
+
 
 
 

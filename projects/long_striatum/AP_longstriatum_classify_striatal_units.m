@@ -30,11 +30,9 @@ if verbose; fprintf('Ephys: Classifying striatal cells...\n'); end
 % % 
 % %%%
 
-% Get spike acgs (messy for now - hard-code initializing and running only
-% for striatal, since this takes a little while)
-spike_acg = nan(size(templates,1),2001);
-spike_acg(striatal_single_units,:) = cell2mat(arrayfun(@(x) ...
-    ap.ephys_spike_cg(x),find(striatal_single_units),'uni',false));
+% Get spike acgs
+spike_acg = cell2mat(arrayfun(@(x) ...
+    ap.ephys_spike_cg(x),1:size(templates,1),'uni',false));
 
 % Get time to get to 90% steady-state value
 acg_steadystate = nan(size(templates,1),1);

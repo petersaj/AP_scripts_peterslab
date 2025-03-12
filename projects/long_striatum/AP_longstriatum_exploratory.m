@@ -3129,8 +3129,8 @@ V_ldavg = permute(ap.groupfun(@nanmean,V_cat,[],[],[],V_animal_day_idx(:,2)),[1,
 px_ldavg = plab.wf.svd2px(U_master,V_ldavg);
 
 % Plot widefield by learned day
-plot_ld = -3:3;
-plot_align = 2;
+plot_ld = -3:2;
+plot_align = 3;
 ap.imscroll(px_ldavg(:,:,:,ismember(ld_unique,plot_ld),plot_align));
 axis image;
 clim(max(abs(clim)).*[-1,1]);
@@ -3168,9 +3168,47 @@ ylabel('Max fluorescence');
 
 title(h,'ROI');
 
+% alt version of above
+raster_window = [-0.5,1];
+psth_bin_size = 0.03;
+t_bins = raster_window(1):psth_bin_size:raster_window(2);
+wf_t = conv2(t_bins,[1,1]/2,'valid');
+
+day_colormap_sym = ap.colormap('BKR',max(abs(plot_ld))*2+1);
+day_colormap = day_colormap_sym(ismember( ...
+    -max(abs(plot_ld)):max(abs(plot_ld)),plot_ld),:);
+
+roi_max = squeeze(ap.wf_roi(U_master,permute(V_cat(:,:,plot_align,:),[1,2,4,3]),[],[],roi.mask));
+
+[roi_mean,roi_group] = ap.groupfun(@mean, ...
+    permute(ap.wf_roi(U_master,permute(V_cat(:,:,plot_align,:),[1,2,4,3]),[],[],roi.mask),[3,2,1]), ...
+    V_animal_day_idx(:,2));
+
+roi_sem = ap.groupfun(@AP_sem, ...
+    permute(ap.wf_roi(U_master,permute(V_cat(:,:,plot_align,:),[1,2,4,3]),[],[],roi.mask),[3,2,1]), ...
+    V_animal_day_idx(:,2));
+
+figure;
+h = tiledlayout(1,length(plot_ld),'tilespacing','none');
+for curr_ld = plot_ld
+    nexttile;
+    plot_idx = roi_group == curr_ld;
+    ap.errorfill(wf_t,roi_mean(plot_idx,:),roi_sem(plot_idx,:), ...
+        day_colormap(curr_ld == plot_ld,:));
+    xline([0,0.5],'color','k')
+    axis off
+end
+linkaxes(h.Children,'xy');
 
 
-
+use_frames = wf_t > 0 & wf_t < 0.2;
+roi_max = squeeze(max(ap.wf_roi(U_master,permute(V_cat(:,use_frames,plot_align,:),[1,2,4,3]),[],[],roi.mask),[],2));
+use_grps = ismember(V_animal_day_idx(:,2),plot_ld);
+roi_max_avg = ap.groupfun(@nanmedian,roi_max,V_animal_day_idx(:,2),[]);
+roi_max_sem = ap.groupfun(@AP_sem,roi_max,V_animal_day_idx(:,2),[]);
+figure;
+errorbar(ld_unique(plot_grp_idx),roi_max_avg(plot_grp_idx), ...
+    roi_max_std(plot_grp_idx),'k','linewidth',2);
 
 
 

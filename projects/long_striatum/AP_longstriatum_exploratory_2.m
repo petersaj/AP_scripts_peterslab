@@ -28,10 +28,15 @@ load(fullfile(data_path,'ephys'));
 maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
+
+kmeans_starting = mean(cell2mat(permute(cellfun(@(x) x(:,:,round(linspace(1,size(x,3),4))), ...
+    all_ctx_maps_to_str.cortex_kernel_px(~cellfun(@isempty, ...
+    all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+
 n_k = 4;
 [kidx,kmeans_map] = kmeans(...
     reshape(maps_cat,prod(size(U_master,[1,2])),[])',n_k, ...
-    'Distance','Correlation','Replicates',5);
+    'Distance','Correlation','start',reshape(kmeans_starting,[],n_k)');
 kmeans_map = reshape(kmeans_map',size(U_master,1),size(U_master,2),[]);
 
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
@@ -264,7 +269,7 @@ linkaxes(h.Children,'xy');
 
 plot_celltype = vertcat(ephys.str_tan_idx{:});
 
-plot_kidx = [2,3];
+plot_kidx = [1,2];
 plot_days = -3:2;
 plot_stim_idx = 3;
 

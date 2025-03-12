@@ -17,10 +17,10 @@
 % stim_x = vertcat(trial_events.values.TrialStimX);
 % use_align = stimOn_times(stim_x == 90);
 
-stim_x = vertcat(trial_events.values.TrialX);
-use_align = stimOn_times(stim_x(1:n_trials) == 90);
+% stim_x = vertcat(trial_events.values.TrialX);
+% use_align = stimOn_times(stim_x(1:n_trials) == 90);
 
-% use_align = stimOn_times;
+use_align = stimOn_times;
 
 % stim_x = vertcat(trial_events.values.PictureID);
 % use_align = stimOn_times(stim_x == 2 & quiescent_trials);
@@ -122,7 +122,8 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 
 % align_times = photodiode_times(1:2:end);
 % align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
-align_times = stimOn_times(stim_x == 90);
+% align_times = stimOn_times(stim_x == 90);
+align_times = stim_move_time;
 
 
 surround_time = [-10,10];
@@ -172,11 +173,12 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-% animals = {'AP018','AP020'};
-animals = {'AP027'}; 
+animals = {'HA005'};
+% animals = {'DS019','DS020','DS021'};
+% animals = {'DS000','DS004','DS014','DS015','DS016'};
 
 % Set reaction statistic to use
-use_stat = 'mean';
+use_stat = 'median';
 
 % Create master tiled layout
 figure;
@@ -189,14 +191,16 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-%     use_workflow = {'stim_wheel*'};
-%     use_workflow = {'*audio*'};
-%     use_workflow = {'*audio_volume*'};
-%     use_workflow = {'*audio_frequency*'};
-%     use_workflow = {'*no_change*'};
-%     use_workflow = {'*size*'};
-    use_workflow = {'*opacity*'};
-%     use_workflow = {'*angle*'};
+    use_workflow = 'stim_wheel*';
+%     use_workflow = 'stim_wheel_right_stage\d';
+%     use_workflow = 'stim_wheel_right_stage\d_audio_volume';
+%     use_workflow = '*audio_volume*';
+%     use_workflow = '*audio_frequency*';
+%     use_workflow = '*no_change*';
+%     use_workflow = '*size*';
+%     use_workflow = '*opacity*';
+%     use_workflow = '*angle';
+%     use_workflow = '*angle_size60';
 
     recordings = plab.find_recordings(animal,[],use_workflow);
 
@@ -331,15 +335,15 @@ for curr_animal_idx = 1:length(animals)
     xlabel('Time from stim');
     if any(learned_day)
         AP_errorfill(surround_time_points,frac_move_stimalign(learned_day,:)', ...
-            0.02,[0,1,0],0.1,false);
-        
-        % Store behavior across animals
-        bhv(curr_animal_idx).rxn_stat = rxn_stat;
-        bhv(curr_animal_idx).learned_day = learned_day;
-
+            0.02,[0,1,0],0.1,false); 
     end
 
     drawnow;
+
+    % Store behavior across animals
+    bhv(curr_animal_idx).rxn_stat = rxn_stat;
+    bhv(curr_animal_idx).rxn_stat = rxn_null_stat;
+    bhv(curr_animal_idx).learned_day = learned_day;
 
 end
 

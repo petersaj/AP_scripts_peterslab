@@ -13,6 +13,11 @@ animal = 'DS000';
 rec_day = '2024-05-29';
 plot_units = [392];
 
+% % Visual (+ auditory) TAN
+% animal = 'DS010';
+% rec_day = '2024-08-02';
+% plot_units = [296,260];
+
 
 % Set raster time bins
 raster_window = [-0.2,0.7];
@@ -61,7 +66,7 @@ for workflow_idx = 1:3
 
         % Get psth/raster of spikes to plot
         [use_spikes,spike_groups] = ismember(spike_templates,plot_units);
-        [psth,raster,raster_t] = ap.ephys_psth(spike_times_timelite(use_spikes), ...
+        [psth,raster,raster_t] = ap.psth(spike_times_timelite(use_spikes), ...
             use_align,spike_groups(use_spikes));
 
         % Plot PSTHs and rasters

@@ -517,7 +517,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'striatum'; % striatum, even, click, define
+mua_method = 'click'; % striatum, even, click, define
 
 switch mua_method
 
@@ -643,10 +643,10 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 % return_constant = false;
 % use_constant = true;
 
-use_svs = 1:500;
-kernel_t = [0,0];
+use_svs = 1:200;
+kernel_t = [-0.5,0.5];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 10;
+lambda = 20;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -949,7 +949,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'DS004'};
+animals = {'AP009'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -978,7 +978,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AM018';
+animal = 'AM025';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');

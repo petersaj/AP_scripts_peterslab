@@ -212,7 +212,11 @@ end
 %% Find all animals that have done specific task
 % (this takes a long time because it looks through all server folders)
 
-workflow = '*opacity*';
+% workflow = '*opacity*';
+% workflow = '*no_change*';
+% workflow = '*opacity*';
+% workflow = '*angle*';
+workflow = 'stim_wheel_right_stage1';
 
 task_dir = dir(fullfile(plab.locations.server_data_path, ...
     '**','bonsai','**',strcat(workflow,'.bonsai')));

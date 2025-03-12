@@ -470,6 +470,10 @@ av_animals = cellfun(@(x) max([...
     find(cellfun(@any,regexp(x,aud_workflow)),1), ...
     false]),workflow_animal);
 
+% (ALT: define manually)
+va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011'})';
+av_animals = ismember({bhv.animal},{'DS000','DS004','DS014','DS015','DS016','DS005'})';
+
 workflow_cat = horzcat(bhv.workflow)';
 va_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(va_animals),workflow_animal,'uni',false));
 av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_animals),workflow_animal,'uni',false));
@@ -484,19 +488,20 @@ a_day = cell2mat(cellfun(@(x) ...
     workflow_animal,'uni',false));
 
 % Get and plot number of days to learning
-v_learned_day = cellfun(@(x,p) ...
+v_learned_day = cellfun(@(x,p,stat) ...
      sum(cellfun(@any,regexp( ...
-     x(1:find(cellfun(@any,regexp(x,vis_workflow)) & p < 0.05,1)),vis_workflow))), ...
-     workflow_animal,{bhv.rxn_stat_p}');
+     x(1:find(cellfun(@any,regexp(x,vis_workflow)) & p < 0.05 & stat < 1,1)),vis_workflow))), ...
+     workflow_animal,{bhv.rxn_stat_p}',{bhv.rxn_stat}');
  
-a_learned_day = cellfun(@(x,p) ...
+a_learned_day = cellfun(@(x,p,stat) ...
      sum(cellfun(@any,regexp( ...
-     x(1:find(cellfun(@any,regexp(x,aud_workflow)) & p < 0.05,1)),aud_workflow))), ...
-     workflow_animal,{bhv.rxn_stat_p}');
- 
+     x(1:find(cellfun(@any,regexp(x,aud_workflow)) & p < 0.05 & stat < 1,1)),aud_workflow))), ...
+     workflow_animal,{bhv.rxn_stat_p}',{bhv.rxn_stat}');
+
+% Plot days to learn modality 1/2 by group
 order_grp = sum([va_animals,av_animals].*[1:2],2).*AP_nanout(sum([va_animals,av_animals],2) == 0);
 va_ld_avg = [ap.groupfun(@mean,v_learned_day,order_grp), ...
-    ap.groupfun(@mean,a_learned_day,order_grp)];
+    ap.groupfun(@median,a_learned_day,order_grp)];
 va_ld_sem = [ap.groupfun(@AP_sem,v_learned_day,order_grp), ...
     ap.groupfun(@AP_sem,a_learned_day,order_grp)];
 
@@ -516,37 +521,45 @@ cats = reordercats(cats,cellstr(cats));
 errorbar(cats,[va_ld_avg(1,:)',fliplr(va_ld_avg(2,:))'], ...
     [va_ld_sem(1,:)',fliplr(va_ld_sem(2,:))'],'linewidth',2);
 legend({'VA','AV'});
-ylabel('Med. days to learn');
+ylabel('Mean days to learn');
 
 % Plot reaction time stat
-figure; tiledlayout(1,2);
+figure; h = tiledlayout(1,2);
 plot_bhv = rxn_stat_idx_cat;
 
 nexttile; hold on; title('Visual learning');
 [x,g] = ap.groupfun(@nanmean,plot_bhv(va_animals_cat),v_day(va_animals_cat));
-plot(g(g>=0),x(g>=0),'r');
+e = ap.groupfun(@AP_sem,plot_bhv(va_animals_cat),v_day(va_animals_cat));
+ap.errorfill(g(g<=7),x(g<=7),e(g<=7),'r');
 
 [x,g] = ap.groupfun(@nanmean,plot_bhv(av_animals_cat),v_day(av_animals_cat));
-plot(g(g>=0),x(g>=0),'b');
+e = ap.groupfun(@AP_sem,plot_bhv(av_animals_cat),v_day(av_animals_cat));
+ap.errorfill(g(g<=7),x(g<=7),e(g<=7),'b');
 
 nexttile; hold on; title('Auditory learning');
 [x,g] = ap.groupfun(@nanmean,plot_bhv(va_animals_cat),a_day(va_animals_cat));
-plot(g(g>=0),x(g>=0),'r');
+e = ap.groupfun(@AP_sem,plot_bhv(va_animals_cat),a_day(va_animals_cat));
+ap.errorfill(g(g<=7),x(g<=7),e(g<=7),'r');
 
 [x,g] = ap.groupfun(@nanmean,plot_bhv(av_animals_cat),a_day(av_animals_cat));
-plot(g(g>=0),x(g>=0),'b');
+e = ap.groupfun(@AP_sem,plot_bhv(av_animals_cat),a_day(av_animals_cat));
+ap.errorfill(g(g<=7),x(g<=7),e(g<=7),'b');
 legend({'VA','AV'})
+linkaxes(h.Children);
 
+%% Passive maps
 
-%% Passive testing
-
-% Kenrnel
-kernel_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_kernel.mat';
-load(kernel_fn);
+% Kernel
+data_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_kernel.mat';
+load(data_fn);
+t = (0:30)/35;
+n_components = size(stim_V{1}{1},1);
 
 % % Average
-% kernel_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_kernel.mat';
-% load(kernel_fn);
+% data_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_avg.mat';
+% load(data_fn);
+% t = conv(-0.5:0.03:1,[1,1]/2,'valid');
+% n_components = size(stim_V{1}{1},1);
 
 bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
 load(bhv_filename);
@@ -579,37 +592,292 @@ av_animals = cellfun(@(x) max([...
     find(cellfun(@any,regexp(x,aud_workflow)),1), ...
     false]),workflow_animal);
 
+% (ALT: define manually)
+% va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011'})';
+% va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011','DS019','DS020','DS021'})';
+va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011','DS019','DS020','DS021','AP027','AP029','AP029'})';
+av_animals = ismember({bhv.animal},{'DS000','DS004','DS014','DS015','DS016','DS005'})';
+
 va_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(va_animals),workflow_animal_trunc,'uni',false));
 av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_animals),workflow_animal_trunc,'uni',false));
 
 task_workflow = 'stim_wheel_right_stage\d$';
-% task_workflow = 'stim_wheel_right_stage\d_audio*';
-
-% use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
-use_rec = cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
-
-n_components = size(stim_V_cat{1},1);
+use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
 v = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,1}),4));
+
+task_workflow = 'stim_wheel_right_stage\d_audio*';
+use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
 a = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,2}),4));
 
+ap.imscroll([v,a],t);
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+
+% Plot max for all stim
+stim_t = t > 0 & t < 0.2;
+v_max = squeeze(max(v(:,:,stim_t,:),[],3));
+a_max = squeeze(max(a(:,:,stim_t,:),[],3));
+
+figure;
+h = tiledlayout(2,3);
+for i = 1:3
+    nexttile;
+    imagesc(v_max(:,:,i));
+    axis image off;
+    clim(col_lim)
+    colormap(gca,ap.colormap('WR'));
+    ap.wf_draw('ccf','k');
+end
+for i = 1:3
+    nexttile;
+    imagesc(a_max(:,:,i));
+    axis image off;
+    clim(col_lim)
+    colormap(gca,ap.colormap('WB'));
+    ap.wf_draw('ccf','k');
+end
+
+% Colored learned map
+v_stim = 3;
+a_stim = 2;
+
+task_workflow = 'stim_wheel_right_stage\d$';
+use_rec = cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+% use_rec = va_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat > 0.05;
+v_learned = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,1}),4));
+v_learned = imgaussfilt(v_learned,3)-imgaussfilt(v_learned,20);
+
+task_workflow = 'stim_wheel_right_stage\d_audio*';
+use_rec =  av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+% use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat > 0.05;
+a_learned = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,2}),4));
+a_learned = imgaussfilt(a_learned,3)-imgaussfilt(a_learned,20);
+
+v_col = ap.colormap('WR');
+a_col = ap.colormap('WB');
+col_lim = [0,1.4e-4]; % kernel
+% col_lim = [0,6e-3]; % avg
+
+v_learned_gray = 1+round(mat2gray(v_learned(:,:,:,v_stim),col_lim).*(size(v_col,1)-1));
+v_learned_col = permute(reshape(v_col(v_learned_gray,:),[size(v_learned_gray),3]),[1,2,4,3]);
+
+a_learned_gray = 1+round(mat2gray(a_learned(:,:,:,a_stim),col_lim).*(size(a_col,1)-1));
+a_learned_col = permute(reshape(a_col(a_learned_gray,:),[size(a_learned_gray),3]),[1,2,4,3]);
+
+va_learned_col = min(v_learned_col,a_learned_col);
+
+ap.imscroll(va_learned_col,[],true);
+axis image;
+ap.wf_draw('ccf','k');
+
+plot_frames = find(t>=0 & t<= 0.2);
+figure; h = tiledlayout(3,length(plot_frames),'TileSpacing','none','TileIndexing','ColumnMajor');
+for curr_frame = plot_frames
+    nexttile;
+    image(v_learned_col(:,:,:,curr_frame));
+    ap.wf_draw('ccf','k');
+    axis image off;
+    title(sprintf('%.2f',(curr_frame-1)/35));
+
+    nexttile;
+    image(a_learned_col(:,:,:,curr_frame));
+    ap.wf_draw('ccf','k');
+    axis image off;
+
+    nexttile;
+    image(va_learned_col(:,:,:,curr_frame));
+    ap.wf_draw('ccf','k');
+    axis image off;
+end
+
+% Plot max V/A/overlay
+stim_t = t > 0 & t < 0.2;
+v_learned_max = max(v_learned(:,:,stim_t,v_stim),[],3);
+a_learned_max = max(a_learned(:,:,stim_t,a_stim),[],3);
+
+figure;
+h = tiledlayout(1,3,'TileSpacing','none');
+
+nexttile; imagesc(v_learned_max); 
+clim(col_lim); axis image off;
+colormap(gca,ap.colormap('WR'));
+ap.wf_draw('ccf','k');
+
+nexttile; imagesc(a_learned_max); 
+clim(col_lim); axis image off;
+colormap(gca,ap.colormap('WB'));
+ap.wf_draw('ccf','k');
+
+v_learned_max_gray = 1+round(mat2gray(v_learned_max,col_lim).*(size(v_col,1)-1));
+v_learned_max_col = reshape(v_col(v_learned_max_gray,:),size(v_learned_max,1),size(v_learned_max,2),3,[]);
+
+a_learned_max_gray = 1+round(mat2gray(a_learned_max,col_lim).*(size(a_col,1)-1));
+a_learned_max_col = reshape(a_col(a_learned_max_gray,:),size(a_learned_max,1),size(a_learned_max,2),3,[]);
+
+va_learned_max_col = min(v_learned_max_col,a_learned_max_col);
+nexttile; image(va_learned_max_col);
+axis image off;
+ap.wf_draw('ccf','k');
+
+
+
+
+
+%% ROI
+
+% Passive kernel
+data_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_kernel.mat';
+load(data_fn);
+t = (0:30)/35;
+n_components = size(stim_V{1}{1});
+
+% % Passive average
+% data_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\passive_avg.mat';
+% load(data_fn);
+% t = conv(-0.5:0.03:1,[1,1]/2,'valid');
+% n_components = size(stim_V{1}{1});
+
+% % Task kernel
+% data_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\task_kernel.mat';
+% load(data_fn);
+% t = (0:20)/35;
+% n_components = size(stim_V{1}{1});
+
+bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
+load(bhv_filename);
+
+U_master = plab.wf.load_master_U;
+
+%%% PROBLEM! bhv doesn't match kernels (sometime extra bhv day), don't know
+%%% why at the moment, maybe just truncated if error on last day, but
+%%% didn't see error on example one
+
+% Task/passive params
+if contains(data_fn,'task')
+    stim_V_cat = horzcat(stim_V{:})';
+    [v_stim,v_col,a_stim,a_col] = deal(1);
+elseif contains(data_fn,'passive')
+    stim_V_cat = vertcat(stim_V{:});
+    v_stim = 3;
+    v_col = 1;
+
+    a_stim = 2;
+    a_col = 2;
+end
+
+% just truncate bhv values for now
+rxn_stat_p_animal = {bhv.rxn_stat_p}';
+rxn_stat_p_animal_trunc = cellfun(@(x,y) x(1:length(y))',rxn_stat_p_animal,stim_V,'uni',false);
+rxn_stat_p_cat = vertcat(rxn_stat_p_animal_trunc{:});
+
+workflow_animal = {bhv.workflow}';
+workflow_animal_trunc = cellfun(@(x,y) x(1:length(y))',workflow_animal,stim_V,'uni',false);
+workflow_cat = vertcat(workflow_animal_trunc{:});
+
+vis_workflow = 'stim_wheel_right_stage\d$';
+aud_workflow = 'stim_wheel_right_stage\d_audio*';
+va_animals = cellfun(@(x) max([...
+    find(cellfun(@any,regexp(x,vis_workflow)),1) < ...
+    find(cellfun(@any,regexp(x,aud_workflow)),1), ...
+    false]),workflow_animal);
+av_animals = cellfun(@(x) max([...
+    find(cellfun(@any,regexp(x,vis_workflow)),1) > ...
+    find(cellfun(@any,regexp(x,aud_workflow)),1), ...
+    false]),workflow_animal);
+
+% (ALT: define manually)
+va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011'})';
+av_animals = ismember({bhv.animal},{'DS000','DS004','DS014','DS015','DS016','DS005'})';
+
+va_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(va_animals),workflow_animal_trunc,'uni',false));
+av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_animals),workflow_animal_trunc,'uni',false));
+
+% Get learned day
+v_learned_day = cellfun(@(x,p,stat) ...
+     sum(cellfun(@any,regexp( ...
+     x(1:find(cellfun(@any,regexp(x,vis_workflow)) & p < 0.05 & stat < 1,1)),vis_workflow))), ...
+     workflow_animal,{bhv.rxn_stat_p}',{bhv.rxn_stat}');
+ 
+a_learned_day = cellfun(@(x,p,stat) ...
+     sum(cellfun(@any,regexp( ...
+     x(1:find(cellfun(@any,regexp(x,aud_workflow)) & p < 0.05 & stat < 1,1)),aud_workflow))), ...
+     workflow_animal,{bhv.rxn_stat_p}',{bhv.rxn_stat}');
+
+v_ld = cell2mat(cellfun(@(x,ld) (1:length(x))'-ld,stim_V,num2cell(v_learned_day),'uni',false));
+a_ld = cell2mat(cellfun(@(x,ld) (1:length(x))'-ld,stim_V,num2cell(a_learned_day),'uni',false));
+
+% Movie V/A
+task_workflow = 'stim_wheel_right_stage\d$';
+use_rec = cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+v = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,v_col}),4));
+
+task_workflow = 'stim_wheel_right_stage\d_audio*';
+use_rec = cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+a = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec,a_col}),4));
+
 ap.imscroll(v);
-% ap.imscroll(v-imgaussfilt(v,15))
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 
-ap.imscroll(a)
-% ap.imscroll(a-imgaussfilt(a,15))
+ap.imscroll(a);
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 
 
 
-%% Task kernel testing
+% DRAW ROI
+plot_days = -3:5;
+
+col = ap.colormap('BKR',max(abs(plot_days))*2+1);
+col_days = -max(abs(plot_days)):max(abs(plot_days));
+
+task_workflow = 'stim_wheel_right_stage\d$';
+use_rec = va_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & ismember(v_ld,plot_days);
+v_roi = cell2mat(cellfun(@(x) ap.wf_roi(U_master(:,:,1:n_components), ...
+    x(:,:,v_stim),[],[],roi.mask),stim_V_cat(use_rec,v_col), ...
+    'uni',false,'ErrorHandler',@(varargin) nan(1,length(t),'single')));
+
+[v_roi_mean,v_roi_group] = ap.groupfun(@nanmean,v_roi,v_ld(use_rec));
+v_roi_sem = ap.groupfun(@AP_sem,v_roi,v_ld(use_rec));
+
+figure; h = tiledlayout(1,length(plot_days));
+for curr_idx = 1:size(v_roi_mean,1)
+    nexttile;
+    ap.errorfill(t,v_roi_mean(curr_idx,:),v_roi_sem(curr_idx,:), ...
+        col(ismember(col_days,v_roi_group(curr_idx)),:));
+end
+linkaxes(h.Children);
+
+
+task_workflow = 'stim_wheel_right_stage\d_audio*';
+use_rec = va_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & ismember(a_ld,plot_days);
+a_roi = cell2mat(cellfun(@(x) ap.wf_roi(U_master(:,:,1:n_components), ...
+    x(:,:,a_stim),[],[],roi.mask),stim_V_cat(use_rec,a_col), ...
+    'uni',false,'ErrorHandler',@(varargin) nan(1,length(t),'single')));
+
+[a_roi_mean,a_roi_group] = ap.groupfun(@mean,a_roi,a_ld(use_rec));
+a_roi_sem = ap.groupfun(@AP_sem,a_roi,a_ld(use_rec));
+
+figure; h = tiledlayout(1,length(plot_days));
+for curr_idx = 1:size(a_roi_mean,1)
+    nexttile;
+    ap.errorfill(t,a_roi_mean(curr_idx,:),a_roi_sem(curr_idx,:), ...
+        col(ismember(col_days,a_roi_group(curr_idx)),:));
+end
+linkaxes(h.Children);
+
+
+
+
+%% Task maps 
 
 kernel_fn = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\task_kernel.mat';
 load(kernel_fn);
+t = (0:20)/35;
+n_components = size(stim_V{1}{1},1);
 
 bhv_filename = 'C:\Users\petersa\Documents\PetersLab\analysis\av_association\data\bhv.mat';
 load(bhv_filename);
@@ -642,22 +910,93 @@ av_animals = cellfun(@(x) max([...
     find(cellfun(@any,regexp(x,aud_workflow)),1), ...
     false]),workflow_animal);
 
+% (ALT: define manually)
+% va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011'})';
+va_animals = ismember({bhv.animal},{'AP019','AP021','AP022','DS001','DS007','DS010','DS011','DS019','DS020','DS021'})';
+av_animals = ismember({bhv.animal},{'DS000','DS004','DS014','DS015','DS016','DS005'})';
+
 va_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(va_animals),workflow_animal_trunc,'uni',false));
 av_animals_cat = cell2mat(cellfun(@(x,y) repmat(x,length(y),1),num2cell(av_animals),workflow_animal_trunc,'uni',false));
 
-% task_workflow = 'stim_wheel_right_stage\d$';
-task_workflow = 'stim_wheel_right_stage\d_audio*';
+% Plot
+task_workflow = 'stim_wheel_right_stage\d$';
+task_workflow = 'stim_wheel_right_stage\d_audio';
+% use_rec = cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+use_rec = va_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+v_learned = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec}),4));
+% v_learned = imgaussfilt(v_learned,3)-imgaussfilt(v_learned,20);
 
+task_workflow = 'stim_wheel_right_stage\d_audio';
+% use_rec =  cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
 use_rec = av_animals_cat & cellfun(@any,regexp(workflow_cat,task_workflow)) & rxn_stat_p_cat < 0.05;
+a_learned = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(4,stim_V_cat{use_rec}),4));
+% a_learned = imgaussfilt(a_learned,3)-imgaussfilt(a_learned,20);
 
-n_components = size(stim_V_cat{1},1);
-task_kernel = plab.wf.svd2px(U_master(:,:,1:n_components),nanmean(cat(3,stim_V_cat{use_rec}),3));
+v_col = ap.colormap('WG');
+a_col = ap.colormap('WP');
+col_lim = [0,3e-4]/2; % kernel
 
-ap.imscroll(task_kernel);
+v_learned_gray = 1+round(mat2gray(v_learned,col_lim).*(size(v_col,1)-1));
+v_learned_col = permute(reshape(v_col(v_learned_gray,:),[size(v_learned_gray),3]),[1,2,4,3]);
+
+a_learned_gray = 1+round(mat2gray(a_learned,col_lim).*(size(a_col,1)-1));
+a_learned_col = permute(reshape(a_col(a_learned_gray,:),[size(a_learned_gray),3]),[1,2,4,3]);
+
+va_learned_col = min(v_learned_col,a_learned_col);
+
+ap.imscroll(va_learned_col,t,true);
 axis image;
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
+ap.wf_draw('ccf','k');
 
+plot_frames = find(t>=0 & t<= 0.2);
+figure; h = tiledlayout(3,length(plot_frames),'TileSpacing','none','TileIndexing','ColumnMajor');
+for curr_frame = plot_frames
+    nexttile;
+    image(v_learned_col(:,:,:,curr_frame));
+    ap.wf_draw('ccf','k');
+    axis image off;
+    title(sprintf('%.2f',(curr_frame-1)/35));
+
+    nexttile;
+    image(a_learned_col(:,:,:,curr_frame));
+    ap.wf_draw('ccf','k');
+    axis image off;
+
+    nexttile;
+    image(va_learned_col(:,:,:,curr_frame));
+    ap.wf_draw('ccf','k');
+    axis image off;
+end
+
+
+% Plot max V/A/overlay
+stim_t = t > 0 & t < 0.2;
+v_learned_max = max(v_learned(:,:,stim_t),[],3);
+a_learned_max = max(a_learned(:,:,stim_t),[],3);
+
+figure;
+h = tiledlayout(1,3,'TileSpacing','none');
+
+nexttile; imagesc(v_learned_max); 
+clim(col_lim); axis image off;
+colormap(gca,v_col);
+ap.wf_draw('ccf','k');
+
+nexttile; imagesc(a_learned_max); 
+clim(col_lim); axis image off;
+colormap(gca,a_col);
+ap.wf_draw('ccf','k');
+
+v_learned_max_gray = 1+round(mat2gray(v_learned_max,col_lim).*(size(v_col,1)-1));
+v_learned_max_col = reshape(v_col(v_learned_max_gray,:),size(v_learned_max,1),size(v_learned_max,2),3,[]);
+
+a_learned_max_gray = 1+round(mat2gray(a_learned_max,col_lim).*(size(a_col,1)-1));
+a_learned_max_col = reshape(a_col(a_learned_max_gray,:),size(a_learned_max,1),size(a_learned_max,2),3,[]);
+
+va_learned_max_col = min(v_learned_max_col,a_learned_max_col);
+nexttile; image(va_learned_max_col);
+axis image off;
+ap.wf_draw('ccf','k');
 
 
 %% ~~~~~~~~~~~~~ Specific animals, grand average

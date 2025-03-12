@@ -29,7 +29,7 @@ if sum(size(data)>1) > 1 && length(groups) ~= ndims(data)
     % If data has >1 non-singleton dimension, fill in empty groups for
     % number of dimensions (i.e. if no grouping specified for dimension,
     % don't group).
-    groups{setdiff(1:ndims(data),find(~cellfun(@isempty,groups)))} = [];
+    [groups{setdiff(1:ndims(data),find(~cellfun(@isempty,groups)))}] = deal([]);
 
 elseif sum(size(data)~=1) == 1 && find(~cellfun(@isempty,groups)) == 1
     % If data has 1 non-singleton dimension and one group, put group in
