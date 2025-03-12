@@ -8,12 +8,10 @@ end
 
 % Only use quality-controlled "single units", within striatum
 % (REMOVED FROM BELOW - this can be done at later step)
-striatal_single_units = ...
-    ismember(template_qc_labels,{'singleunit'}) & ...
-    ~isnan(discretize(template_depths,striatum_depth));
+striatal_units = ~isnan(discretize(template_depths,striatum_depth));
+single_units = ismember(template_qc_labels,{'singleunit'});
 
 if verbose; fprintf('Ephys: Classifying striatal cells...\n'); end
-
 
 % %% Attempt at metrics w/o bombcell
 % 
@@ -30,9 +28,11 @@ if verbose; fprintf('Ephys: Classifying striatal cells...\n'); end
 % % 
 % %%%
 
-% Get spike acgs
-spike_acg = cell2mat(arrayfun(@(x) ...
-    ap.ephys_spike_cg(x),1:size(templates,1),'uni',false));
+% Get spike acgs (messy for now - hard-code initializing and running only
+% for striatal, since this takes a little while)
+spike_acg = nan(size(templates,1),2001);
+spike_acg(striatal_units,:) = cell2mat(arrayfun(@(x) ...
+    ap.ephys_spike_cg(x),find(striatal_units),'uni',false));
 
 % Get time to get to 90% steady-state value
 acg_steadystate = nan(size(templates,1),1);
@@ -84,10 +84,10 @@ if false
     % Scatter plot units by properties
     nexttile; hold on
     scatter3( ...
-        waveform_duration_peaktrough(striatal_single_units), ...
-        acg_steadystate(striatal_single_units), ...
-        spike_rate(striatal_single_units), ...
-        20,str_unit_colors(striatal_single_units,:),'filled');
+        waveform_duration_peaktrough(striatal_units), ...
+        acg_steadystate(striatal_units), ...
+        spike_rate(striatal_units), ...
+        20,str_unit_colors(striatal_units,:),'filled');
     xlabel('Peak-trough duration');
     ylabel('ACG steady state time');
     zlabel('Spike rate');
