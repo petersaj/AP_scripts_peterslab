@@ -178,7 +178,7 @@ animals = {'HA005'};
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
 
 % Set reaction statistic to use
-use_stat = 'median';
+use_stat = 'mean';
 
 % Create master tiled layout
 figure;

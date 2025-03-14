@@ -1,35 +1,47 @@
 
 % Find striatum boundaries on probe
+%
+% All parameters are empirical based on tweaking parameters and checking
+% performance on AM recordings
 
 %% Find gaps in units
 
 % Based on number of units in a window less than a threshold
 
-unit_gap_window = 200; % window to count units
+unit_gap_window = 300; % window to count units
 unit_gap_window_slide = 10; % sliding time for window
-unit_gap_thresh = 3; % number of units in window to be called a "gap"
+unit_gap_thresh = 10; % number of units in window to be called a "gap"
 
 unit_gap_bins = (0:unit_gap_window_slide:(max(channel_positions(:,2))-unit_gap_window)) + ...
     [0;unit_gap_window];
-unit_gap_bin_ends = unit_gap_bins(2,:);
+unit_gap_bin_centers = mean(unit_gap_bins,1);
 
 unit_bin_counts = cellfun(@(x) histcounts(template_depths,x),num2cell(unit_gap_bins,1));
-unit_bin_thresh = unit_bin_counts <= unit_gap_thresh;
-
-unit_gap_ends = unit_gap_bin_ends(diff(unit_bin_thresh) == -1);
-
-% If there's no gap, just call the start of the probe an end of a gap
-if isempty(unit_gap_ends)
-    unit_gap_ends = min(template_depths)-1;
-end
-
-%% Start of striatum: last gap in the top portion of probe
 
 late_gap_threshold = max(channel_positions(:,2))*0.6;
+if any(unit_bin_counts < unit_gap_thresh)
+    % Gap is bin with fewest units
+    [~,min_units_bin_idx] = min(unit_bin_counts(unit_gap_bin_centers < late_gap_threshold));
+    pre_striatum_gap = unit_gap_bin_centers(min_units_bin_idx);
+else
+    % If there's no gap, just call the start of the probe an end of a gap
+    pre_striatum_gap = min(template_depths)-1;
+end
 
-striatum_start = max(unit_gap_ends(unit_gap_ends < late_gap_threshold));
 
-%% End of striatum: end of probe, or before correlated MUA block near tip
+%% Striatum start
+% First unit after gap (last gap in top half of probe)
+% (subtract 1 um to include first unit)
+
+if ~isempty(pre_striatum_gap)
+    striatum_start = min(template_depths(template_depths > pre_striatum_gap))-1;
+else
+    striatum_start = NaN;
+end
+
+%% Striatum end
+% Before MUA correlation change near tip or last unit otherwise
+% (add 1 um to include last unit)
 
 % Get correlation of MUA in sliding windows
 depth_corr_window = 150; % MUA window in microns
@@ -57,27 +69,31 @@ end
 mua_corr = corrcoef(binned_spikes_depth');
 
 % Look at average correlation backwards from tip on both dimensions
-depth_back = 1000;
+depth_back = 800;
 groups_back = depth_back/depth_corr_window_spacing;
 mua_corr_end = medfilt2(mua_corr(end-groups_back+1:end,end-groups_back+1:end),[3,3]);
 mua_corr_end(triu(true(length(mua_corr_end)),0)) = nan;
-mean_corr_dim1 = nanmean(mua_corr_end,2);
-mean_corr_dim2 = nanmean(mua_corr_end,1)';
+mean_corr_dim1 = nanmean(mua_corr_end,1)';
+mean_corr_dim2 = nanmean(mua_corr_end,2);
 
-if max(mean_corr_dim2) > max(mean_corr_dim1)*0.5 && ...
-    diff(prctile(max(mean_corr_dim1,mean_corr_dim2,'includenan'),[0,100])) > max(mean_corr_dim1)*0.2
+% this one is to find concurrent increase/decrease (above flagged separate)
+if  max(diff(mean_corr_dim1) - diff(mean_corr_dim2)) > 0.15
+    % If there is a sharp concurrent drop in upper correlation and rise in
+    % lower correlation, probe leaves striatum
+% 
+%     % If there's a correlated block at end: end of probe is correlated, and
+%     % there's a dip in correlation between the middle and end
+%     [~,mua_corr_switch_idx] = min(max(mean_corr_dim2,mean_corr_dim1,'includenan'));
+%     depths_back_centers = depth_corr_bin_centers(end-groups_back+1:end);
+%     striatum_end = depths_back_centers(mua_corr_switch_idx-1);
 
-    % If there's a correlated block at end: end of probe is correlated, and
-    % there's a dip in correlation between the middle and end
-    [~,mua_corr_min_idx] = min(max(mean_corr_dim1,mean_corr_dim2,'includenan'));
+    [~,mua_corr_switch_idx] = max(diff(mean_corr_dim1)-diff(mean_corr_dim2));
     depths_back_centers = depth_corr_bin_centers(end-groups_back+1:end);
-    striatum_end = depths_back_centers(mua_corr_min_idx-1);
+    striatum_end = depths_back_centers(mua_corr_switch_idx-1);
 
 else
-
-    % If no correlated block at end, use last unit
+    % Otherwise, probe never leaves striatum, use last template
     striatum_end = max(template_depths)+1;
-
 end
 
 %% Set striatum depth
@@ -106,7 +122,7 @@ end
 
 n_cortex_units = sum(template_depths >= 0 & template_depths < striatum_depth(1));
 
-if n_cortex_units > 20
+if n_cortex_units > 50
     spike_n = accumarray(findgroups(spike_templates),1);
 
     ctx_v_str_thresh = 1.5;
@@ -120,7 +136,7 @@ end
 
 %% Drop recording: if there's a gap in units more than halfway
 
-if unit_gap_ends(end) > late_gap_threshold
+if any(unit_bin_counts(unit_gap_bin_centers > late_gap_threshold) == 0)
     striatum_depth = NaN(2,1);
 end
 
@@ -138,7 +154,7 @@ if false
 
     nexttile;
     imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
-    clim([-1,1].*0.5);
+    clim([-1,1]);
     colormap(ap.colormap('BWR'))
     xline(striatum_depth,'g','linewidth',3);
     yline(striatum_depth,'g','linewidth',3);

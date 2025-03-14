@@ -2485,7 +2485,7 @@ for curr_animal = 1:length(animals)
     recordings = plab.find_recordings(animal,[],use_workflow);
     recordings = recordings([recordings.ephys]);
 
-    figure;
+    figure('Position',[1,49,1920,955]);
     h = tiledlayout(1,length(recordings));
     title(h,animal);
 

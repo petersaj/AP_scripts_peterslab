@@ -170,16 +170,12 @@ end
     ap.psth(spike_times_timelite,align_times,spike_templates, ...
     'smoothing',100,'norm_window',[-0.5,0],'softnorm',1);
 
-% Plot sorted
-% (sort depth)
-[~,sort_idx] = sort(template_depths);
-% 
-% % (sort max time)
-% [~,max_idx] = max(max(abs(unit_psth),[],3),[],2);
-% [~,sort_idx] = sort(max_idx);
-
+% Plot depth-sorted
+% [~,unit_depth_sort_idx] = sort(template_depths);
+[~,max_idx] = max(max(abs(unit_psth),[],3),[],2);
+[~,sort_idx] = sort(max_idx);
 ap.imscroll(unit_psth(sort_idx,:,:));
-clim([-5,5]);
+clim([-2,2]);
 colormap(AP_colormap('BWR'));
 
 
@@ -241,7 +237,7 @@ responsive_units = find(event_response_p < 0.05 | event_response_p > 0.95);
 % [~,sort_idx] = sort(max_t);
 %
 % (sort by depth)
-[~,sort_idx] = sort(template_depths(responsive_units));
+template_depth
 
 ap.imscroll(unit_psth(responsive_units(sort_idx),:,:));
 colormap(AP_colormap('BWR'));
@@ -479,7 +475,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % striatum, even, click, define
+mua_method = 'click'; % striatum, even, click, define
 
 switch mua_method
 
@@ -493,7 +489,7 @@ switch mua_method
 
     case 'even'
         % (to group multiunit by evenly spaced depths)
-        n_depths = 10;
+        n_depths = 8;
         depth_group_edges = round(linspace(0,4000,n_depths+1));
         [~,~,depth_group] = histcounts(spike_depths,depth_group_edges);
         depth_groups_used = unique(depth_group);
