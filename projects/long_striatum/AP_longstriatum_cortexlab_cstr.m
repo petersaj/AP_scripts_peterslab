@@ -6,15 +6,15 @@
 
 %% NOTE ABOUT LOCATION
 
-% Was on EHD
-% Moving to server/Users/Andy/cortexlab_corticostriatal_data
+% Was on EHD, moved to server:
+% server/Users/Andy/cortexlab_corticostriatal_data
 
 %% ~~~~~~~~~~~ PACKAGING
 
 %% Grab and save behavior (operant)
 
 animal_group = 'cstr';
-% animals = {'AP092','AP093','AP094','AP095','AP096','AP097'}; % standard task, only 3 learned well?]
+% animals = {'AP092','AP093','AP094','AP095','AP096','AP097'}; % standard task, only 3 learned well?
 % animals = {'AP092','AP094','AP096'}; % 3 that learned above
 % animals = {'AP093','AP095','AP097'}; % 3 that didn't learn above
 % animals = {'AP089','AP090','AP091'}; % fixed-quiescence
@@ -566,7 +566,9 @@ disp(['Saved learned days ' bhv_fn]);
 
 
 
-%% Passive widefield
+%% Passive widefield (operant)
+
+error('currently only using task days - include pre-task?')
 
 disp('Passive trial activity')
 
@@ -649,6 +651,94 @@ save_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum
 save_fn = fullfile(save_path,'trial_activity_passive_cstr');
 save(save_fn,'-v7.3');
 disp(['Saved: ' save_fn])
+
+
+%% Passive widefield (choiceworld)
+
+disp('Passive trial activity')
+
+% Initialize
+clear all
+trial_data_all = struct;
+
+% Set animals
+animals = {'AP087'}; 
+
+for curr_animal = 1:length(animals)
+    
+    animal = animals{curr_animal};
+    protocol = 'AP_lcrGratingPassive';
+    passive_experiments = AP_find_experiments_externalhd(animal,protocol);
+    
+    % Get days after muscimol starts (to exclude)
+    data_path = 'E:\Cortexlab_documents\CarandiniHarrisLab\analysis\operant_learning\data';
+    muscimol_fn = [data_path filesep 'muscimol.mat'];
+    load(muscimol_fn);
+    muscimol_animal_idx = ismember({muscimol.animal},animal);
+    if any(muscimol_animal_idx)
+        muscimol_start_day = muscimol(muscimol_animal_idx).day{1};
+        muscimol_experiments = datenum({passive_experiments.day})' >= datenum(muscimol_start_day);
+    else
+        muscimol_experiments = false(size({passive_experiments.day}));
+    end
+
+    % Get days with standard task (excludes passive-only and other tasks)
+    task_protocol = 'vanillaChoiceworld';
+    task_experiments = AP_find_experiments_externalhd(animal,task_protocol);
+    standard_task_experiments =  datenum({passive_experiments.day})' <= ...
+        datenum(task_experiments(end).day);
+    
+    % Set experiments to use (imaging, not muscimol, task)
+    experiments = passive_experiments([passive_experiments.imaging] & ...
+        ~muscimol_experiments & standard_task_experiments);
+    
+    disp(['Loading ' animal]);
+    
+    for curr_day = 1:length(experiments)
+        
+        preload_vars = who;
+        
+        day = experiments(curr_day).day;
+        experiment = experiments(curr_day).experiment(end);
+        
+        % Load experiment
+        AP_load_experiment_externalhd;
+        
+        % Pull out trial data
+        operant_grab_trial_data_externalhd;
+        
+        % Store trial data into master structure
+        trial_data_fieldnames = fieldnames(trial_data);
+        for curr_trial_data_field = trial_data_fieldnames'
+            trial_data_all.(cell2mat(curr_trial_data_field)){curr_animal,1}{curr_day,1} = ...
+                trial_data.(cell2mat(curr_trial_data_field));
+        end
+        
+        % Store general info
+        trial_data_all.animals = animals;
+        trial_data_all.t = t;
+        
+        AP_print_progress_fraction(curr_day,length(experiments));
+        
+        % Clear for next loop
+        clearvars('-except',preload_vars{:});
+        
+    end
+    
+end
+
+clearvars -except trial_data_all
+disp('Finished loading all')
+
+% (have not run this since only one animal - if running, save separate name)
+% % Save
+% save_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\cstr_data_test';
+% save_fn = fullfile(save_path,'trial_activity_passive_cstr');
+% save(save_fn,'-v7.3');
+% disp(['Saved: ' save_fn])
+
+
+
 
 %% ~~~~~~~~~~~ ANALYSIS
 

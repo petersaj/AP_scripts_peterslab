@@ -227,7 +227,7 @@ n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
 stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
 
-stim_pd_n = (stim_x==-90)*2 + (stim_x==rewarded_x)*2;
+stim_pd_n = (stim_x==-90)*1 + (stim_x==rewarded_x)*2; % (for center-out): (stim_x==-90)*2 + (stim_x==rewarded_x)*2;
     
 stim_pd_on_grouped = mat2cell(photodiode_on_times(1:sum(stim_pd_n)),stim_pd_n);
 stim_pd_off_grouped = mat2cell(photodiode_off_times(1:sum(stim_pd_n)),stim_pd_n);
@@ -241,7 +241,7 @@ stim_move_times(stim_x == rewarded_x) = cellfun(@(x) x(1), stim_pd_off_grouped(s
 % (stim center times, or would-be for CS-)
 stim_center_times = nan(size(stim_x));
 stim_center_times(stim_x == rewarded_x) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == rewarded_x));
-stim_center_times(stim_x == -90) = cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == -90)); %cell2mat(stim_pd_off_grouped(stim_x == -90))+1;
+stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+1; % (for center-out): cellfun(@(x) x(2), stim_pd_off_grouped(stim_x == -90));
 
 % (reward times, or would-be for CS-)
 stim_reward_times = nan(size(stim_x));
@@ -481,11 +481,9 @@ time_bins = [wf_t;wf_t(end)+1/wf_framerate];
 
 stim_regressors = histcounts(stimOn_times,time_bins);
 
-stim_regressors = histcounts(timelite.timestamps(find(diff(wheel_move)==1)+1),time_bins);
-
 n_components = 200;
 
-frame_shifts = 0:20;
+frame_shifts = -10:20;
 lambda = 20;
 cv_fold = 3;
 
