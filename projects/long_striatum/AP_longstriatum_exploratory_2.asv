@@ -7,12 +7,12 @@ load(fullfile(data_path,'swr_bhv'));
 load(fullfile(data_path,'ctx_maps_to_str'));
 
 % (load passive)
-load(fullfile(data_path,'ephys'));
+% load(fullfile(data_path,'ephys'));
 
-% % (load task - need to rename main var)
-% load(fullfile(data_path,'task_ephys'));
-% ephys = task_ephys;
-% clear task_ephys;
+% (load task - need to rename main var)
+load(fullfile(data_path,'task_ephys'));
+ephys = task_ephys;
+clear task_ephys;
 
 U_master = plab.wf.load_master_U;
 
@@ -29,64 +29,45 @@ load(fullfile(data_path,'ephys'));
 
 %% Behavior
 
-% Plot reaction time/index, by training day and learning day
-training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
-    unique(bhv.animal,'stable'),'uni',false));
+training_day = cell2mat(cellfun(@(x) (1:sum(grp2idx(bhv.animal)==x))', ...
+    num2cell(unique(grp2idx(bhv.animal))),'uni',false));
+
+use_day_grp = bhv.days_from_learning;
+use_day_grp = training_day;
+
+plot_x = 1:
 
 rxn_cat = cell2mat(bhv.stimwheel_rxn_mean);
 rxn_null_cat = cell2mat(bhv.stimwheel_rxn_null_mean);
 rxn_idx_cat = (rxn_null_cat-rxn_cat)./(rxn_null_cat+rxn_cat);
 
-figure; h = tiledlayout(2,2);
+[rxn_idx_mean,rxn_group_ld] = ap.groupfun(@mean,rxn_idx_cat,use_day_grp);
+rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,use_day_grp);
 
-for day_align = 1:2
+rxn_mean = ap.groupfun(@mean,rxn_cat,use_day_grp);
+rxn_sem = ap.groupfun(@AP_sem,rxn_cat,use_day_grp);
 
-    switch day_align
-        case 1
-            use_day_grp = training_day;
-            plot_x = 1:7;
-        case 2
-            use_day_grp = bhv.days_from_learning;
-            plot_x = -3:2;
-    end
+rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,use_day_grp);
+rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,use_day_grp);
 
-    [rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_cat,use_day_grp);
-    rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,use_day_grp);
+figure; tiledlayout(1,2);
+nexttile; hold on;
+% ap.errorfill(rxn_group_ld,rxn_null_mean,rxn_null_sem,'r',0.5,false);
+% errorbar(rxn_group_ld,rxn_mean,rxn_sem,'k','linewidth',2);
+plot(rxn_group_ld,rxn_null_mean,'r','linewidth',2);
+plot(rxn_group_ld,rxn_mean,'k','linewidth',2);
+set(gca,'YScale','log');
+xline(0);
+ylabel('Reaction index')
 
-    rxn_mean = ap.groupfun(@mean,rxn_cat,use_day_grp);
-    rxn_sem = ap.groupfun(@AP_sem,rxn_cat,use_day_grp);
+nexttile
+errorbar(rxn_group_ld,rxn_idx_mean,rxn_idx_sem,'k','linewidth',2);
+xline(0);
+ylabel('Reaction index')
 
-    rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,use_day_grp);
-    rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,use_day_grp);
 
-    plot_x_idx = ismember(rxn_group_x,plot_x);
 
-    nexttile; hold on;
-    % ap.errorfill(rxn_group_ld,rxn_null_mean,rxn_null_sem,'r',0.5,false);
-    % errorbar(rxn_group_ld,rxn_mean,rxn_sem,'k','linewidth',2);
-    plot(rxn_group_x(plot_x_idx),rxn_null_mean(plot_x_idx),'r','linewidth',2);
-    plot(rxn_group_x(plot_x_idx),rxn_mean(plot_x_idx),'k','linewidth',2);
-    set(gca,'YScale','log');
-    xline(0);
-    ylabel('Reaction index')
 
-    nexttile
-    errorbar(rxn_group_x(plot_x_idx),rxn_idx_mean(plot_x_idx),rxn_idx_sem(plot_x_idx),'k','linewidth',2);
-    xline(0);
-    ylabel('Reaction index')
-
-end
-
-linkaxes(h.Children(1:2:end),'y');
-linkaxes(h.Children(2:2:end),'y');
-
-% Plot histogram of learning days
-n_learned_day = cell2mat(cellfun(@(x) find(bhv.learned_days(strcmp(bhv.animal,x)),1), ...
-    unique(bhv.animal,'stable'),'uni',false));
-figure;
-histogram(n_learned_day,0.5:max(n_learned_day)+0.5)
-ylabel('Number of mice');
-xlabel('Days to learn');
 
 
 %% K-means on maps 
