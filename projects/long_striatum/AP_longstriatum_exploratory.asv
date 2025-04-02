@@ -352,10 +352,10 @@ return_constant = false;
 
 mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
 
-%% No-stim task: behavior
+%% No-stim task: behavior (stim vs no-stim)
 % (fixed quiescence, % no stimuli)
 
-animals = {'AP024','AP026'};
+animals = {'AP026'};
 
 % Create master tiled layout
 figure;
@@ -487,6 +487,181 @@ for curr_animal_idx = 1:length(animals)
     xlabel('Time from stim');
     title('Stim - no stim');
     ylim([-1,1]);
+
+end
+
+%% No-stim task: behavior (normal stim-only)
+% (fixed quiescence, % no stimuli)
+
+animals = {'AP026'};
+
+% Set reaction statistic to use
+use_stat = 'mean';
+
+% Create master tiled layout
+figure;
+t = tiledlayout(1,length(animals),'TileSpacing','tight');
+
+% Grab learning day for each mouse
+bhv = struct;
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals{curr_animal_idx};
+
+    use_workflow = 'stim_wheel_right_fixedquiescence*';
+
+    recordings = plab.find_recordings(animal,[],use_workflow);
+
+    surround_time = [-5,5];
+    surround_sample_rate = 100;
+    surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+
+    n_trials_success = nan(length(recordings),2);
+    frac_move_day = nan(length(recordings),1);
+    frac_move_stimalign = nan(length(recordings),length(surround_time_points));
+
+    rxn_stat_p = nan(length(recordings),1);
+    rxn_stat = nan(length(recordings),1);
+    rxn_null_stat = nan(length(recordings),1);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        % Get total trials/water
+        n_trials_success(curr_recording,:) = ...
+            [length([trial_events.values.Outcome]), ...
+            sum([trial_events.values.Outcome])];
+
+        % Get opacity per trial and set trials to use
+        trial_opacity = [trial_events.values(1:n_trials).TrialOpacity;
+
+        use_trials = trial_opacity == 0;
+
+        % Align wheel movement to stim onset
+        align_times = stimOn_times(use_trials);
+        pull_times = align_times + surround_time_points;
+
+        frac_move_day(curr_recording) = nanmean(wheel_move);
+
+        event_aligned_wheel_vel = interp1(timelite.timestamps, ...
+            wheel_velocity,pull_times);
+        event_aligned_wheel_move = interp1(timelite.timestamps, ...
+            +wheel_move,pull_times,'previous');
+
+        frac_move_stimalign(curr_recording,:) = nanmean(event_aligned_wheel_move,1);
+
+        % Get association stat
+        % (skip if only a few trials)
+        if n_trials < 10
+            continue
+        end
+       
+        trial_events_use = trial_events;
+        trial_events_use.values = trial_events_use.values(use_trials);
+        trial_events_use.timestamps = trial_events_use.timestamps(use_trials);
+
+        [rxn_stat_p(curr_recording), ...
+            rxn_stat(curr_recording),rxn_null_stat(curr_recording)] = ...
+            AP_stimwheel_association_pvalue( ...
+            stimOn_times(use_trials),trial_events_use,stim_to_move(use_trials),use_stat);
+
+        % Clear vars except pre-load for next loop
+        clearvars('-except',preload_vars{:});
+        AP_print_progress_fraction(curr_recording,length(recordings));
+
+    end
+
+    % Define learned day from reaction stat p-value and reaction time
+    learned_day = rxn_stat_p < 0.05;
+
+    relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
+    nonrecorded_day = setdiff(1:length(recordings),relative_day);
+
+    % Draw in tiled layout nested in master
+    t_animal = tiledlayout(t,4,1);
+    t_animal.Layout.Tile = curr_animal_idx;
+    title(t_animal,animal);
+
+    nexttile(t_animal);
+    yyaxis left; plot(relative_day,n_trials_success);
+    ylabel('# trials');
+    yyaxis right; plot(relative_day,frac_move_day);
+    ylabel('Fraction time moving');
+    xlabel('Day');
+    if any(nonrecorded_day)
+        xline(nonrecorded_day,'--k');
+    end
+    if any(learned_day)
+        xline(relative_day(learned_day),'g');
+    end
+
+    nexttile(t_animal);
+    yyaxis left
+    plot(relative_day,rxn_stat)
+    set(gca,'YScale','log');
+    ylabel(sprintf('Rxn stat: %s',use_stat));
+    xlabel('Day');
+    if any(nonrecorded_day)
+        xline(nonrecorded_day,'--k');
+    end
+    if any(learned_day)
+        xline(relative_day(learned_day),'g');
+    end
+
+%     yyaxis right
+%     prestim_max = max(frac_move_stimalign(:,surround_time_points < 0),[],2);
+%     poststim_max = max(frac_move_stimalign(:,surround_time_points > 0),[],2);
+%     stim_move_frac_ratio = (poststim_max-prestim_max)./(poststim_max+prestim_max);
+%     plot(relative_day,stim_move_frac_ratio);
+%     yline(0);
+%     ylabel('pre/post move idx');
+%     xlabel('Day');
+
+    yyaxis right
+    plot(relative_day,(rxn_stat-rxn_null_stat)./(rxn_stat+rxn_null_stat));
+    yline(0);
+    ylabel(sprintf('Rxn stat idx: %s',use_stat));
+    xlabel('Day');
+
+    nexttile(t_animal);
+    imagesc(surround_time_points,[],frac_move_stimalign); hold on;
+    clim([0,1]);
+    colormap(gca,AP_colormap('WK'));
+    set(gca,'YTick',1:length(recordings),'YTickLabel', ...
+        cellfun(@(day,num) sprintf('%d (%s)',num,day(6:end)), ...
+        {recordings.day},num2cell(1:length(recordings)),'uni',false));
+    xlabel('Time from stim');
+    if any(learned_day)
+        plot(0,find(learned_day),'.g')
+    end
+
+    nexttile(t_animal); hold on
+    set(gca,'ColorOrder',copper(length(recordings)));
+    plot(surround_time_points,frac_move_stimalign','linewidth',2);
+    xline(0,'color','k');
+    ylabel('Fraction moving');
+    xlabel('Time from stim');
+    if any(learned_day)
+        AP_errorfill(surround_time_points,frac_move_stimalign(learned_day,:)', ...
+            0.02,[0,1,0],0.1,false); 
+    end
+
+    drawnow;
+
+    % Store behavior across animals
+    bhv(curr_animal_idx).rxn_stat = rxn_stat;
+    bhv(curr_animal_idx).rxn_stat = rxn_null_stat;
+    bhv(curr_animal_idx).learned_day = learned_day;
 
 end
 

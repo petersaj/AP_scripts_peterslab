@@ -352,10 +352,11 @@ return_constant = false;
 
 mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
 
-%% No-stim task: behavior
-% (fixed quiescence, % no stimuli)
+%% No-stim task: behavior (stim vs no-stim)
+% (can't do normal because fixed quiescence)
+% (some trials no stimuli)
 
-animals = {'AP024','AP026'};
+animals = {'AP026'};
 
 % Create master tiled layout
 figure;
@@ -406,7 +407,7 @@ for curr_animal_idx = 1:length(animals)
         rxn_diff_null = arrayfun(@(x) diff(ap.groupfun(@median,stim_to_move,ap.shake(trial_opacity),[])),1:n_shuff);
         rxn_diff_real = diff(ap.groupfun(@median,stim_to_move,trial_opacity,[]));
         rxn_stat_rank = tiedrank(horzcat(rxn_diff_real,rxn_diff_null));
-        rxn_stat_p = 1-(rxn_stat_rank(1)./(n_shuff+2));
+        rxn_stat_p(curr_recording) = 1-(rxn_stat_rank(1)./(n_shuff+2));
 
         % Align wheel movement to stim onset
         align_times = stimOn_times(1:n_trials);
@@ -428,6 +429,9 @@ for curr_animal_idx = 1:length(animals)
 
     end
 
+    % Define learned day from reaction stat p-value and reaction time
+    learned_day = rxn_stat_p < 0.05;
+
     % Draw in tiled layout nested in master
     t_animal = tiledlayout(t,5,1);
     t_animal.Layout.Tile = curr_animal_idx;
@@ -442,6 +446,9 @@ for curr_animal_idx = 1:length(animals)
     yyaxis right; plot(relative_day,frac_move_day);
     ylabel('Fraction time moving');
     xlabel('Day');
+    if any(learned_day)
+        xline(find(learned_day),'g');
+    end
 
     nexttile(t_animal);
     yyaxis left
@@ -449,6 +456,9 @@ for curr_animal_idx = 1:length(animals)
     set(gca,'YScale','log');
     ylabel('Med. rxn');
     xlabel('Day');
+    if any(learned_day)
+        xline(find(learned_day),'g');
+    end
 
     yyaxis right
     prestim_max = max(frac_move_stimalign(:,surround_time_points < 0,:),[],2);
@@ -489,9 +499,6 @@ for curr_animal_idx = 1:length(animals)
     ylim([-1,1]);
 
 end
-
-
-
 
 
 %% No-stim task: cell raster

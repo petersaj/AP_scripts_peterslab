@@ -173,7 +173,7 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'HA005'};
+animals = {'AM018'};
 % animals = {'DS019','DS020','DS021'};
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
 
