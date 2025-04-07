@@ -1,17 +1,17 @@
 
 %% Load ephys
 
-% AM-packaged: 
-data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+% % AM-packaged: 
+% data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 
 % Added move-align: 
-% data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
+data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
 load(fullfile(data_path,'swr_bhv'));
 load(fullfile(data_path,'ctx_maps_to_str'));
 U_master = plab.wf.load_master_U;
 
-load_workflow = 'passive';
+load_workflow = 'task';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
