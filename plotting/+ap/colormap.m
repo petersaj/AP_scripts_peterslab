@@ -1,10 +1,10 @@
-function cmap = AP_colormap(cmap_type,n_colors,cmap_gamma)
+function cmap = colormap(cmap_type,n_colors,cmap_gamma)
 %
-% cmap = AP_colormap(cmap_type,n_colors,cmap_gamma)
+% cmap = ap.colormap(cmap_type,n_colors,cmap_gamma)
 %
-% cmap_type: gradient/diverging between black/white and color
-% (currently defined: W,K,G,B,P,R - base must be white/black)
-% e.g. 'WR' = white-to-red, = 'BKR' blue-black-red
+% cmap_type: color extremes as letters, or 'tube' for categorical (max n=15)
+% (currently defined: W,K,G,B,P,R, base must be W or K)
+% e.g. 'WR' = white->red, 'BKR' = blue->black->red
 %
 % n_colors: number of colors along the map (default = 2^8 = 256)
 %
@@ -17,6 +17,46 @@ function cmap = AP_colormap(cmap_type,n_colors,cmap_gamma)
 
 % Force cmap_type upper-case
 cmap_type = upper(cmap_type);
+
+%% If cmap_type is 'tube', use categorical colors
+% (line colors from the London tube)
+
+if strcmpi(cmap_type,'tube')
+
+    tube_colors = [ ...
+        0.7020    0.3882    0.0196
+        0         0         0
+        0.8902    0.1255    0.0902
+        0    0.2118    0.5333
+        1.0000    0.8275         0
+        0    0.5961    0.8314
+        0    0.4706    0.1647
+        0.5843    0.8039    0.7294
+        0.4118    0.3137    0.6314
+        0    0.6431    0.6549
+        0.9529    0.6627    0.7333
+        0.9333    0.4863    0.0549
+        0.6275    0.6471    0.6627
+        0.5176    0.7216    0.0902
+        0.6078         0    0.3373
+        ];
+
+    if exist('n_colors','var') && n_colors > size(tube_colors,1)
+        error('%d colors requested, only %d colors in ''tube'' cmap',n_colors,size(tube_colors,1));
+    elseif ~exist('n_colors','var') || isempty(n_colors)
+        n_colors = size(tube_colors,1);
+    end
+
+    if exist('cmap_gamma','var') && ~isempty(cmap_gamma)
+        error('Gamma specified, but not applicable for ''tube'' cmap');
+    end
+
+    cmap = tube_colors(1:n_colors,:);
+
+    return
+end
+
+%% If color gradient chosen, create gradient
 
 % Set default number of colors
 if ~exist('n_colors','var') || isempty(n_colors)
@@ -122,10 +162,9 @@ elseif length(cmap_type) == 3
 
 end
 
-% Force colormap into RGB gamut (probably not valid...)
+% Force colormap into RGB gamut (compromises linearity?)
 cmap(cmap > 1) = 1;
 cmap(cmap < 0) = 0;
-
 
 
 

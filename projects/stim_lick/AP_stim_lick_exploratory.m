@@ -245,7 +245,8 @@ stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+
 
 % (reward times, or would-be for CS-)
 stim_reward_times = nan(size(stim_x));
-stim_reward_times(stim_x == rewarded_x) = reward_times;
+% stim_reward_times(stim_x == rewarded_x) = reward_times;
+stim_reward_times(stim_x == rewarded_x) = interp1(lick_times,lick_times,stim_center_times(stim_x == rewarded_x),'next');
 stim_reward_times(stim_x == -90) = interp1(lick_times,lick_times,stim_center_times(stim_x == -90),'next');
 
 % Trial params

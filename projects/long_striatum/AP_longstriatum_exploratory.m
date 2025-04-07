@@ -2469,7 +2469,7 @@ fprintf('Saved %s\n',save_fn);
 data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data';
 load(fullfile(data_path,'animals'));
 
-animal_col = [brewermap(8,'Dark2');brewermap(8,'Set2')];
+animal_col = ap.colormap('tube',length(animals));
 ccf_draw = ap.ccf_draw;
 ccf_draw.draw_name('Caudoputamen');
 
@@ -2478,6 +2478,7 @@ for curr_animal = 1:length(animals)
     probe_color = animal_col(curr_animal,:);
     ccf_draw.draw_probes_nte(animal,probe_color);
 end
+
 
 %% Plot striatum boundaries
 

@@ -25,6 +25,8 @@ use_align = stimOn_times;
 % stim_x = vertcat(trial_events.values.PictureID);
 % use_align = stimOn_times(stim_x == 2 & quiescent_trials);
 
+% use_align = stim_center_times(stim_x==90);
+
 % % (task)
 % use_align = stimOn_times;
 % use_align = stim_move_time;
