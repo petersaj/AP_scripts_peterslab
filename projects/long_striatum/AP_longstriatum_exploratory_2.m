@@ -1,11 +1,11 @@
 
 %% Load ephys
 
-% % AM-packaged: 
-% data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+% AM-packaged: 
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 
-% Added move-align: 
-data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
+% % Added move-align: 
+% data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
 load(fullfile(data_path,'swr_bhv'));
 load(fullfile(data_path,'ctx_maps_to_str'));
@@ -734,6 +734,10 @@ for curr_k = 1:n_k
         % (mean PSTH, max t, mean across animals)
         [psth_mean,psth_mean_grp] = ap.nestgroupfun({@mean,@mean},curr_data, ...
             (1:size(curr_data,1))',[animal_grp(curr_trials),split_idx]);
+        %%%%%%%%%%% testing groupfun here
+        [psth_mean,psth_mean_grp] = ap.groupfun(@mean,curr_data, ...
+            [animal_grp(curr_trials),split_idx]);
+        %%%%%%%%%%%%%%%%%% here
         psth_max = max(psth_mean(:,data_t),[],2);
         psth_max_avg = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
         psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));

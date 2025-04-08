@@ -219,23 +219,22 @@ switch eventdata.Key
 
         % Get options
         disp('Preparing to make movie:');
-        movie_t = input('Start/stop time (e.g. [0 5]): ');
+        movie_t_limit = input('Start/stop time (e.g. [0 5]): ');
         movie_framerate = input('Framerate: ');
         [save_file,save_path] = uiputfile('.avi','Choose save location');
         save_filename = [save_path save_file];
         
-        movie_wf_frames = find(gui_data.wf_t > movie_t(1) & ...
-            gui_data.wf_t < movie_t(2));
-        n_movie_frames = length(movie_wf_frames);
+        movie_t = movie_t_limit(1):1/movie_framerate:movie_t_limit(2);
+        n_movie_frames = length(movie_t);
         
         % Run through selected frames and save
         disp('Recording...')
         movie_frames(n_movie_frames) = struct('cdata',[],'colormap',[]);
-        for curr_movie_frame_idx = 1:n_movie_frames
-            curr_movie_frame = movie_wf_frames(curr_movie_frame_idx);
+        for curr_t_idx = 1:n_movie_frames
+            curr_t = movie_t(curr_t_idx);
             % Update images
-            update_im(gui_data,gui_fig,curr_movie_frame);
-            movie_frames(curr_movie_frame_idx) = getframe(gui_fig);
+            update_im(gui_data,gui_fig,curr_t);
+            movie_frames(curr_t_idx) = getframe(gui_fig);
         end
         
         % Write movie
