@@ -732,12 +732,8 @@ for curr_k = 1:n_k
         data_t = psth_t > 0 & psth_t < 0.2;
 
         % (mean PSTH, max t, mean across animals)
-        [psth_mean,psth_mean_grp] = ap.nestgroupfun({@mean,@mean},curr_data, ...
-            (1:size(curr_data,1))',[animal_grp(curr_trials),split_idx]);
-        %%%%%%%%%%% testing groupfun here
         [psth_mean,psth_mean_grp] = ap.groupfun(@mean,curr_data, ...
             [animal_grp(curr_trials),split_idx]);
-        %%%%%%%%%%%%%%%%%% here
         psth_max = max(psth_mean(:,data_t),[],2);
         psth_max_avg = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
         psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
