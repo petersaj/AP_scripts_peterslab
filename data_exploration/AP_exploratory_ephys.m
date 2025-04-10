@@ -283,7 +283,7 @@ switch mua_method
 
     case 'even'
         % (to group multiunit by evenly spaced depths)
-        n_depths = 10;
+        n_depths = 20;
         depth_group_edges = round(linspace(0,4000,n_depths+1));
         [depth_group_n,~,depth_group] = histcounts(spike_depths,depth_group_edges);
         depth_groups_used = unique(depth_group);
@@ -911,7 +911,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'AM025'};
+animals = {'DS007'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -940,7 +940,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP025';
+animal = 'AP022';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');
