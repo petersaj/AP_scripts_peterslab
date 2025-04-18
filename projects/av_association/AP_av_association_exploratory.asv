@@ -968,47 +968,22 @@ title('Aud (V units)')
 
 
 % NOTE: organization is {A,B} -> {day,V/A}
-str_ap = 2;
-responsive_n_cat = cell2mat(vertcat(responsive_units_n{:,str_ap}));
-responsive_frac_cat = cell2mat(vertcat(responsive_units_frac{:,str_ap}));
 
-[~,sort_idx] = sort(responsive_n_cat(:,2),'descend');
+responsive_n_cat = cell2mat(vertcat(responsive_units_n{:,2}));
+responsive_frac_cat = cell2mat(vertcat(responsive_units_frac{:,2}));
+
+[~sort_idx
 
 figure;tiledlayout(2,1);
 nexttile;
-plot(responsive_n_cat(sort_idx,:))
+plot(responsive_n_cat)
 ylabel('N units')
 legend({'V+A','V','A'})
 
 nexttile;
-plot(responsive_frac_cat(sort_idx,:));
+plot(responsive_frac_cat);
 ylabel('Frac units')
 legend({'V','A'})
-
-
-rec_day = cell2mat(cellfun(@(x) (1:length(x))',responsive_units_n(:,str_ap),'uni',false));
-rec_animal = cellfun(@(x,a) repmat({a},length(x),1),responsive_units_n(:,str_ap),animals','uni',false);
-rec_animal = vertcat(rec_animal{:});
-
-x = [rec_animal(sort_idx),num2cell(rec_day(sort_idx))];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -420,13 +420,13 @@ axis image;
 
 %% Task kernel (static task)
 
-% rewarded_x = trial_events.parameters.RewardedX;
-rewarded_x = trial_events.parameters.RewardedFrequency;
+rewarded_x = trial_events.parameters.RewardedX;
+% rewarded_x = trial_events.parameters.RewardedFrequency;
 
 n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
-% stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
-stim_x = vertcat(trial_events.values(1:n_trials).TrialFrequency);
+stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+% stim_x = vertcat(trial_events.values(1:n_trials).TrialFrequency);
 stimOn_times = photodiode_on_times(1:n_trials);
 stimOff_times = photodiode_off_times(1:n_trials);
 

@@ -175,9 +175,12 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = {'AM018'};
-% animals = {'DS019','DS020','DS021'};
-% animals = {'DS000','DS004','DS014','DS015','DS016'};
+% animals = { ...
+%     'AM011','AM012','AM014','AM015','AM016','AM017', ...
+%     'AM018','AM019','AM021','AM022','AM026','AM029', ...
+%     'AP023','AP025'};
+
+animals = {'HA008'};
 
 % Set reaction statistic to use
 use_stat = 'mean';
@@ -258,6 +261,10 @@ for curr_animal_idx = 1:length(animals)
             rxn_stat(curr_recording),rxn_null_stat(curr_recording)] = ...
             AP_stimwheel_association_pvalue( ...
             stimOn_times,trial_events,stim_to_move,use_stat);
+
+        %%%% WORKING HERE: 
+        % stim_to_move > stim_to_lastmove - change in stat?
+        %%%%
 
         % Clear vars except pre-load for next loop
         clearvars('-except',preload_vars{:});

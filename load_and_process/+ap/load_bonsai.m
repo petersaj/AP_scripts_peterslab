@@ -29,12 +29,21 @@ if exist(bonsai_events_fn,'file') && ~isempty(readtable(bonsai_events_fn))
 
     % Set Bonsai timestamp format
     bonsai_table_opts = detectImportOptions(bonsai_events_fn,'delimiter',',');
-    bonsai_table_opts = setvaropts(bonsai_table_opts,'Timestamp','Type','datetime', ...
+    bonsai_table_opts = setvaropts(bonsai_table_opts, ...
+        'Timestamp','Type','datetime', ...
         'InputFormat','yyyy-MM-dd''T''HH:mm:ss.SSSSSSSZ','TimeZone','local', ...
         'DatetimeFormat','yyyy-MM-dd HH:mm:ss.SSS');
 
     % Load Bonsai CSV file
     bonsai_events_raw = readtable(bonsai_events_fn,bonsai_table_opts);
+
+    % 'Values' column should be doubles: if this was mixed (e.g. numbers
+    % and "true/false" for booleans), convert strings to numbers
+    if iscell(bonsai_events_raw.Value)
+        bonsai_events_raw.Value = ...
+            cellfun(@(x) double(str2num(lower(x))),bonsai_events_raw.Value);
+        disp(rec_day);
+    end
 
     % Create nested structure for trial events
     trial_events = struct('parameters',cell(1),'values',cell(1),'timestamps',cell(1));
@@ -68,9 +77,6 @@ end
 if contains(bonsai_workflow,'stim_wheel')
     % Task: stim and response times
 
-    % Use only trials with outcome
-    n_trials = length([trial_events.timestamps.Outcome]);
-
     % Photodiode bug (old, now fixed): screen could flick to black briefly
     % when clicking on another window. This are always brief, and no way to
     % tell when it happened, so compensate by removing all flips that
@@ -84,6 +90,9 @@ if contains(bonsai_workflow,'stim_wheel')
     % Stim times: when photodiode flips to 1/0
     stimOn_times = photodiode_on_times(setdiff(1:length(photodiode_on_times),photodiode_flicker+1));
     stimOff_times = photodiode_off_times(setdiff(1:length(photodiode_off_times),photodiode_flicker));
+
+    % Use only trials with outcome and stim off
+    n_trials = min(length(stimOff_times),length([trial_events.timestamps.Outcome]));
 
     % If fewer stim times than trials, assume something was broken at the
     % end and cut off
@@ -108,7 +117,15 @@ if contains(bonsai_workflow,'stim_wheel')
         timelite.timestamps((x-1) + find(wheel_move(x:end),1,'first')), ...
         num2cell(last_prestim_move_stop));
 
+    % Find outcome movement start (last start before stim off)
+    stim_lastmove_time = timelite.timestamps(cellfun(@(x) ...
+        find(~wheel_move(timelite.timestamps <= x),1,'last') + 1, ...
+        num2cell(stimOff_times(1:n_trials))));
+
+    % Store trial values
     stim_to_move = stim_move_time - stimOn_times(1:n_trials);
+    stim_to_lastmove = stim_lastmove_time - stimOn_times(1:n_trials);
+    trial_outcome = vertcat(trial_events.values(1:n_trials).Outcome);
 
     % Get task/manual reward times
     if isfield(trial_events.timestamps,'ManualReward')
@@ -129,7 +146,6 @@ if contains(bonsai_workflow,'stim_wheel')
         end
     else
         % Without Bonsai event: closest reward to stim off on rewarded trials       
-        trial_outcome = vertcat(trial_events.values(1:n_trials).Outcome);
         if n_trials > 1
             reward_times_task = interp1(reward_times,reward_times, ...
                 stimOff_times(trial_outcome(1:min(n_trials,length(stimOff_times)))==1),'nearest','extrap');

@@ -19,8 +19,10 @@ function [p,rxn_stat,rxn_null_stat] = AP_stimwheel_association_pvalue(stimOn_tim
 % rxn_stat: statistic for reaction times
 % rxn_null_stat: statistic for null reaction times
 
-% Only look at completed trials
-n_trials = length([trial_events.timestamps.Outcome]);
+% Only look at completed trials (all relevant events occured)
+n_trials = min([length(stimOn_times), ...
+    length(stim_to_move), ...
+    length([trial_events.timestamps.Outcome])]);
 
 % Get quiescence range from Bonsai parameters
 quiescence_range = trial_events.parameters.QuiescenceTimes;

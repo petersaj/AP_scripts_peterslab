@@ -45,6 +45,7 @@ imagesc(spike_binning_t_centers,[],binned_spikes_depth_smooth)
 axis tight;
 colormap(AP_colormap('WK'));
 linkaxes(get(h,'Children'),'x');
+clim([0,max(binned_spikes_depth_smooth,[],'all')*0.5])
 
 % % Draw stim times (if stim presented)
 % if isfield(trial_events.values,'TrialStimX')
@@ -911,7 +912,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'DS007'};
+animals = {'AP022'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -940,10 +941,10 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP022';
+animal = 'AM010';
 
 % Just load all images
-histology_path = plab.locations.filename('server',animal,[],[],'histology');
+histology_path = plab.locations.filename('server',animal,[],[],'histology','raw');
 histology_dir = dir(fullfile(histology_path,'*.tif'));
 
 histology_filenames = cellfun(@(path,name) fullfile(path,name), ...
@@ -983,8 +984,29 @@ im_montage_rgb = min(sum(cell2mat(arrayfun(@(chan) ...
     permute(chan_cols(chan,:),[1,3,2]), ...
     permute(1:n_chan,[1,3,4,2]),'uni',false)),4),1);
 
+im_montage_rgb = min(sum(cell2mat(arrayfun(@(chan) ...
+    mat2gray(im_montage(:,:,chan),double(m_clim{chan})).* ...
+    permute(chan_cols(chan,:),[1,3,2]), ...
+    permute(1:n_chan,[1,3,4,2]),'uni',false)),4),1);
+
 figure;image(im_montage_rgb);axis image off;
 title(animal);
+
+%% Histology scroller (NEW)
+
+animal = 'AM010';
+
+
+% (pre-SMZ)
+% histology_path = plab.locations.filename('server',animal,[],[],'histology','raw_combined');
+% (SMZ)
+histology_path = plab.locations.filename('server',animal,[],[],'histology','raw');
+
+
+% Histology scroller
+ap_histology.histology_scroll(histology_path)
+
+
 
 %% Plot units by area
 
