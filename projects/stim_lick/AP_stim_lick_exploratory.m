@@ -500,67 +500,6 @@ colormap(ap.colormap('PWG'));
 axis image;
 
 
-%% Passive kernel
-
-switch bonsai_workflow
-    case 'lcr_passive'
-        stim_type = vertcat(trial_events.values.TrialStimX);
-    case 'hml_passive_audio'
-        stim_type = vertcat(trial_events.values.StimFrequence);
-end
-
-time_bins = [wf_t;wf_t(end)+1/wf_framerate];
-
-stim_regressors = cell2mat(arrayfun(@(x) ...
-    histcounts(stimOn_times(stim_type == x),time_bins), ...
-    unique(stim_type),'uni',false));
-
-n_components = 500;
-
-frame_shifts = -5:20;
-lambda = 20;
-cv = 3;
-
-skip_t = 3; % seconds start/end to skip for artifacts
-skip_frames = round(skip_t*wf_framerate);
-[kernels,predicted_signals,explained_var] = ...
-    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
-    stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv);
-
-kernels_px = plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels);
-ap.imscroll(kernels_px,frame_shifts);
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-axis image
-
-% trying SVM/SVR
-% mdl = fitcsvm(wf_V',stim_regressors(1,:)');
-% cvmodel = crossval(mdl);
-% classLoss = kfoldLoss(cvmodel);
-% 
-% r = mdl.predict(wf_V');
-
-t = frame_shifts/wf_framerate;
-cs_minus_color = ap.colormap('WB');
-cs_plus_color = ap.colormap('WR');
-
-stim_t = t > 0 & t < 0.2;
-kernels_px_max = squeeze(max(kernels_px(:,:,stim_t,:),[],3));
-
-col_lim = [0,1e-4];
-
-figure;
-h = tiledlayout(1,2,'TileSpacing','none');
-
-nexttile; imagesc(kernels_px_max(:,:,1)); 
-clim(col_lim); axis image off;
-colormap(gca,cs_plus_color);
-ap.wf_draw('ccf','k');
-
-nexttile; imagesc(kernels_px_max(:,:,3)); 
-clim(col_lim); axis image off;
-colormap(gca,cs_minus_color);
-ap.wf_draw('ccf','k');
 
 
 

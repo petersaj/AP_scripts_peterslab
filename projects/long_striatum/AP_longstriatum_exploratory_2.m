@@ -11,7 +11,7 @@ load(fullfile(data_path,'swr_bhv'));
 load(fullfile(data_path,'ctx_maps_to_str'));
 U_master = plab.wf.load_master_U;
 
-load_workflow = 'task';
+load_workflow = 'passive';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
@@ -48,7 +48,7 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 load(fullfile(data_path,'swr_bhv'));
 U_master = plab.wf.load_master_U;
 
-load_workflow = 'task';
+load_workflow = 'passive';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ctx_wf'));
@@ -265,9 +265,16 @@ unit_resp_cat = cell2mat(cellfun(@(x) cell2mat(x)', ...
 
 unit_single_cat = cell2mat(cellfun(@logical,ephys.single_unit_idx,'uni',false));
 
-unit_psth_cat = arrayfun(@(stim) cell2mat(cellfun(@(x) x{stim}, ...
-    ephys.unit_smooth_event_psths,'ErrorHandler',@(varargin) [],'uni',false)), ...
-    1:size(unit_resp_cat,2),'uni',false);
+% (smooth and normalize)
+psth_t = -0.5:0.001:1;
+t_baseline = psth_t < 0;
+softnorm = 1;
+smooth_window = 100;
+
+unit_psth_cat = cell2mat(cellfun(@(x) smoothdata(...
+    (x - nanmean(x(:,t_baseline,:),[2,3]))./(nanmean(x(:,t_baseline,:),[2,3]) + softnorm),...
+    2,'gaussian',[smooth_window,0]), ...
+    ephys.unit_event_psths,'uni',false,'ErrorHandler',@(varargin) []));
 
 unit_mean_post_stim_cat = cell2mat(vertcat(ephys.mean_post_stim{:}));
 
@@ -297,7 +304,7 @@ split_labels = [unit_plot_days_grp,unit_kidx];
 curr_stim = 3;
 % use_units = true(size(unit_single_cat));
 % use_units = unit_single_cat;
-use_units = logical(vertcat(ephys.str_fsi_idx{:}));
+use_units = logical(vertcat(ephys.str_msn_idx{:}));
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
     +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
@@ -326,25 +333,25 @@ linkaxes(h.Children(2:2:end),'xy');
 
 
 % (psth: average of single units)
-curr_stim = 2;
+curr_stim = 1;
 use_units = true(size(unit_kidx));
 % use_units = unit_single_cat;
 % use_units = unit_resp_cat(:,3);
 % use_units = logical(vertcat(ephys.str_msn_idx{:}));
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
-    unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
+    unit_psth_cat(use_units,:,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
 unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    unit_psth_cat{curr_stim}(use_units,:),group_labels(use_units,:),split_labels(use_units,:));
+    unit_psth_cat(use_units,:,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
 
 day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
      ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
 
 figure; 
-h = tiledlayout(n_k,max(plot_days_grp),'TileSpacing','none');
+h = tiledlayout(n_k,max(unit_plot_days_grp),'TileSpacing','none');
 for curr_k = unique(groups(:,2))'
-    for curr_day = unique(plot_days_grp)'
+    for curr_day = unique(unit_plot_days_grp)'
         nexttile; axis off;
         ap.errorfill([], ...
             unit_group_mean(groups(:,1) == curr_day & groups(:,2) == curr_k,:)', ...
@@ -358,15 +365,13 @@ linkaxes(h.Children,'xy');
 
 %% Plot cell type heatmap
 
-plot_celltype = logical(vertcat(ephys.str_tan_idx{:}));
-% plot_celltype = vertcat(ephys.str_fsi_idx{:}) & vertcat(ephys.single_unit_idx{:});
+% plot_celltype = vertcat(ephys.str_tan_idx{:});
+plot_celltype = vertcat(ephys.str_tan_idx{:}) & vertcat(ephys.single_unit_idx{:});
 
 plot_kidx = [1:2];
-plot_stim_idx = 2;
+plot_stim_idx = 1;
 
-psth_t = -0.5:0.001:1;
 stim_t = psth_t > 0 & psth_t < 0.2;
-
 
 % Plot grouped days
 
@@ -380,15 +385,16 @@ h = tiledlayout(2,max(unit_plot_day_grp),'TileIndexing','column','TileSpacing','
 for curr_ld = unique(unit_plot_day_grp(~isnan(unit_plot_day_grp)))'
     nexttile;
 
-    curr_data = unit_psth_cat{plot_stim_idx}(ismember(unit_kidx,plot_kidx) & unit_plot_day_grp == curr_ld & ...
-        plot_celltype,:);
+    curr_data = unit_psth_cat(ismember(unit_kidx,plot_kidx) & unit_plot_day_grp == curr_ld & ...
+        plot_celltype,:,plot_stim_idx);
     [~,sort_idx] = sort(max(curr_data(:,stim_t),[],2),'descend');
     imagesc(psth_t,[],curr_data(sort_idx,:));
-    clim([-10,10])
+    clim([-1,1])
+    title(plot_day_bins(curr_ld));
 
     nexttile;
-    curr_data = unit_psth_cat{plot_stim_idx}(ismember(unit_kidx,plot_kidx) & unit_plot_day_grp == curr_ld & ...
-        plot_celltype,:);
+    curr_data = unit_psth_cat(ismember(unit_kidx,plot_kidx) & unit_plot_day_grp == curr_ld & ...
+        plot_celltype,:,plot_stim_idx);
     ap.errorfill(psth_t,mean(curr_data,1),AP_sem(curr_data,1),'k');
 end
 linkaxes(h.Children(1:2:end),'xy');
@@ -401,7 +407,7 @@ linkaxes(h.Children(2:2:end),'xy');
 animal_groupfun = @mean;
 
 [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_spikes_stim_align,kidx_rec,'uni',false);
+    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
@@ -656,7 +662,7 @@ switch split_type
 %         rxn_bins = [0,0.2,0.4,0.6,0.8,1];
 %         rxn_bins = [-Inf,0:0.2:0.6,Inf];
 %         rxn_bins = [-Inf,0.05,0.15,0.25,0.5,1,Inf];
-        rxn_bins = [0,0.5,Inf];
+        rxn_bins = [0,0.25,Inf];
         n_split = length(rxn_bins)-1;
 end
 
@@ -1136,7 +1142,7 @@ curr_data_idx = wf_avg_grp(:,2) == curr_stim;
 
 curr_data_px = plab.wf.svd2px(U_master,permute(wf_avg(curr_data_idx,:,:),[3,2,1]));
 
-ap.imscroll(curr_data_px - nanmean(curr_data_px(:,:,wf_t<0,:),3),wf_t)
+ap.imscroll(curr_data_px - nanmean(curr_data_px(:,:,wf_t<0,:),3),wf_t);
 colormap(ap.colormap('PWG',[],1.5));
 clim(max(curr_data_px(:)).*[-1,1]*0.6);
 axis image;
@@ -1294,8 +1300,8 @@ figure;tiledlayout(n_k,1,'tilespacing','none')
 for curr_k = 1:n_k
     nexttile;
     imagesc(striatum_wf_roi(:,:,curr_k));
-    axis image off; ap.wf_draw('ccf','r');
-    colormap(ap.colormap('WK'));
+    axis image off; ap.wf_draw('ccf','k');
+    colormap(ap.colormap('WG'));
 end
 
 % Get ROI activity

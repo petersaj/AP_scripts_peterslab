@@ -315,7 +315,7 @@ smooth_size = 50;
 bin_t = mean(diff(gui_data.t));
 
 curr_psth = grpstats(curr_raster,curr_group,@(x) mean(x,1))./bin_t;
-curr_smoothed_psth = smoothdata(curr_psth,2,'gaussian',smooth_size);
+curr_smoothed_psth = smoothdata(curr_psth,2,'gaussian',[smooth_size,0]);
 
 cla(gui_data.psth_axes);
 set(gui_data.psth_axes,'ColorOrder',group_colors);

@@ -251,27 +251,14 @@ clim([-5,5]);
 
 %% |--> Plot TAN PSTH
 
-% Classify tans (if not done already)
+% Classify cell types (if not done already)
 if ~exist('tans','var')
-    % (get spike acgs)
-    spike_acg = cell2mat(arrayfun(@(x) ap.ephys_spike_cg(x),(1:size(waveforms,1))','uni',false));
-
-    % (time to get to 90% steady-state value)
-    acg_isi = arrayfun(@(x) ...
-        find(spike_acg(x,ceil(size(spike_acg,2)/2):end) > ...
-        mean(spike_acg(x,end-100:end),2)*0.9,1,'first'),(1:size(templates,1))');
-
-    % (get average firing rate from whole session)
-    spike_rate = accumarray(spike_templates,1)/diff(prctile(spike_times_timelite,[0,100]));
-
-    % (empirical)
-    tans = spike_rate >= 4 & spike_rate <= 12 & ...
-        acg_isi >= 40;
+    AP_longstriatum_classify_striatal_units
 end
 
-[~,tan_sort_idx] = sort(template_depths(tans));
+[~,tan_sort_idx] = sort(template_depths(striatum_celltypes.tan));
 tan_idx = find(tans);
-ap.imscroll(unit_psth_smooth_norm(tan_idx(tan_sort_idx),:,:))
+ap.imscroll(unit_psth(tan_idx(tan_sort_idx),:,:))
 colormap(AP_colormap('BWR'));
 clim([-2,2]);
 
