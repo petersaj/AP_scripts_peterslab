@@ -118,6 +118,8 @@ classdef ccf_draw < handle
         end
 
         function obj = draw_probes_histology(obj,animal,probe_color)
+            % draw_probes_histology(animal,probe_color)
+
             % Histology probe position files
             histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','probe_ccf.mat');
             histology_fn = dir(histology_filepattern);

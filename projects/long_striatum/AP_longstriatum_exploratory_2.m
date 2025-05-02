@@ -7,10 +7,6 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 % % Added move-align: 
 % data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
-load(fullfile(data_path,'swr_bhv'));
-load(fullfile(data_path,'ctx_maps_to_str'));
-U_master = plab.wf.load_master_U;
-
 load_workflow = 'passive';
 switch load_workflow
     case 'passive'
@@ -44,8 +40,6 @@ end
 %% Load widefield
 
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
-
-load(fullfile(data_path,'swr_bhv'));
 U_master = plab.wf.load_master_U;
 
 load_workflow = 'passive';
@@ -57,6 +51,10 @@ switch load_workflow
 end
 
 %% Behavior
+
+% Load behavior
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+load(fullfile(data_path,'swr_bhv'));
 
 % Plot reaction time/index, by training day and learning day
 training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
@@ -120,8 +118,13 @@ xlabel('Days to learn');
 
 %% K-means on maps 
 
+% Load maps
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+load(fullfile(data_path,'ctx_maps_to_str'));
+U_size = size(all_ctx_maps_to_str.cortex_kernel_px{1},[1,2]);
+
 % K-means cluster maps
-maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
+maps_flat_cat = reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[]);
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
 n_k = 4;
@@ -131,9 +134,9 @@ kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
 
 [kidx,kmeans_centroid_flat] = kmeans(...
-    reshape(maps_cat,prod(size(U_master,[1,2])),[])',n_k, ...
+    maps_flat_cat',n_k, ...
     'Distance','Correlation','start',reshape(kmeans_starting,[],n_k)');
-kmeans_centroid = reshape(kmeans_centroid_flat',size(U_master,1),size(U_master,2),[]);
+kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
 % %%%%%% (enforce increasing depth order)
 % kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
@@ -141,7 +144,7 @@ kmeans_centroid = reshape(kmeans_centroid_flat',size(U_master,1),size(U_master,2
 % kidx = cell2mat(cellfun(@cummax,kidx_rec,'uni',false));
 % %%%%%%
 
-kmeans_cluster_mean = ap.groupfun(@nanmean,maps_cat,[],[],kidx);
+kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
 
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
@@ -164,90 +167,65 @@ for curr_k = 1:n_k
     ap.wf_draw('ccf','k');
 end
 
-figure; hold on; axis image; set(gca,'ydir','reverse')
-max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
-[~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
-[kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
-for plot_kidx = 1:n_k
-    plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x','linewidth',2.5);
-end
-ap.wf_draw('ccf','k');
-legend(string(1:n_k))
+% (to draw points at max position - unused at the moment)
+% figure; hold on; axis image; set(gca,'ydir','reverse')
+% max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
+% [~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
+% [kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
+% for plot_kidx = 1:n_k
+%     plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x','linewidth',2.5);
+% end
+% ap.wf_draw('ccf','k');
+% legend(string(1:n_k))
 
 
+%% Map difference across days
 
-%% Map group by max within ROI
+% Maps and explained variance by day for each cluster
 
-% maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}).^2;
-% maps_cat = maps_cat - imgaussfilt(maps_cat,15);
+map_ld_grp = cell2mat(cellfun(@(x,maps) repelem(x,size(maps,3)*(size(maps,1)>0),1), ...
+    num2cell(bhv.days_from_learning), ...
+    all_ctx_maps_to_str.cortex_kernel_px,'uni',false));
 
-maps_cat = cat(3,all_ctx_maps_to_str.cortex_kernel_px{:});
+map_animal_grp = cell2mat(cellfun(@(x,maps) repelem(x,size(maps,3)*(size(maps,1)>0),1), ...
+    num2cell(grp2idx(bhv.animal)), ...
+    all_ctx_maps_to_str.cortex_kernel_px,'uni',false));
+
+plotday_bins = [-Inf,-2:1,Inf];
+map_plotday_grp = discretize(map_ld_grp,plotday_bins);
 
 
-% Plot sum of maps
+% Plot maps by day
+[map_avg,map_grp] = ap.nestgroupfun({@nanmean,@nanmean}, maps_flat_cat',...
+    map_animal_grp,[kidx,map_plotday_grp]);
+
 figure;
-imagesc(mean(max(0,maps_cat),3));
-colormap(ap.colormap('WG'));
-ap.wf_draw('ccf','k');
-axis image; 
-
-
-% Overlay max weight location
-% (exclude right half of image)
-max_map = imgaussfilt(maps_cat,5).*round(linspace(1,0,size(maps_cat,2)));
-[~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
-[kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
-hold on;
-plot(squeeze(kernel_max_x),squeeze(kernel_max_y),'x','LineWidth',2,'color',[0.5,0.5,0.5]);
-
-
-% Draw ROIs (manually do for N ROIs)
-roi = images.roi.Polygon;roi(:) = [];
-
-roi(end+1) = drawpolygon;
-
-roi_masks = arrayfun(@(x) roi(x).createMask,1:length(roi),'uni',false);
-
-% Label masks with maxima within ROIs
-roi_maps = cell2mat(cellfun(@(x) squeeze(ismember(sub2ind(size(maps_cat,[1,2]), ...
-    kernel_max_y,kernel_max_x),find(x))),roi_masks,'uni',false));
-
-[~,roi_maps_idx] = max(roi_maps,[],2);
-kidx = nan(size(roi_maps_idx));
-kidx(any(roi_maps,2)) = roi_maps_idx(any(roi_maps,2));
-
-n_k = size(roi_maps,2);
-kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
-    all_ctx_maps_to_str.cortex_kernel_px));
-
-% Plot average maps and maxima
-maps_cat_mean = ap.groupfun(@mean,maps_cat,[],[],kidx);
-
-maps_com = sum(maps_cat_mean.*permute(1:n_k,[1,3,2]),3)./sum(maps_cat_mean,3);
-figure;
-im_h = imagesc(maps_com);
-ap.wf_draw('ccf','k');
-set(im_h,'AlphaData',mat2gray(max(maps_cat_mean,[],3), ...
-    [0,double(prctile(reshape(max(maps_cat_mean,[],3),[],1),95))]));
-colormap(jet); clim([1,n_k]);
-axis image off;
-
-figure; colormap(ap.colormap('KWG'));
-h = tiledlayout(n_k,1,'tilespacing','none');
+h = tiledlayout(n_k,length(plotday_bins)-1,'TileSpacing','none');
 for curr_k = 1:n_k
-    nexttile;
-    imagesc(maps_cat_mean(:,:,curr_k));
-    axis image off
-    clim(max(abs(clim)).*[-1,1]); ap.wf_draw('ccf','r');
+    for curr_day = 1:length(plotday_bins)-1
+        nexttile;
+        curr_idx = map_grp(:,1) == curr_k & map_grp(:,2) == curr_day;
+        imagesc(reshape(map_avg(curr_idx,:),U_size));
+        ap.wf_draw('ccf','k');
+
+        axis off image;
+        colormap(ap.colormap('PWG'));
+        clim(max(abs(map_avg),[],'all').*[-1,1].*0.6);
+    end
 end
 
-figure; hold on; axis image; set(gca,'ydir','reverse')
-plot(squeeze(kernel_max_x(isnan(kidx))),squeeze(kernel_max_y(isnan(kidx))),'x','color',[0.5,0.5,0.5]);
-for plot_kidx = 1:n_k
-    plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x');
+% Plot explained variance by day
+expl_var_avg = ap.nestgroupfun({@nanmean,@nanmean}, expl_var_cat,...
+    map_animal_grp,[kidx,map_plotday_grp]);
+expl_var_sem = ap.nestgroupfun({@nanmean,@AP_sem}, expl_var_cat,...
+    map_animal_grp,[kidx,map_plotday_grp]);
+
+figure; hold on;
+for curr_k = 1:n_k
+    curr_idx = map_grp(:,1) == curr_k;
+    errorbar(expl_var_avg(curr_idx),expl_var_sem(curr_idx),'linewidth',2);
+    ylabel('Explained variance');
 end
-ap.wf_draw('ccf','k');
-legend(["Excluded",string(1:n_k)])
 
 
 
@@ -333,7 +311,7 @@ linkaxes(h.Children(2:2:end),'xy');
 
 
 % (psth: average of single units)
-curr_stim = 1;
+curr_stim = 3;
 use_units = true(size(unit_kidx));
 % use_units = unit_single_cat;
 % use_units = unit_resp_cat(:,3);
@@ -365,11 +343,11 @@ linkaxes(h.Children,'xy');
 
 %% Plot cell type heatmap
 
-% plot_celltype = vertcat(ephys.str_tan_idx{:});
-plot_celltype = vertcat(ephys.str_tan_idx{:}) & vertcat(ephys.single_unit_idx{:});
+plot_celltype = vertcat(ephys.str_fsi_idx{:});
+% plot_celltype = vertcat(ephys.str_tan_idx{:}) & vertcat(ephys.single_unit_idx{:});
 
-plot_kidx = [1:2];
-plot_stim_idx = 1;
+plot_kidx = [1];
+plot_stim_idx = 3;
 
 stim_t = psth_t > 0 & psth_t < 0.2;
 
@@ -526,7 +504,7 @@ end
 %% (testing from above - yesterday behaviors vs increase)
 
 % Get fraction of fast reaction times each day
-n_fast_trials = cellfun(@(x) mean(x <= 0.5),bhv.stim_to_move);
+n_fast_trials = cellfun(@(x) sum(x <= 0.25),bhv.stim_to_move);
 
 % Get max of avg psth
 [psth_avg,psth_grp] = ap.nestgroupfun({@mean,@mean}, ...
@@ -549,17 +527,17 @@ for curr_animal = 1:length(animals)
     curr_psth = psth_avg_tmax(use_psth_idx);
     curr_fastrxn = n_fast_trials(use_bhv_idx);
 
-    psth_diff = diff(curr_psth)./(curr_psth(2:end)+1);
+    % psth_diff = diff(curr_psth)./(curr_psth(2:end)+1);
 %     psth_diff = curr_psth(2:end);
-%     psth_diff = curr_psth(2:end)./(curr_psth(1:end-1));
+    psth_diff = curr_psth(2:end)./(curr_psth(1:end-1));
     use_psth_diff = diff(curr_ld) == 1;
 
     x = vertcat(x,curr_fastrxn(use_psth_diff));
     y = vertcat(y,psth_diff(use_psth_diff));
     
-%    plot(curr_fastrxn(1:end-1),curr_psth(2:end),'.','MarkerSize',20)
-%    plot(curr_fastrxn(1:end-1),diff(curr_psth),'.','MarkerSize',20)
-    plot(curr_fastrxn(use_psth_diff),psth_diff(use_psth_diff),'.-','MarkerSize',20)
+   % plot(curr_fastrxn(1:end-1),curr_psth(2:end),'.','MarkerSize',20)
+   % plot(curr_fastrxn(1:end-1),diff(curr_psth),'.','MarkerSize',20)
+    plot(curr_fastrxn(use_psth_diff),psth_diff(use_psth_diff),'.','MarkerSize',20)
 
 end
 xlabel('% fast reaction');
@@ -574,26 +552,26 @@ axis padded
 %% MUA (task)
 
 [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_spikes_stim_align,kidx_rec,'uni',false);
+    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
 
-% (currently psth time is hard coded: save this somewhere)
+% (currently psth time is hard coded: save this somewhere)e
 psth_t = -0.5:0.001:1;
-baseline_t = psth_t < -0.3;
+baseline_t = psth_t < 0;
 softnorm = 10;
 psth_baseline = cellfun(@(mua) ...
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
-% %%%%%%%%%%%%%%%% MOVE ALIGN
-% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-%     ephys.binned_spikes_move_align,kidx_rec,'uni',false);
-% %%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%% MOVE ALIGN
+[psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
+    ephys.binned_msn_spikes_move_align,kidx_rec,'uni',false);
+%%%%%%%%%%%%%%%%
 
 psth_norm = cellfun(@(psth,baseline) ...
     (psth-baseline)./baseline,psth_sum,psth_baseline,'uni',false);
 
 psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2]),[], ...
-    length(psth_t)),psth_norm,'uni',false)),2,'gaussian',[30,0]);
+    length(psth_t)),psth_norm,'uni',false)),2,'gaussian',[50,0]);
 
 [rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
     bhv.stim_to_move,psth_sum_kidx,'uni',false);
@@ -662,7 +640,7 @@ switch split_type
 %         rxn_bins = [0,0.2,0.4,0.6,0.8,1];
 %         rxn_bins = [-Inf,0:0.2:0.6,Inf];
 %         rxn_bins = [-Inf,0.05,0.15,0.25,0.5,1,Inf];
-        rxn_bins = [0,0.25,Inf];
+        rxn_bins = [-Inf,0.3,Inf];
         n_split = length(rxn_bins)-1;
 end
 
@@ -751,19 +729,6 @@ for curr_k = 1:n_k
 %         data_sem = ap.nestgroupfun({@mean,@AP_sem},curr_data_point,animal_grp(curr_trials),split_idx);
 %         errorbar(data_avg,data_sem,'k','linewidth',2);
 
-%         % (testing correcting for movement)
-%         [psth_mean,psth_mean_grp] = ap.nestgroupfun({@mean,@mean},curr_data, ...
-%             (1:size(curr_data,1))',[animal_grp(curr_trials),split_idx]);
-%         psth_max = max(psth_mean(:,data_t),[],2);
-% 
-%         r_t = psth_t >= 0.4 & psth_t < 0.6;
-%         r = max(psth_mean(:,r_t),[],2);
-%         r_avg = ap.nestgroupfun({@mean,@mean},r,psth_mean_grp(:,1),psth_mean_grp(:,2));
-% 
-%         psth_max_avg = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
-%         psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
-%         errorbar(psth_max_avg - r_avg(3),psth_max_sem,'k','linewidth',2);
-
         axis padded off
     end
 end
@@ -787,14 +752,14 @@ plot_day_grp = discretize(ld_grp,plot_day_bins);
 %     unique(rec_grp),'uni',false));
 
 % (split = reaction bins)
-rxn_bins = [0,0.5,Inf];
+rxn_bins = [0,0.25,Inf];
 split_idx = discretize(rxn_grp,rxn_bins);
 
 % (mean PSTH, max t, mean across animals)
-data_t = psth_t > 0.05 & psth_t < 0.15;
+data_t = psth_t > 0 & psth_t < 0.2;
 
-[psth_mean,psth_mean_grp] = ap.nestgroupfun({@mean,@mean},psth_norm_cat_smooth, ...
-    (1:size(psth_norm_cat_smooth,1))',[animal_grp,plot_day_grp,split_idx,kidx_grp]);
+[psth_mean,psth_mean_grp] = ap.groupfun(@mean,psth_norm_cat_smooth, ...
+    [animal_grp,plot_day_grp,split_idx,kidx_grp]);
 
 psth_tgrp = mean(psth_mean(:,data_t),2);
 
@@ -900,11 +865,11 @@ axis padded
 %% MUA (task, iti movements)
 
 [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_spikes_itimove_align,kidx_rec,'uni',false);
+    ephys.binned_msn_spikes_itimove_align,kidx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
-baseline_t = psth_t < -0.3;
+baseline_t = psth_t < 0;
 softnorm = 10;
 psth_norm = cell(size(psth_sum));
 psth_norm(~cellfun(@isempty,psth_sum)) = cellfun(@(mua) ...
@@ -959,7 +924,7 @@ end
 split_type = 'iti_stat_percentile';
 switch split_type
     case 'iti_stat_percentile'
-        n_split = 4;
+        n_split = 1;
 end
 
 
@@ -1336,7 +1301,7 @@ switch split_type
     case 'rxn_bin'
 %         rxn_bins = [0,0.2,0.4,0.6,0.8,1];
 %         rxn_bins = [-Inf,0.05,0.15,0.25,0.5,1,Inf];
-        rxn_bins = [0,0.5,Inf];
+        rxn_bins = [0,0.25,Inf];
         n_split = length(rxn_bins)-1;
 end
 
@@ -1410,32 +1375,18 @@ for curr_k = 1:n_k
 
         data_t = wf_t > 0 & wf_t < 0.2;
 
-%         % (mean PSTH, max t, mean across animals)
-%         [psth_mean,psth_mean_grp] = ap.nestgroupfun({@mean,@mean},curr_data, ...
-%             (1:size(curr_data,1))',[animal_grp(curr_trials),split_idx]);
-%         psth_max = max(psth_mean(:,data_t),[],2);
-%         psth_max_avg = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
-%         psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
-%         errorbar(psth_max_avg,psth_max_sem,'k','linewidth',2);
+        % (mean PSTH, max t, mean across animals)
+        [wf_mean,wf_mean_grp] = ap.groupfun(@mean,curr_data,[wf_animal_grp(curr_trials),split_idx]);
+        wf_max = max(wf_mean(:,data_t),[],2);
+        wf_max_avg = ap.nestgroupfun({@mean,@mean},wf_max,wf_mean_grp(:,1),wf_mean_grp(:,2));
+        wf_max_sem = ap.nestgroupfun({@mean,@AP_sem},wf_max,wf_mean_grp(:,1),wf_mean_grp(:,2));
+        errorbar(wf_max_avg,wf_max_sem,'color',[0,0.7,0],'linewidth',2);
 
-        % (mean in time window)
-        curr_data_point = mean(curr_data(:,data_t),2);
-        data_avg = ap.nestgroupfun({@mean,@mean},curr_data_point,wf_animal_grp(curr_trials),split_idx);
-        data_sem = ap.nestgroupfun({@mean,@AP_sem},curr_data_point,wf_animal_grp(curr_trials),split_idx);
-        errorbar(data_avg,data_sem,'k','linewidth',2);
-
-%         % (testing correcting for movement)
-%         [psth_mean,psth_mean_grp] = ap.nestgroupfun({@mean,@mean},curr_data, ...
-%             (1:size(curr_data,1))',[animal_grp(curr_trials),split_idx]);
-%         psth_max = max(psth_mean(:,data_t),[],2);
-% 
-%         r_t = psth_t >= 0.4 & psth_t < 0.6;
-%         r = max(psth_mean(:,r_t),[],2);
-%         r_avg = ap.nestgroupfun({@mean,@mean},r,psth_mean_grp(:,1),psth_mean_grp(:,2));
-% 
-%         psth_max_avg = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
-%         psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
-%         errorbar(psth_max_avg - r_avg(3),psth_max_sem,'k','linewidth',2);
+        % % (mean in time window)
+        % curr_data_point = mean(curr_data(:,data_t),2);
+        % data_avg = ap.nestgroupfun({@mean,@mean},curr_data_point,wf_animal_grp(curr_trials),split_idx);
+        % data_sem = ap.nestgroupfun({@mean,@AP_sem},curr_data_point,wf_animal_grp(curr_trials),split_idx);
+        % errorbar(data_avg,data_sem,'k','linewidth',2);
 
         axis padded off
     end
