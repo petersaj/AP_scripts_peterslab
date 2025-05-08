@@ -122,11 +122,12 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 
 %% Align wheel to event
 
+% align_times = stimOn_times;
 % align_times = photodiode_times(1:2:end);
 % align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
 % align_times = stimOn_times(stim_x == 90);
 align_times = stim_move_time;
-
+% align_times = iti_fastmove_times;
 
 surround_time = [-10,10];
 surround_sample_rate = 100;
@@ -175,17 +176,17 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = { ...
-    'AM011','AM012','AM014','AM015','AM016','AM017', ...
-    'AM018','AM019','AM021','AM022','AM026','AM029', ...
-    'AP023','AP025'};
+% animals = { ...
+%     'AM011','AM012','AM014','AM015','AM016','AM017', ...
+%     'AM018','AM019','AM021','AM022','AM026','AM029', ...
+%     'AP023','AP025'};
 
 % animals = {'AM018','AM019','AM021','AM022'};
-% animals = {'HA008'};
+animals = {'HA008','HA005'};
 % animals = {'DS016'};
 
 % Set reaction statistic to use
-use_stat = 'mean';
+use_stat = 'mad';
 
 % Create master tiled layout
 figure;
