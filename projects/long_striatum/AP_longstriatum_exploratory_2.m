@@ -7,12 +7,16 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 % % Added move-align: 
 % data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
-load_workflow = 'passive';
+load_workflow = 'task_outcome';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
     case 'task'
         load(fullfile(data_path,'task_ephys'));
+        ephys = task_ephys;
+        clear task_ephys;
+    case 'task_outcome'
+        load(fullfile(data_path,'task_ephys_outcome'));
         ephys = task_ephys;
         clear task_ephys;
 end
@@ -41,7 +45,7 @@ end
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 U_master = plab.wf.load_master_U;
 
-load_workflow = 'passive';
+load_workflow = 'task';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ctx_wf'));
@@ -132,20 +136,36 @@ kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     all_ctx_maps_to_str.cortex_kernel_px(~cellfun(@isempty, ...
     all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
 
-[kidx_raw,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
+[kidx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
     maps_flat_cat',n_k, ...
     'Distance','cosine','start',reshape(kmeans_starting,[],n_k)');
 kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
 %%%%%%%%%%%%%%%%%%%
-% TEMP? MOVE KIDX 2 -> 1 BY DISTANCE
+% TEMP? SPLIT KIDX 2 -> 1 BY DISTANCE
 % looks like value of ~0.75 works, just picked empirical way to get there
+kidx_raw = kidx;
 
-% dist_cutoff = prctile(kmeans_dist(kidx_raw==1,1),95);
-dist_cutoff = prctile(kmeans_dist(kidx_raw==2,2),95);
+dist_cutoff_k1 = prctile(kmeans_dist(kidx_raw==1,1),95);
+dist_cutoff_k2 = prctile(kmeans_dist(kidx_raw==2,2),95);
 
 kidx = kidx_raw;
-kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 1;
+
+% (to fold 2's into cluster 1)
+kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
+
+% % (make 2's into new cluster)
+% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
+% [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% n_k = 5;
+% % kidx(kidx==3) = 2; kidx(kidx==4) = 3;n_k = 3; % (combine pfc 2+3)
+
+% % (make 1's and 2's into new cluster)
+% kidx(kidx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
+% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
+% [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% n_k = 5;
+
 %%%%%%%%%%%%%%%%%%%
 
 kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
@@ -154,14 +174,14 @@ kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
 
 figure;
-h = tiledlayout(n_k,2,'tilespacing','none');
+h = tiledlayout(n_k,1,'tilespacing','none');
 for curr_k = 1:n_k
-    nexttile;
-    imagesc(kmeans_centroid(:,:,curr_k));
-    axis image off
-    clim(max(abs(clim)).*[-1,1]);
-    colormap(ap.colormap('PWG'));
-    ap.wf_draw('ccf','k');
+    % nexttile;
+    % imagesc(kmeans_centroid(:,:,curr_k));
+    % axis image off
+    % clim(max(abs(clim)).*[-1,1]);
+    % colormap(ap.colormap('PWG'));
+    % ap.wf_draw('ccf','k');
 
     nexttile;
     imagesc(kmeans_cluster_mean(:,:,curr_k));
@@ -268,7 +288,7 @@ unit_animal = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
 unit_ld = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
     num2cell(bhv.days_from_learning),ephys.single_unit_idx,'uni',false));
 
-plot_day_bins = [-Inf,-2:1,Inf];
+plot_day_bins = [-Inf,-3:2,Inf];
 unit_plot_days_grp = discretize(max(unit_ld,-inf),plot_day_bins);
 
 % Make kmeans cluster per unit
@@ -283,42 +303,44 @@ group_labels = [unit_rec_idx];
 split_labels = [unit_plot_days_grp,unit_kidx];
 
 % (frac responsive cells)
-curr_stim = 3;
 % use_units = true(size(unit_single_cat));
 % use_units = unit_single_cat;
 use_units = logical(vertcat(ephys.str_msn_idx{:}));
-
-[unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
-    +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
-
-unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
-
-[n_units_ld,n_units_ld_group] = ap.nestgroupfun({@sum,@mean},+use_units,group_labels,split_labels);
-
-figure; 
-h = tiledlayout(n_k,2);
+% use_units = logical(vertcat(ephys.str_msn_idx{:})) & unit_resp_cat(:,2);
+figure;
+h = tiledlayout(n_k,1);
 for curr_k = 1:n_k
-    nexttile;
-    plot_data = groups(:,2) == curr_k;
-    errorbar(groups(plot_data,1),unit_group_mean(plot_data,1), ...
-        unit_group_sem(plot_data,1),'k','linewidth',2);
-    ylabel('Frac responsive cells');
 
-    nexttile;
-    plot_data = n_units_ld_group(:,2) == curr_k;
-    plot(n_units_ld_group(plot_data,1),n_units_ld(plot_data),'k');
-    ylabel('N units');
+    nexttile; hold on;
+    set(gca,'ColorOrder',ap.colormap('BKR',3));
+
+    for curr_stim = 1:3
+        [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
+            +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
+
+        unit_group_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+            +unit_resp_cat(use_units,curr_stim),group_labels(use_units,:),split_labels(use_units,:));
+
+        [n_units_ld,n_units_ld_group] = ap.nestgroupfun({@sum,@mean},+use_units,group_labels,split_labels);
+
+        plot_data = groups(:,2) == curr_k;
+        errorbar(groups(plot_data,1),unit_group_mean(plot_data,1), ...
+            unit_group_sem(plot_data,1),'linewidth',2);
+        ylabel('Frac responsive cells');
+
+        % nexttile;
+        % plot_data = n_units_ld_group(:,2) == curr_k;
+        % plot(n_units_ld_group(plot_data,1),n_units_ld(plot_data),'k');
+        % ylabel('N units');
+    end
 end
-linkaxes(h.Children(1:2:end),'xy');
-linkaxes(h.Children(2:2:end),'xy');
-
+linkaxes(h.Children,'xy');
 
 % (psth: average of single units)
 curr_stim = 3;
-use_units = true(size(unit_kidx));
+% use_units = true(size(unit_kidx));
 % use_units = unit_single_cat;
-% use_units = unit_resp_cat(:,3);
+use_units = unit_resp_cat(:,3);
 % use_units = logical(vertcat(ephys.str_msn_idx{:}));
 
 [unit_group_mean,groups] = ap.nestgroupfun({@mean,@mean}, ...
@@ -351,14 +373,14 @@ plot_celltype = vertcat(ephys.str_fsi_idx{:});
 % plot_celltype = vertcat(ephys.str_tan_idx{:}) & vertcat(ephys.single_unit_idx{:});
 
 plot_kidx = [1];
-plot_stim_idx = 3;
+plot_stim_idx = 2;
 
 stim_t = psth_t > 0 & psth_t < 0.2;
 
 % Plot grouped days
 
 % unit_ld_prepost = unit_ld >= 0;
-plot_day_bins = [-Inf,-2:1,Inf];
+plot_day_bins = [-Inf,-2:2,Inf];
 unit_plot_day_grp = discretize(unit_ld,plot_day_bins);
 
 figure;
@@ -415,7 +437,7 @@ animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
 ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),stim_grp_sq,'uni',false));
 
-plot_day_bins = [-Inf,-2:1,Inf];
+plot_day_bins = [-Inf,-3:2,Inf];
 plot_days_grp = discretize(max(ld_grp,-inf),plot_day_bins);
 
 stim_grp = cell2mat(cellfun(@(x) reshape(x,[],1),stim_grp_sq,'uni',false));
@@ -426,13 +448,26 @@ kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
 psth_sem = ap.nestgroupfun({@mean,@AP_sem},psth_norm_cat_smooth,animal_grp, ...
     [plot_days_grp,stim_grp,kidx_grp]);
 
+% (quick and dirty: plot n's)
+[psth_n,psth_n_grp] = ap.nestgroupfun({@mean,@length}, ...
+    psth_norm_cat_smooth,animal_grp, ...
+    [ld_grp,stim_grp,kidx_grp]);
+figure; hold on;
+for curr_k = 1:n_k
+    curr_plot_idx = psth_n_grp(:,2)==90 & psth_n_grp(:,3)==curr_k;
+    plot(psth_n_grp(curr_plot_idx,1),psth_n(curr_plot_idx));
+end
+yline(5)
+xlabel('Learning day');
+ylabel('N');
+
 % (get max: avg within day, max in time, avg agross animals)
 [psth_dayavg,psth_dayavg_grp] = ap.groupfun(@mean, ...
     psth_norm_cat_smooth, ...
     [animal_grp,plot_days_grp,stim_grp,kidx_grp]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
-[psth_max,psth_max_grp] = ap.nestgroupfun({@mean,@mean}, ...
+[psth_max,psth_max_grp] = ap.nestgroupfun({@mean,animal_groupfun}, ...
     max(psth_dayavg(:,max_t),[],2),psth_dayavg_grp(:,1), ...
     psth_dayavg_grp(:,2:end));
 psth_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
@@ -474,16 +509,17 @@ linkaxes(h.Children,'xy');
 
 % Plot PSTH max by learning day
 figure;
-h = tiledlayout(n_k,length(unique(stim_grp)),'TileIndexing','column');
-for curr_stim = unique(stim_grp)'
-    for curr_k = unique(kidx_grp)'
-        nexttile; hold on; set(gca,'ColorOrder',day_colormap);
+h = tiledlayout(n_k,1);
+for curr_k = unique(kidx_grp)'
+    nexttile; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
+    for curr_stim = unique(stim_grp)'
         plot_grps = psth_max_grp(:,2) == curr_stim & ...
             psth_max_grp(:,3) == curr_k;
 
-        errorbar(psth_max(plot_grps),psth_max_sem(plot_grps),'k','linewidth',2);
-        xline(find(plot_day_bins == 0));
+        errorbar(psth_max(plot_grps),psth_max_sem(plot_grps),'linewidth',2);
     end
+    xline(find(plot_day_bins == 0));
+    axis padded
 end
 linkaxes(h.Children,'xy');
 
@@ -573,6 +609,11 @@ psth_baseline = cellfun(@(mua) ...
 %     ephys.binned_msn_spikes_move_align,kidx_rec,'uni',false);
 % %%%%%%%%%%%%%%%%
 
+% %%%%%%%%%%%%%%%% OUTCOME ALIGN
+% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
+%     ephys.binned_msn_spikes_outcome_align,kidx_rec,'uni',false);
+% %%%%%%%%%%%%%%%%
+
 psth_norm = cellfun(@(psth,baseline) ...
     (psth-baseline)./baseline,psth_sum,psth_baseline,'uni',false);
 
@@ -597,7 +638,7 @@ rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
 kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
 
 
-day_grp = discretize(max(ld_grp,-inf),[-Inf,-2:1,Inf]);
+day_grp = discretize(max(ld_grp,-inf),[-Inf,-3:2,Inf]);
 
 % Plot heatmaps sorted by reaction times
 figure; tiledlayout(n_k,max(day_grp),'TileSpacing','none');
@@ -938,7 +979,7 @@ axis padded
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 10;
-psth_baseline = cellfun(@(mua) ...
+psth_baseline = cellfun(@(mua) ...=
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
@@ -968,7 +1009,7 @@ rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
 kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
 
 
-day_grp = discretize(max(ld_grp,-inf),[-Inf,-2:1,Inf]);
+day_grp = discretize(max(ld_grp,-inf),[-Inf,-3:2,Inf]);
 
 % Plot heatmaps sorted by reaction times
 figure; tiledlayout(n_k,max(day_grp),'TileSpacing','none');
@@ -1210,7 +1251,7 @@ wf_animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,length(grp),1),    
 wf_ld_grp = cell2mat(cellfun(@(ld,grp) repmat(ld,length(grp),1),    ...
     num2cell(bhv.days_from_learning),wf.trial_stim_values,'uni',false));
 
-plot_day_bins = [-Inf,-2:1,Inf];
+plot_day_bins = [-Inf,-2:2,Inf];
 wf_plot_days_grp = discretize(max(wf_ld_grp,-inf),plot_day_bins);
 
 
@@ -1331,15 +1372,17 @@ wf_striatum_roi_max_sem = ...
 figure;
 h = tiledlayout(n_k,1,'TileSpacing','none');
 for curr_k = 1:size(striatum_wf_roi,3)
-        nexttile;
-        curr_data_idx = wf_striatum_roi_max_avg_grp(:,2) == plot_stim;
+    nexttile; hold on;
+    set(gca,'ColorOrder',ap.colormap('BKR',3));
+    for curr_stim = unique(unique(wf_striatum_roi_max_avg_grp(:,2)))'
+        curr_data_idx = wf_striatum_roi_max_avg_grp(:,2) == curr_stim;
 
         errorbar(wf_striatum_roi_max_avg(curr_data_idx,:,curr_k), ...
-            wf_striatum_roi_max_sem(curr_data_idx,:,curr_k),'k','linewidth',2);
+            wf_striatum_roi_max_sem(curr_data_idx,:,curr_k),'linewidth',2);
         ylabel('t max');
         axis padded
+    end
 end
-
 linkaxes(h.Children,'xy');
 
 
@@ -1354,11 +1397,10 @@ wf_animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,size(grp,1),1),    
 wf_ld_grp = cell2mat(cellfun(@(ld,grp) repmat(ld,size(grp,1),1),    ...
     num2cell(bhv.days_from_learning),wf.V_stim_align,'uni',false));
 
-plot_day_bins = [-Inf,-2:1,Inf];
+plot_day_bins = [-Inf,-3:2,Inf];
 wf_plot_days_grp = discretize(max(wf_ld_grp,-inf),plot_day_bins);
 
 wf_rxn_grp = cell2mat(bhv.stim_to_move);
-
 
 
 % Make ROIs from striatum maps
@@ -1367,8 +1409,7 @@ wf_rxn_grp = cell2mat(bhv.stim_to_move);
 % (thresholded spot)
 [~,m] = max(kmeans_cluster_mean,[],[1,2],'linear');
 [mr,mc] = ind2sub(size(U_master,[1,2]),m);
-
-striatum_wf_roi = kmeans_cluster_mean > std(kmeans_cluster_mean(:))*3;
+striatum_wf_roi = kmeans_cluster_mean > max(kmeans_cluster_mean,[],[1,2])*0.5;
 striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
 for k = 1:size(striatum_wf_roi,3)
     [~,m] = max(imgaussfilt(kmeans_cluster_mean(:,:,k),10).* ...
@@ -1509,6 +1550,67 @@ for curr_k = 1:n_k
 end
 linkaxes(h.Children,'xy');
 set(h.Children,'colororder',ap.colormap('KR',n_split)); 
+
+%% (from above - to trial percentile by reaction group)
+% (copied from striatum and variables not renamed yet)
+
+% Split by trial percentile within day
+n_split = 3;
+rxn_bins = [-Inf,0.25,Inf];
+
+rxn_bin_grp = discretize(wf_rxn_grp,rxn_bins);
+[~,~,rec_idx] = unique([wf_animal_grp,wf_plot_days_grp],'rows');
+
+split_idx = nan(size(rec_idx));
+for curr_rec = 1:max(rec_idx)
+    split_idx(rec_idx == curr_rec) = ...
+        min(floor(linspace(1,n_split+1,sum(rec_idx == curr_rec))),n_split)';
+end
+
+
+% Plot PSTH split
+figure('color','w'); h = tiledlayout(n_k,max(wf_plot_days_grp),'TileSpacing','none');
+for curr_k = 1:n_k
+    for curr_day = unique(wf_plot_days_grp)'
+        nexttile;
+        curr_trials = find(wf_plot_days_grp == curr_day & rxn_bin_grp == 2);
+        plot(wf_t,ap.nestgroupfun({@mean,@mean},wf_striatum_roi(curr_trials,:,curr_k), ...
+            wf_animal_grp(curr_trials),split_idx(curr_trials))');
+    end
+end
+linkaxes(h.Children,'xy');
+set(h.Children,'colororder',ap.colormap('KR',n_split)); 
+axis(h.Children,'off')
+
+
+
+% Plot PSTH max split
+figure('color','w'); h = tiledlayout(n_k,max(wf_plot_days_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day = unique(wf_plot_days_grp)'
+        nexttile; hold on;
+        curr_trials = find(wf_plot_days_grp == curr_day);
+        curr_data = wf_striatum_roi(curr_trials,:,curr_k);
+
+        data_t = wf_t > 0 & wf_t < 0.2;
+
+        % (mean PSTH, max t, mean across animals)
+        [psth_mean,psth_mean_grp] = ap.groupfun(@mean,curr_data, ...
+            [wf_animal_grp(curr_trials),split_idx(curr_trials),rxn_bin_grp(curr_trials)]);
+        psth_max = max(psth_mean(:,data_t),[],2);
+        [psth_max_avg,psth_max_grp] = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2:3));
+        psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2:3));
+
+        arrayfun(@(x) errorbar(psth_max_avg(psth_max_grp(:,2) == x), ...
+            psth_max_sem(psth_max_grp(:,2) == x),'linewidth',2), ...
+            1:max(rxn_bin_grp));
+
+        axis padded off
+    end
+end
+linkaxes(h.Children,'xy');
+
+
 
 
 
