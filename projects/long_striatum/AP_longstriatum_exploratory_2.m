@@ -7,7 +7,7 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 % % Added move-align: 
 % data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
-load_workflow = 'passive';
+load_workflow = 'task';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));

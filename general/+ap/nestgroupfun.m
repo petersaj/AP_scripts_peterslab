@@ -53,9 +53,18 @@ for curr_nest = 1:size(group_labels,2)+1
     [curr_group_nest,~,groups_nest_idx(use_curr_group)] = ...
         unique(curr_group(use_curr_group,:),'rows');
 
-    data_group_nest{curr_nest+1} = ...
-        ap.groupfun(group_functions{curr_nest},data_group_nest{curr_nest}, ...
-        groups_nest_idx);
+    if size(curr_group,1) > 1
+        % If >1 data rows: group data
+        data_group_nest{curr_nest+1} = ...
+            ap.groupfun(group_functions{curr_nest},data_group_nest{curr_nest}, ...
+            groups_nest_idx);
+    elseif size(curr_group,1) == 1
+        % If 1 data row: just carry forward row (can't group further)
+        % (note: this is necessary because groupfun is flexible on
+        % dimension arguments, so if a vector is input it assumes the
+        % non-singleton dimension should be grouped)
+        data_group_nest{curr_nest+1} =data_group_nest{curr_nest};
+    end
 
     if curr_nest <= size(group_labels,2)
         % For all but last grouping: drop successive labels

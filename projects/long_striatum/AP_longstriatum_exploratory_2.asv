@@ -7,7 +7,7 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 % % Added move-align: 
 % data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
-load_workflow = 'passive';
+load_workflow = 'task';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
@@ -365,7 +365,7 @@ linkaxes(h.Children,'xy');
 
 
 
-%% (from above) Plot cell type heatmap
+%% (from above) Cell type heatmap
 
 plot_celltype = vertcat(ephys.str_fsi_idx{:});
 % plot_celltype = vertcat(ephys.str_tan_idx{:}) & vertcat(ephys.single_unit_idx{:});
@@ -403,6 +403,37 @@ linkaxes(h.Children(1:2:end),'xy');
 linkaxes(h.Children(2:2:end),'xy'); 
 
 
+%% (from above) Unit heatmap across stimuli
+
+plot_day_bins = [-Inf,-2:1,Inf];
+unit_plot_day_grp = discretize(unit_ld,plot_day_bins);
+
+figure;
+h = tiledlayout(1,length(plot_day_bins)-1);
+
+curr_kidx = 1;
+for curr_day_grp = 1:length(plot_day_bins)-1
+
+    curr_units = ismember([unit_kidx,unit_plot_day_grp],[curr_kidx,curr_day_grp],'rows') & ...
+        logical(vertcat(ephys.str_msn_idx{:}));
+
+    curr_data = unit_psth_cat(curr_units,:,:);
+
+    use_t = psth_t > 0 & psth_t < 0.2;
+    [~,sort_idx] = sort(max(curr_data(:,use_t,2),[],2) - max(curr_data(:,use_t,3),[],2));
+
+    nexttile;
+    imagesc(movmean(reshape(permute(curr_data(sort_idx,:,:),[2,3,1]),[],length(sort_idx))',[20,1]));
+
+    clim([-3,3])
+    colormap(ap.colormap('BWR'));
+
+end
+
+
+
+
+
 %% (from above) Unit response overlap
 
 % Get max response in window 
@@ -426,7 +457,7 @@ end
 linkaxes(h.Children,'xy');
 
 % Scatter (normalized)
-unit_response_norm = unit_psth_max./sum(abs(unit_psth_max),[],2);
+unit_response_norm = unit_psth_max./sum(abs(unit_psth_max),2);
 
 figure;
 h = tiledlayout(1,length(plot_day_bins)-1);
@@ -440,42 +471,6 @@ for curr_day_grp = 1:length(plot_day_bins)-1
 end
 linkaxes(h.Children,'xy');
 
-
-
-% Trying out snowflake plot
-unit_response_norm = unit_psth_max;
-unit_response_relative = abs(unit_response_norm)./max(abs(unit_response_norm),[],2);
-
-ternary_tform = [0,1;sqrt(3/4),-0.5;-sqrt(3/4),-0.5];
-unit_response_norm_ternary = (ternary_tform\unit_response_relative')';
-
-unit_max_response = max(abs(unit_response_norm),[],2);
-
-response_limits = reshape([eye(3),eye(3)+circshift(eye(3),[0,1])]',3,[])';
-ternary_limits = (ternary_tform\response_limits')';
-
-figure;
-h = tiledlayout(1,length(plot_day_bins)-1);
-
-curr_kidx = 1;
-for curr_day_grp = 1:length(plot_day_bins)-1
-    curr_data_idx = ismember([unit_kidx,unit_plot_day_grp],[curr_kidx,curr_day_grp],'rows') & ...
-        logical(vertcat(ephys.str_msn_idx{:}));
-
-    % Plot each unit
-    size_norm_denom = prctile(unit_max_response(unit_kidx == curr_kidx),90);
-    size_norm = min(unit_max_response(curr_data_idx)./size_norm_denom,1);
-    dot_size = size_norm.*10+1;
-
-    response_sign = sign(ap.signed_max(unit_response_norm(curr_data_idx,:),2));
-    dot_color = [response_sign == 1,zeros(size(response_sign)),response_sign == -1];
-
-    nexttile; hold on; axis image off;
-    patch(ternary_limits(:,1),ternary_limits(:,2),'w','linewidth',1);
-    scatter(unit_response_norm_ternary(curr_data_idx,1), ...
-        unit_response_norm_ternary(curr_data_idx,2), ...
-        dot_size,dot_color,'filled');
-end
 
 
 % Trying out snowflake plot
