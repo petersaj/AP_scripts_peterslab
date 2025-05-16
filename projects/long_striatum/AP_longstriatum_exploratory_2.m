@@ -11,7 +11,7 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 % % Added move-align: 
 % data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
-load_workflow = 'passive';
+load_workflow = 'task';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
@@ -212,7 +212,7 @@ U_size = size(all_ctx_maps_to_str.cortex_kernel_px{1},[1,2]);
 maps_flat_cat = reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[]);
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
-n_k = 4;
+n_k = 6;
 kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     x(:,:,round(linspace(1,size(x,3),n_k))), ...
     all_ctx_maps_to_str.cortex_kernel_px(~cellfun(@isempty, ...
@@ -241,32 +241,41 @@ kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     'Distance','cosine','start',reshape(kmeans_starting,[],n_k)');
 kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
-%%%%%%%%%%%%%%%%%%%
-% TEMP? SPLIT KIDX 2 -> 1 BY DISTANCE
-% looks like value of ~0.75 works, just picked empirical way to get there
-kidx_raw = kidx;
+% %%%%%%%%%%%%%%%%%%%
+% % ADJUSTMENTS FOR N_K=4
+% % looks like value of ~0.75 works, just picked empirical way to get there
+% kidx_raw = kidx;
+% 
+% dist_cutoff_k1 = prctile(kmeans_dist(kidx_raw==1,1),95);
+% dist_cutoff_k2 = prctile(kmeans_dist(kidx_raw==2,2),95);
+% 
+% kidx = kidx_raw;
+% 
+% % (to fold 2's into cluster 1)
+% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
+% 
+% % % (make 2's into new cluster)
+% % kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
+% % [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% % n_k = 5;
+% % % kidx(kidx==3) = 2; kidx(kidx==4) = 3;n_k = 3; % (combine pfc 2+3)
+% 
+% % % (make 1's and 2's into new cluster)
+% % kidx(kidx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
+% % kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
+% % [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% % n_k = 5;
+% 
+% %%%%%%%%%%%%%%%%%%%
 
-dist_cutoff_k1 = prctile(kmeans_dist(kidx_raw==1,1),95);
-dist_cutoff_k2 = prctile(kmeans_dist(kidx_raw==2,2),95);
+% %%%%%%%%%%%%%%%%%%%
+% % ADJUSTMENTS FOR N_K=6
+% Turn 6 into 3 (vis, frontal, lateral)
+kidx(ismember(kidx,2:4)) = 2;
+kidx(ismember(kidx,5:6)) = 3;
+n_k = 3;
+% %%%%%%%%%%%%%%%%%%%
 
-kidx = kidx_raw;
-
-% (to fold 2's into cluster 1)
-kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
-
-% % (make 2's into new cluster)
-% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
-% [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
-% n_k = 5;
-% % kidx(kidx==3) = 2; kidx(kidx==4) = 3;n_k = 3; % (combine pfc 2+3)
-
-% % (make 1's and 2's into new cluster)
-% kidx(kidx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
-% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
-% [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
-% n_k = 5;
-
-%%%%%%%%%%%%%%%%%%%
 
 kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
 
@@ -1018,7 +1027,7 @@ set(h.Children,'colororder',ap.colormap('KR',n_split));
 
 %% (from above - to trial percentile by reaction group)
 
-day_bins = [-Inf,-2:0,Inf];
+day_bins = [-Inf,-2:2,Inf];
 day_grp = discretize(max(ld_grp,-inf),day_bins);
 
 % Split by trial percentile within day
@@ -1612,7 +1621,7 @@ wf_animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,length(grp),1),    
 wf_ld_grp = cell2mat(cellfun(@(ld,grp) repmat(ld,length(grp),1),    ...
     num2cell(bhv.days_from_learning),wf.trial_stim_values,'uni',false));
 
-plot_day_bins = [-Inf,-2:1,Inf];
+plot_day_bins = [-Inf,-2:2,Inf];
 wf_plot_days_grp = discretize(max(wf_ld_grp,-inf),plot_day_bins);
 
 
