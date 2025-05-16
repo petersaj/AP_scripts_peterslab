@@ -124,6 +124,7 @@ if contains(bonsai_workflow,'stim_wheel')
 
     % Store trial values
     stim_to_move = stim_move_time - stimOn_times(1:n_trials);
+    stim_to_outcome = stimOff_times(1:n_trials) - stimOn_times(1:n_trials);
     stim_to_lastmove = stim_lastmove_time - stimOn_times(1:n_trials);
     trial_outcome = vertcat(trial_events.values(1:n_trials).Outcome);
 
