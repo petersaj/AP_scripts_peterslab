@@ -241,32 +241,32 @@ kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     'Distance','cosine','start',reshape(kmeans_starting,[],n_k)');
 kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
-% %%%%%%%%%%%%%%%%%%%
-% % TEMP? SPLIT KIDX 2 -> 1 BY DISTANCE
-% % looks like value of ~0.75 works, just picked empirical way to get there
-% kidx_raw = kidx;
-% 
-% dist_cutoff_k1 = prctile(kmeans_dist(kidx_raw==1,1),95);
-% dist_cutoff_k2 = prctile(kmeans_dist(kidx_raw==2,2),95);
-% 
-% kidx = kidx_raw;
-% 
-% % (to fold 2's into cluster 1)
-% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
-% 
-% % % (make 2's into new cluster)
-% % kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
-% % [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
-% % n_k = 5;
-% % % kidx(kidx==3) = 2; kidx(kidx==4) = 3;n_k = 3; % (combine pfc 2+3)
-% 
-% % % (make 1's and 2's into new cluster)
-% % kidx(kidx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
-% % kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
-% % [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
-% % n_k = 5;
-% 
-% %%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%
+% TEMP? SPLIT KIDX 2 -> 1 BY DISTANCE
+% looks like value of ~0.75 works, just picked empirical way to get there
+kidx_raw = kidx;
+
+dist_cutoff_k1 = prctile(kmeans_dist(kidx_raw==1,1),95);
+dist_cutoff_k2 = prctile(kmeans_dist(kidx_raw==2,2),95);
+
+kidx = kidx_raw;
+
+% (to fold 2's into cluster 1)
+kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
+
+% % (make 2's into new cluster)
+% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
+% [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% n_k = 5;
+% % kidx(kidx==3) = 2; kidx(kidx==4) = 3;n_k = 3; % (combine pfc 2+3)
+
+% % (make 1's and 2's into new cluster)
+% kidx(kidx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
+% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
+% [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% n_k = 5;
+
+%%%%%%%%%%%%%%%%%%%
 
 kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
 
@@ -386,7 +386,7 @@ unit_animal = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
 unit_ld = cell2mat(cellfun(@(grp,units) repmat(grp,length(units),1), ...
     num2cell(bhv.days_from_learning),ephys.single_unit_idx,'uni',false));
 
-plot_day_bins = [-Inf,-3:2,Inf];
+plot_day_bins = [-Inf,-2:2,Inf];
 unit_plot_days_grp = discretize(max(unit_ld,-inf),plot_day_bins);
 
 % Make kmeans cluster per unit
@@ -626,8 +626,8 @@ animal_groupfun = @mean;
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
-baseline_t = psth_t >= -0.05 & psth_t <= 0;
-softnorm = 1;
+baseline_t = psth_t < 0;
+softnorm = 10;
 psth_baseline = cellfun(@(mua) ...
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
@@ -700,6 +700,7 @@ end
 linkaxes(h.Children,'xy');
 
 % Plot PSTH by learning day for stim
+% (color by day)
 plot_stim = 90;
 figure('Name','MUA by LD');
 h = tiledlayout(n_k,max(psth_grp(:,1)),'TileSpacing','none');
@@ -714,6 +715,28 @@ for curr_k = unique(psth_grp(:,3))'
         end
         ap.errorfill(psth_t,psth_avg(plot_data,:),psth_sem(plot_data,:), ...
             day_colormap(curr_day,:));
+    end
+end
+linkaxes(h.Children,'xy');
+
+% Plot PSTH by learning day for all stim
+stim_plot = [-90,0,90];
+stim_color = [0,0,1;0,0,0;1,0,0];
+figure('Name','MUA by LD');
+h = tiledlayout(n_k,max(psth_grp(:,1)),'TileSpacing','none');
+for curr_k = unique(psth_grp(:,3))'
+    for curr_day = unique(psth_grp(:,1))'
+        nexttile; axis off;
+        for curr_stim_idx = 1:length(stim_plot)            
+            plot_data = psth_grp(:,1) == curr_day & ...
+                psth_grp(:,2) == stim_plot(curr_stim_idx) & ...
+                psth_grp(:,3) == curr_k;
+            if ~any(plot_data)
+                continue
+            end
+            ap.errorfill(psth_t,psth_avg(plot_data,:),psth_sem(plot_data,:), ...
+                stim_color(curr_stim_idx,:));
+        end
     end
 end
 linkaxes(h.Children,'xy');
@@ -810,7 +833,7 @@ axis padded
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
-softnorm = 1;
+softnorm = 10;
 psth_baseline = cellfun(@(mua) ...
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
@@ -995,7 +1018,8 @@ set(h.Children,'colororder',ap.colormap('KR',n_split));
 
 %% (from above - to trial percentile by reaction group)
 
-day_grp = discretize(max(ld_grp,-inf),[-Inf,-2:2,Inf]);
+day_bins = [-Inf,-2:0,Inf];
+day_grp = discretize(max(ld_grp,-inf),day_bins);
 
 % Split by trial percentile within day
 n_split = 3;
@@ -1030,7 +1054,7 @@ end
 % Plot PSTH max split
 figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
-    for curr_day = unique(day_grp)'
+    for curr_day = 1:length(day_bins)-1
         nexttile; hold on;
         curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
         curr_data = psth_norm_cat_smooth(curr_trials,:);
@@ -1191,7 +1215,7 @@ axis padded
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
-softnorm = 1;
+softnorm = 10;
 psth_baseline = cellfun(@(mua) ...
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
@@ -1315,7 +1339,7 @@ linkaxes(h.Children,'xy');
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
-softnorm = 1;
+softnorm = 10;
 psth_baseline = cellfun(@(mua) ...=
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
@@ -1460,7 +1484,7 @@ set(h.Children,'colororder',ap.colormap('KR',n_split));
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < -0.3;
-softnorm = 1;
+softnorm = 10;
 psth_baseline = cellfun(@(mua) ...
     mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
