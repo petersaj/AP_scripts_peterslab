@@ -1,4 +1,4 @@
-%% Note
+%% Notes
 
 % After AM data packaging
 
@@ -11,7 +11,7 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 % % Added move-align: 
 % data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
 
-load_workflow = 'task';
+load_workflow = 'passive';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
@@ -126,14 +126,14 @@ xlabel('Days to learn');
 % (this one includes other stats - choose how to define learning)
 
 use_stat = 'firstmove_mad';
-learn_stat_p = 0.01;
+learn_stat_p = 0.05;
 
 % Load behavior
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 load(fullfile(data_path,'swr_bhv_v2'));
 
 % Set (overwrite) "learned_days" and "days_from_learning"
-bhv.learned_days = cellfun(@(x) x<learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
+bhv.learned_days = cellfun(@(x) x < learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
 for curr_animal = unique(bhv.animal)'
     curr_rows = strcmp(bhv.animal,curr_animal);
     bhv.days_from_learning(curr_rows) = ...
@@ -324,7 +324,7 @@ map_animal_grp = cell2mat(cellfun(@(x,maps) repelem(x,size(maps,3)*(size(maps,1)
     num2cell(grp2idx(bhv.animal)), ...
     all_ctx_maps_to_str.cortex_kernel_px,'uni',false));
 
-plotday_bins = [-Inf,-2:1,Inf];
+plotday_bins = [-Inf,-2:2,Inf];
 map_plotday_grp = discretize(map_ld_grp,plotday_bins);
 
 
@@ -412,9 +412,9 @@ split_labels = [unit_plot_days_grp,unit_kidx];
 % (frac responsive cells)
 % use_units = true(size(unit_single_cat));
 % use_units = unit_single_cat;
-use_units = logical(vertcat(ephys.str_msn_idx{:}));
+% use_units = logical(vertcat(ephys.str_msn_idx{:}));
 % use_units = logical(vertcat(ephys.str_msn_idx{:})) & unit_resp_cat(:,2);
-% use_units = logical(vertcat(ephys.str_msn_idx{:})) & unit_single_cat;
+use_units = logical(vertcat(ephys.str_msn_idx{:})) & unit_single_cat;
 
 figure;
 h = tiledlayout(n_k,1);
@@ -478,11 +478,12 @@ linkaxes(h.Children,'xy');
 
 %% (from above) Cell type heatmap
 
-plot_celltype = vertcat(ephys.str_fsi_idx{:});
-% plot_celltype = vertcat(ephys.str_tan_idx{:}) & vertcat(ephys.single_unit_idx{:});
+% plot_celltype = vertcat(ephys.str_msn_idx{:});% & vertcat(ephys.single_unit_idx{:});
+plot_celltype = vertcat(ephys.str_fsi_idx{:});% & vertcat(ephys.single_unit_idx{:});
+% plot_celltype = vertcat(ephys.str_tan_idx{:});% & vertcat(ephys.single_unit_idx{:});
 
 plot_kidx = [1];
-plot_stim_idx = 2;
+plot_stim_idx = 3;
 
 stim_t = psth_t > 0 & psth_t < 0.2;
 
@@ -1643,13 +1644,15 @@ ap.wf_draw('ccf','k');
 % % (weighted average)
 % striatum_wf_roi = max(kmeans_cluster_mean,0)./max(kmeans_cluster_mean,[],[1,2]);
 % (thresholded spot)
-[~,m] = max(kmeans_cluster_mean,[],[1,2],'linear');
+
+kmeans_cluster_mean_gauss = imgaussfilt(kmeans_cluster_mean,5);
+[~,m] = max(kmeans_cluster_mean_gauss,[],[1,2],'linear');
 [mr,mc] = ind2sub(size(U_master,[1,2]),m);
-striatum_wf_roi = kmeans_cluster_mean > max(kmeans_cluster_mean,[],[1,2])*0.5;
+striatum_wf_roi = kmeans_cluster_mean_gauss > prctile(kmeans_cluster_mean_gauss,95,[1,2])*0.75;
 striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
 for k = 1:size(striatum_wf_roi,3)
-    [~,m] = max(imgaussfilt(kmeans_cluster_mean(:,:,k),10).* ...
-        round(linspace(1,0,size(kmeans_cluster_mean,2))),[],[1,2],'linear');
+    [~,m] = max(imgaussfilt(kmeans_cluster_mean_gauss(:,:,k),10).* ...
+        round(linspace(1,0,size(kmeans_cluster_mean_gauss,2))),[],[1,2],'linear');
     [mx,my] = ind2sub(size(U_master,[1,2]),m);
     striatum_wf_roi(:,:,k) = bwselect(striatum_wf_roi(:,:,k),my,mx);
 end
