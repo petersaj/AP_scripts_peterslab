@@ -15,12 +15,12 @@
 % use_align = stimOn_times(stim_x == 8000);
 
 % stim_x = vertcat(trial_events.values.TrialStimX);
-% use_align = stimOn_times(stim_x == 90);
+use_align = stimOn_times(stim_x == 90);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x(1:n_trials) == 90);
 
-use_align = stimOn_times;
+% use_align = stimOn_times;
 
 % stim_x = vertcat(trial_events.values.PictureID);
 % use_align = stimOn_times(stim_x == 2 & quiescent_trials);
@@ -125,8 +125,8 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 % align_times = stimOn_times;
 % align_times = photodiode_times(1:2:end);
 % align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
-% align_times = stimOn_times(stim_x == 90);
-align_times = stim_move_time;
+align_times = stimOn_times(stim_x == 90);
+% align_times = stim_move_time;
 % align_times = iti_fastmove_times;
 
 surround_time = [-10,10];
@@ -182,7 +182,7 @@ xlabel('Time from event');
 %     'AP023','AP025'};
 
 % animals = {'AM018','AM019','AM021','AM022'};
-animals = {'AP023'};
+animals = {'DS011'};
 % animals = {'DS016'};
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
 
@@ -201,8 +201,8 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    use_workflow = 'stim_wheel*';
-%     use_workflow = 'stim_wheel_right_stage\d';
+    % use_workflow = 'stim_wheel*';
+    use_workflow = 'stim_wheel_right_stage\d';
     % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
 %     use_workflow = '*audio_volume*';
 %     use_workflow = '*audio_frequency*';

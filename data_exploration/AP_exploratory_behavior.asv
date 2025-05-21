@@ -15,12 +15,12 @@
 % use_align = stimOn_times(stim_x == 8000);
 
 % stim_x = vertcat(trial_events.values.TrialStimX);
-% use_align = stimOn_times(stim_x == 90);
+use_align = stimOn_times(stim_x == 90);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x(1:n_trials) == 90);
 
-use_align = stimOn_times;
+% use_align = stimOn_times;
 
 % stim_x = vertcat(trial_events.values.PictureID);
 % use_align = stimOn_times(stim_x == 2 & quiescent_trials);
@@ -125,8 +125,8 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 % align_times = stimOn_times;
 % align_times = photodiode_times(1:2:end);
 % align_times = stimOn_times(align_category_all == 90 & ~quiescent_trials);
-% align_times = stimOn_times(stim_x == 90);
-align_times = stim_move_time;
+align_times = stimOn_times(stim_x == -90);
+% align_times = stim_move_time;
 % align_times = iti_fastmove_times;
 
 surround_time = [-10,10];
@@ -182,14 +182,16 @@ xlabel('Time from event');
 %     'AP023','AP025'};
 
 % animals = {'AM018','AM019','AM021','AM022'};
-animals = {'AM015'};
+animals = {'HA012'};
 % animals = {'DS016'};
+% animals = {'DS000','DS004','DS014','DS015','DS016'};
 
 % Set reaction statistic to use
-use_stat = 'mean';
+use_stat = 'mad';
+learn_p = 0.05;
 
 % Create master tiled layout
-figure;
+figure('name',sprintf('%s, p < %.2g',use_stat,learn_p));
 t = tiledlayout(1,length(animals),'TileSpacing','tight');
 
 % Grab learning day for each mouse
@@ -276,7 +278,7 @@ for curr_animal_idx = 1:length(animals)
     end
 
     % Define learned day from reaction stat p-value and reaction time
-    learned_day = rxn_stat_p < 0.05;
+    learned_day = rxn_stat_p < learn_p;
 
     relative_day = days(datetime({recordings.day}) - datetime({recordings(1).day}))+1;
     nonrecorded_day = setdiff(1:length(recordings),relative_day);

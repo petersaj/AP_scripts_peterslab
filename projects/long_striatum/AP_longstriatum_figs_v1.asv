@@ -1,0 +1,319 @@
+%% Notes
+
+% Figures for longitudinal striatum+cortex project
+
+% Data packaged by AM save scripts
+% Analysis taken fom AP_longstriautm_exploratory_2
+
+%% ------- LOAD/PREP DATA ------------------
+
+%% Behavior
+
+% Set stat and p-value to define learning day
+use_stat = 'firstmove_mad';
+learn_stat_p = 0.05;
+
+% Load behavior
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+load(fullfile(data_path,'swr_bhv_v2'));
+
+% Set (overwrite) "learned_days" and "days_from_learning"
+bhv.learned_days = cellfun(@(x) x < learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
+for curr_animal = unique(bhv.animal)'
+    curr_rows = strcmp(bhv.animal,curr_animal);
+    bhv.days_from_learning(curr_rows) = ...
+        (1:sum(curr_rows))' - ...
+        max([NaN,find(bhv.learned_days(curr_rows),1)]);
+end
+
+
+%% K-means on maps 
+
+% Load maps
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+load(fullfile(data_path,'ctx_maps_to_str'));
+U_size = size(all_ctx_maps_to_str.cortex_kernel_px{1},[1,2]);
+
+% K-means cluster maps
+n_k = 3;
+
+% (kmeans starting as maps averaged by depth)
+kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_k)), ...
+    all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
+    size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+
+[kidx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
+    reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[])',n_k, ...
+    'Distance','correlation','start',reshape(kmeans_starting,[],n_k)');
+kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
+
+% Package kidx by recording (used for some groupings)
+kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
+    all_ctx_maps_to_str.cortex_kernel_px));
+
+
+%% Passive widefield + ephys
+
+% Set data path
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+
+% Load ephys
+load(fullfile(data_path,'ephys'));
+
+% Load widefield
+load(fullfile(data_path,'ctx_wf'));
+
+% Load master U
+U_master = plab.wf.load_master_U;
+
+
+%% Task widefield + ephys
+
+% Set data path
+data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
+
+% Load ephys
+load(fullfile(data_path,'task_ephys_outcome'));
+% (LEGACY: change this saved variable to be 'ephys', not 'task_ephys'
+ephys = task_ephys;
+clear task_ephys;
+
+% Load widefield
+load(fullfile(data_path,'task_ctx_wf'));
+
+% Load master U
+U_master = plab.wf.load_master_U;
+
+
+%% PASSIVE: Group ephys by cluster and create indices
+
+% Sum spikes from depth into cluster multiunit
+[striatum_stimalign_mua_raw,striatum_kidx] = cellfun(@(mua,kidx) ...
+    ap.groupfun(@sum,mua,[],[],kidx), ...
+    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
+
+% Normalize and smooth multiunit
+% (currently psth time is hard coded: save this somewhere)
+psth_t = -0.5:0.001:1;
+baseline_t = psth_t < 0;
+softnorm = 10;
+psth_baseline = cellfun(@(mua) ...
+    mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
+    striatum_stimalign_mua_raw,'uni',false,'ErrorHandler',@(varargin) NaN);
+
+psth_norm_smooth_reshape_fcn = @(psth,baseline) ...
+    reshape(permute(smoothdata((psth-baseline)./baseline,2, ...
+    'gaussian',[100,0]),[1,3,2]),[],length(psth_t));
+
+striatum_stimalign_mua = cell2mat(cellfun(psth_norm_smooth_reshape_fcn, ...
+    striatum_stimalign_mua_raw,psth_baseline,'uni',false));
+
+% Create grouping indicies for all striatum data
+[stim_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
+    ephys.trial_stim_values,striatum_kidx,'uni',false);
+
+animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(grp2idx(ephys.animal)),stim_grp_sq,'uni',false));
+
+ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(bhv.days_from_learning),stim_grp_sq,'uni',false));
+
+stim_grp = cell2mat(cellfun(@(x) reshape(x,[],1),stim_grp_sq,'uni',false));
+kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+
+
+%% ------- GENERATE FIGURES ----------------
+
+%% [Fig 1X] Reaction stat and learning histogram
+
+% Plot reaction time/index, by training day and learning day
+training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
+    unique(bhv.animal,'stable'),'uni',false));
+
+rxn_cat = cell2mat(bhv.(['stimwheel_rxn_',use_stat]));
+rxn_null_cat = cell2mat(bhv.(['stimwheel_rxn_null_',use_stat]));
+rxn_idx_cat = (rxn_null_cat-rxn_cat)./(rxn_null_cat+rxn_cat);
+
+figure; h = tiledlayout(2,2);
+
+for day_align = 1:2
+
+    switch day_align
+        case 1
+            use_day_grp = training_day;
+            plot_x = 1:7;
+        case 2
+            use_day_grp = bhv.days_from_learning;
+            plot_x = -3:2;
+    end
+
+    [rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_cat,use_day_grp);
+    rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,use_day_grp);
+
+    rxn_mean = ap.groupfun(@mean,rxn_cat,use_day_grp);
+    rxn_sem = ap.groupfun(@AP_sem,rxn_cat,use_day_grp);
+
+    rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,use_day_grp);
+    rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,use_day_grp);
+
+    plot_x_idx = ismember(rxn_group_x,plot_x);
+
+    nexttile; hold on;
+    % ap.errorfill(rxn_group_ld,rxn_null_mean,rxn_null_sem,'r',0.5,false);
+    % errorbar(rxn_group_ld,rxn_mean,rxn_sem,'k','linewidth',2);
+    plot(rxn_group_x(plot_x_idx),rxn_null_mean(plot_x_idx),'r','linewidth',2);
+    plot(rxn_group_x(plot_x_idx),rxn_mean(plot_x_idx),'k','linewidth',2);
+    set(gca,'YScale','log');
+    xline(0);
+    ylabel('Reaction index')
+
+    nexttile
+    errorbar(rxn_group_x(plot_x_idx),rxn_idx_mean(plot_x_idx),rxn_idx_sem(plot_x_idx),'k','linewidth',2);
+    xline(0);
+    ylabel('Reaction index')
+
+end
+
+linkaxes(h.Children(1:2:end),'y');
+linkaxes(h.Children(2:2:end),'y');
+
+% Plot histogram of learning days
+n_learned_day = cell2mat(cellfun(@(x) find(bhv.learned_days(strcmp(bhv.animal,x)),1), ...
+    unique(bhv.animal,'stable'),'uni',false));
+figure;
+histogram(n_learned_day,0.5:max(n_learned_day)+0.5)
+ylabel('Number of mice');
+xlabel('Days to learn');
+
+
+%% [Fig 1X] Cortex map depths pre/post learning
+
+n_depths = 6;
+
+ctx_map_depthmean = cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_depths)), ...
+    all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
+
+ctx_map_depthmean_prelearn = nanmean(cat(4,ctx_map_depthmean{bhv.days_from_learning<0 & cellfun(@(x) size(x,3)==n_depths,ctx_map_depthmean)}),4);
+ctx_map_depthmean_postlearn = nanmean(cat(4,ctx_map_depthmean{bhv.days_from_learning>=0 & cellfun(@(x) size(x,3)==n_depths,ctx_map_depthmean)}),4);
+ap.imscroll(cat(4,ctx_map_depthmean_prelearn,ctx_map_depthmean_postlearn));
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+
+
+figure;tiledlayout(n_depths,2,'TileSpacing','none');
+colormap(ap.colormap('PWG',[],1.5));
+for curr_depth = 1:n_depths
+    nexttile;
+    imagesc(ctx_map_depthmean_prelearn(:,:,curr_depth));
+    axis image off;
+    ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    clim([-1,1]*0.05);
+
+    nexttile;
+    imagesc(ctx_map_depthmean_postlearn(:,:,curr_depth));
+    axis image off;
+    ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    clim([-1,1]*0.05);
+end
+ap.prettyfig;
+
+
+%% [Fig 2X] K-means cluster centroids
+
+figure;
+h = tiledlayout(n_k,1,'tilespacing','none');
+for curr_k = 1:n_k
+    nexttile;
+    imagesc(kmeans_centroid(:,:,curr_k));
+    axis image off
+    clim(max(abs(clim)).*[-1,1]);
+    colormap(ap.colormap('PWG'));
+    ap.wf_draw('ccf',[0.5,0.5,0.5]);
+end
+
+ap.prettyfig;
+
+
+%% [Fig 2X] Passive: Striatum PSTH and PSTH-max
+
+% Plot PSTH by learning day for all stim
+plot_day_bins = [-Inf,-1:1,Inf];
+plot_days_grp = discretize(max(ld_grp,-inf),plot_day_bins);
+
+[striatum_stimalign_mua_avg,striatum_stimalign_mua_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean}, ...
+    striatum_stimalign_mua,animal_grp, ...
+    [plot_days_grp,stim_grp,kidx_grp]);
+striatum_stimalign_mua_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    striatum_stimalign_mua,animal_grp, ...
+    [plot_days_grp,stim_grp,kidx_grp]);
+
+for plot_stim = unique(striatum_stimalign_mua_avg_grp(:,2))'
+    figure;
+    h = tiledlayout(n_k,max(striatum_stimalign_mua_avg_grp(:,1)),'TileSpacing','none');
+    title(h,sprintf('Stim %d',plot_stim));
+    for curr_k = unique(striatum_stimalign_mua_avg_grp(:,3))'
+        for curr_day = unique(striatum_stimalign_mua_avg_grp(:,1))'
+            nexttile; axis off;
+            plot_data = striatum_stimalign_mua_avg_grp(:,1) == curr_day & ...
+                striatum_stimalign_mua_avg_grp(:,2) == plot_stim & ...
+                striatum_stimalign_mua_avg_grp(:,3) == curr_k;
+            if ~any(plot_data)
+                continue
+            end
+            ap.errorfill(psth_t,striatum_stimalign_mua_avg(plot_data,:),striatum_stimalign_mua_sem(plot_data,:), ...
+                day_colormap(curr_day,:));
+        end
+    end
+    linkaxes(h.Children,'xy');
+end
+
+% Plot PSTH max by learning day
+plot_day_bins = [-Inf,-2:2,Inf];
+plot_days_grp = discretize(max(ld_grp,-inf),plot_day_bins);
+
+[striatum_stimalign_mua_dayavg,striatum_stimalign_mua_dayavg_grp] = ...
+    ap.groupfun(@mean,striatum_stimalign_mua, ...
+    [animal_grp,plot_days_grp,stim_grp,kidx_grp]);
+
+max_t = psth_t > 0 & psth_t < 0.2;
+[psth_max,psth_max_grp] = ap.nestgroupfun({@mean,animal_groupfun}, ...
+    max(striatum_stimalign_mua_dayavg(:,max_t),[],2),striatum_stimalign_mua_dayavg_grp(:,1), ...
+    striatum_stimalign_mua_dayavg_grp(:,2:end));
+psth_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    max(striatum_stimalign_mua_dayavg(:,max_t),[],2),striatum_stimalign_mua_dayavg_grp(:,1), ...
+    striatum_stimalign_mua_dayavg_grp(:,2:end));
+
+figure;
+h = tiledlayout(n_k,1);
+for curr_k = unique(kidx_grp)'
+    nexttile; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
+    for curr_stim = unique(stim_grp)'
+        plot_grps = psth_max_grp(:,2) == curr_stim & ...
+            psth_max_grp(:,3) == curr_k;
+
+        errorbar(psth_max(plot_grps),psth_max_sem(plot_grps),'linewidth',2);
+    end
+    xline(find(plot_day_bins == 0));
+    axis padded
+end
+linkaxes(h.Children,'xy');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

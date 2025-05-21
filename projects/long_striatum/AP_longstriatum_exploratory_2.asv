@@ -8,10 +8,7 @@
 % AM-packaged: 
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 
-% % Added move-align: 
-% data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\longitudinal_striatum\data\AM_packaged\stim\';
-
-load_workflow = 'passive';
+load_workflow = 'task_outcome';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
@@ -226,33 +223,28 @@ kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ap.groupfun(@mean,x,[],[
     size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
 
 % (testing: depth by day)
-n_depth = 6;
-ctx_map_depthmean = nanmean(cell2mat(permute(cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_k)), ...
-    all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
-    size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
-
-x = cellfun(@(x) ...
-    x(:,:,round(linspace(1,size(x,3),n_k))), ...
+n_depths = 6;
+ctx_map_depthmean = cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_depths)), ...
     all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
 
-x_pre = nanmean(cat(4,x{bhv.days_from_learning<0 & ~cellfun(@isempty,x)}),4);
-x_post = nanmean(cat(4,x{bhv.days_from_learning>=0 & ~cellfun(@isempty,x)}),4);
-ap.imscroll(cat(4,x_pre,x_post));
+ctx_map_depthmean_prelearn = nanmean(cat(4,ctx_map_depthmean{bhv.days_from_learning<0 & cellfun(@(x) size(x,3)==n_depths,ctx_map_depthmean)}),4);
+ctx_map_depthmean_postlearn = nanmean(cat(4,ctx_map_depthmean{bhv.days_from_learning>=0 & cellfun(@(x) size(x,3)==n_depths,ctx_map_depthmean)}),4);
+ap.imscroll(cat(4,ctx_map_depthmean_prelearn,ctx_map_depthmean_postlearn));
 axis image;
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG',[],1.5));
 
-figure;tiledlayout(2,n_k,'TileIndexing','ColumnMajor','TileSpacing','none');
+figure;tiledlayout(n_depths,2,'TileSpacing','none');
 colormap(ap.colormap('PWG',[],1.5));
-for curr_depth = 1:n_k
+for curr_depth = 1:n_depths
     nexttile;
-    imagesc(x_pre(:,:,curr_depth));
+    imagesc(ctx_map_depthmean_prelearn(:,:,curr_depth));
     axis image off;
     ap.wf_draw('ccf',[0.5,0.5,0.5]);
     clim([-1,1]*0.05);
 
     nexttile;
-    imagesc(x_post(:,:,curr_depth));
+    imagesc(ctx_map_depthmean_postlearn(:,:,curr_depth));
     axis image off;
     ap.wf_draw('ccf',[0.5,0.5,0.5]);
     clim([-1,1]*0.05);
@@ -522,11 +514,11 @@ linkaxes(h.Children,'xy');
 %% (from above) Cell type heatmap
 
 % plot_celltype = vertcat(ephys.str_msn_idx{:});% & vertcat(ephys.single_unit_idx{:});
-plot_celltype = vertcat(ephys.str_fsi_idx{:});% & vertcat(ephys.single_unit_idx{:});
-% plot_celltype = vertcat(ephys.str_tan_idx{:});% & vertcat(ephys.single_unit_idx{:});
+% plot_celltype = vertcat(ephys.str_fsi_idx{:});% & vertcat(ephys.single_unit_idx{:});
+plot_celltype = vertcat(ephys.str_tan_idx{:});% & vertcat(ephys.single_unit_idx{:});
 
-plot_kidx = [1];
-plot_stim_idx = 3;
+plot_kidx = [1:2];
+plot_stim_idx = 2;
 
 stim_t = psth_t > 0 & psth_t < 0.2;
 
@@ -677,7 +669,7 @@ animal_groupfun = @mean;
 [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
     ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
 
-% (currently psth time is hard coded: save this somewhere)
+% (currently psth time is hard coded: save this somewhetre)
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 10;
@@ -702,6 +694,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),stim_grp_sq,'uni',false));
 
 plot_day_bins = [-Inf,-2:2,Inf];
+% plot_day_bins = [-3:3];
 plot_days_grp = discretize(max(ld_grp,-inf),plot_day_bins);
 
 stim_grp = cell2mat(cellfun(@(x) reshape(x,[],1),stim_grp_sq,'uni',false));
@@ -1346,7 +1339,7 @@ end
 
 % Plot average activity in trial (NaN-out movement times)
 figure; h = tiledlayout(n_k,max(day_grp),'TileSpacing','none');
-move_leeway = 0;
+move_leeway = 0.1;
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile; hold on;
@@ -1374,13 +1367,97 @@ for curr_k = 1:n_k
         curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean_mindata,1);
 
         % Plot
-        ap.errorfill(psth_t,curr_data_mean,curr_data_sem,'k',[],[],2);
-        ap.errorfill(psth_t,curr_data_no_move_mean,curr_data_no_move_sem,'r',[],[],2);
+        ap.errorfill(psth_t,curr_data_mean,curr_data_sem,'k',0.3,false,2);
+        % ap.errorfill(psth_t,curr_data_no_move_mean,curr_data_no_move_sem,'k',[],[],2);
+        plot(psth_t,curr_data_no_move_mean,'k','linewidth',2);
         axis off;
     end
 end
 linkaxes(h.Children,'xy');
 
+%% MUA (task, by depth)
+
+n_depths = 6;
+
+depth_rec = cellfun(@(x) discretize(1:size(x,3),n_depths)', ...
+    all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
+
+[psth_stim_sum,psth_sum_kidx] = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_stim_align,depth_rec,'uni',false);
+
+psth_move_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_move_align,depth_rec,'uni',false);
+
+psth_outcome_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_outcome_align,depth_rec,'uni',false);
+
+% (currently psth time is hard coded: save this somewhere)
+psth_t = -0.5:0.001:1;
+baseline_t = psth_t < 0;
+softnorm = 10;
+psth_baseline = cellfun(@(mua) ...
+    mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
+    psth_stim_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
+
+psth_norm_smooth_reshape_fcn = @(psth,baseline) ...
+    reshape(permute(smoothdata((psth-baseline)./baseline,2, ...
+    'gaussian',[100,0]),[1,3,2]),[],length(psth_t));
+
+psth_stim = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_stim_sum,psth_baseline,'uni',false));
+psth_move = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_move_sum,psth_baseline,'uni',false));
+psth_outcome = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_outcome_sum,psth_baseline,'uni',false));
+
+[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
+    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+
+animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
+
+training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
+    unique(bhv.animal,'stable'),'uni',false));
+td_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(training_day),rxn_grp_sq,'uni',false));
+
+ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
+
+rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
+kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+
+day_grp = discretize(max(ld_grp,-inf),[-Inf,-0,Inf]);
+
+% Plot average activity in trial
+figure; h = tiledlayout(n_depths,3,'TileSpacing','tight');
+for curr_depth = 1:n_depths
+
+    curr_trials = kidx_grp == curr_depth;
+
+    % Stim
+    nexttile; hold on; axis off;
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_stim(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_stim(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
+
+    % Move
+    nexttile; hold on; axis off;
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_move(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_move(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
+
+    % Outcome
+    nexttile; hold on; axis off;
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_outcome(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_outcome(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
+
+end
+% (link all y, and x of same-alignment)
+linkaxes(h.Children,'y');
+for ax = 1:3
+    linkaxes(h.Children(ax:3:end),'x');
+end
+% (set same data aspect to have same x-size)
+[h.Children.DataAspectRatio] = deal(min(vertcat(h.Children.DataAspectRatio),[],1));
 
 
 
@@ -1713,10 +1790,10 @@ end
 % striatum_wf_roi = max(kmeans_cluster_mean,0)./max(kmeans_cluster_mean,[],[1,2]);
 % (thresholded spot)
 
-kmeans_cluster_mean_gauss = imgaussfilt(kmeans_cluster_mean,5);
+kmeans_cluster_mean_gauss = imgaussfilt(kmeans_cluster_mean,10);
 [~,m] = max(kmeans_cluster_mean_gauss,[],[1,2],'linear');
 [mr,mc] = ind2sub(size(U_master,[1,2]),m);
-striatum_wf_roi = kmeans_cluster_mean_gauss > prctile(kmeans_cluster_mean_gauss,95,[1,2])*0.75;
+striatum_wf_roi = kmeans_cluster_mean_gauss > prctile(kmeans_cluster_mean_gauss,100,[1,2])*0.50;
 striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
 for k = 1:size(striatum_wf_roi,3)
     [~,m] = max(imgaussfilt(kmeans_cluster_mean_gauss(:,:,k),10).* ...
@@ -1738,7 +1815,7 @@ wf_striatum_roi = permute(ap.wf_roi(U_master, ...
     permute(cell2mat(wf.V_no_move_stim_align),[3,2,1]),[],[],striatum_wf_roi),[3,2,1]);
 
 % (baseline-subtract)
-baseline_t = wf_t >= -0.05 & wf_t <= 0;
+baseline_t = wf_t >= -0.1 & wf_t <= 0.05;
 wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:),2);
 
 [wf_striatum_roi_avg,wf_striatum_roi_avg_grp] = ...
@@ -1765,10 +1842,10 @@ for curr_k = 1:size(striatum_wf_roi,3)
             day_colormap(curr_ld,:));
     end
 end
-linkaxes(h.Children,'xy');
+linkaxes(h.Children,'xy');t
 
 % Plot average in ROI by day
-stim_t = wf_t >= 0 & wf_t <= 0.20;
+stim_t = wf_t >= 0 & wf_t <= 0.2;
 wf_striatum_roi_tavg = nanmean(wf_striatum_roi(:,stim_t,:),2);
 
 [wf_striatum_roi_tavg_avg,wf_striatum_roi_avg_grp] = ...
