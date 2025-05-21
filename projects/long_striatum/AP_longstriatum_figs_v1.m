@@ -85,7 +85,7 @@ load(fullfile(data_path,'task_ctx_wf'));
 U_master = plab.wf.load_master_U;
 
 
-%% PASSIVE: Group ephys by cluster and create indices
+%% PASSIVE Striatum: group ephys by cluster and create indices
 
 % Sum spikes from depth into cluster multiunit
 [striatum_psth_sum,striatum_kidx] = cellfun(@(mua,kidx) ...
@@ -120,6 +120,40 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
 
 stim_grp = cell2mat(cellfun(@(x) reshape(x,[],1),stim_grp_sq,'uni',false));
 kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+
+%% PASSIVE Widefield create indices
+
+% Create group indicies
+wf_t = wf.wf_stim_time{1};
+
+wf_animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,length(grp),1),    ...
+    num2cell(grp2idx(wf.animal)),wf.trial_stim_values,'uni',false));
+
+wf_ld_grp = cell2mat(cellfun(@(ld,grp) repmat(ld,length(grp),1),    ...
+    num2cell(bhv.days_from_learning),wf.trial_stim_values,'uni',false));
+
+%% Widefield ROIs by corticostriatal maps
+
+% Create ROIs by striatum cluster maps
+kmeans_centroid_blur = imgaussfilt(kmeans_centroid,10);
+[~,m] = max(kmeans_centroid_blur,[],[1,2],'linear');
+[mr,mc] = ind2sub(size(U_master,[1,2]),m);
+striatum_wf_roi = kmeans_centroid_blur > prctile(kmeans_centroid_blur,100,[1,2])*0.50;
+striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
+for k = 1:size(striatum_wf_roi,3)
+    [~,m] = max(imgaussfilt(kmeans_centroid_blur(:,:,k),10).* ...
+        round(linspace(1,0,size(kmeans_centroid_blur,2))),[],[1,2],'linear');
+    [mx,my] = ind2sub(size(U_master,[1,2]),m);
+    striatum_wf_roi(:,:,k) = bwselect(striatum_wf_roi(:,:,k),my,mx);
+end
+
+% Get ROI activity
+wf_striatum_roi = permute(ap.wf_roi(U_master, ...
+    permute(cell2mat(wf.V_no_move_stim_align),[3,2,1]),[],[],striatum_wf_roi),[3,2,1]);
+
+% (baseline-subtract)
+baseline_t = wf_t >= -0.1 & wf_t <= 0.05;
+wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:),2);
 
 
 %% ------- GENERATE FIGURES ----------------
@@ -313,38 +347,11 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 
-%% [Fig 3X] Widefield passive
+%% [Fig 3X] Widefield passive max
 
-plot_stim = 90;
-
-% Create group indicies
-wf_t = wf.wf_stim_time{1};
-
-wf_animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,length(grp),1),    ...
-    num2cell(grp2idx(wf.animal)),wf.trial_stim_values,'uni',false));
-
-wf_ld_grp = cell2mat(cellfun(@(ld,grp) repmat(ld,length(grp),1),    ...
-    num2cell(bhv.days_from_learning),wf.trial_stim_values,'uni',false));
-
-plot_day_bins = [-Inf,-2:2,Inf];
+plot_day_bins = [-Inf,-1:1,Inf];
 wf_plot_days_grp = discretize(max(wf_ld_grp,-inf),plot_day_bins);
 
-
-% Average and plot widefield
-[wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean},cell2mat(wf.V_no_move_stim_align), ...
-    wf_animal_grp,[wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
-
-curr_data_idx = wf_avg_grp(:,2) == plot_stim;
-
-curr_data_px = plab.wf.svd2px(U_master,permute(wf_avg(curr_data_idx,:,:),[3,2,1]));
-
-ap.imscroll(curr_data_px - nanmean(curr_data_px(:,:,wf_t<0,:),3),wf_t);
-colormap(ap.colormap('PWG',[],1.5));
-clim(max(curr_data_px(:)).*[-1,1]*0.6);
-axis image;
-ap.wf_draw('ccf','k');
-
-% Widefield max
 stim_t = wf_t > 0 & wf_t < 0.2;
 [wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_no_move_stim_align), ...
     [wf_animal_grp,wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
@@ -367,40 +374,26 @@ for curr_day = unique(wf_max_px_avg_grp(:,1))'
         ap.wf_draw('ccf',[0.5,0.5,0.5]);
     end
 end
+ap.prettyfig;
 
-
-% Plot ROIs by striatum cluster
-% % (weighted average)
-% striatum_wf_roi = max(kmeans_cluster_mean,0)./max(kmeans_cluster_mean,[],[1,2]);
-% (thresholded spot)
-
-kmeans_cluster_mean_gauss = imgaussfilt(kmeans_cluster_mean,10);
-[~,m] = max(kmeans_cluster_mean_gauss,[],[1,2],'linear');
-[mr,mc] = ind2sub(size(U_master,[1,2]),m);
-striatum_wf_roi = kmeans_cluster_mean_gauss > prctile(kmeans_cluster_mean_gauss,100,[1,2])*0.50;
-striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
-for k = 1:size(striatum_wf_roi,3)
-    [~,m] = max(imgaussfilt(kmeans_cluster_mean_gauss(:,:,k),10).* ...
-        round(linspace(1,0,size(kmeans_cluster_mean_gauss,2))),[],[1,2],'linear');
-    [mx,my] = ind2sub(size(U_master,[1,2]),m);
-    striatum_wf_roi(:,:,k) = bwselect(striatum_wf_roi(:,:,k),my,mx);
-end
+%% [Fig 3X] Widefield ROIs
 
 figure;tiledlayout(n_k,1,'tilespacing','none')
 for curr_k = 1:n_k
     nexttile;
     imagesc(striatum_wf_roi(:,:,curr_k));
-    axis image off; ap.wf_draw('ccf','r');
-    colormap(ap.colormap('WK'));
+    axis image off; ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    colormap(ap.colormap('WG'));
 end
+ap.prettyfig;
 
-% Get ROI activity
-wf_striatum_roi = permute(ap.wf_roi(U_master, ...
-    permute(cell2mat(wf.V_no_move_stim_align),[3,2,1]),[],[],striatum_wf_roi),[3,2,1]);
 
-% (baseline-subtract)
-baseline_t = wf_t >= -0.1 & wf_t <= 0.05;
-wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:),2);
+%% [Fig 3X] Widefield passive ROI average
+
+plot_day_bins = [-Inf,-1:1,Inf];
+wf_plot_days_grp = discretize(max(wf_ld_grp,-inf),plot_day_bins);
+day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
+     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
 
 [wf_striatum_roi_avg,wf_striatum_roi_avg_grp] = ...
     ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
@@ -410,55 +403,44 @@ wf_striatum_roi_sem = ...
     ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
     wf_animal_grp,[wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
 
-day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
-     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
-
 figure;
-h = tiledlayout(n_k,max(wf_plot_days_grp),'TileSpacing','none');
+unique_stim = unique(cell2mat(wf.trial_stim_values));
+h = tiledlayout(n_k,max(wf_plot_days_grp)*length(unique_stim),'TileSpacing','tight');
 for curr_k = 1:size(striatum_wf_roi,3)
     for curr_ld = unique(wf_plot_days_grp)'
-        nexttile; axis off;
-        curr_data_idx = wf_striatum_roi_avg_grp(:,1) == curr_ld & ...
-            wf_striatum_roi_avg_grp(:,2) == plot_stim;
+        for curr_stim = unique_stim'
+            nexttile; axis off;
+            curr_data_idx = wf_striatum_roi_avg_grp(:,1) == curr_ld & ...
+                wf_striatum_roi_avg_grp(:,2) == curr_stim;
 
-        ap.errorfill(wf_t,wf_striatum_roi_avg(curr_data_idx,:,curr_k), ...
-            wf_striatum_roi_sem(curr_data_idx,:,curr_k), ...
-            day_colormap(curr_ld,:));
-    end
-end
-linkaxes(h.Children,'xy');t
-
-% Plot average in ROI by day
-stim_t = wf_t >= 0 & wf_t <= 0.2;
-wf_striatum_roi_tavg = nanmean(wf_striatum_roi(:,stim_t,:),2);
-
-[wf_striatum_roi_tavg_avg,wf_striatum_roi_avg_grp] = ...
-    ap.nestgroupfun({@mean,@mean},wf_striatum_roi_tavg, ...
-    wf_animal_grp,[wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
-
-wf_striatum_roi_tavg_sem = ...
-    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi_tavg, ...
-    wf_animal_grp,[wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
-
-figure;
-h = tiledlayout(n_k,1,'TileSpacing','none');
-for curr_k = 1:size(striatum_wf_roi,3)
-    nexttile; hold on;
-    set(gca,'ColorOrder',ap.colormap('BKR',3));
-    for curr_stim = unique(unique(wf_striatum_roi_avg_grp(:,2)))'
-        curr_data_idx = wf_striatum_roi_avg_grp(:,2) == curr_stim;
-
-        errorbar(wf_striatum_roi_tavg_avg(curr_data_idx,:,curr_k), ...
-            wf_striatum_roi_tavg_sem(curr_data_idx,:,curr_k),'linewidth',2);
-        ylabel('t avg');
-        axis padded
+            ap.errorfill(wf_t,wf_striatum_roi_avg(curr_data_idx,:,curr_k), ...
+                wf_striatum_roi_sem(curr_data_idx,:,curr_k), ...
+                day_colormap(curr_ld,:));
+        end
     end
 end
 linkaxes(h.Children,'xy');
+ap.prettyfig;
+
+
+%% [Fig 3X] Widefield passive ROI max
+
+plot_day_bins = [-Inf,-2:2,Inf];
+wf_plot_days_grp = discretize(max(wf_ld_grp,-inf),plot_day_bins);
+day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
+     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
+
+[wf_striatum_roi_avg,wf_striatum_roi_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
+    wf_animal_grp,[wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_striatum_roi_sem = ...
+    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
+    wf_animal_grp,[wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
 
 
 % Plot max in ROI by day
-stim_t = wf_t >= 0 & wf_t <= 0.20;
+stim_t = wf_t >= 0 & wf_t <= 0.2;
 
 [wf_striatum_roi_dayavg,wf_striatum_roi_grp] = ...
     ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
@@ -476,21 +458,23 @@ wf_striatum_roi_max_sem = ...
     wf_striatum_roi_grp(:,1),wf_striatum_roi_grp(:,2:3));
 
 figure;
-h = tiledlayout(n_k,1,'TileSpacing','none');
+h = tiledlayout(n_k,1,'TileSpacing','tight');
+x_val = interp1(find(~isinf(plot_day_bins)),...
+    plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
 for curr_k = 1:size(striatum_wf_roi,3)
     nexttile; hold on;
     set(gca,'ColorOrder',ap.colormap('BKR',3));
     for curr_stim = unique(unique(wf_striatum_roi_max_avg_grp(:,2)))'
         curr_data_idx = wf_striatum_roi_max_avg_grp(:,2) == curr_stim;
 
-        errorbar(wf_striatum_roi_max_avg(curr_data_idx,:,curr_k), ...
+        errorbar(x_val,wf_striatum_roi_max_avg(curr_data_idx,:,curr_k), ...
             wf_striatum_roi_max_sem(curr_data_idx,:,curr_k),'linewidth',2);
-        ylabel('t max');
+        ylabel('\DeltaF/F_0 max');
         axis padded
     end
 end
 linkaxes(h.Children,'xy');
-
+ap.prettyfig;
 
 
 
