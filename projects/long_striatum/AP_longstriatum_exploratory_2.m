@@ -212,11 +212,47 @@ U_size = size(all_ctx_maps_to_str.cortex_kernel_px{1},[1,2]);
 maps_flat_cat = reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[]);
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
-n_k = 6;
-kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
-    x(:,:,round(linspace(1,size(x,3),n_k))), ...
-    all_ctx_maps_to_str.cortex_kernel_px(~cellfun(@isempty, ...
-    all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+n_k = 3;
+
+% % (kmeans starting as index)
+% kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
+%     x(:,:,round(linspace(1,size(x,3),n_k))), ...
+%     all_ctx_maps_to_str.cortex_kernel_px(~cellfun(@isempty, ...
+%     all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+
+% (kmeans starting as discretize average)
+kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_k)), ...
+    all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
+    size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+
+% (testing: depth by day)
+n_depth = 6;
+ctx_map_depthmean = cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_depth)), ...
+    all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
+
+ctx_map_depthmean_prelearn = nanmean(cat(4,ctx_map_depthmean{bhv.days_from_learning<0 & cellfun(@(x) size(x,3)==n_depth,ctx_map_depthmean)}),4);
+ctx_map_depthmean_postlearn = nanmean(cat(4,ctx_map_depthmean{bhv.days_from_learning>=0 & cellfun(@(x) size(x,3)==n_depth,ctx_map_depthmean)}),4);
+ap.imscroll(cat(4,ctx_map_depthmean_prelearn,ctx_map_depthmean_postlearn));
+axis image;
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+
+figure;tiledlayout(2,n_k,'TileIndexing','ColumnMajor','TileSpacing','none');
+colormap(ap.colormap('PWG',[],1.5));
+for curr_depth = 1:n_k
+    nexttile;
+    imagesc(ctx_map_depthmean_prelearn(:,:,curr_depth));
+    axis image off;
+    ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    clim([-1,1]*0.05);
+
+    nexttile;
+    imagesc(ctx_map_depthmean_postlearn(:,:,curr_depth));
+    axis image off;
+    ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    clim([-1,1]*0.05);
+end
+
 
 % %%%%% BINARY KMEANS
 % [~,m] = max(kmeans_starting,[],[1,2],'linear');
@@ -269,11 +305,13 @@ kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kme
 % %%%%%%%%%%%%%%%%%%%
 
 % %%%%%%%%%%%%%%%%%%%
-% % ADJUSTMENTS FOR N_K=6
-% Turn 6 into 3 (vis, frontal, lateral)
-kidx(ismember(kidx,2:4)) = 2;
-kidx(ismember(kidx,5:6)) = 3;
-n_k = 3;
+if n_k == 6
+    % % ADJUSTMENTS FOR N_K=6
+    % Turn 6 into 3 (vis, frontal, lateral)
+    kidx(ismember(kidx,2:4)) = 2;
+    kidx(ismember(kidx,5:6)) = 3;
+    n_k = 3;
+end
 % %%%%%%%%%%%%%%%%%%%
 
 
@@ -1640,6 +1678,31 @@ clim(max(curr_data_px(:)).*[-1,1]*0.6);
 axis image;
 ap.wf_draw('ccf','k');
 
+% Widefield max
+stim_t = wf_t > 0 & wf_t < 0.2;
+[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_no_move_stim_align), ...
+    [wf_animal_grp,wf_plot_days_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_max_px = permute(max(plab.wf.svd2px(U_master,permute(wf_avg(:,stim_t,:),[3,2,1])),[],3),[1,2,4,3]);
+[wf_max_px_avg,wf_max_px_avg_grp] = ap.nestgroupfun({@mean,@mean},reshape(wf_max_px,[],size(wf_max_px,3))', ...
+    wf_avg_grp(:,1),wf_avg_grp(:,2:3));
+
+figure;
+h = tiledlayout(3,max(wf_plot_days_grp),'TileIndexing','ColumnMajor','TileSpacing','none');
+for curr_day = unique(wf_max_px_avg_grp(:,1))'
+    for curr_stim = unique(wf_max_px_avg_grp(:,2))'
+        nexttile;
+        imagesc(reshape(wf_max_px_avg( ...
+            ismember(wf_max_px_avg_grp,[curr_day,curr_stim],'rows'),:), ...
+            size(U_master,[1,2])));
+        colormap(ap.colormap('PWG',[],1.5));
+        clim([-1,1]*1e-3*2);
+        axis image off;
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    end
+end
+
+
 % Plot ROIs by striatum cluster
 % % (weighted average)
 % striatum_wf_roi = max(kmeans_cluster_mean,0)./max(kmeans_cluster_mean,[],[1,2]);
@@ -1714,15 +1777,19 @@ wf_striatum_roi_tavg_sem = ...
 figure;
 h = tiledlayout(n_k,1,'TileSpacing','none');
 for curr_k = 1:size(striatum_wf_roi,3)
-        nexttile;
-        curr_data_idx = wf_striatum_roi_avg_grp(:,2) == plot_stim;
+    nexttile; hold on;
+    set(gca,'ColorOrder',ap.colormap('BKR',3));
+    for curr_stim = unique(unique(wf_striatum_roi_avg_grp(:,2)))'
+        curr_data_idx = wf_striatum_roi_avg_grp(:,2) == curr_stim;
 
         errorbar(wf_striatum_roi_tavg_avg(curr_data_idx,:,curr_k), ...
-            wf_striatum_roi_tavg_sem(curr_data_idx,:,curr_k),'k','linewidth',2);
-        ylabel('t avg')
+            wf_striatum_roi_tavg_sem(curr_data_idx,:,curr_k),'linewidth',2);
+        ylabel('t avg');
         axis padded
+    end
 end
 linkaxes(h.Children,'xy');
+
 
 % Plot max in ROI by day
 stim_t = wf_t >= 0 & wf_t <= 0.20;
