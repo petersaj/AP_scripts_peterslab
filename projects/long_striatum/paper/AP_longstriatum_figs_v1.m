@@ -73,7 +73,7 @@ n_learned_day = cellfun(@(x) max([0, ...
     find(bhv.learned_days(strcmp(bhv.animal,x)),1)]), ...
     unique(bhv.animal,'stable'));
 figure;
-histogram(n_learned_day,-0.5:max(n_learned_day)+0.5)
+histogram(n_learned_day,-0.5:max(n_learned_day)+0.5,'FaceColor','k','EdgeColor','none');
 ylabel('Number of mice');
 xlabel('Days to learn');
 ap.prettyfig;
@@ -108,6 +108,8 @@ AP_longstriatum_load_data;
 
 plot_day_bins = [-Inf,0,Inf];
 plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+learn_colormap = ap.colormap('BKR',3);
+prepost_colormap = max(0,learn_colormap([1,end],:)-0.2);
 
 % Plot average task activity (pre/post learning)
 stim_x = [-0.2,0.3];
@@ -120,25 +122,31 @@ for curr_depth = 1:n_k
     curr_trials = striatum_mua_grp.kidx == curr_depth;
 
     % Stim
-    nexttile; hold on;
-    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},striatum_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},striatum_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+    nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
+        striatum_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
+        striatum_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
     xlim(stim_x);
     xline(0);
 
     % Move
-    nexttile; hold on;
-    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_move(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_move(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+    nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
+        striatum_move_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
+        striatum_move_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
     xlim(move_x);
     xline(0);
 
     % Outcome
-    nexttile; hold on;
-    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_outcome(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_outcome(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+    nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
+        striatum_outcome_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
+        striatum_outcome_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
     xlim(outcome_x);
     xline(0);
@@ -245,7 +253,7 @@ AP_longstriatum_load_data;
 rxn_cutoff = 0.3; % only plot trials with slow reaction times
 
 plot_day_bins = [-Inf,-2:2,Inf];
-plot_day_grp = discretize(max(ld_grp,-inf),plot_day_bins);
+plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 % Split by trial percentile within day
 n_split = 3;
@@ -282,6 +290,23 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 
+%% [Fig 2X] Cortex ROIs
+
+%%% Load data for figure
+load_dataset = 'task';
+AP_longstriatum_load_data;
+%%%
+
+figure;tiledlayout(n_k,1,'tilespacing','none')
+for curr_k = 1:n_k
+    nexttile;
+    imagesc(striatum_wf_roi(:,:,curr_k));
+    axis image off; ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    colormap(ap.colormap('WG'));
+end
+ap.prettyfig;
+
+
 %% [Fig 2X] Cortex task trial heatmap (reaction-sorted)
 
 %%% Load data for figure
@@ -293,6 +318,7 @@ plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 % Plot heatmaps sorted by reaction times
+heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
 figure; tiledlayout(n_k,max(plot_day_grp),'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = unique(plot_day_grp)'
@@ -300,7 +326,7 @@ for curr_k = 1:n_k
         curr_trials = find(plot_day_grp == curr_day);
        
         [~,sort_idx] = sort(wf_grp.rxn(curr_trials));
-        imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_k),[20,5]));
+        imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_k),heatmap_smooth));
         colormap(ap.colormap('PWG'));
         clim(max(abs(clim)).*[-1,1]);
         axis off;
@@ -353,8 +379,8 @@ for curr_k = 1:n_k
         curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean_mindata,1);
 
         % Plot
-        ap.errorfill(wf_t,curr_data_mean,curr_data_sem,'k',0.3,false,2);
-        plot(wf_t,curr_data_no_move_mean,'k','linewidth',2);
+        ap.errorfill(wf_t,curr_data_mean,curr_data_sem,[0,0.6,0],0.3,false,2);
+        plot(wf_t,curr_data_no_move_mean,'color',[0,0.6,0],'linewidth',2);
         axis off;
         if curr_k == 1
             title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
@@ -529,23 +555,6 @@ for curr_day = unique(wf_max_px_avg_grp(:,1))'
         axis image off;
         ap.wf_draw('ccf',[0.5,0.5,0.5]);
     end
-end
-ap.prettyfig;
-
-
-%% [Fig 3X] Cortex ROIs
-
-%%% Load data for figure
-load_dataset = 'passive';
-AP_longstriatum_load_data;
-%%%
-
-figure;tiledlayout(n_k,1,'tilespacing','none')
-for curr_k = 1:n_k
-    nexttile;
-    imagesc(striatum_wf_roi(:,:,curr_k));
-    axis image off; ap.wf_draw('ccf',[0.5,0.5,0.5]);
-    colormap(ap.colormap('WG'));
 end
 ap.prettyfig;
 
