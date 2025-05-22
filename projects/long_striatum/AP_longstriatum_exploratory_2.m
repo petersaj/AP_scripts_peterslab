@@ -1375,7 +1375,7 @@ for curr_k = 1:n_k
 end
 linkaxes(h.Children,'xy');
 
-%% MUA (task, by depth)
+%% MUA (task pre/post, by depth)
 
 n_depths = 6;
 
@@ -1466,6 +1466,91 @@ end
 % (set same data aspect to have same x-size)
 [h.Children.DataAspectRatio] = deal(min(vertcat(h.Children.DataAspectRatio),[],1));
 
+%% MUA (task pre/post, by cluster)
+
+[psth_stim_sum,psth_sum_kidx] = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
+
+psth_move_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_move_align,kidx_rec,'uni',false);
+
+psth_outcome_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_outcome_align,kidx_rec,'uni',false);
+
+% (currently psth time is hard coded: save this somewhere)
+psth_t = -0.5:0.001:1;
+baseline_t = psth_t < 0;
+softnorm = 10;
+psth_baseline = cellfun(@(mua) ...
+    mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
+    psth_stim_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
+
+psth_norm_smooth_reshape_fcn = @(psth,baseline) ...
+    reshape(permute(smoothdata((psth-baseline)./baseline,2, ...
+    'gaussian',[100,0]),[1,3,2]),[],length(psth_t));
+
+psth_stim = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_stim_sum,psth_baseline,'uni',false));
+psth_move = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_move_sum,psth_baseline,'uni',false));
+psth_outcome = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_outcome_sum,psth_baseline,'uni',false));
+
+[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
+    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+
+animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
+
+training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
+    unique(bhv.animal,'stable'),'uni',false));
+td_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(training_day),rxn_grp_sq,'uni',false));
+
+ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
+    num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
+
+rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
+kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+
+day_grp = discretize(max(ld_grp,-inf),[-Inf,-0,Inf]);
+
+% Plot average activity in trial (pre/post learning)
+stim_x = [-0.2,0.3];
+move_x = [0,0.4];
+outcome_x = [-0.1,0.5];
+
+figure; h = tiledlayout(n_k,3,'TileSpacing','tight');
+for curr_depth = 1:n_k
+
+    curr_trials = kidx_grp == curr_depth;
+
+    % Stim
+    nexttile; hold on; axis off;
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_stim(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_stim(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
+    xlim(stim_x);
+
+    % Move
+    nexttile; hold on; axis off;
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_move(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_move(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
+    xlim(move_x);
+
+    % Outcome
+    nexttile; hold on; axis off;
+    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean},psth_outcome(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem},psth_outcome(curr_trials,:),animal_grp(curr_trials),day_grp(curr_trials));
+    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
+    xlim(outcome_x);
+
+end
+% (link all y, and x of same-alignment)
+linkaxes(h.Children,'y');
+for ax = 1:3
+    linkaxes(h.Children(ax:3:end),'x');
+end
+% (set same data aspect to have same x-size)
+[h.Children.DataAspectRatio] = deal(min(vertcat(h.Children.DataAspectRatio),[],1));
 
 
 
