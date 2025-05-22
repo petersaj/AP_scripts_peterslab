@@ -369,37 +369,28 @@ day_grp = discretize(max(ld_grp,-inf),plot_day_bins);
 
 % Split by trial percentile within day
 n_split = 3;
-split_idx = cellfun(@(x) ap.quantile_bin(x,n_split), ...
-    num2cell(n_trials_rec),'uni',false);
-
-ap.quantile_bin(size(x,3),n_k)
-
-rxn_bin_grp = discretize(rxn_grp,rxn_bins);
-[~,~,rec_idx] = unique([animal_grp,day_grp,kidx_grp],'rows');
-
-split_idx = nan(size(rec_idx));
-for curr_rec = 1:max(rec_idx)
-    split_idx(rec_idx == curr_rec) = ...
-        min(floor(linspace(1,n_split+1,sum(rec_idx == curr_rec))),n_split)';
-end
-
+split_idx = cell2mat(cellfun(@(n_trials,n_mua) ...
+    reshape(repmat(ap.quantile_bin(n_trials,n_split),1,n_mua),[],1), ...
+    num2cell(n_trials_rec),num2cell(n_mua_rec),'uni',false));
 
 % Plot PSTH max split
+rxn_cutoff = 0.3; % only plot trials with slow reaction times
 figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
-    for curr_day = 1:length(day_bins)-1
+    for curr_day = 1:length(plot_day_bins)-1
         nexttile; hold on;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
-        curr_data = psth_norm_cat_smooth(curr_trials,:);
+        curr_trials = day_grp == curr_day & striatum_psth_grp.kidx == curr_k & ...
+            striatum_psth_grp.rxn > rxn_cutoff;
+        curr_data = striatum_psth(curr_trials,:);
 
         data_t = psth_t > 0 & psth_t < 0.2;
 
         % (mean PSTH, max t, mean across animals)
         [psth_mean,psth_mean_grp] = ap.groupfun(@mean,curr_data, ...
-            [animal_grp(curr_trials),split_idx(curr_trials)]);
+            [striatum_psth_grp.animal(curr_trials),split_idx(curr_trials)]);
         psth_max = max(psth_mean(:,data_t),[],2);
-        [psth_max_avg,psth_max_grp] = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2:3));
-        psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2:3));
+        [psth_max_avg,psth_max_grp] = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
+        psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2));
 
         arrayfun(@(x) errorbar(psth_max_avg(psth_max_grp(:,2) == x), ...
             psth_max_sem(psth_max_grp(:,2) == x),'linewidth',2), ...
@@ -411,7 +402,31 @@ end
 linkaxes(h.Children,'xy');
 
 
+rxn_cutoff = 0.3; % only plot trials with slow reaction times
 
+% (mean PSTH, max t, mean across animals)
+use_trials = striatum_psth_grp.rxn > rxn_cutoff;
+[psth_mean,psth_mean_grp] = ap.groupfun(@mean,striatum_psth(use_trials,:), ...
+    [striatum_psth_grp.animal(use_trials),day_grp(use_trials), ...
+    split_idx(use_trials),striatum_psth_grp.kidx(use_trials)]);
+
+max_t = psth_t > 0 & psth_t < 0.2;
+psth_max = max(psth_mean(:,max_t),[],2);
+[psth_max_avg,psth_max_grp] = ap.nestgroupfun({@mean,@mean},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2:end));
+psth_max_sem = ap.nestgroupfun({@mean,@AP_sem},psth_max,psth_mean_grp(:,1),psth_mean_grp(:,2:end));
+
+figure;
+h = tiledlayout(n_k,max(day_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day = 1:length(plot_day_bins)-1
+        nexttile; hold on;
+        curr_data_idx = psth_max_grp(:,1) == curr_day & ...
+            psth_max_grp(:,3) == curr_k;
+        errorbar(psth_max_avg(curr_data_idx),psth_max_sem(curr_data_idx),'k','linewidth',2);
+    end
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
 
 
 %% [Fig 3X] Striatum PSTH passive
