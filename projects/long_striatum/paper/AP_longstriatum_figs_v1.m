@@ -1,4 +1,4 @@
-% Figures for longitudinal striatum+cortex project
+%% Figures for longitudinal striatum+cortex project
 %
 % Data packaged by `AM save scripts`
 % Analysis taken fom `AP_longstriatum_exploratory_2`
