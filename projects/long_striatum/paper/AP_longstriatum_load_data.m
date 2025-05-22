@@ -28,7 +28,7 @@ end
 
 % Before loading, clear workspace
 clearvars -except load_dataset
-fprintf('Loading dataset: %s\n',load_dataset);
+fprintf('Loading dataset: %s...\n',load_dataset);
 
 
 %% Behavior
@@ -179,18 +179,18 @@ psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 1;
 sua_baseline = cellfun(@(sua) ...
-    mean(sua(:,baseline_t),2) + softnorm, ...
+    mean(sua(:,baseline_t,:),[2,3]) + softnorm, ...
     ephys.unit_event_psths,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 spikes_norm_smooth_reshape_fcn = @(spikes,baseline) ...
-    reshape(permute(smoothdata((spikes-baseline)./baseline,2, ...
-    'gaussian',[100,0]),[1,3,2]),[],length(psth_t));
+    smoothdata((spikes-baseline)./baseline,2, ...
+    'gaussian',[100,0]);
 
 % (units outside the striatum have ephys.unit_depth_group = NaN)
 striatum_units = cellfun(@(x) ~isnan(x),ephys.unit_depth_group,'uni',false);
 
 striatum_sua = cell2mat(cellfun(@(data,baseline,striatum_units) ...
-    spikes_norm_smooth_reshape_fcn(data(striatum_units,:),baseline(striatum_units)), ...
+    spikes_norm_smooth_reshape_fcn(data(striatum_units,:,:),baseline(striatum_units)), ...
     ephys.unit_event_psths,sua_baseline,striatum_units,'uni',false));
 
 % Create grouping indicies for striatum SUA
@@ -261,4 +261,5 @@ wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:),2);
 %% Set flag for loaded data
 
 loaded_dataset = load_dataset;
+fprintf('Finished loading dataset: %s\n',loaded_dataset);
 
