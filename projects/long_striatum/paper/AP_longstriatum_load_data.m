@@ -16,16 +16,19 @@ elseif ~ismember(load_dataset,{'passive','task'})
 end
 
 % If no overwrite flag set, turn off by default
-if ~exist('load_dataset_overwrite')
-
-% skip if loaded and no overwrite flag
-
-if exist('loaded_dataset','var') && strcmp(loaded_dataset,load_dataset)
-
+if ~exist('load_dataset_overwrite','var')
+    load_dataset_overwrite = false;
 end
 
-return
+% If selected dataset loaded and no overwrite, skip
+if load_dataset_overwrite && ...
+        exist('loaded_dataset','var') && strcmp(loaded_dataset,load_dataset)
+    return
+end
 
+% Before loading, clear workspace
+clearvars -except load_dataset
+fprintf('Loading dataset: %s\n',load_dataset);
 
 
 %% Behavior

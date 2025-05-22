@@ -1,17 +1,29 @@
-
 % Load data for longitudinal striatum+cortex project
+%
+% Required variable: 
+% load_dataset - dataset to load ('task' or 'passive');
+% 
+% Optional: 
+% load_dataset_overwrite - overwrite if data already loaded (true/false)
 
 %% Check options
 
+% Check for valid dataset selection
 if ~exist('load_dataset','var')
     error('No load_dataset specified')
 elseif ~ismember(load_dataset,{'passive','task'})
     error('Unknown load_dataset: %s',load_dataset);
 end
 
-% skip if loaded and no overwrite flag
+% If no overwrite flag set, turn off by default
+if ~exist('load_dataset_overwrite')
+    load_dataset_overwrite = false;
+end
 
-if exist('loaded_dataset','var') && strcmp(loaded_dataset,
+% If selected dataset loaded and no overwrite, skip
+if load_dataset_overwrite & ..exist('loaded_dataset','var') && strcmp(loaded_dataset,load_dataset)
+
+end
 
 return
 
