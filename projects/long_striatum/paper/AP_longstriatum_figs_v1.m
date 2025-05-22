@@ -1,9 +1,12 @@
-%% Notes
-
 % Figures for longitudinal striatum+cortex project
-
-% Data packaged by AM save scripts
-% Analysis taken fom AP_longstriatum_exploratory_2
+%
+% Data packaged by `AM save scripts`
+% Analysis taken fom `AP_longstriatum_exploratory_2`
+%
+% Uses `AP_longstriatum_load_data` to load/prep relevant data at the start
+% of each figure (doesn't re-load if already overloaded - this lets each
+% panel be run independently, or for the entire script to be run straight
+% through)
 
 
 %% [Fig 1X] Reaction stat and learning histogram
@@ -63,6 +66,7 @@ end
 
 linkaxes(h.Children(1:2:end),'y');
 linkaxes(h.Children(2:2:end),'y');
+ap.prettyfig;
 
 % Plot histogram of learning days
 n_learned_day = cellfun(@(x) max([0, ...
@@ -72,6 +76,7 @@ figure;
 histogram(n_learned_day,-0.5:max(n_learned_day)+0.5)
 ylabel('Number of mice');
 xlabel('Days to learn');
+ap.prettyfig;
 
 
 %% [Fig 1X] Cortex map depths pre/post learning
@@ -129,7 +134,6 @@ for curr_k = 1:n_k
     colormap(ap.colormap('PWG'));
     ap.wf_draw('ccf',[0.5,0.5,0.5]);
 end
-
 ap.prettyfig;
 
 %% [Fig 2X] Striatum task trial heatmap (reaction-sorted)
@@ -159,7 +163,6 @@ for curr_k = 1:n_k
         end
     end
 end
-
 ap.prettyfig;
 
 %% [Fig 2X] Striatum task average PSTH w/ and w/o movement
@@ -211,7 +214,6 @@ for curr_k = 1:n_k
     end
 end
 linkaxes(h.Children,'xy');
-
 ap.prettyfig;
 
 
@@ -289,7 +291,6 @@ for curr_k = 1:n_k
         end
     end
 end
-
 ap.prettyfig;
 
 
@@ -485,7 +486,6 @@ ap.prettyfig;
 load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
-
 
 plot_day_bins = [-Inf,-1:1,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
