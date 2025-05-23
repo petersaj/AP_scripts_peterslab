@@ -8,6 +8,7 @@
 % panel be run independently, or for the entire script to be run straight
 % through)
 
+tic
 
 %% [Fig 1X] Reaction stat and learning histogram
 
@@ -79,7 +80,7 @@ xlabel('Days to learn');
 ap.prettyfig;
 
 
-%% [Fig 1X] K-means cluster centroids
+%% [Fig 1X] K-means cluster means
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -90,7 +91,7 @@ figure;
 h = tiledlayout(n_k,1,'tilespacing','none');
 for curr_k = 1:n_k
     nexttile;
-    imagesc(kmeans_centroid(:,:,curr_k));
+    imagesc(kmeans_cluster_mean(:,:,curr_k));
     axis image off
     clim(max(abs(clim)).*[-1,1]);
     colormap(ap.colormap('PWG'));
@@ -749,7 +750,9 @@ linkaxes(h.Children(2:2:end),'xy');
 ap.prettyfig;
 
 
+%% (end timer)
 
+toc
 
 
 

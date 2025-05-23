@@ -8,7 +8,7 @@
 % AM-packaged: 
 data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
 
-load_workflow = 'task_outcome';
+load_workflow = 'passive';
 switch load_workflow
     case 'passive'
         load(fullfile(data_path,'ephys'));
@@ -122,7 +122,7 @@ xlabel('Days to learn');
 %% Behavior v2
 % (this one includes other stats - choose how to define learning)
 
-use_stat = 'firstmove_mad';
+use_stat = 'firstmove_mean';
 learn_stat_p = 0.05;
 
 % Load behavior
@@ -205,11 +205,23 @@ data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','
 load(fullfile(data_path,'ctx_maps_to_str'));
 U_size = size(all_ctx_maps_to_str.cortex_kernel_px{1},[1,2]);
 
+% %%%%%%%%%%%%%%%%%%%
+% %%% Blur maps
+% all_ctx_maps_to_str.cortex_kernel_px = ...
+%     cellfun(@(x) imgaussfilt(x,5),all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
+% %%%%%%%%%%%%%%%%%%%
+
+% %%%%%%%%%%%%%%%%%%%
+% %%% Rectify maps
+% all_ctx_maps_to_str.cortex_kernel_px = ...
+%     cellfun(@(x) max(x,0,'IncludeMissing'),all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
+% %%%%%%%%%%%%%%%%%%%
+
 % K-means cluster maps
 maps_flat_cat = reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[]);
 expl_var_cat = vertcat(all_ctx_maps_to_str.explained_var{:});
 
-n_k = 3;
+n_k = 6;
 
 % % (kmeans starting as index)
 % kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
@@ -217,8 +229,14 @@ n_k = 3;
 %     all_ctx_maps_to_str.cortex_kernel_px(~cellfun(@isempty, ...
 %     all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
 
-% (kmeans starting as discretize average)
-kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_k)), ...
+% % (kmeans depth avg using discretize)
+% kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ap.groupfun(@mean,x,[],[],discretize(1:size(x,3),n_k)), ...
+%     all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
+%     size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+
+% (kmeans depth avg using quantiles)
+kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
+    ap.groupfun(@mean,x,[],[],ap.quantile_bin(size(x,3),n_k)), ...
     all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
     size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
 
@@ -271,7 +289,7 @@ end
 
 [kidx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
     maps_flat_cat',n_k, ...
-    'Distance','cosine','start',reshape(kmeans_starting,[],n_k)');
+    'Distance','correlation','start',reshape(kmeans_starting,[],n_k)');
 kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
 % %%%%%%%%%%%%%%%%%%%
@@ -311,11 +329,16 @@ if n_k == 6
 end
 % %%%%%%%%%%%%%%%%%%%
 
-
-kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
-
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
+
+% %%%%%%%%%%%%%%% 
+% %%% Moving median kidx to reduce random flipping
+% kidx_rec = cellfun(@(x) floor(movmedian(x,3)),kidx_rec,'uni',false);
+% kidx = cell2mat(kidx_rec);
+% %%%%%%%%%%%%%%
+
+kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
 
 figure;
 h = tiledlayout(n_k,1,'tilespacing','none');
@@ -674,11 +697,11 @@ psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 10;
 psth_baseline = cellfun(@(mua) ...
-    mean(mua(:,baseline_t,:),[1,2]) + softnorm, ...
+    mean(mua(:,baseline_t,:),[1,2]), ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 psth_norm = cellfun(@(psth,baseline) ...
-    (psth-nanmean(psth(:,baseline_t,:),2))./baseline,psth_sum,psth_baseline,'uni',false, ...
+    (psth-nanmean(psth(:,baseline_t,:),2))./(baseline+softnorm),psth_sum,psth_baseline,'uni',false, ...
     'ErrorHandler',@(varargin) []);
 
 psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2]),[], ...

@@ -67,12 +67,18 @@ kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
     size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
 
-[kidx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
+[kidx,kmeans_centroid_flat] = kmeans(...
     reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[])',n_k, ...
     'Distance','correlation','start',reshape(kmeans_starting,[],n_k)');
-kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
-% Package kidx by recording (used for some groupings)
+kmeans_centroid = reshape(kmeans_centroid_flat', ...
+    size(kmeans_starting,1),size(kmeans_starting,2),[]);
+
+kmeans_cluster_mean = reshape(ap.groupfun(@nanmean, ...
+    reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}), ...
+    prod(U_size),[]),[],kidx),[U_size,n_k]);
+
+% Package kidx by recording
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
 
@@ -238,7 +244,7 @@ cortex_trials_rec_n = cellfun(@(x) size(x,1),wf.V_stim_align);
 %% Widefield ROIs by corticostriatal maps
 
 % Create ROIs by striatum cluster maps
-kmeans_centroid_blur = imgaussfilt(kmeans_centroid,10);
+kmeans_centroid_blur = imgaussfilt(kmeans_cluster_mean,5);
 [~,m] = max(kmeans_centroid_blur,[],[1,2],'linear');
 [mr,mc] = ind2sub(size(U_master,[1,2]),m);
 striatum_wf_roi = kmeans_centroid_blur > prctile(kmeans_centroid_blur,100,[1,2])*0.50;
