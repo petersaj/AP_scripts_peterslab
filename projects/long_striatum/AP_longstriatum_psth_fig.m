@@ -1,15 +1,20 @@
 
 % Set animal/day/units
 
-% (TAN)
-animal = 'AP025';
-rec_day = '2024-09-11';
-plot_units = [270];
+% % (TAN)
+% animal = 'AP025';
+% rec_day = '2024-09-11';
+% plot_units = [270];
 
-% (TAN)
-animal = 'AP023';
-rec_day = '2024-09-09';
-plot_units = [289,268];
+% % (TAN)
+% animal = 'AP023';
+% rec_day = '2024-09-09';
+% plot_units = [289,268];
+
+% (ad hoc)
+animal = 'AP025';
+rec_day = '2024-09-10';
+plot_units = [258];
 
 % Make figures
 h = gobjects(length(plot_units),1);
@@ -46,7 +51,7 @@ for workflow_idx = 1:2
         stim_x = vertcat(trial_events.values.TrialStimX);
 
         use_align = cellfun(@(x) ...
-            stimOn_times(stim_x == x & quiescent_trials), ...
+            stimOn_times(stim_x(1:length(stimOn_times)) == x & quiescent_trials), ...
             num2cell(unique(stim_x)),'uni',false);
         trial_sort = cellfun(@(x) 1:length(x),use_align,'uni',false);
 
@@ -102,7 +107,6 @@ end
 for curr_unit = 1:length(plot_units)
     curr_h = h(curr_unit);
     title(curr_h,sprintf('%s %s %d',animal,rec_day,plot_units(curr_unit)));
-    title(nexttile(curr_h,tilenum(curr_h,1,1)),'Visual');
     title(nexttile(curr_h,tilenum(curr_h,2,1)),'Task');
     title(nexttile(curr_h,tilenum(curr_h,3,1)),'Passive');
     legend(nexttile(curr_h,tilenum(curr_h,1,1)),{'Task','','Passive'});

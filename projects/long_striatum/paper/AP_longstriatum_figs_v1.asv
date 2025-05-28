@@ -1,6 +1,6 @@
 %% Figures for longitudinal striatum+cortex project
 %
-% Data packaged by `AM save scripts`
+% Data packaged by AM save scripts
 % Analysis taken fom `AP_longstriatum_exploratory_2`
 %
 % Uses `AP_longstriatum_load_data` to load/prep relevant data at the start
@@ -717,44 +717,104 @@ AP_longstriatum_load_data;
 plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
 
-plot_kidx = [1:2];
-
-stim_t = psth_t > 0 & psth_t < 0.2;
+stim_t = psth_t > 0.05 & psth_t < 0.15;
 n_stim = size(striatum_sua,3);
 
-% Plot 
-figure;
-colormap(ap.colormap('BWR',[],2));
-h = tiledlayout(n_stim,max(plot_day_grp),'TileSpacing','compact');
-for curr_stim = 1:n_stim
-    for curr_day_grp = 1:length(plot_day_bins)-1
-        nexttile;
+% Plot heatmap
+for curr_k = 1:n_k
+    figure;
+    colormap(ap.colormap('BWR',[],2));
+    h = tiledlayout(n_stim,max(plot_day_grp),'TileSpacing','compact');
+    for curr_stim = 1:n_stim
+        for curr_day_grp = 1:length(plot_day_bins)-1
+            nexttile;
 
-        curr_units = find(ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+            curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+                plot_day_grp == curr_day_grp & ...
+                striatum_sua_grp.tan);
+
+            % (sort for current stim)
+            [~,sort_idx] = sort(max(striatum_sua(curr_units,stim_t,curr_stim),[],2),'descend');
+
+            % % (sort R)
+            % [~,sort_idx] = sort(mean(striatum_sua(curr_units,stim_t,3),2),'descend');
+
+            % % (sort R-C)
+            % [~,sort_idx] = sort(diff(max(striatum_sua(curr_units,stim_t,2:3),[],2),[],3),'descend');
+            
+            imagesc(psth_t,[],striatum_sua(curr_units(sort_idx),:,curr_stim));
+            clim([-1.5,1.5])
+            % xlim([-0.2,0.8])
+            xlim([0,0.3]);
+            title(plot_day_bins(curr_day_grp));
+
+            % (unused: get rec/IDs of cells)
+            curr_sorted_unit_coordinate = ...
+                [ephys.animal(striatum_sua_grp.rec(curr_units(sort_idx))), ...
+                ephys.rec_day(striatum_sua_grp.rec(curr_units(sort_idx))), ...
+                num2cell(striatum_sua_grp.unit_id(curr_units(sort_idx)))];
+
+        end
+    end
+    title(h,sprintf('Striatal cluster %d',curr_k));
+    linkaxes(h.Children,'xy');
+    ap.prettyfig;
+end
+
+% Plot scatter
+figure;
+h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day_grp = 1:length(plot_day_bins)-1
+        nexttile; axis equal;
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
             plot_day_grp == curr_day_grp & ...
             striatum_sua_grp.tan);
 
-        [~,sort_idx] = sort(max(striatum_sua(curr_units,stim_t,curr_stim),[],2),'descend');
-        imagesc(psth_t,[],striatum_sua(curr_units(sort_idx),:,curr_stim));
-        clim([-1,1])
+        curr_unit_max = squeeze(max(striatum_sua(curr_units,stim_t,:),[],2));
+        plot(curr_unit_max(:,2),curr_unit_max(:,3),'.k');
+        line(xlim,xlim);
+        xlabel('Center');
+        ylabel('Right');
         title(plot_day_bins(curr_day_grp));
+    end
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
+
+% Plot average
+figure;
+h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+stim_colormap = ap.colormap('BKR',n_stim);
+for curr_k = 1:n_k
+    for curr_day_grp = 1:length(plot_day_bins)-1
+        nexttile; set(gca,'ColorOrder',stim_colormap);
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & ...
+            striatum_sua_grp.tan);
+
+        ap.errorfill(psth_t,squeeze(mean(striatum_sua(curr_units,:,:),1)), ...
+            squeeze(AP_sem(striatum_sua(curr_units,:,:),1)));
+        xlim([-0.2,0.8]);
 
     end
 end
 linkaxes(h.Children,'xy');
 ap.prettyfig;
 
+%%%% TESTING: bar plot
+
+use_units = striatum_sua_grp.tan;
+unit_max = squeeze(max(striatum_sua(use_units,stim_t,:),[],2));
+
+[x,y] = ap.nestgroupfun({@mean,@mean},unit_max, ...
+    striatum_sua_grp.animal(use_units), ...
+    [striatum_sua_grp.kidx(use_units),plot_day_grp(use_units)]);
 
 figure;
-h = tiledlayout(1,max(plot_day_grp),'TileSpacing','compact');
-stim_colormap = ap.colormap('BKR',n_stim);
-for curr_day_grp = 1:length(plot_day_bins)-1
-    nexttile; set(gca,'ColorOrder',stim_colormap);
-    ap.errorfill(psth_t,mean(striatum_sua(curr_units,:,:),1), ...
-        AP_sem(striatum_sua(curr_units,:,curr_stim),1));
-end
-linkaxes(h.Children,'xy');
-ap.prettyfig;
+plot(y(y(:,1)==1,2),x(y(:,1)==1,:)');
 
 
 

@@ -717,7 +717,7 @@ AP_longstriatum_load_data;
 plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
 
-stim_t = psth_t > 0 & psth_t < 0.2;
+stim_t = psth_t > 0.05 & psth_t < 0.15;
 n_stim = size(striatum_sua,3);
 
 % Plot heatmap
@@ -733,11 +733,27 @@ for curr_k = 1:n_k
                 plot_day_grp == curr_day_grp & ...
                 striatum_sua_grp.tan);
 
+            % (sort for current stim)
             [~,sort_idx] = sort(max(striatum_sua(curr_units,stim_t,curr_stim),[],2),'descend');
+
+            % % (sort R)
+            % [~,sort_idx] = sort(mean(striatum_sua(curr_units,stim_t,3),2),'descend');
+
+            % % (sort R-C)
+            % [~,sort_idx] = sort(diff(max(striatum_sua(curr_units,stim_t,2:3),[],2),[],3),'descend');
+            
             imagesc(psth_t,[],striatum_sua(curr_units(sort_idx),:,curr_stim));
-            clim([-1,1])
-            xlim([-0.2,0.8])
+            clim([-1.5,1.5])
+            % xlim([-0.2,0.8])
+            xlim([0,0.3]);
             title(plot_day_bins(curr_day_grp));
+
+            % (unused: get rec/IDs of cells)
+            curr_sorted_unit_coordinate = ...
+                [ephys.animal(striatum_sua_grp.rec(curr_units(sort_idx))), ...
+                ephys.rec_day(striatum_sua_grp.rec(curr_units(sort_idx))), ...
+                num2cell(striatum_sua_grp.unit_id(curr_units(sort_idx)))];
+
         end
     end
     title(h,sprintf('Striatal cluster %d',curr_k));
@@ -750,7 +766,7 @@ figure;
 h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day_grp = 1:length(plot_day_bins)-1
-        nexttile;
+        nexttile; axis equal;
 
         curr_units = find(striatum_sua_grp.kidx == curr_k & ...
             plot_day_grp == curr_day_grp & ...
@@ -788,6 +804,21 @@ end
 linkaxes(h.Children,'xy');
 ap.prettyfig;
 
+%%%% TESTING: line plot
+use_units = striatum_sua_grp.tan;
+unit_max = squeeze(max(striatum_sua(use_units,stim_t,:),[],2));
+
+[x,y] = ap.nestgroupfun({@mean,@mean},unit_max, ...
+    striatum_sua_grp.animal(use_units), ...
+    [striatum_sua_grp.kidx(use_units),plot_day_grp(use_units)]);
+
+x_sem = ap.nestgroupfun({@mean,@AP_sem},unit_max, ...
+    striatum_sua_grp.animal(use_units), ...
+    [striatum_sua_grp.kidx(use_units),plot_day_grp(use_units)]);
+
+figure;
+errorbar(y(y(:,1)==1,2),x(y(:,1)==1,:)',x_sem(y(:,1)==1,:)');
+axis padded
 
 
 %% [Fig 4X] Striatal task heatmap by cell type
