@@ -820,6 +820,46 @@ ap.prettyfig;
 
 
 
+%%%%% TESTING: mean of stim diff across cell types
+celltype_order = {'msn','fsi','tan'};
+celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
+    striatum_sua_grp.(celltype_order{2}), ...
+    striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
+
+figure;
+h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day_grp = 1:max(plot_day_grp)
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & celltype_id ~= 0);
+
+        curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
+
+        rc_diff = diff(curr_unit_mean(:,[2,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[2,3]),2);
+
+        rl_diff = diff(curr_unit_mean(:,[1,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[1,3]),2);
+
+        nexttile; hold on;
+        violinplot(categorical(celltype_order(celltype_id(curr_units))),rc_diff,'DensityDirection','negative');
+        violinplot(categorical(celltype_order(celltype_id(curr_units))),rl_diff,'DensityDirection','positive');
+
+        rc_diff_med = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
+        rl_diff_med = ap.groupfun(@nanmedian,rl_diff,celltype_id(curr_units));
+
+        plot(categorical(celltype_order),rc_diff_med,'.b','MarkerSize',10);
+        plot(categorical(celltype_order),rl_diff_med,'.r','MarkerSize',10);
+
+        yline(0)
+        ylabel('Diff/Sum')
+
+    end
+end
+legend({'R-C','R-L'});
+
+
 %% [Fig 4X] Striatal task heatmap by cell type
 
 %%% Load data for figure
