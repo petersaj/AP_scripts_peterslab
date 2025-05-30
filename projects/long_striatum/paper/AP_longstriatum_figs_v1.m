@@ -759,14 +759,18 @@ for curr_k = 1:n_k
     ap.prettyfig;
 end
 
-% Plot scatter
+% Plot scatter and diagonal histograms
 stim_t = psth_t > 0.05 & psth_t < 0.15;
 compare_stim = [2,3];
-figure;
-h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+scatter_fig = figure;
+h_scatter = tiledlayout(scatter_fig,n_k,max(plot_day_grp),'TileSpacing','compact');
+
+histogram_fig = figure;
+h_histogram = tiledlayout(histogram_fig,n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day_grp = 1:length(plot_day_bins)-1
-        nexttile; axis equal; hold on;
+        % (plot scatter)
+        nexttile(h_scatter); axis equal; hold on;
          
         curr_units = find(striatum_sua_grp.kidx == curr_k & ...
             plot_day_grp == curr_day_grp & ...
@@ -775,7 +779,6 @@ for curr_k = 1:n_k
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
 
         plot(curr_unit_mean(:,compare_stim(1)),curr_unit_mean(:,compare_stim(2)),'.k');
-        line(xlim,xlim);
         xlabel(sprintf('Stim %d',compare_stim(1)));
         ylabel(sprintf('Stim %d',compare_stim(2)));
 
@@ -791,10 +794,31 @@ for curr_k = 1:n_k
 
         title(sprintf('%d, p = %.2g',plot_day_bins(curr_day_grp),stat_p));
 
+        % (plot diagonal histogram)
+        curr_unit_mean_stimdiff = diff(curr_unit_mean(:,compare_stim),[],2);
+        hist_edges = -15:1:15;
+        nexttile(h_histogram);
+        histogram(-curr_unit_mean_stimdiff,hist_edges, ...
+            'normalization','probability','FaceColor','k','EdgeColor','none')
+        xline(0,'color',[0.5,0.5,0.5]);
+
     end
 end
-linkaxes(h.Children,'xy');
-ap.prettyfig;
+% (draw zero and guide lines)
+scatter_max = 25;
+hist_max = 10;
+arrayfun(@(x) line(x,xlim,xlim,'color',[0.5,0.5,0.5]),h_scatter.Children);
+arrayfun(@(x) line(x,xlim,xlim-hist_max,'color','r'),h_scatter.Children);
+arrayfun(@(x) line(x,xlim,xlim+hist_max,'color','r'),h_scatter.Children);
+linkaxes(h_scatter.Children,'xy');
+[h_scatter.Children.XLim,h_scatter.Children.YLim] = deal([0,scatter_max]);
+
+linkaxes(h_histogram.Children,'xy');
+[h_histogram.Children.XLim] = deal([-1,1].*hist_max);
+arrayfun(@(x) xline(x,[-1,1].*hist_max,'r'),h_histogram.Children);
+
+figure(scatter_fig);ap.prettyfig;
+figure(histogram_fig);ap.prettyfig;
 
 
 % Plot average
@@ -901,9 +925,9 @@ for curr_k = 1:n_k
 
 end
 legend({'Day group 1','Day group 2'});
+ap.prettyfig;
 
-
-%%%%% TESTING: mean of stim diff across cell types, but as errorbars
+%%%%% TESTING: mean of stim diff across cell types, but as sem errorbars
 celltype_order = {'msn','fsi','tan'};
 celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
     striatum_sua_grp.(celltype_order{2}), ...
@@ -941,7 +965,61 @@ for curr_k = 1:n_k
 
     end
 end
+linkaxes(h.Children,'xy');
 legend({'R-C','R-L'});
+
+%%%%% TESTING: mean of stim diff across cell types, but as ci errorbars
+celltype_order = {'msn','fsi','tan'};
+celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
+    striatum_sua_grp.(celltype_order{2}), ...
+    striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
+
+figure;
+h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day_grp = 1:max(plot_day_grp)
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & celltype_id ~= 0);
+
+        curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
+
+        rc_diff = diff(curr_unit_mean(:,[2,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[2,3]),2);
+
+        rl_diff = diff(curr_unit_mean(:,[1,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[1,3]),2);
+
+        n_shuff = 1000;
+        shuff_med = nan(n_shuff,3);
+        for curr_shuff = 1:n_shuff
+            data_shuff = ap.shake(curr_unit_mean(:,[2,3]),2);
+            shuff_diff = diff(data_shuff,[],2)./ ...
+                sum(data_shuff,2);
+
+            shuff_med(curr_shuff,:) = ...
+                ap.groupfun(@nanmean,shuff_diff,celltype_id(curr_units));  
+        end
+        shuff_ci = prctile(shuff_med,[5,95],1);
+
+        nexttile; hold on;
+
+        rc_diff_med = ap.groupfun(@nanmean,rc_diff,celltype_id(curr_units));
+        rl_diff_med = ap.groupfun(@nanmean,rl_diff,celltype_id(curr_units));
+
+        plot(categorical(celltype_order),rc_diff_med,'.b','MarkerSize',20);
+        plot(categorical(celltype_order),rl_diff_med,'.r','MarkerSize',20);
+
+        plot(categorical(celltype_order),shuff_ci,'_b','MarkerSize',20);
+
+        yline(0)
+        ylabel('Diff/Sum')
+
+    end
+end
+linkaxes(h.Children,'xy');
+legend({'R-C','R-L'});
+ap.prettyfig;
 
 
 %% [Fig 4X] Striatal task heatmap by cell type

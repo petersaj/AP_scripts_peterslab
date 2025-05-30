@@ -1,5 +1,5 @@
-function AP_prettyfig(format_type)
-% AP_prettyfig(format_type)
+function prettyfig(format_type)
+% ap.prettyfig(format_type)
 % 
 % Set figure properties for presentations and documents
 % format_type - ppt/eps (ppt default)
