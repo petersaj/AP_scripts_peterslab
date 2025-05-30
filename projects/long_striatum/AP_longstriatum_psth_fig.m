@@ -12,9 +12,9 @@
 % plot_units = [289,268];
 
 % (ad hoc)
-animal = 'AP025';
-rec_day = '2024-09-10';
-plot_units = [258];
+animal = 'AM022';
+rec_day = '2024-04-05';
+plot_units = [187];
 
 % Make figures
 h = gobjects(length(plot_units),1);

@@ -714,7 +714,12 @@ load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2:2,Inf];
+%%%%% TESTING: don't normalize spikes, just smooth
+striatum_sua = smoothdata(cell2mat(cellfun(@(x,y) x(y,:,:), ...
+    ephys.unit_event_psths,striatum_units,'uni',false)),2,'gaussian',[100,0]);
+
+% plot_day_bins = [-Inf,-2:2,Inf];
+plot_day_bins = [-2,0,2];
 plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
 
 stim_t = psth_t > 0.05 & psth_t < 0.15;
@@ -723,7 +728,7 @@ n_stim = size(striatum_sua,3);
 % Plot heatmap
 for curr_k = 1:n_k
     figure;
-    colormap(ap.colormap('BWR',[],2));
+    colormap(ap.colormap('WK',[],2));
     h = tiledlayout(n_stim,max(plot_day_grp),'TileSpacing','compact');
     for curr_stim = 1:n_stim
         for curr_day_grp = 1:length(plot_day_bins)-1
@@ -743,15 +748,18 @@ for curr_k = 1:n_k
             % % (sort R)
             % [~,sort_idx] = sort(mean(striatum_sua(curr_units,stim_t,3),2),'descend');
 
-            % (sort R-C)
-            [~,sort_idx] = sort(diff(max(striatum_sua(curr_units,stim_t,2:3),[],2),[],3),'descend');
+            % % (sort R-C)
+            % [~,sort_idx] = sort(diff(max(striatum_sua(curr_units,stim_t,2:3),[],2),[],3),'descend');
+
+            % (sort max mean across stim)
+            [~,sort_idx] = sort(max(mean(striatum_sua(curr_units,stim_t,:),2),[],3),'descend');
 
             % % (sort C+2*R)
             % [~,sort_idx] = sort(max(striatum_sua(curr_units,stim_t,2),[],2) + ...
             %     max(striatum_sua(curr_units,stim_t,3),[],2).*2,'descend');
             
             imagesc(psth_t,[],striatum_sua(curr_units(sort_idx),:,curr_stim));
-            clim([-1.5,1.5])
+            clim([0,20])
             % xlim([-0.2,0.8])
             xlim([0,0.3]);
             title(plot_day_bins(curr_day_grp));
@@ -770,7 +778,7 @@ for curr_k = 1:n_k
 end
 
 % Plot scatter
-stim_t = psth_t > 0 & psth_t < 0.2;
+stim_t = psth_t > 0.05 & psth_t < 0.15;
 
 figure;
 h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
@@ -787,14 +795,27 @@ for curr_k = 1:n_k
         %         striatum_sua_grp.tan);
 
         % curr_unit_max = squeeze(max(striatum_sua(curr_units,stim_t,:),[],2));
-        curr_unit_max = squeeze(mean(abs(striatum_sua(curr_units,stim_t,:)),2));
+        % curr_unit_max = squeeze(mean(abs(striatum_sua(curr_units,stim_t,:)),2));
+        curr_unit_max = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
 
         plot(curr_unit_max(:,2),curr_unit_max(:,3),'.k');
-        plot(mean(curr_unit_max(:,2)),mean(curr_unit_max(:,3)),'.r','MarkerSize',20);
+        % plot(mean(curr_unit_max(:,2)),mean(curr_unit_max(:,3)),'.r','MarkerSize',20);
         line(xlim,xlim);
         xlabel('Center');
-        ylabel('Right');
-        title(plot_day_bins(curr_day_grp));
+        ylabel('Right');        
+
+        % (testing stats)
+        diff_meas = mean(diff(curr_unit_max(:,2:3),[],2));
+        n_shuff = 10000;
+        diff_null = nan(n_shuff,1);
+        for curr_shuff = 1:n_shuff
+            diff_null(curr_shuff) = mean(diff(ap.shake(curr_unit_max(:,2:3),2),[],2));
+        end
+        stat_rank = tiedrank([diff_meas;diff_null]);
+        stat_p = 1-stat_rank(1)/(n_shuff+1);
+
+        title(sprintf('%d, p = %.2g',plot_day_bins(curr_day_grp),stat_p));
+
     end
 end
 linkaxes(h.Children,'xy');
@@ -809,13 +830,13 @@ for curr_k = 1:n_k
     for curr_day_grp = 1:length(plot_day_bins)-1
         nexttile; set(gca,'ColorOrder',stim_colormap);
 
-        % curr_units = find(striatum_sua_grp.kidx == curr_k & ...
-        %     plot_day_grp == curr_day_grp & ...
-        %     striatum_sua_grp.tan);
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & ...
+            striatum_sua_grp.tan);
 
-        curr_units = find(ismember(striatum_sua_grp.kidx,[1,2]) & ...
-                plot_day_grp == curr_day_grp & ...
-                striatum_sua_grp.tan);
+        % curr_units = find(ismember(striatum_sua_grp.kidx,[1,2]) & ...
+        %         plot_day_grp == curr_day_grp & ...
+        %         striatum_sua_grp.tan);
 
         ap.errorfill(psth_t,squeeze(mean(striatum_sua(curr_units,:,:),1)), ...
             squeeze(AP_sem(striatum_sua(curr_units,:,:),1)));
