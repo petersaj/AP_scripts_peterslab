@@ -761,7 +761,7 @@ end
 
 % Plot scatter
 stim_t = psth_t > 0.05 & psth_t < 0.15;
-
+compare_stim = [2,3];
 figure;
 h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
@@ -774,17 +774,17 @@ for curr_k = 1:n_k
 
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
 
-        plot(curr_unit_mean(:,2),curr_unit_mean(:,3),'.k');
+        plot(curr_unit_mean(:,compare_stim(1)),curr_unit_mean(:,compare_stim(2)),'.k');
         line(xlim,xlim);
-        xlabel('Center');
-        ylabel('Right');
+        xlabel(sprintf('Stim %d',compare_stim(1)));
+        ylabel(sprintf('Stim %d',compare_stim(2)));
 
         % (~stats~)
-        diff_meas = mean(diff(curr_unit_mean(:,2:3),[],2));
+        diff_meas = mean(diff(curr_unit_mean(:,compare_stim),[],2));
         n_shuff = 10000;
         diff_null = nan(n_shuff,1);
         for curr_shuff = 1:n_shuff
-            diff_null(curr_shuff) = mean(diff(ap.shake(curr_unit_mean(:,2:3),2),[],2));
+            diff_null(curr_shuff) = mean(diff(ap.shake(curr_unit_mean(:,compare_stim),2),[],2));
         end
         stat_rank = tiedrank([diff_meas;diff_null]);
         stat_p = 1-stat_rank(1)/(n_shuff+1);
@@ -821,40 +821,6 @@ ap.prettyfig;
 
 
 %%%%% TESTING: mean of stim diff across cell types
-compare_stim = [1,3];
-
-celltype_order = {'msn','fsi','tan'};
-celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
-    striatum_sua_grp.(celltype_order{2}), ...
-    striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
-
-figure;
-h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
-for curr_k = 1:n_k
-    for curr_day_grp = 1:max(plot_day_grp)
-
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
-            plot_day_grp == curr_day_grp & celltype_id ~= 0);
-
-        curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
-
-        rc_diff = diff(curr_unit_mean(:,compare_stim),[],2)./ ...
-            sum(curr_unit_mean(:,compare_stim),2);
-
-        nexttile;
-        % swarmchart(categorical(celltype_order(celltype_id(curr_units))),rc_diff);
-        violinplot(categorical(celltype_order(celltype_id(curr_units))),rc_diff);
-        yline(0)
-        ylabel(sprintf('Stim %d - %d',compare_stim(2),compare_stim(1)));
-
-        x = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
-        hold on;
-        plot(categorical(celltype_order),x,'.r','MarkerSize',20);
-
-    end
-end
-
-
 celltype_order = {'msn','fsi','tan'};
 celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
     striatum_sua_grp.(celltype_order{2}), ...
@@ -873,18 +839,109 @@ for curr_k = 1:n_k
         rc_diff = diff(curr_unit_mean(:,[2,3]),[],2)./ ...
             sum(curr_unit_mean(:,[2,3]),2);
 
-        nexttile;
-        % swarmchart(categorical(celltype_order(celltype_id(curr_units))),rc_diff);
-        violinplot(categorical(celltype_order(celltype_id(curr_units))),rc_diff);
-        yline(0)
-        ylabel(sprintf('Stim %d - %d',compare_stim(2),compare_stim(1)));
+        rl_diff = diff(curr_unit_mean(:,[1,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[1,3]),2);
 
-        x = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
-        hold on;
-        plot(categorical(celltype_order),x,'.r','MarkerSize',20);
+        nexttile; hold on;
+        violinplot(categorical(celltype_order(celltype_id(curr_units))),rc_diff,'DensityDirection','negative');
+        violinplot(categorical(celltype_order(celltype_id(curr_units))),rl_diff,'DensityDirection','positive');
+
+        rc_diff_med = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
+        rl_diff_med = ap.groupfun(@nanmedian,rl_diff,celltype_id(curr_units));
+
+        plot(categorical(celltype_order),rc_diff_med,'_b','MarkerSize',10);
+        plot(categorical(celltype_order),rl_diff_med,'_r','MarkerSize',10);
+
+        yline(0)
+        ylabel('Diff/Sum')
 
     end
 end
+legend({'R-C','R-L'});
+
+
+%%%%% TESTING: alt version of above: exclude L response
+celltype_order = {'msn','fsi','tan'};
+celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
+    striatum_sua_grp.(celltype_order{2}), ...
+    striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
+
+figure;
+h = tiledlayout(n_k,1,'TileSpacing','compact');
+for curr_k = 1:n_k
+
+    nexttile; hold on;
+
+    curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        plot_day_grp == 1 & celltype_id ~= 0);
+
+    curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
+
+    rc_diff = diff(curr_unit_mean(:,[2,3]),[],2)./ ...
+        sum(curr_unit_mean(:,[2,3]),2);
+
+    violinplot(categorical(celltype_order(celltype_id(curr_units))),rc_diff,'DensityDirection','negative');
+    rc_diff_med = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
+    plot(categorical(celltype_order),rc_diff_med,'_b','MarkerSize',10);
+
+    curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        plot_day_grp == 2 & celltype_id ~= 0);
+
+    curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
+
+    rc_diff = diff(curr_unit_mean(:,[2,3]),[],2)./ ...
+        sum(curr_unit_mean(:,[2,3]),2);
+
+    violinplot(categorical(celltype_order(celltype_id(curr_units))),rc_diff,'DensityDirection','positive');
+    rc_diff_med = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
+    plot(categorical(celltype_order),rc_diff_med,'_r','MarkerSize',10);
+
+    yline(0)
+    ylabel('R-C')
+
+end
+legend({'Day group 1','Day group 2'});
+
+
+%%%%% TESTING: mean of stim diff across cell types, but as errorbars
+celltype_order = {'msn','fsi','tan'};
+celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
+    striatum_sua_grp.(celltype_order{2}), ...
+    striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
+
+figure;
+h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day_grp = 1:max(plot_day_grp)
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & celltype_id ~= 0);
+
+        curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
+
+        rc_diff = diff(curr_unit_mean(:,[2,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[2,3]),2);
+
+        rl_diff = diff(curr_unit_mean(:,[1,3]),[],2)./ ...
+            sum(curr_unit_mean(:,[1,3]),2);
+
+        nexttile; hold on;
+
+        rc_diff_med = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
+        rl_diff_med = ap.groupfun(@nanmedian,rl_diff,celltype_id(curr_units));
+
+        rc_diff_std = ap.groupfun(@nanstd,rc_diff,celltype_id(curr_units));
+        rl_diff_std = ap.groupfun(@nanstd,rl_diff,celltype_id(curr_units));
+
+        errorbar(categorical(celltype_order),rc_diff_med,rc_diff_std,'.b');
+        errorbar(categorical(celltype_order),rl_diff_med,rl_diff_std,'.r');
+
+        yline(0)
+        ylabel('Diff/Sum')
+
+    end
+end
+legend({'R-C','R-L'});
 
 
 %% [Fig 4X] Striatal task heatmap by cell type
