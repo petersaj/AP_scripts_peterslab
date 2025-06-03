@@ -426,36 +426,65 @@ n_stim = size(striatum_sua,3);
 % Plot heatmap
 for curr_k = 1:n_k
     figure;
-    colormap(ap.colormap('WK',[],2));
-    h = tiledlayout(n_stim,max(plot_day_grp),'TileSpacing','compact');
-    for curr_stim = 1:n_stim
-        for curr_day_grp = 1:length(plot_day_bins)-1
+    colormap(ap.colormap('BWR',[],2));
+    h = tiledlayout(max(plot_day_grp),n_stim,'TileSpacing','compact');
+    for curr_day_grp = 1:length(plot_day_bins)-1
+
+        % Get units and sorting
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & ...
+            striatum_sua_grp.tan);
+
+        % (sort max stim, then max within stim)
+        sort_idx_cell = cell(3,1);
+        [~,max_stim] = max(mean(striatum_sua(curr_units,stim_t,:),2),[],3);
+        for curr_stim_sort = 1:3
+            curr_stim_units = find(max_stim==curr_stim_sort);
+            [~,curr_sort_idx] = sort(max(mean(striatum_sua(curr_units(curr_stim_units),stim_t,curr_stim_sort),2),[],3),'descend');
+            sort_idx_cell{curr_stim_sort} = curr_stim_units(curr_sort_idx);
+        end
+        sort_idx = cell2mat(sort_idx_cell);
+        plot_units = curr_units(sort_idx);
+
+        % (get rec/IDs of cells for single-unit PSTH plotting)
+        curr_sorted_unit_coordinate = ...
+            [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
+            ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
+            num2cell(striatum_sua_grp.unit_id(plot_units))];
+
+        for curr_stim = 1:n_stim
             nexttile;
-
-            curr_units = find(striatum_sua_grp.kidx == curr_k & ...
-                plot_day_grp == curr_day_grp & ...
-                striatum_sua_grp.tan);
-
-            % (sort max across stim)
-            [~,sort_idx] = sort(max(mean(striatum_sua(curr_units,stim_t,:),2),[],3),'descend');
-
-            imagesc(psth_t,[],striatum_sua(curr_units(sort_idx),:,curr_stim));
+            imagesc(psth_t,[],striatum_sua(plot_units,:,curr_stim));
             clim([-1,1])
             xlim([-0.2,0.8])
             title(plot_day_bins(curr_day_grp));
-
-            % (unused: get rec/IDs of cells)
-            curr_sorted_unit_coordinate = ...
-                [ephys.animal(striatum_sua_grp.rec(curr_units(sort_idx))), ...
-                ephys.rec_day(striatum_sua_grp.rec(curr_units(sort_idx))), ...
-                num2cell(striatum_sua_grp.unit_id(curr_units(sort_idx)))];
-
+            yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
         end
+
     end
     title(h,sprintf('Striatal cluster %d',curr_k));
     linkaxes(h.Children,'xy');
     ap.prettyfig;
 end
+
+%%%%% TESTING PSTH
+
+stim_cell_borders = cumsum(cellfun(@length,sort_idx_cell))+1;
+
+i = 47;
+i = 124;
+animal = curr_sorted_unit_coordinate{i,1};
+rec_day = curr_sorted_unit_coordinate{i,2};
+plot_units = curr_sorted_unit_coordinate{i,3};
+AP_longstriatum_psth_fig;
+
+
+
+% good ones: 
+% AM026 2024-07-25 354 (sort 4)
+
+%%%%%%%%%
+
 
 % Plot average
 figure;

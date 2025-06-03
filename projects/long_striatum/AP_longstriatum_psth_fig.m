@@ -11,10 +11,10 @@
 % rec_day = '2024-09-09';
 % plot_units = [289,268];
 
-% (ad hoc)
-animal = 'AM022';
-rec_day = '2024-04-05';
-plot_units = [187];
+% % (ad hoc)
+% animal = 'AM022';
+% rec_day = '2024-04-05';
+% plot_units = [187];
 
 % Make figures
 h = gobjects(length(plot_units),1);
@@ -22,6 +22,8 @@ for curr_unit = 1:length(plot_units)
     figure('color','w','name',sprintf('Unit %d',plot_units(curr_unit)));
     h(curr_unit) = tiledlayout(5,1);
 end
+
+task_stim_colormap = [0.7,0.7,0;ap.colormap('BKR',3)];
 
 for workflow_idx = 1:2
 
@@ -78,6 +80,7 @@ for workflow_idx = 1:2
 
         % Plot PSTH
         nexttile(h(curr_unit_idx),tilenum(h(curr_unit_idx),1,1)); hold on;
+        set(gca,'ColorOrder',task_stim_colormap);
         plot(raster_t,permute(psth,[2,3,1]),'linewidth',2);
         xlim(raster_window)
         axis off;
