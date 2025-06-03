@@ -416,33 +416,7 @@ load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
 
-%%%%%% SPIKE PREPROCESSING TESTING: 
-
-% %%%%% don't normalize spikes, just smooth
-% striatum_sua = smoothdata(cell2mat(cellfun(@(x,y) x(y,:,:), ...
-%     ephys.unit_event_psths,striatum_units,'uni',false)),2,'gaussian',[100,0]);
-
-%%%%% normalize to baseline and smooth
-striatum_sua = cell2mat(cellfun(@(data,baseline,striatum_units) ...
-    spikes_norm_smooth_reshape_fcn(data(striatum_units,:,:),baseline(striatum_units)), ...
-    ephys.unit_event_psths,sua_baseline,striatum_units,'uni',false));
-
-%%%%%%%%%%%%%%%%%%
-
-% Grab "responsive" striatal units
-% unit_responsive_p_thresh = 0.05;
-% (or ignore for now)
-unit_responsive_p_thresh = 2;
-unit_responsive = cell2mat(cellfun(@(x) cell2mat(x)', ...
-    horzcat(ephys.unit_resp_p_value{:})','uni',false)) < unit_responsive_p_thresh;
-striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
-
-
 plot_day_bins = [-inf,0,inf];
-% plot_day_bins = [-2,0,1];
-% plot_day_bins = [-2,0,Inf];
-% plot_day_bins = [-inf,-2,0,inf];
-% plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
 
 stim_t = psth_t > 0.05 & psth_t < 0.15;
@@ -460,7 +434,7 @@ for curr_k = 1:n_k
 
             curr_units = find(striatum_sua_grp.kidx == curr_k & ...
                 plot_day_grp == curr_day_grp & ...
-                striatum_sua_grp.tan & any(striatum_units_responsive,2));
+                striatum_sua_grp.tan);
 
             % (sort max across stim)
             [~,sort_idx] = sort(max(mean(striatum_sua(curr_units,stim_t,:),2),[],3),'descend');
@@ -483,8 +457,6 @@ for curr_k = 1:n_k
     ap.prettyfig;
 end
 
-
-
 % Plot average
 figure;
 h = tiledlayout(n_k,n_stim*max(plot_day_grp),'TileSpacing','compact');
@@ -494,7 +466,7 @@ for curr_k = 1:n_k
 
         curr_units = find(striatum_sua_grp.kidx == curr_k & ...
             plot_day_grp == curr_day_grp & ...
-            striatum_sua_grp.tan & any(striatum_units_responsive,2));
+            striatum_sua_grp.tan);
 
         curr_sua_mean = mean(ap.groupfun(@mean, ...
             striatum_sua(curr_units,:,:),striatum_sua_grp.animal(curr_units)),1);
@@ -512,77 +484,6 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 xlim(h.Children(1),[-0.2,0.8]);
 
-
-% % Stim response difference by celltype
-% celltype_order = {'msn','fsi','tan'};
-% celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
-%     striatum_sua_grp.(celltype_order{2}), ...
-%     striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
-% 
-% figure;
-% h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
-% for curr_k = 1:n_k
-%     for curr_day_grp = 1:max(plot_day_grp)
-% 
-%         curr_units = find(striatum_sua_grp.kidx == curr_k & ...
-%             plot_day_grp == curr_day_grp & celltype_id ~= 0 & any(striatum_units_responsive,2));
-% 
-%         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
-% 
-%         rc_diff = diff(curr_unit_mean(:,[2,3]),[],2);
-%         rl_diff = diff(curr_unit_mean(:,[1,3]),[],2);
-% 
-%         n_shuff = 1000;
-%         rc_shuff_med = nan(n_shuff,3);
-%         rl_shuff_med = nan(n_shuff,3);
-%         for curr_shuff = 1:n_shuff
-% 
-%             data_shuff = ap.shake(curr_unit_mean(:,[2,3]),2);
-%             shuff_diff = diff(data_shuff,[],2);
-%             rc_shuff_med(curr_shuff,:) = ...
-%                 ap.nestgroupfun({@nanmean,@nanmean},shuff_diff, ...
-%                 striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
-% 
-%             data_shuff = ap.shake(curr_unit_mean(:,[1,3]),2);
-%             shuff_diff = diff(data_shuff,[],2);
-%             rl_shuff_med(curr_shuff,:) = ...
-%                 ap.nestgroupfun({@nanmean,@nanmean},shuff_diff, ...
-%                 striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
-%         end
-%         rc_shuff_ci = prctile(rc_shuff_med,[5,95],1);
-%         rl_shuff_ci = prctile(rl_shuff_med,[5,95],1);
-% 
-%         nexttile; hold on;
-% 
-%         rl_diff_med = ap.nestgroupfun({@nanmean,@nanmean},rl_diff, ...
-%             striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
-%         rl_diff_sem = ap.nestgroupfun({@nanmean,@AP_sem},rl_diff, ...
-%             striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
-% 
-%         rc_diff_med = ap.nestgroupfun({@nanmean,@nanmean},rc_diff, ...
-%             striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
-%         rc_diff_sem = ap.nestgroupfun({@nanmean,@AP_sem},rc_diff, ...
-%             striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
-% 
-%         % plot x-categories in given order
-%         celltype_x = reordercats(categorical(celltype_order),celltype_order);
-% 
-%         errorbar(celltype_x,rc_diff_med,rc_diff_sem,'.b','MarkerSize',20);
-%         errorbar(celltype_x,rl_diff_med,rl_diff_sem,'.r','MarkerSize',20);
-% 
-%         plot(celltype_x,rc_shuff_ci,'_b','MarkerSize',20);
-%         plot(celltype_x,rl_shuff_ci,'_r','MarkerSize',20);
-% 
-%         yline(0)
-%         ylabel('Diff')
-% 
-%     end
-% end
-% linkaxes(h.Children,'xy');
-% legend({'R-C','R-L'});
-% ap.prettyfig;
-
-
 % Stim response by celltype
 celltype_order = {'msn','fsi','tan'};
 celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
@@ -597,7 +498,7 @@ for curr_k = 1:n_k
     for curr_day_grp = 1:max(plot_day_grp)
 
         curr_units = find(striatum_sua_grp.kidx == curr_k & ...
-            plot_day_grp == curr_day_grp & celltype_id ~= 0 & any(striatum_units_responsive,2));
+            plot_day_grp == curr_day_grp & celltype_id ~= 0);
 
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
 

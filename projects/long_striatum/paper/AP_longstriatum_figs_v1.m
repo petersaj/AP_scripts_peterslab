@@ -707,6 +707,136 @@ linkaxes(h.Children,'xy');
 title(h,'Cortex');
 ap.prettyfig;
 
+%% [Fig 4X] Striatal passive by cell type
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-inf,0,inf];
+plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
+
+stim_t = psth_t > 0.05 & psth_t < 0.15;
+
+n_stim = size(striatum_sua,3);
+
+% Plot heatmap
+for curr_k = 1:n_k
+    figure;
+    colormap(ap.colormap('WK',[],2));
+    h = tiledlayout(n_stim,max(plot_day_grp),'TileSpacing','compact');
+    for curr_stim = 1:n_stim
+        for curr_day_grp = 1:length(plot_day_bins)-1
+            nexttile;
+
+            curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+                plot_day_grp == curr_day_grp & ...
+                striatum_sua_grp.tan);
+
+            % (sort max across stim)
+            [~,sort_idx] = sort(max(mean(striatum_sua(curr_units,stim_t,:),2),[],3),'descend');
+
+            imagesc(psth_t,[],striatum_sua(curr_units(sort_idx),:,curr_stim));
+            clim([-1,1])
+            xlim([-0.2,0.8])
+            title(plot_day_bins(curr_day_grp));
+
+            % (unused: get rec/IDs of cells)
+            curr_sorted_unit_coordinate = ...
+                [ephys.animal(striatum_sua_grp.rec(curr_units(sort_idx))), ...
+                ephys.rec_day(striatum_sua_grp.rec(curr_units(sort_idx))), ...
+                num2cell(striatum_sua_grp.unit_id(curr_units(sort_idx)))];
+
+        end
+    end
+    title(h,sprintf('Striatal cluster %d',curr_k));
+    linkaxes(h.Children,'xy');
+    ap.prettyfig;
+end
+
+% Plot average
+figure;
+h = tiledlayout(n_k,n_stim*max(plot_day_grp),'TileSpacing','compact');
+stim_colormap = ap.colormap('BKR',n_stim);
+for curr_k = 1:n_k
+    for curr_day_grp = 1:length(plot_day_bins)-1
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & ...
+            striatum_sua_grp.tan);
+
+        curr_sua_mean = mean(ap.groupfun(@mean, ...
+            striatum_sua(curr_units,:,:),striatum_sua_grp.animal(curr_units)),1);
+        curr_sua_sem = AP_sem(ap.groupfun(@mean, ...
+            striatum_sua(curr_units,:,:),striatum_sua_grp.animal(curr_units)),1);
+
+        for curr_stim = 1:3
+            nexttile;
+            ap.errorfill(psth_t,curr_sua_mean(:,:,curr_stim),curr_sua_sem(:,:,curr_stim),stim_colormap(curr_stim,:));
+        end
+
+    end
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
+xlim(h.Children(1),[-0.2,0.8]);
+
+% Stim response by celltype
+celltype_order = {'msn','fsi','tan'};
+celltype_id = sum([striatum_sua_grp.(celltype_order{1}), ...
+    striatum_sua_grp.(celltype_order{2}), ...
+    striatum_sua_grp.(celltype_order{3})].*[1,2,3],2);
+
+stim_colormap = ap.colormap('BWR',n_stim);
+
+figure;
+h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_k
+    for curr_day_grp = 1:max(plot_day_grp)
+
+        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            plot_day_grp == curr_day_grp & celltype_id ~= 0);
+
+        curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
+
+        curr_act_mean = ap.nestgroupfun({@nanmean,@nanmean},curr_unit_mean, ...
+            striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
+
+        curr_act_sem = ap.nestgroupfun({@nanmean,@AP_sem},curr_unit_mean, ...
+            striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
+
+        nexttile; hold on; set(gca,'ColorOrder',stim_colormap);
+        celltype_x = reordercats(categorical(celltype_order),celltype_order);
+        b = bar(celltype_x,curr_act_mean);
+        errorbar(vertcat(b.XEndPoints)',curr_act_mean,curr_act_sem, ...
+            'marker','none','linestyle','none','color','k','linewidth',1);
+
+        % ~stats~ %
+        rc_diff = ap.nestgroupfun({@nanmean,@nanmean}, ...
+            diff(curr_unit_mean(:,[2,3]),[],2), ...
+            striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
+
+        n_shuff = 1000;
+        rc_diff_shuff = nan(3,n_shuff);
+        for curr_shuff = 1:n_shuff
+            data_shuff = ap.shake(curr_unit_mean(:,[2,3]),2);
+            rc_diff_shuff(:,curr_shuff) = ...
+                ap.nestgroupfun({@nanmean,@nanmean}, ...
+                diff(data_shuff,[],2), ...
+                striatum_sua_grp.animal(curr_units),celltype_id(curr_units));
+        end
+        stat_rank = tiedrank([rc_diff,rc_diff_shuff]');
+        stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+        title(sprintf('RvC p = %.2f/%.2f/%.2f',stat_p));
+
+    end
+end
+linkaxes(h.Children,'xy');
+legend({'L','C','R'});
+ap.prettyfig;
+
+
 %% [Fig 4X] Striatal task heatmap by cell type
 
 %%% Load data for figure
@@ -714,12 +844,13 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2:2,Inf];
+% plot_day_bins = [-Inf,-2:2,Inf];
+plot_day_bins = [-Inf,0,Inf];
 plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
 
-plot_kidx = [1:2];
+plot_kidx = [1];
 
-stim_t = psth_t > 0 & psth_t < 0.2;
+stim_t = psth_t > 0.05 & psth_t < 0.15;
 
 % Plot grouped days
 figure;
@@ -738,8 +869,11 @@ for curr_day_grp = 1:length(plot_day_bins)-1
     title(plot_day_bins(curr_day_grp));
 
     nexttile;
-    ap.errorfill(psth_t,mean(striatum_sua(curr_units,:),1), ...
-        AP_sem(striatum_sua(curr_units,:),1),'k');
+    curr_sua_mean = mean(ap.groupfun(@mean, ...
+        striatum_sua(curr_units,:,:),striatum_sua_grp.animal(curr_units)),1);
+    curr_sua_sem = AP_sem(ap.groupfun(@mean, ...
+        striatum_sua(curr_units,:,:),striatum_sua_grp.animal(curr_units)),1);
+    ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,'k');
 
 end
 linkaxes(h.Children(1:2:end),'xy');
