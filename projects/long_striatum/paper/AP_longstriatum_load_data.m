@@ -181,7 +181,7 @@ end
 
 %% Ephys: create indicies for single units
 
-% Normalize and smooth single
+% Normalize and smooth single unit PSTHs
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 1;

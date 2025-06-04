@@ -52,9 +52,15 @@ for workflow_idx = 1:2
 
         stim_x = vertcat(trial_events.values.TrialStimX);
 
+        % (quiescent trials only)
         use_align = cellfun(@(x) ...
             stimOn_times(stim_x(1:length(stimOn_times)) == x & quiescent_trials), ...
             num2cell(unique(stim_x)),'uni',false);
+        % % (all trials)
+        % use_align = cellfun(@(x) ...
+        %     stimOn_times(stim_x(1:length(stimOn_times)) == x), ...
+        %     num2cell(unique(stim_x)),'uni',false);
+        
         trial_sort = cellfun(@(x) 1:length(x),use_align,'uni',false);
 
     elseif contains(bonsai_workflow,'wheel')
