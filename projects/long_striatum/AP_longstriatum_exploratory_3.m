@@ -626,5 +626,27 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 
+% Plot average
+figure;
+h = tiledlayout(1,max(plot_day_grp),'TileSpacing','compact');
+stim_colormap = ap.colormap('BKR',n_stim);
+for curr_day_grp = 1:length(plot_day_bins)-1
+    curr_units = find(...
+        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+        plot_day_grp == curr_day_grp & ...
+        striatum_sua_grp.tan);
+
+    curr_sua_mean = mean(ap.groupfun(@mean, ...
+        striatum_sua_task(curr_units,:),striatum_sua_grp.animal(curr_units)),1);
+    curr_sua_sem = AP_sem(ap.groupfun(@mean, ...
+        striatum_sua_task(curr_units,:),striatum_sua_grp.animal(curr_units)),1);
+
+    nexttile;
+    ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,'k');
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
+xlim(h.Children(1),[-0.2,0.8]);
+
 
 
