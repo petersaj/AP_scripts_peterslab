@@ -37,7 +37,7 @@ striatum_celltypes.tan = striatal_units & ...
     ephysProperties.postSpikeSuppression_ms >= spike_param_post_spike_suppression;
 
 
-% Plot units by cell type
+% Plot units by cell type (off by default)
 if false
 
     striatum_celltype_names = ["msn","fsi","tan"];
