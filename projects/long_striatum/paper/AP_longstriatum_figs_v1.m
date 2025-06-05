@@ -538,9 +538,8 @@ plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
 
 % Grab "responsive" striatal units
-unit_responsive_p_thresh = 0.05;
-unit_responsive = cell2mat(cellfun(@(x) cell2mat(x)', ...
-    horzcat(ephys.unit_resp_p_value{:})','uni',false)) < unit_responsive_p_thresh;
+unit_responsive_p_thresh = 0.95;
+unit_responsive = cell2mat(horzcat(ephys.unit_resp_p_value{:})') > unit_responsive_p_thresh;
 striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
 
 % Get fraction of responsive unit (restrict to MSNs)
