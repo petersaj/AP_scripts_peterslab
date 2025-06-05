@@ -487,7 +487,6 @@ for curr_day_grp = 1:length(plot_day_bins)-1
         imagesc(psth_t,[],striatum_sua(plot_units,:,curr_stim));
         clim([-1,1])
         xlim([-0.2,0.8])
-        title(plot_day_bins(curr_day_grp));
         yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
     end
 
@@ -506,6 +505,14 @@ for curr_unit = 1:size(psth_unit_coordinates,1)
     plot_units = psth_unit_coordinates{curr_unit,3};
     AP_longstriatum_psth_fig;
 end
+
+
+curr_unit = 249+1;
+animal = curr_sorted_unit_coordinate{curr_unit,1};
+rec_day = curr_sorted_unit_coordinate{curr_unit,2};
+plot_units = curr_sorted_unit_coordinate{curr_unit,3};
+AP_longstriatum_psth_fig;
+
 
 % Plot average
 figure;
@@ -532,7 +539,7 @@ ap.prettyfig;
 xlim(h.Children(1),[-0.2,0.8]);
 
 % Stim response by celltype
-plot_celltypes = ["tan","msn"];
+plot_celltypes = ["tan","fsi","msn"];
 celltype_id = sum(cell2mat(arrayfun(@(x) ...
     striatum_sua_grp.(plot_celltypes(x)).*x, ...
     1:length(plot_celltypes),'uni',false)),2);
@@ -614,10 +621,10 @@ for curr_day_grp = 1:length(plot_day_bins)-1
 
     % (sort max stim, then max within stim)
     sort_idx_cell = cell(3,1);
-    [~,max_stim] = max(mean(striatum_sua(curr_units,stim_t,:),2),[],3);
+    [~,max_stim] = max(striatum_sua_tavg,[],2);
     for curr_stim_sort = 1:3
-        curr_stim_units = find(max_stim==curr_stim_sort);
-        [~,curr_sort_idx] = sort(max(mean(striatum_sua(curr_units(curr_stim_units),stim_t,curr_stim_sort),2),[],3),'descend');
+        curr_stim_units = find(max_stim(curr_units)==curr_stim_sort);
+        [~,curr_sort_idx] = sort(max(striatum_sua_tavg(curr_units(curr_stim_units),curr_stim_sort),[],2),'descend');
         sort_idx_cell{curr_stim_sort} = curr_stim_units(curr_sort_idx);
     end
     sort_idx = cell2mat(sort_idx_cell);
@@ -633,7 +640,6 @@ for curr_day_grp = 1:length(plot_day_bins)-1
     imagesc(psth_t,[],striatum_sua_task(plot_units,:));
     clim([-1,1])
     xlim([-0.2,0.8])
-    title(plot_day_bins(curr_day_grp));
     yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
 
 end
@@ -657,7 +663,7 @@ for curr_day_grp = 1:length(plot_day_bins)-1
         striatum_sua_task(curr_units,:),striatum_sua_grp.animal(curr_units)),1);
 
     nexttile;
-    ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,'k');
+    ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,[0.7,0,0]);
 end
 linkaxes(h.Children,'xy');
 ap.prettyfig;

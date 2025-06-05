@@ -1,20 +1,9 @@
-
-% Set animal/day/units
-
-% % (TAN)
-% animal = 'AP025';
-% rec_day = '2024-09-11';
-% plot_units = [270];
-
-% % (TAN)
-% animal = 'AP023';
-% rec_day = '2024-09-09';
-% plot_units = [289,268];
-
-% % (ad hoc)
-% animal = 'AM022';
-% rec_day = '2024-04-05';
-% plot_units = [187];
+% Plot task and passive PSTH/rasters for longstriatum data
+%
+% Set variables: 
+% animal
+% rec_day
+% plot_units (can be multiple)
 
 % Make figures
 h = gobjects(length(plot_units),1);
@@ -60,7 +49,7 @@ for workflow_idx = 1:2
         % use_align = cellfun(@(x) ...
         %     stimOn_times(stim_x(1:length(stimOn_times)) == x), ...
         %     num2cell(unique(stim_x)),'uni',false);
-        
+
         trial_sort = cellfun(@(x) 1:length(x),use_align,'uni',false);
 
     elseif contains(bonsai_workflow,'wheel')

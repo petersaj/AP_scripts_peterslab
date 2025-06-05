@@ -110,7 +110,7 @@ end
 
 
 %% Julie's method
-% EPHYS PROPERTIES BROKEN AT THE MOMENT - BUG?
+% EPHYS PROPERTIES BROKEN AT THE MOMENT - is this a bombcell bug?
 % 
 % ephysProperties = bc.ep.runAllEphysProperties(convertStringsToChars(kilosort_path), convertStringsToChars(qMetrics_path), false,[]);
 % ephysProperties = ephysProperties(good_templates,:);
