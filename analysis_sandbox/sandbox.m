@@ -370,9 +370,13 @@ xline(0);
 
 
 
-%% Get raw waveforms
+%% Run longstriatum package
 
+clear
+Marica_2025.package.save_wf_passive
 
+clear
+Marica_2025.package.save_wf_task
 
 
 
