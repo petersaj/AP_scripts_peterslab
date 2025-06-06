@@ -30,6 +30,10 @@ end
 clearvars -except load_dataset
 fprintf('Loading dataset: %s...\n',load_dataset);
 
+%% Set data path 
+
+data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
+
 
 %% Behavior
 
@@ -38,8 +42,7 @@ use_stat = 'firstmove_mean';
 learn_stat_p = 0.05;
 
 % Load behavior
-data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
-load(fullfile(data_path,'swr_bhv_v2'));
+load(fullfile(data_path,'bhv'));
 
 % Set (overwrite) "learned_days" and "days_from_learning"
 bhv.learned_days = cellfun(@(x) x < learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
@@ -54,9 +57,8 @@ end
 %% K-means on maps 
 
 % Load maps
-data_path = fullfile(plab.locations.server_path,'Users','Andrada-Maria_Marica','long_str_ctx_data');
-load(fullfile(data_path,'ctx_maps_to_str'));
-U_size = size(all_ctx_maps_to_str.cortex_kernel_px{1},[1,2]);
+load(fullfile(data_path,'ctx_str_maps'));
+U_size = size(ctx_str_maps.cortex_striatum_map{1},[1,2]);
 
 % K-means cluster maps
 n_k = 3;
@@ -64,51 +66,37 @@ n_k = 3;
 % (kmeans starting as maps averaged by depth)
 kmeans_starting = nanmean(cell2mat(permute(cellfun(@(x) ...
     ap.groupfun(@mean,x,[],[],ap.quantile_bin(size(x,3),n_k)), ...
-    all_ctx_maps_to_str.cortex_kernel_px(cellfun(@(x) ...
-    size(x,3) >= n_k,all_ctx_maps_to_str.cortex_kernel_px)),'uni',false),[2,3,4,1])),4);
+    ctx_str_maps.cortex_striatum_map(cellfun(@(x) ...
+    size(x,3) >= n_k,ctx_str_maps.cortex_striatum_map)),'uni',false),[2,3,4,1])),4);
 
 [kidx,kmeans_centroid_flat] = kmeans(...
-    reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}),prod(U_size),[])',n_k, ...
+    reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])',n_k, ...
     'Distance','correlation','start',reshape(kmeans_starting,[],n_k)');
 
 kmeans_centroid = reshape(kmeans_centroid_flat', ...
     size(kmeans_starting,1),size(kmeans_starting,2),[]);
 
 kmeans_cluster_mean = reshape(ap.groupfun(@nanmean, ...
-    reshape(cat(3,all_ctx_maps_to_str.cortex_kernel_px{:}), ...
+    reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}), ...
     prod(U_size),[]),[],kidx),[U_size,n_k]);
 
 % Package kidx by recording
 kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
-    all_ctx_maps_to_str.cortex_kernel_px));
+    ctx_str_maps.cortex_striatum_map));
 
 
 %% Widefield and ephys
-
-% Set data path
-data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
 
 % Load master U
 U_master = plab.wf.load_master_U;
 
 switch load_dataset
-
     case 'passive'
-
-        % Load ephys
         load(fullfile(data_path,'ephys_passive'));
-
-        % Load widefield
         load(fullfile(data_path,'wf_passive'));
-
     case 'task'
-
-        % Load ephys
         load(fullfile(data_path,'ephys_task'));
-
-        % Load widefield
         load(fullfile(data_path,'wf_task'));
-
 end
 
 
@@ -237,10 +225,10 @@ wf_t = wf.wf_stim_time{1};
 wf_grp = struct;
 
 wf_grp.animal = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-    num2cell(grp2idx(wf.animal)),wf.V_stim_align,'uni',false));
+    num2cell(grp2idx(wf.animal)),wf.V_event_align,'uni',false));
 
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-    num2cell(bhv.days_from_learning),wf.V_stim_align,'uni',false));
+    num2cell(bhv.days_from_learning),wf.V_event_align,'uni',false));
 
 switch load_dataset
     case 'task'
@@ -251,7 +239,7 @@ switch load_dataset
         wf_grp.stim = cell2mat(wf.trial_stim_values);
 end
 
-cortex_trials_rec_n = cellfun(@(x) size(x,1),wf.V_stim_align);
+cortex_trials_rec_n = cellfun(@(x) size(x,1),wf.V_event_align);
 
 
 %% Widefield ROIs by corticostriatal maps
@@ -271,7 +259,7 @@ end
 
 % Get ROI activity
 wf_striatum_roi = permute(ap.wf_roi(U_master, ...
-    permute(cell2mat(wf.V_stim_align),[3,2,1]),[],[],striatum_wf_roi),[3,2,1]);
+    permute(cell2mat(wf.V_event_align),[3,2,1]),[],[],striatum_wf_roi),[3,2,1]);
 
 % (baseline-subtract)
 baseline_t = wf_t < 0;

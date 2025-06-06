@@ -584,7 +584,7 @@ plot_day_bins = [-Inf,-1:1,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 stim_t = wf_t > 0 & wf_t < 0.2;
-[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_stim_align), ...
+[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_event_align), ...
     [wf_grp.animal,plot_day_grp,cell2mat(wf.trial_stim_values)]);
 
 wf_max_px = permute(max(plab.wf.svd2px(U_master,permute(wf_avg(:,stim_t,:),[3,2,1])),[],3),[1,2,4,3]);

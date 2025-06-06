@@ -3,19 +3,20 @@
 
 %% Align mousecam to event
 
-% % (passive)
-% stim_window = [0,0.1];
-% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-%     1:length(stimOn_times))';
+% (passive)
+stim_window = [0,0.2];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
+
 % use_align = stimOn_times(quiescent_trials);
 
-% stim_x = vertcat(trial_events.values.StimFrequence);
-% use_align = stimOn_times(stim_x == 8000);
+stim_x = vertcat(trial_events.values.StimFrequence);
+use_align = stimOn_times(stim_x == 8000  & quiescent_trials);
 
 % stim_x = vertcat(trial_events.values.TrialStimX);
-use_align = stimOn_times(stim_x == 90);
+% use_align = stimOn_times(stim_x == 90);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x(1:n_trials) == 90);
@@ -182,7 +183,7 @@ xlabel('Time from event');
 %     'AP023','AP025'};
 
 % animals = {'AM018','AM019','AM021','AM022'};
-animals = {'DS011'};
+animals = {'DS000'};
 % animals = {'DS016'};
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
 
@@ -202,8 +203,8 @@ for curr_animal_idx = 1:length(animals)
     animal = animals{curr_animal_idx};
 
     % use_workflow = 'stim_wheel*';
-    use_workflow = 'stim_wheel_right_stage\d';
-    % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
+    % use_workflow = 'stim_wheel_right_stage\d';
+    use_workflow = 'stim_wheel_right_stage\d_audio_volume';
 %     use_workflow = '*audio_volume*';
 %     use_workflow = '*audio_frequency*';
 %     use_workflow = '*no_change*';

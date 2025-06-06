@@ -83,8 +83,8 @@ for curr_animal = 1:length(animals)
                 plab.locations.filename('server',animal,rec_day,[], ...
                 'widefield',sprintf('widefield_%s_metadata.bin',curr_rec_time));
 
-            dropped_frames = find_dropped_frames_bad(widefield_metadata_fn,false);
-            % dropped_frames = plab.wf.find_dropped_frames(widefield_metadata_fn,false);
+            % dropped_frames = find_dropped_frames_bad(widefield_metadata_fn,false);
+            dropped_frames = plab.wf.find_dropped_frames(widefield_metadata_fn,false);
             
             if ~isempty(dropped_frames)
                 dropped_frame_n{curr_animal}(curr_recording_idx) = ...
@@ -108,5 +108,6 @@ nexttile;
 plot(datetime(x_grp,'ConvertFrom','datenum'),x,'k','linewidth',2);
 ylabel('Dropped frames');
 xline(datetime('2025-05-21'),'r','Sophos off');
+xline(datetime('2025-05-30'),'r','Sophos internet-only');
 
 ap.prettyfig;

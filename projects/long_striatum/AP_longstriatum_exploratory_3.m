@@ -494,17 +494,17 @@ end
 linkaxes(h.Children,'xy');
 ap.prettyfig;
 
-% Plot example PSTHs
-psth_unit_coordinates = { ...
-    'AM026','2024-07-25',354; ... % pre-learn
-    'AM022','2024-04-06',246};    % post-learn
-
-for curr_unit = 1:size(psth_unit_coordinates,1)
-    animal = psth_unit_coordinates{curr_unit,1};
-    rec_day = psth_unit_coordinates{curr_unit,2};
-    plot_units = psth_unit_coordinates{curr_unit,3};
-    AP_longstriatum_psth_fig;
-end
+% % Plot example PSTHs
+% psth_unit_coordinates = { ...
+%     'AM026','2024-07-25',354; ... % pre-learn
+%     'AM022','2024-04-06',246};    % post-learn
+% 
+% for curr_unit = 1:size(psth_unit_coordinates,1)
+%     animal = psth_unit_coordinates{curr_unit,1};
+%     rec_day = psth_unit_coordinates{curr_unit,2};
+%     plot_units = psth_unit_coordinates{curr_unit,3};
+%     AP_longstriatum_psth_fig;
+% end
 
 %%%% TESTING
 % curr_unit = 249+1;
