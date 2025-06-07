@@ -259,11 +259,12 @@ end
 
 % Get ROI activity
 wf_striatum_roi = permute(ap.wf_roi(U_master, ...
-    permute(cell2mat(wf.V_event_align),[3,2,1]),[],[],striatum_wf_roi),[3,2,1]);
+    permute(cell2mat(wf.V_event_align),[3,2,1,4]),[],[],striatum_wf_roi),[3,2,1,4]);
+warning('Why does this step take so long?')
 
 % (baseline-subtract)
 baseline_t = wf_t < 0;
-wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:),2);
+wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:,:),2);
 
 
 %% Set flag for loaded data

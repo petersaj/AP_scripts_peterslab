@@ -113,7 +113,7 @@ learn_colormap = ap.colormap('BKR',3);
 prepost_colormap = max(0,learn_colormap([1,end],:)-0.2);
 
 % Plot average task activity (pre/post learning)
-stim_x = [-0.2,0.3];
+stim_x = [-0.2,0.15];
 move_x = [-0.05,0.4];
 outcome_x = [-0.1,0.5];
 
@@ -125,9 +125,9 @@ for curr_depth = 1:n_k
     % Stim
     nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
     curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
-        striatum_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        striatum_mua(curr_trials,:,1),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
-        striatum_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        striatum_mua(curr_trials,:,1),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
     xlim(stim_x);
     xline(0);
@@ -135,9 +135,9 @@ for curr_depth = 1:n_k
     % Move
     nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
     curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
-        striatum_move_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        striatum_mua(curr_trials,:,2),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
-        striatum_move_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        striatum_mua(curr_trials,:,2),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
     xlim(move_x);
     xline(0);
@@ -145,9 +145,9 @@ for curr_depth = 1:n_k
     % Outcome
     nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
     curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
-        striatum_outcome_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        striatum_mua(curr_trials,:,3),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
-        striatum_outcome_mua(curr_trials,:),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        striatum_mua(curr_trials,:,3),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
     ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
     xlim(outcome_x);
     xline(0);
@@ -181,7 +181,7 @@ for curr_k = 1:n_k
         curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.kidx == curr_k);
        
         [~,sort_idx] = sort(striatum_mua_grp.rxn(curr_trials));      
-        imagesc(psth_t,[],movmean(striatum_mua(curr_trials(sort_idx),:),heatmap_smooth));
+        imagesc(psth_t,[],movmean(striatum_mua(curr_trials(sort_idx),:,1),heatmap_smooth));
         colormap(ap.colormap('WK'));
         clim([0,3]);
         axis off;
@@ -211,8 +211,8 @@ for curr_k = 1:n_k
         curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.kidx == curr_k);      
         
         % Average all data
-        curr_data = striatum_mua(curr_trials,:);
-        curr_data_no_move = striatum_mua(curr_trials,:).* ...
+        curr_data = striatum_mua(curr_trials,:,1);
+        curr_data_no_move = curr_data.* ...
             ap.nanout(psth_t > striatum_mua_grp.rxn(curr_trials)-move_leeway);
 
         curr_data_mean = mean(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
@@ -264,7 +264,7 @@ split_idx = cell2mat(cellfun(@(n_trials,n_mua) ...
 
 % (mean across trials, max in time window, mean across animals)
 use_trials = striatum_mua_grp.rxn > rxn_cutoff;
-[activity_mean,activity_mean_grp] = ap.groupfun(@mean,striatum_mua(use_trials,:), ...
+[activity_mean,activity_mean_grp] = ap.groupfun(@mean,striatum_mua(use_trials,:,1), ...
     [striatum_mua_grp.animal(use_trials),plot_day_grp(use_trials), ...
     split_idx(use_trials),striatum_mua_grp.kidx(use_trials)]);
 
@@ -327,7 +327,7 @@ for curr_k = 1:n_k
         curr_trials = find(plot_day_grp == curr_day);
        
         [~,sort_idx] = sort(wf_grp.rxn(curr_trials));
-        imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_k),heatmap_smooth));
+        imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_k,1),heatmap_smooth));
         colormap(ap.colormap('PWG'));
         clim(max(abs(clim)).*[-1,1]);
         axis off;
@@ -358,14 +358,14 @@ for curr_k = 1:n_k
         curr_trials = find(plot_day_grp == curr_day);      
         
         % Average all data
-        curr_data = wf_striatum_roi(curr_trials,:,curr_k);
+        curr_data = wf_striatum_roi(curr_trials,:,curr_k,1);
 
         curr_data_mean = mean(ap.groupfun(@nanmean,curr_data,wf_grp.animal(curr_trials)),1);
         curr_data_sem = AP_sem(ap.groupfun(@nanmean,curr_data,wf_grp.animal(curr_trials)),1);
 
         % Average data with movement removede
         % (only plot no-move timepoints with at least N trials and N animals)
-        curr_data_no_move = wf_striatum_roi(curr_trials,:,curr_k).* ...
+        curr_data_no_move = curr_data.* ...
             AP_nanout(wf_t > wf_grp.rxn(curr_trials)-move_leeway);
 
         min_nomove_trials = 10;
