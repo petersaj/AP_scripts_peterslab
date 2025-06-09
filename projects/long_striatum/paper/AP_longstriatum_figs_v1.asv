@@ -166,18 +166,30 @@ plot_day_grp = discretize(max(wf_map_grp.ld,-inf),plot_day_bins);
     reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])', ...
     wf_map_grp.animal,[plot_day_grp,kidx]);
 
+
 figure;
-h = tiledlayout(n_k,length(plot_day_bins)-1,'TileSpacing','none');
+h = tiledlayout(n_k,
+
+
+% Plot maps by day
+[map_avg,map_grp] = ap.nestgroupfun({@nanmean,@nanmean}, maps_flat_cat',...
+    map_animal_grp,[kidx,map_plotday_grp]);
+
+figure;
+h = tiledlayout(n_k,length(plotday_bins)-1,'TileSpacing','none');
 for curr_k = 1:n_k
-    for curr_day = 1:length(plot_day_bins)-1
-        curr_data_idx = ismember(wf_map_avg_grp,[curr_k,curr_day],'rows');
-        
+    for curr_day = 1:length(plotday_bins)-1
         nexttile;
-        imagesc(reshape(wf_map_avg(curr_data_idx,:),size(U_master,[1,2])));
-        axis image off;
+        curr_idx = map_grp(:,1) == curr_k & map_grp(:,2) == curr_day;
+        imagesc(reshape(map_avg(curr_idx,:),U_size));
+        ap.wf_draw('ccf','k');
+
+        axis off image;
         colormap(ap.colormap('PWG'));
+        clim(max(abs(map_avg),[],'all').*[-1,1].*0.6);
     end
 end
+
 
 
 %% [Fig 2X] Striatum task trial heatmap (reaction-sorted)

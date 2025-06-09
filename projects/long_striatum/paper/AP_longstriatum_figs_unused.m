@@ -35,6 +35,27 @@ for curr_depth = 1:n_depths
 end
 ap.prettyfig;
 
+
+%% [Fig 1X] K-means cluster means
+
+%%% Load data for figure
+load_dataset = 'task';
+AP_longstriatum_load_data;
+%%%
+
+figure;
+h = tiledlayout(n_k,1,'tilespacing','none');
+for curr_k = 1:n_k
+    nexttile;
+    imagesc(kmeans_cluster_mean(:,:,curr_k));
+    axis image off
+    clim(max(abs(clim)).*[-1,1]);
+    colormap(ap.colormap('PWG'));
+    ap.wf_draw('ccf',[0.5,0.5,0.5]);
+end
+ap.prettyfig;
+
+
 %% [Fig 1X] Striatal MUA pre/post learning (using final kidx)
 
 %%% Load data for figure
@@ -96,6 +117,7 @@ end
 % (set same data aspect to have same x-size)
 [h.Children.DataAspectRatio] = deal(min(vertcat(h.Children.DataAspectRatio),[],1));
 ap.prettyfig;
+
 
 %% [Fig 1X] Striatal MUA pre/post learning (using starting kidx)
 
