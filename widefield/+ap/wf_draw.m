@@ -9,7 +9,8 @@ function h = wf_draw(type,color,manual_bregma)
 % - grid
 % - point: [AP,ML] in mm transformed via CCF alignment
 % - point_absolute: [AP,ML] in mm absolute distance (um/px)
-% - ccf: all cortical areas
+% - cortex: outline of whole cortex
+% - ccf: all cortical area boundaries
 % - area: search and plot CCF area
 %
 % Color: color of overlay
@@ -49,13 +50,13 @@ else
 end
 
 % Load top-down cortical regions
+% (these are generated in commented region at bottom of this script)
 load(fullfile(alignment_path,'dorsal_cortex_borders.mat'));
-
-dorsal_cortex_borders_aligned_long = cellfun(@(areas) cellfun(@(coords) ...
-    [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,areas,'uni',false), ...
-    dorsal_cortex_borders,'uni',false);
-dorsal_cortex_borders_aligned = cellfun(@(areas) cellfun(@(coords) ...
-    coords,areas,'uni',false),dorsal_cortex_borders_aligned_long,'uni',false);
+% (align CCF to widefield with transform from `plab.wf.wf_align`)
+vfs_align = @(coords) [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T;
+dorsal_cortex_outline_aligned = vfs_align(dorsal_cortex_outline);
+dorsal_cortex_borders_aligned = cellfun(@(areas) ...
+    cellfun(vfs_align,areas,'uni',false),dorsal_cortex_borders,'uni',false);
 
 
 %% Draw object
@@ -119,8 +120,13 @@ switch type
             bregma_offset_y-point_ap*1000/um2pixel,'.b','markersize',20);
         warning('um/px: needs more accurate measurement');
         
+    case 'cortex'
+        % Plot cortex outline (aligned to master retinotopy)
+        h = plot(dorsal_cortex_outline_aligned(:,1), ...
+            dorsal_cortex_outline_aligned(:,2),'color',color);
+
     case 'ccf'
-        % Plot CCF borders aligned to master retinotopy        
+        % Plot cortex area borders (aligned to master retinotopy)
         h = cellfun(@(areas) cellfun(@(outline) ...
             plot(outline(:,1),outline(:,2),'color',color),areas,'uni',false), ...
                 dorsal_cortex_borders_aligned,'uni',false);
@@ -160,13 +166,13 @@ switch type
         
 end
 
-% %% Create top-down cortical boundaries from CCF (tilt CCF) (RUN ONCE)
+% %% Create top-down cortical boundaries from CCF (RUN ONCE)
 % %
 % % NOTE: CCF IN NATIVE FORMAT (NOT SCALED OR ROTATED)
 % 
 % % Set save path
 % alignment_path = fullfile(plab.locations.server_path, ...
-%     'Users','Andy_Peters','widefield_alignment');
+%     'Lab','widefield_alignment');
 % 
 % % Load in the annotated Allen volume and names
 % allen_atlas_path = fileparts(which('template_volume_10um.npy'));
@@ -216,7 +222,10 @@ end
 % 
 % plot_areas = intersect(used_areas,ctx_idx);
 % 
-% % Get outlines of all areas (full/left hemi)
+% % Get borders to keep
+% % (all cortex together)
+% dorsal_cortex_outline = cell2mat(bwboundaries(ismember(dorsal_ccf_annotation,plot_areas)));
+% % (all cortical areas)
 % dorsal_cortex_borders = cell(size(plot_areas));
 % for curr_area_idx = 1:length(plot_areas)
 %     dorsal_cortex_borders{curr_area_idx} = bwboundaries(dorsal_ccf_annotation == plot_areas(curr_area_idx));
@@ -234,12 +243,13 @@ end
 % imagesc(dorsal_ccf_annotation);
 % cellfun(@(x) cellfun(@(x) plot(x(:,2),x(:,1),'k','linewidth',2),x,'uni',false), ...
 %     dorsal_cortex_borders,'uni',false);
+% plot(dorsal_cortex_outline(:,2),dorsal_cortex_outline(:,1),'r','linewidth',2);
 % colormap(ccf_cmap);
 % title('Dorsal cortical areas');
 % 
 % % Save borders
 % save_fn = fullfile(alignment_path,'dorsal_cortex_borders');
-% save(save_fn,'dorsal_cortex_borders','dorsal_ccf_annotation');
+% save(save_fn,'dorsal_cortex_outline','dorsal_cortex_borders','dorsal_ccf_annotation');
 % disp(['Saved ' save_fn]);
 
 
