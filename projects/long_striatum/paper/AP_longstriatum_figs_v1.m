@@ -167,17 +167,22 @@ plot_day_grp = discretize(max(wf_map_grp.ld,-inf),plot_day_bins);
     wf_map_grp.animal,[plot_day_grp,kidx]);
 
 figure;
+k_color = {'R','G','B'};
 h = tiledlayout(n_k,length(plot_day_bins)-1,'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = 1:length(plot_day_bins)-1
-        curr_data_idx = ismember(wf_map_avg_grp,[curr_k,curr_day],'rows');
+        curr_data_idx = ismember(wf_map_avg_grp,[curr_day,curr_k],'rows');
         
         nexttile;
         imagesc(reshape(wf_map_avg(curr_data_idx,:),size(U_master,[1,2])));
         axis image off;
-        colormap(ap.colormap('PWG'));
+        colormap(gca,ap.colormap(['W',k_color{curr_k}],[],2));
+        clim([0,0.01]);
+        ap.wf_draw('cortex',[0.5,0.5,0.5]);
     end
 end
+
+ap.prettyfig;
 
 
 %% [Fig 2X] Striatum task trial heatmap (reaction-sorted)
