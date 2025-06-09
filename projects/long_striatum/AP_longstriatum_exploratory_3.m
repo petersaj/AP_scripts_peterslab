@@ -594,18 +594,18 @@ ap.prettyfig;
 %% Plot task heatmap with same sorting as above
 
 % Load task SUA
-load(fullfile(data_path,'task_ephys_outcome'));
+load(fullfile(data_path,'ephys_task'));
 
 psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 1;
 sua_baseline = cellfun(@(sua) ...
     mean(sua(:,baseline_t,:),[2,3]), ...
-    task_ephys.unit_event_psths,'uni',false,'ErrorHandler',@(varargin) NaN);
+    ephys.unit_event_psths,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 striatum_sua_task = cell2mat(cellfun(@(data,baseline,striatum_units) ...
     spikes_norm_smooth_reshape_fcn(data(striatum_units,:,:),baseline(striatum_units)), ...
-    task_ephys.unit_event_psths,sua_baseline,striatum_units,'uni',false));
+    ephys.unit_event_psths,sua_baseline,striatum_units,'uni',false));
 
 % Plot heatmap
 figure;
@@ -637,7 +637,7 @@ for curr_day_grp = 1:length(plot_day_bins)-1
         num2cell(striatum_sua_grp.unit_id(plot_units))];
 
     nexttile;
-    imagesc(psth_t,[],striatum_sua_task(plot_units,:));
+    imagesc(psth_t,[],striatum_sua_task(plot_units,:,1));
     clim([-1,1])
     xlim([-0.2,0.8])
     yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
@@ -658,9 +658,9 @@ for curr_day_grp = 1:length(plot_day_bins)-1
         striatum_sua_grp.tan);
 
     curr_sua_mean = mean(ap.groupfun(@mean, ...
-        striatum_sua_task(curr_units,:),striatum_sua_grp.animal(curr_units)),1);
+        striatum_sua_task(curr_units,:,1),striatum_sua_grp.animal(curr_units)),1);
     curr_sua_sem = AP_sem(ap.groupfun(@mean, ...
-        striatum_sua_task(curr_units,:),striatum_sua_grp.animal(curr_units)),1);
+        striatum_sua_task(curr_units,:,1),striatum_sua_grp.animal(curr_units)),1);
 
     nexttile;
     ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,[0.7,0,0]);
