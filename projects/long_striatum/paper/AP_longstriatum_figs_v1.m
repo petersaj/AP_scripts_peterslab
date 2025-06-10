@@ -143,7 +143,7 @@ end
 ap.prettyfig;
 
 
-%% [Fig 1x] Corticostriatal map pre/post learning
+%% [Fig 1X] Corticostriatal map pre/post learning
 
 %%% Load data for figure
 load_dataset = 'task';

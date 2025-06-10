@@ -420,8 +420,8 @@ AP_longstriatum_load_data;
 plot_kidx = 1;
 
 % Set days to group
-plot_day_bins = [-inf,0,inf];
-plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
+plot_day_bins = [-inf,-2,0,inf];
+plot_day_grp = discretize(max(-inf,striatum_sua_grp.ld),plot_day_bins);
 
 % Get max activity in type-relevant window
 celltypes = ["msn","fsi","tan"];
