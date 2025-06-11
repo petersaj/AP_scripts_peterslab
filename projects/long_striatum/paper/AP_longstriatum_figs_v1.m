@@ -8,12 +8,17 @@
 % panel be run independently, or for the entire script to be run straight
 % through)
 
+
+% TO DO: 
+% - replace load dataset with 'noact' for non-activity
+
+
 tic
 
 %% [Fig 1X] Reaction stat and learning histogram
 
 %%% Load data for figure
-load_dataset = 'task';
+load_dataset = 'noact';
 AP_longstriatum_load_data;
 %%%
 
@@ -25,49 +30,36 @@ rxn_cat = cell2mat(bhv.(['stimwheel_rxn_',use_stat]));
 rxn_null_cat = cell2mat(bhv.(['stimwheel_rxn_null_',use_stat]));
 rxn_idx_cat = (rxn_null_cat-rxn_cat)./(rxn_null_cat+rxn_cat);
 
-figure; h = tiledlayout(2,2);
+[rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_cat,bhv.days_from_learning);
+rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,bhv.days_from_learning);
 
-for day_align = 1:2
+rxn_mean = ap.groupfun(@mean,rxn_cat,bhv.days_from_learning);
+rxn_sem = ap.groupfun(@AP_sem,rxn_cat,bhv.days_from_learning);
 
-    switch day_align
-        case 1
-            use_plot_day_grp = training_day;
-            plot_x = 1:7;
-        case 2
-            use_plot_day_grp = bhv.days_from_learning;
-            plot_x = -3:2;
-    end
+rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,bhv.days_from_learning);
+rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,bhv.days_from_learning);
 
-    [rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_cat,use_plot_day_grp);
-    rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,use_plot_day_grp);
+plot_x = -3:2;
+plot_x_idx = ismember(rxn_group_x,plot_x);
 
-    rxn_mean = ap.groupfun(@mean,rxn_cat,use_plot_day_grp);
-    rxn_sem = ap.groupfun(@AP_sem,rxn_cat,use_plot_day_grp);
+figure; h = tiledlayout(1,2);
 
-    rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,use_plot_day_grp);
-    rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,use_plot_day_grp);
+nexttile; hold on;
+plot(rxn_group_x(plot_x_idx),rxn_null_mean(plot_x_idx),'r','linewidth',2);
+plot(rxn_group_x(plot_x_idx),rxn_mean(plot_x_idx),'k','linewidth',2);
+set(gca,'YScale','log');
+xline(0);
+ylabel('Reaction index')
 
-    plot_x_idx = ismember(rxn_group_x,plot_x);
-
-    nexttile; hold on;
-    % ap.errorfill(rxn_group_ld,rxn_null_mean,rxn_null_sem,'r',0.5,false);
-    % errorbar(rxn_group_ld,rxn_mean,rxn_sem,'k','linewidth',2);
-    plot(rxn_group_x(plot_x_idx),rxn_null_mean(plot_x_idx),'r','linewidth',2);
-    plot(rxn_group_x(plot_x_idx),rxn_mean(plot_x_idx),'k','linewidth',2);
-    set(gca,'YScale','log');
-    xline(0);
-    ylabel('Reaction index')
-
-    nexttile
-    errorbar(rxn_group_x(plot_x_idx),rxn_idx_mean(plot_x_idx),rxn_idx_sem(plot_x_idx),'k','linewidth',2);
-    xline(0);
-    ylabel('Reaction index')
-
-end
+nexttile
+errorbar(rxn_group_x(plot_x_idx),rxn_idx_mean(plot_x_idx),rxn_idx_sem(plot_x_idx),'k','linewidth',2);
+xline(0);
+ylabel('Reaction index')
 
 linkaxes(h.Children(1:2:end),'y');
 linkaxes(h.Children(2:2:end),'y');
 ap.prettyfig;
+
 
 % Plot histogram of learning days
 n_learned_day = cellfun(@(x) max([0, ...
@@ -77,6 +69,122 @@ figure;
 histogram(n_learned_day,-0.5:max(n_learned_day)+0.5,'FaceColor','k','EdgeColor','none');
 ylabel('Number of mice');
 xlabel('Days to learn');
+ap.prettyfig;
+
+
+%% [Fig 1X] Example striatal units and corticostriatal maps
+
+%%% Load data for figure
+load_dataset = 'noact';
+AP_longstriatum_load_data;
+%%%
+
+% Choose animal and day to plot
+use_animal = 'AM026';
+
+animal_days = find(strcmp(bhv.animal,use_animal));
+plot_days = [1,length(animal_days)];
+
+figure;
+h = tiledlayout(2,2);
+title(h,sprintf('%s, days %d,%d',use_animal,plot_days));
+for curr_rec_idx = plot_days
+
+    % Load data from example recording
+    use_rec = animal_days(curr_rec_idx);
+    animal = bhv.animal{use_rec};
+    rec_day = bhv.rec_day{use_rec};
+    recordings = plab.find_recordings(animal,rec_day,'stim_wheel*');
+    rec_time = recordings.recording{end};
+    load_parts.ephys = true;
+    ap.load_recording;
+
+    % Plot widefield average (last day recording only)
+    if curr_rec_idx == plot_days(end)
+        wf_day_path = plab.locations.filename('server',animal,rec_day,[],'widefield');
+        mean_image_fn = fullfile(wf_day_path,sprintf('meanImage_blue.npy'));
+        wf_avg = plab.wf.wf_align(readNPY(mean_image_fn),animal,rec_day);
+        figure;imagesc(wf_avg);
+        ap.wf_draw('cortex','y');
+        axis image off;
+        ap.prettyfig;
+    end
+
+    % Plot units and overlay clustering
+    domain_color = {'R','G','B'};
+    domain_color_rgb = [1,0,0;0,1,0;0,0,1];
+
+    ax = nexttile(h); hold on;
+
+    domain_im = permute(domain_color_rgb(domain_idx_rec{use_rec},:),[1,3,2]);
+    imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec},domain_im);
+    ax.YDir = 'reverse';
+
+    ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,[],ax)
+    yline(ctx_str_maps.depth_group_edges{use_rec},'linewidth',2,'color',[0.5,0.5,0.5]);
+
+    % Plot average domain map colored and combined
+    domain_avg = ap.groupfun(@mean,ctx_str_maps.cortex_striatum_map{use_rec},[],[],domain_idx_rec{use_rec});
+
+    col_lim = [0,0.01];
+    domain_colored = nan([size(domain_avg),3]);
+    for curr_domain = 1:n_domains
+        curr_colormap = ap.colormap(['W',domain_color{curr_domain}],[],2);
+        curr_map_gray = 1+round(mat2gray(domain_avg(:,:,curr_domain),col_lim).*(size(curr_colormap,1)-1));
+        domain_colored(:,:,curr_domain,:) = reshape(curr_colormap(curr_map_gray,:),size(curr_map_gray,1),size(curr_map_gray,2),3,[]);
+    end
+
+    domain_colored_combined = squeeze(min(domain_colored,[],3));
+    
+    nexttile(h);
+    image(domain_colored_combined)
+    axis image off;
+    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+
+end
+
+ap.prettyfig;
+
+
+%% [Fig 1X] Corticostriatal map pre/post learning
+
+%%% Load data for figure
+load_dataset = 'noact';
+AP_longstriatum_load_data;
+%%%
+
+% Make map indicies (not done in load data)
+wf_map_grp = struct;
+wf_map_grp.ld = cell2mat(cellfun(@(idx,maps) repmat(idx,size(maps,3).*~isempty(maps),1), ...
+    num2cell(bhv.days_from_learning),ctx_str_maps.cortex_striatum_map,'uni',false));
+wf_map_grp.animal = cell2mat(cellfun(@(idx,maps) repmat(idx,size(maps,3).*~isempty(maps),1), ...
+    num2cell(grp2idx(bhv.animal)),ctx_str_maps.cortex_striatum_map,'uni',false));
+
+% Group pre/post learn days
+plot_day_bins = [-Inf,-0,Inf];
+plot_day_grp = discretize(max(wf_map_grp.ld,-inf),plot_day_bins);
+
+% Get and plot average maps
+[wf_map_avg,wf_map_avg_grp] = ap.nestgroupfun({@mean,@mean}, ...
+    reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])', ...
+    wf_map_grp.animal,[plot_day_grp,domain_idx]);
+
+figure;
+domain_color = {'R','G','B'};
+h = tiledlayout(n_domains,length(plot_day_bins)-1,'TileSpacing','none');
+for curr_k = 1:n_domains
+    for curr_day = 1:length(plot_day_bins)-1
+        curr_data_idx = ismember(wf_map_avg_grp,[curr_day,curr_k],'rows');
+        
+        nexttile;
+        imagesc(reshape(wf_map_avg(curr_data_idx,:),size(U_master,[1,2])));
+        axis image off;
+        colormap(gca,ap.colormap(['W',domain_color{curr_k}],[],2));
+        clim([0,0.01]);
+        ap.wf_draw('cortex',[0.5,0.5,0.5]);
+    end
+end
+
 ap.prettyfig;
 
 
@@ -97,10 +205,10 @@ stim_x = [-0.2,0.15];
 move_x = [-0.05,0.4];
 outcome_x = [-0.1,0.5];
 
-figure; h = tiledlayout(n_k,3,'TileSpacing','tight');
-for curr_depth = 1:n_k
+figure; h = tiledlayout(n_domains,3,'TileSpacing','tight');
+for curr_depth = 1:n_domains
 
-    curr_trials = striatum_mua_grp.kidx == curr_depth;
+    curr_trials = striatum_mua_grp.domain_idx == curr_depth;
 
     % Stim
     nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
@@ -143,48 +251,6 @@ end
 ap.prettyfig;
 
 
-%% [Fig 1X] Corticostriatal map pre/post learning
-
-%%% Load data for figure
-load_dataset = 'task';
-AP_longstriatum_load_data;
-%%%
-
-% Make map indicies (not done in load data)
-wf_map_grp = struct;
-wf_map_grp.ld = cell2mat(cellfun(@(idx,maps) repmat(idx,size(maps,3).*~isempty(maps),1), ...
-    num2cell(bhv.days_from_learning),ctx_str_maps.cortex_striatum_map,'uni',false));
-wf_map_grp.animal = cell2mat(cellfun(@(idx,maps) repmat(idx,size(maps,3).*~isempty(maps),1), ...
-    num2cell(grp2idx(bhv.animal)),ctx_str_maps.cortex_striatum_map,'uni',false));
-
-% Group pre/post learn days
-plot_day_bins = [-Inf,-0,Inf];
-plot_day_grp = discretize(max(wf_map_grp.ld,-inf),plot_day_bins);
-
-% Get and plot average maps
-[wf_map_avg,wf_map_avg_grp] = ap.nestgroupfun({@mean,@mean}, ...
-    reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])', ...
-    wf_map_grp.animal,[plot_day_grp,kidx]);
-
-figure;
-k_color = {'R','G','B'};
-h = tiledlayout(n_k,length(plot_day_bins)-1,'TileSpacing','none');
-for curr_k = 1:n_k
-    for curr_day = 1:length(plot_day_bins)-1
-        curr_data_idx = ismember(wf_map_avg_grp,[curr_day,curr_k],'rows');
-        
-        nexttile;
-        imagesc(reshape(wf_map_avg(curr_data_idx,:),size(U_master,[1,2])));
-        axis image off;
-        colormap(gca,ap.colormap(['W',k_color{curr_k}],[],2));
-        clim([0,0.01]);
-        ap.wf_draw('cortex',[0.5,0.5,0.5]);
-    end
-end
-
-ap.prettyfig;
-
-
 %% [Fig 2X] Striatum task trial heatmap (reaction-sorted)
 
 %%% Load data for figure
@@ -196,11 +262,11 @@ plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
-figure; tiledlayout(n_k,max(plot_day_grp),'TileSpacing','none');
-for curr_k = 1:n_k
+figure; tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
+for curr_k = 1:n_domains
     for curr_day = unique(plot_day_grp)'
         nexttile;
-        curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.kidx == curr_k);
+        curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.domain_idx == curr_k);
        
         [~,sort_idx] = sort(striatum_mua_grp.rxn(curr_trials));      
         imagesc(psth_t,[],movmean(striatum_mua(curr_trials(sort_idx),:,1),heatmap_smooth));
@@ -225,12 +291,12 @@ plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 % Plot average activity in trial (NaN-out movement times)
-figure; h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','none');
+figure; h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
 move_leeway = 0.1; % time pre-movement to exclude
-for curr_k = 1:n_k
+for curr_k = 1:n_domains
     for curr_day = unique(plot_day_grp)'
         nexttile; hold on;
-        curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.kidx == curr_k);      
+        curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.domain_idx == curr_k);      
         
         % Average all data
         curr_data = striatum_mua(curr_trials,:,1);
@@ -288,7 +354,7 @@ split_idx = cell2mat(cellfun(@(n_trials,n_mua) ...
 use_trials = striatum_mua_grp.rxn > rxn_cutoff;
 [activity_mean,activity_mean_grp] = ap.groupfun(@mean,striatum_mua(use_trials,:,1), ...
     [striatum_mua_grp.animal(use_trials),plot_day_grp(use_trials), ...
-    split_idx(use_trials),striatum_mua_grp.kidx(use_trials)]);
+    split_idx(use_trials),striatum_mua_grp.domain_idx(use_trials)]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
 activity_max = max(activity_mean(:,max_t),[],2);
@@ -296,8 +362,8 @@ activity_max = max(activity_mean(:,max_t),[],2);
 activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},activity_max,activity_mean_grp(:,1),activity_mean_grp(:,2:end));
 
 figure;
-h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
-for curr_k = 1:n_k
+h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         nexttile; hold on;
         curr_data_idx = activity_max_grp(:,1) == curr_day & ...
@@ -320,8 +386,8 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-figure;tiledlayout(n_k,1,'tilespacing','none')
-for curr_k = 1:n_k
+figure;tiledlayout(n_domains,1,'tilespacing','none')
+for curr_k = 1:n_domains
     nexttile;
     imagesc(striatum_wf_roi(:,:,curr_k));
     axis image off; ap.wf_draw('ccf',[0.5,0.5,0.5]);
@@ -342,8 +408,8 @@ plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 % Plot heatmaps sorted by reaction times
 heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
-figure; tiledlayout(n_k,max(plot_day_grp),'TileSpacing','none');
-for curr_k = 1:n_k
+figure; tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
+for curr_k = 1:n_domains
     for curr_day = unique(plot_day_grp)'
         nexttile;
         curr_trials = find(plot_day_grp == curr_day);
@@ -372,9 +438,9 @@ plot_day_bins = [-Inf,-2:2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 % Plot average activity in trial (NaN-out movement times)
-figure; h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','none');
+figure; h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
 move_leeway = 0.1;
-for curr_k = 1:n_k
+for curr_k = 1:n_domains
     for curr_day = unique(plot_day_grp)'
         nexttile; hold on;
         curr_trials = find(plot_day_grp == curr_day);      
@@ -443,8 +509,8 @@ activity_max = permute(max(activity_mean(:,max_t,:),[],2),[1,3,2]);
 activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},activity_max,activity_mean_grp(:,1),activity_mean_grp(:,2:end));
 
 figure;
-h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
-for curr_k = 1:n_k
+h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','compact');
+for curr_k = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         nexttile; hold on;
         curr_data_idx = activity_max_grp(:,1) == curr_day;
@@ -475,14 +541,14 @@ day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)
 [striatum_mua_avg,striatum_mua_avg_grp] = ...
     ap.nestgroupfun({@mean,@mean}, ...
     striatum_mua,striatum_mua_grp.animal, ...
-    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.kidx]);
+    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
 striatum_mua_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
     striatum_mua,striatum_mua_grp.animal, ...
-    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.kidx]);
+    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
 
 unique_stim = unique(striatum_mua_grp.stim);
 figure;
-h = tiledlayout(n_k,max(plot_days_grp)*length(unique_stim),'TileSpacing','tight');
+h = tiledlayout(n_domains,max(plot_days_grp)*length(unique_stim),'TileSpacing','tight');
 for curr_k = unique(striatum_mua_avg_grp(:,3))'
     for curr_day = unique(striatum_mua_avg_grp(:,1))'
         for plot_stim = unique_stim'
@@ -516,7 +582,7 @@ plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 [striatum_mua_dayavg,striatum_mua_dayavg_grp] = ...
     ap.groupfun(@mean,striatum_mua, ...
-    [striatum_mua_grp.animal,plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.kidx]);
+    [striatum_mua_grp.animal,plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
 [striatum_mua_max,striatum_mua_max_grp] = ap.nestgroupfun({@mean,@mean}, ...
@@ -527,11 +593,11 @@ striatum_mua_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
     striatum_mua_dayavg_grp(:,2:end));
 
 figure;
-h = tiledlayout(n_k,1);
+h = tiledlayout(n_domains,1);
 stim_colormap = ap.colormap('BKR',3);
 binned_days_x = interp1(find(~isinf(plot_day_bins)),...
     plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
-for curr_k = unique(striatum_mua_grp.kidx)'
+for curr_k = unique(striatum_mua_grp.domain_idx)'
     nexttile; hold on; set(gca,'ColorOrder',stim_colormap);
     for curr_stim = unique(striatum_mua_grp.stim)'
         plot_grps = striatum_mua_max_grp(:,2) == curr_stim & ...
@@ -569,18 +635,18 @@ use_units = striatum_sua_grp.msn;
 
 [unit_responsive_mean,unit_responsive_mean_group] = ap.nestgroupfun({@mean,@mean}, ...
     +striatum_units_responsive(use_units,:),striatum_sua_grp.animal(use_units), ...
-    [plot_day_grp(use_units),striatum_sua_grp.kidx(use_units)]);
+    [plot_day_grp(use_units),striatum_sua_grp.domain_idx(use_units)]);
 
 unit_responsive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
     +striatum_units_responsive(use_units,:),striatum_sua_grp.animal(use_units), ...
-    [plot_day_grp(use_units),striatum_sua_grp.kidx(use_units)]);
+    [plot_day_grp(use_units),striatum_sua_grp.domain_idx(use_units)]);
 
 figure;
-h = tiledlayout(n_k,1);
+h = tiledlayout(n_domains,1);
 stim_colormap = ap.colormap('BKR',3);
 binned_days_x = interp1(find(~isinf(plot_day_bins)),...
     plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
-for curr_k = 1:n_k
+for curr_k = 1:n_domains
     nexttile; hold on;
     set(gca,'ColorOrder',stim_colormap);
 
@@ -652,7 +718,7 @@ wf_striatum_roi_sem = ...
 
 figure;
 unique_stim = unique(cell2mat(wf.trial_stim_values));
-h = tiledlayout(n_k,max(plot_day_grp)*length(unique_stim),'TileSpacing','tight');
+h = tiledlayout(n_domains,max(plot_day_grp)*length(unique_stim),'TileSpacing','tight');
 for curr_k = 1:size(striatum_wf_roi,3)
     for curr_ld = unique(plot_day_grp)'
         for curr_stim = unique_stim'
@@ -708,7 +774,7 @@ wf_striatum_roi_max_sem = ...
     wf_striatum_roi_grp(:,1),wf_striatum_roi_grp(:,2:3));
 
 figure;
-h = tiledlayout(n_k,1,'TileSpacing','tight');
+h = tiledlayout(n_domains,1,'TileSpacing','tight');
 stim_colormap = ap.colormap('BKR',3);
 binned_days_x = interp1(find(~isinf(plot_day_bins)),...
     plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
@@ -729,6 +795,93 @@ title(h,'Cortex');
 ap.prettyfig;
 
 
+%% [Supp. Fig 1x] Example striatal domains
+
+%%% Load data for figure
+load_dataset = 'noact';
+AP_longstriatum_load_data;
+%%%
+
+% Choose animal and day to plot
+use_animal = 'AP025';
+use_ld = 0;
+use_rec = strcmp(bhv.animal,use_animal) & bhv.days_from_learning == use_ld;
+use_cortex_kernel = ctx_str_maps.cortex_striatum_map{use_rec};
+
+domain_color = {'R','G','B'};
+
+% Plot all domains
+% (grayscale and colored by domain)
+figure;
+h = tiledlayout(size(use_cortex_kernel,3),2,'TileSpacing','none');
+for curr_depth=1:size(use_cortex_kernel, 3)
+    nexttile;
+    imagesc(use_cortex_kernel(:,:,curr_depth));
+    axis image off;
+    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+    colormap(gca,ap.colormap('WK',[],2));
+
+    nexttile;
+    imagesc(use_cortex_kernel(:,:,curr_depth));
+    axis image off
+    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+    colormap(gca,ap.colormap(['W' domain_color{domain_idx_rec{use_rec}(curr_depth)}],[],2));
+end
+clim(h.Children,[0,0.01]);
+ap.prettyfig;
+
+% Plot domain means
+figure;
+h = tiledlayout(n_domains,1,'tilespacing','none');
+for curr_domain = 1:n_domains
+    nexttile;
+    imagesc(kmeans_cluster_mean(:,:,curr_domain));
+    axis image off
+    colormap(gca,ap.colormap(['W',domain_color{curr_domain}],[],2));
+    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+end
+clim(h.Children,[0,0.01]);
+ap.prettyfig;
+
+% Load data from example recording
+animal = bhv.animal{use_rec};
+rec_day = bhv.rec_day{use_rec};
+recordings = plab.find_recordings(animal,rec_day,'stim_wheel*');
+rec_time = recordings.recording{end};
+load_parts.ephys = true;
+ap.load_recording;
+
+% Plot units and overlay clustering
+figure; 
+ax = axes; hold on;
+
+domain_color_rgb = [1,0,0;0,1,0;0,0,1];
+domain_im = permute(domain_color_rgb(domain_idx_rec{use_rec},:),[1,3,2]);
+imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec},domain_im);
+ax.YDir = 'reverse';
+
+ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,[],ax);
+yline(ctx_str_maps.depth_group_edges{use_rec},'linewidth',2,'color',[0.5,0.5,0.5]);
+
+ap.prettyfig;
+
+% Plot clustered MUA
+depth_group = discretize(spike_depths,ctx_str_maps.depth_group_edges{use_rec});
+
+plot_t = [100,140];
+bin_t = 0.1;
+domain_mua = zeros(n_domains,diff(plot_t)/bin_t);
+for curr_domain = 1:n_domains
+    curr_spikes = spike_times_timelite(isbetween(spike_times_timelite,plot_t(1),plot_t(2)) & ...
+        ismember(depth_group,find(domain_idx_rec{use_rec} == curr_domain)));
+    domain_mua(curr_domain,:) = histcounts(curr_spikes,plot_t(1):bin_t:plot_t(2));
+end
+
+figure;
+plot(conv(plot_t(1):bin_t:plot_t(2),[0.5,0.5],'valid'),domain_mua','linewidth',2);
+set(gca,'ColorOrder',domain_color_rgb);
+axis off;
+ap.prettyfig
 
 
 %% (end timer)

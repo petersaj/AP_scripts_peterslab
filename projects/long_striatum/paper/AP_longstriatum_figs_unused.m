@@ -36,27 +36,7 @@ end
 ap.prettyfig;
 
 
-%% [Fig 1X] K-means cluster means
-
-%%% Load data for figure
-load_dataset = 'task';
-AP_longstriatum_load_data;
-%%%
-
-figure;
-h = tiledlayout(n_k,1,'tilespacing','none');
-for curr_k = 1:n_k
-    nexttile;
-    imagesc(kmeans_cluster_mean(:,:,curr_k));
-    axis image off
-    clim(max(abs(clim)).*[-1,1]);
-    colormap(ap.colormap('PWG'));
-    ap.wf_draw('ccf',[0.5,0.5,0.5]);
-end
-ap.prettyfig;
-
-
-%% [Fig 1X] Striatal MUA pre/post learning (using final kidx)
+%% [Fig 1X] Striatal MUA pre/post learning (using final domain_idx)
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -73,10 +53,10 @@ stim_x = [-0.2,0.3];
 move_x = [-0.05,0.4];
 outcome_x = [-0.1,0.5];
 
-figure; h = tiledlayout(n_k,3,'TileSpacing','tight');
-for curr_depth = 1:n_k
+figure; h = tiledlayout(n_domains,3,'TileSpacing','tight');
+for curr_depth = 1:n_domains
 
-    curr_trials = striatum_mua_grp.kidx == curr_depth;
+    curr_trials = striatum_mua_grp.domain_idx == curr_depth;
 
     % Stim
     nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
@@ -119,7 +99,7 @@ end
 ap.prettyfig;
 
 
-%% [Fig 1X] Striatal MUA pre/post learning (using starting kidx)
+%% [Fig 1X] Striatal MUA pre/post learning (using starting domain_idx)
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -136,10 +116,10 @@ stim_x = [-0.2,0.3];
 move_x = [-0.05,0.4];
 outcome_x = [-0.1,0.5];
 
-figure; h = tiledlayout(n_k,3,'TileSpacing','tight');
-for curr_depth = 1:n_k
+figure; h = tiledlayout(n_domains,3,'TileSpacing','tight');
+for curr_depth = 1:n_domains
 
-    curr_trials = striatum_mua_grp.kidx == curr_depth;
+    curr_trials = striatum_mua_grp.domain_idx == curr_depth;
 
     % Stim
     nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);

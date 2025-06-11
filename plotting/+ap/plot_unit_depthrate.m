@@ -1,7 +1,7 @@
-function unit_dots = plot_unit_depthrate(spike_templates,template_depths,probe_areas,plot_axes)
+function unit_dots = plot_unit_depthrate(spike_times,spike_templates,template_depths,probe_areas,plot_axes)
 % plot_unit_depthrate(spike_templates,template_depths,probe_areas,plot_axes)
 %
-% Plot unit depth vs normalized log spike rate, with areas (if available)
+% Plot unit depth vs spike rate, with areas (if available)
 
 if ~exist('plot_axes','var') || isempty(plot_axes)
     figure('Units','normalized','Position',[0.02,0.2,0.1,0.6])
@@ -11,7 +11,7 @@ end
 hold(plot_axes,'on');
 
 % Plot units (depth vs normalized rate) with areas
-if exist('probe_areas','var') && ~isempty('probe_areas')
+if exist('probe_areas','var') && ~isempty(probe_areas)
     probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
         probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
 
@@ -34,13 +34,14 @@ end
 
 yyaxis right;
 set(gca,'YDir','reverse');
-norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
+spike_rate = (accumarray(findgroups(spike_templates),1)+1)/ ...
+    diff(prctile(spike_times,[0,100]));
 
 unit_dots = scatter( ...
-    norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
-multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
+    spike_rate,template_depths(unique(spike_templates)),20,'k','filled');
 ylabel('Depth (\mum)')
-xlabel('Normalized log rate')
+xlabel('Spike rate')
+set(gca,'XScale','log');
 
 [plot_axes.YAxis.Color] = deal('k');
 
@@ -49,6 +50,5 @@ ylim([0, 3840]);
 
 yyaxis right;
 ylim([0, 3840]);
-xlim([0,1]);
 
 

@@ -1,5 +1,5 @@
-function [p,rxn_stat,rxn_null_stat,stim_to_move_nullmean] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move,use_stat)
-% [p,rxn_stat,rxn_null_stat,stim_to_move_null_mean] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
+function [p,rxn_stat,rxn_null_stat] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move,use_stat)
+% [p,rxn_stat,rxn_null_stat] = AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move)
 % Get p-value for whether reaction times are faster than chance (the animal
 % has a stim-wheel association)
 %
@@ -18,7 +18,6 @@ function [p,rxn_stat,rxn_null_stat,stim_to_move_nullmean] = AP_stimwheel_associa
 % p: p-value for median reaction time
 % rxn_stat: statistic for reaction times
 % rxn_null_stat: statistic for null reaction times
-% stim_to_move_nullmean: mean null reaction time for each trial
 
 % Only look at completed trials (all relevant events occured)
 n_trials = min([length(stimOn_times), ...
@@ -120,8 +119,6 @@ stim_to_move_null(null_use_trials,:) = ...
     cell2mat(cellfun(@(x) datasample(x,n_samples)', ...
     stim_to_move_valid(null_use_trials),'uni',false));
 
-stim_to_move_nullmean = mean(stim_to_move_null,2);
-
 % Get reaction statistic
 % (mad or mean, no median because doesn't look reliable)
 
@@ -135,6 +132,11 @@ switch use_stat
         % (median absolute devation)
         rxn_stat = mad(stim_to_move(null_use_trials),1,1);
         rxn_null_stat_distribution = mad(stim_to_move_null(null_use_trials,:),1,1);
+
+    case 'std'
+        % (standard devation)
+        rxn_stat = std(stim_to_move(null_use_trials),[],1);
+        rxn_null_stat_distribution = mad(stim_to_move_null(null_use_trials,:),[],1);
 
     case 'mean'
         % (mean)

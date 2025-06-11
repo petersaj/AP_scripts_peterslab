@@ -281,13 +281,13 @@ end
 %     kmeans_starting_binary(:,:,k) = bwselect(kmeans_starting_binary(:,:,k),my,mx);
 % end
 % 
-% [kidx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
+% [domain_idx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
 %     (maps_flat_cat> prctile(maps_flat_cat,50,1))',n_k, ...
 %     'Distance','hamming','start',reshape(+kmeans_starting_binary,[],n_k)');
 % kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
 % %%%%%%
 
-[kidx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
+[domain_idx,kmeans_centroid_flat,~,kmeans_dist] = kmeans(...
     maps_flat_cat',n_k, ...
     'Distance','correlation','start',reshape(kmeans_starting,[],n_k)');
 kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kmeans_starting,2),[]);
@@ -295,26 +295,26 @@ kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kme
 % %%%%%%%%%%%%%%%%%%%
 % % ADJUSTMENTS FOR N_K=4
 % % looks like value of ~0.75 works, just picked empirical way to get there
-% kidx_raw = kidx;
+% domain_idx_raw = domain_idx;
 % 
-% dist_cutoff_k1 = prctile(kmeans_dist(kidx_raw==1,1),95);
-% dist_cutoff_k2 = prctile(kmeans_dist(kidx_raw==2,2),95);
+% dist_cutoff_k1 = prctile(kmeans_dist(domain_idx_raw==1,1),95);
+% dist_cutoff_k2 = prctile(kmeans_dist(domain_idx_raw==2,2),95);
 % 
-% kidx = kidx_raw;
+% domain_idx = domain_idx_raw;
 % 
 % % (to fold 2's into cluster 1)
-% kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
+% domain_idx(domain_idx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 1;
 % 
 % % % (make 2's into new cluster)
-% % kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
-% % [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% % domain_idx(domain_idx_raw==2 & kmeans_dist(:,1) < dist_cutoff) = 5;
+% % [~,domain_idx] = ismember(domain_idx,[1,5,2,3,4]); domain_idx(domain_idx==0) = NaN;% re-assign to order depths
 % % n_k = 5;
-% % % kidx(kidx==3) = 2; kidx(kidx==4) = 3;n_k = 3; % (combine pfc 2+3)
+% % % domain_idx(domain_idx==3) = 2; domain_idx(domain_idx==4) = 3;n_k = 3; % (combine pfc 2+3)
 % 
 % % % (make 1's and 2's into new cluster)
-% % kidx(kidx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
-% % kidx(kidx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
-% % [~,kidx] = ismember(kidx,[1,5,2,3,4]); kidx(kidx==0) = NaN;% re-assign to order depths
+% % domain_idx(domain_idx_raw==1 & kmeans_dist(:,2) < dist_cutoff_k1) = 5;
+% % domain_idx(domain_idx_raw==2 & kmeans_dist(:,1) < dist_cutoff_k2) = 5;
+% % [~,domain_idx] = ismember(domain_idx,[1,5,2,3,4]); domain_idx(domain_idx==0) = NaN;% re-assign to order depths
 % % n_k = 5;
 % 
 % %%%%%%%%%%%%%%%%%%%
@@ -323,22 +323,22 @@ kmeans_centroid = reshape(kmeans_centroid_flat',size(kmeans_starting,1),size(kme
 if n_k == 6
     % % ADJUSTMENTS FOR N_K=6
     % Turn 6 into 3 (vis, frontal, lateral)
-    kidx(ismember(kidx,2:4)) = 2;
-    kidx(ismember(kidx,5:6)) = 3;
+    domain_idx(ismember(domain_idx,2:4)) = 2;
+    domain_idx(ismember(domain_idx,5:6)) = 3;
     n_k = 3;
 end
 % %%%%%%%%%%%%%%%%%%%
 
-kidx_rec = mat2cell(kidx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
+domain_idx_rec = mat2cell(domain_idx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     all_ctx_maps_to_str.cortex_kernel_px));
 
 % %%%%%%%%%%%%%%% 
-% %%% Moving median kidx to reduce random flipping
-% kidx_rec = cellfun(@(x) floor(movmedian(x,3)),kidx_rec,'uni',false);
-% kidx = cell2mat(kidx_rec);
+% %%% Moving median domain_idx to reduce random flipping
+% domain_idx_rec = cellfun(@(x) floor(movmedian(x,3)),domain_idx_rec,'uni',false);
+% domain_idx = cell2mat(domain_idx_rec);
 % %%%%%%%%%%%%%%
 
-kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],kidx),[U_size,n_k]);
+kmeans_cluster_mean = reshape(ap.groupfun(@nanmean,maps_flat_cat,[],domain_idx),[U_size,n_k]);
 
 figure;
 h = tiledlayout(n_k,1,'tilespacing','none');
@@ -363,8 +363,8 @@ end
 % max_map = imgaussfilt(maps_cat,10).*round(linspace(1,0,size(maps_cat,2)));
 % [~,kernel_max_idx_full] = max(max_map,[],[1,2],'linear');
 % [kernel_max_y,kernel_max_x,~] = ind2sub(size(maps_cat),kernel_max_idx_full);
-% for plot_kidx = 1:n_k
-%     plot(squeeze(kernel_max_x(kidx==plot_kidx)),squeeze(kernel_max_y(kidx==plot_kidx)),'x','linewidth',2.5);
+% for plot_domain_idx = 1:n_k
+%     plot(squeeze(kernel_max_x(domain_idx==plot_domain_idx)),squeeze(kernel_max_y(domain_idx==plot_domain_idx)),'x','linewidth',2.5);
 % end
 % ap.wf_draw('ccf','k');
 % legend(string(1:n_k))
@@ -388,7 +388,7 @@ map_plotday_grp = discretize(map_ld_grp,plotday_bins);
 
 % Plot maps by day
 [map_avg,map_grp] = ap.nestgroupfun({@nanmean,@nanmean}, maps_flat_cat',...
-    map_animal_grp,[kidx,map_plotday_grp]);
+    map_animal_grp,[domain_idx,map_plotday_grp]);
 
 figure;
 h = tiledlayout(n_k,length(plotday_bins)-1,'TileSpacing','none');
@@ -407,9 +407,9 @@ end
 
 % Plot explained variance by day
 expl_var_avg = ap.nestgroupfun({@nanmean,@nanmean}, expl_var_cat,...
-    map_animal_grp,[kidx,map_plotday_grp]);
+    map_animal_grp,[domain_idx,map_plotday_grp]);
 expl_var_sem = ap.nestgroupfun({@nanmean,@AP_sem}, expl_var_cat,...
-    map_animal_grp,[kidx,map_plotday_grp]);
+    map_animal_grp,[domain_idx,map_plotday_grp]);
 
 figure; hold on;
 for curr_k = 1:n_k
@@ -457,15 +457,15 @@ plot_day_bins = [-Inf,-2:2,Inf];
 unit_plot_days_grp = discretize(max(unit_ld,-inf),plot_day_bins);
 
 % Make kmeans cluster per unit
-unit_kidx_subset = cell2mat(cellfun(@(depth,kidx) kidx(depth(~isnan(depth))), ...
-    ephys.unit_depth_group,kidx_rec,'uni',false));
-unit_kidx = nan(size(unit_rec_idx));
-unit_kidx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_kidx_subset;
+unit_domain_idx_subset = cell2mat(cellfun(@(depth,domain_idx) domain_idx(depth(~isnan(depth))), ...
+    ephys.unit_depth_group,domain_idx_rec,'uni',false));
+unit_domain_idx = nan(size(unit_rec_idx));
+unit_domain_idx(~isnan(cell2mat(ephys.unit_depth_group))) = unit_domain_idx_subset;
 
 
 % Group data and plot
 group_labels = [unit_rec_idx];
-split_labels = [unit_plot_days_grp,unit_kidx];
+split_labels = [unit_plot_days_grp,unit_domain_idx];
 
 % (frac responsive cells)
 % use_units = true(size(unit_single_cat));
@@ -505,7 +505,7 @@ linkaxes(h.Children,'xy');
 
 % (psth: average of single units)
 curr_stim = 3;
-% use_units = true(size(unit_kidx));
+% use_units = true(size(unit_domain_idx));
 % use_units = unit_single_cat;
 use_units = unit_resp_cat(:,3);
 % use_units = logical(vertcat(ephys.str_msn_idx{:}));
@@ -540,7 +540,7 @@ linkaxes(h.Children,'xy');
 % plot_celltype = vertcat(ephys.str_fsi_idx{:});% & vertcat(ephys.single_unit_idx{:});
 plot_celltype = vertcat(ephys.str_tan_idx{:});% & vertcat(ephys.single_unit_idx{:});
 
-plot_kidx = [1:2];
+plot_domain_idx = [1:2];
 plot_stim_idx = 2;
 
 stim_t = psth_t > 0 & psth_t < 0.2;
@@ -557,7 +557,7 @@ h = tiledlayout(2,max(unit_plot_day_grp),'TileIndexing','column','TileSpacing','
 for curr_ld = unique(unit_plot_day_grp(~isnan(unit_plot_day_grp)))'
     nexttile;
 
-    curr_data = unit_psth_cat(ismember(unit_kidx,plot_kidx) & unit_plot_day_grp == curr_ld & ...
+    curr_data = unit_psth_cat(ismember(unit_domain_idx,plot_domain_idx) & unit_plot_day_grp == curr_ld & ...
         plot_celltype,:,plot_stim_idx);
     [~,sort_idx] = sort(max(curr_data(:,stim_t),[],2),'descend');
     imagesc(psth_t,[],curr_data(sort_idx,:));
@@ -565,7 +565,7 @@ for curr_ld = unique(unit_plot_day_grp(~isnan(unit_plot_day_grp)))'
     title(plot_day_bins(curr_ld));
 
     nexttile;
-    curr_data = unit_psth_cat(ismember(unit_kidx,plot_kidx) & unit_plot_day_grp == curr_ld & ...
+    curr_data = unit_psth_cat(ismember(unit_domain_idx,plot_domain_idx) & unit_plot_day_grp == curr_ld & ...
         plot_celltype,:,plot_stim_idx);
     ap.errorfill(psth_t,mean(curr_data,1),AP_sem(curr_data,1),'k');
 end
@@ -581,10 +581,10 @@ unit_plot_day_grp = discretize(unit_ld,plot_day_bins);
 figure;
 h = tiledlayout(1,length(plot_day_bins)-1);
 
-curr_kidx = 1;
+curr_domain_idx = 1;
 for curr_day_grp = 1:length(plot_day_bins)-1
 
-    curr_units = ismember([unit_kidx,unit_plot_day_grp],[curr_kidx,curr_day_grp],'rows') & ...
+    curr_units = ismember([unit_domain_idx,unit_plot_day_grp],[curr_domain_idx,curr_day_grp],'rows') & ...
         logical(vertcat(ephys.str_msn_idx{:}));
 
     curr_data = unit_psth_cat(curr_units,:,:);
@@ -617,10 +617,10 @@ unit_plot_day_grp = discretize(unit_ld,plot_day_bins);
 figure;
 h = tiledlayout(1,length(plot_day_bins)-1);
 
-curr_kidx = 1;
+curr_domain_idx = 1;
 for curr_day_grp = 1:length(plot_day_bins)-1
     nexttile; axis equal
-    curr_units = ismember([unit_kidx,unit_plot_day_grp],[curr_kidx,curr_day_grp],'rows') & ...
+    curr_units = ismember([unit_domain_idx,unit_plot_day_grp],[curr_domain_idx,curr_day_grp],'rows') & ...
         logical(vertcat(ephys.str_msn_idx{:}));
     plot(unit_psth_max(curr_units,2),unit_psth_max(curr_units,3),'.k');
 end
@@ -632,10 +632,10 @@ unit_response_norm = unit_psth_max./sum(abs(unit_psth_max),2);
 figure;
 h = tiledlayout(1,length(plot_day_bins)-1);
 
-curr_kidx = 1;
+curr_domain_idx = 1;
 for curr_day_grp = 1:length(plot_day_bins)-1
     nexttile; axis equal
-    curr_units = ismember([unit_kidx,unit_plot_day_grp],[curr_kidx,curr_day_grp],'rows') & ...
+    curr_units = ismember([unit_domain_idx,unit_plot_day_grp],[curr_domain_idx,curr_day_grp],'rows') & ...
         logical(vertcat(ephys.str_msn_idx{:}));
     plot3(unit_response_norm(curr_units,1),unit_response_norm(curr_units,2),unit_response_norm(curr_units,3),'.k');
 end
@@ -659,13 +659,13 @@ ternary_limits = (ternary_tform\response_limits')';
 figure;
 h = tiledlayout(1,length(plot_day_bins)-1);
 
-curr_kidx = 1;
+curr_domain_idx = 1;
 for curr_day_grp = 1:length(plot_day_bins)-1
-    curr_data_idx = ismember([unit_kidx,unit_plot_day_grp],[curr_kidx,curr_day_grp],'rows') & ...
+    curr_data_idx = ismember([unit_domain_idx,unit_plot_day_grp],[curr_domain_idx,curr_day_grp],'rows') & ...
         logical(vertcat(ephys.str_msn_idx{:}));
 
     % Plot each unit
-    size_norm_denom = prctile(unit_max_response(unit_kidx == curr_kidx),90);
+    size_norm_denom = prctile(unit_max_response(unit_domain_idx == curr_domain_idx),90);
     size_norm = min(unit_max_response(curr_data_idx)./size_norm_denom,1);
     dot_size = size_norm.*20+1;
 
@@ -689,8 +689,8 @@ end
 
 animal_groupfun = @mean;
 
-[psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
+[psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+    ephys.binned_msn_spikes_stim_align,domain_idx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhetre)
 psth_t = -0.5:0.001:1;
@@ -707,8 +707,8 @@ psth_norm = cellfun(@(psth,baseline) ...
 psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2]),[], ...
     length(psth_t)),psth_norm,'uni',false)),2,'gaussian',[100,0]);
 
-[stim_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    ephys.trial_stim_values,psth_sum_kidx,'uni',false);
+[stim_grp_sq,domain_idx_grp_sq] = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    ephys.trial_stim_values,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),stim_grp_sq,'uni',false));
@@ -721,17 +721,17 @@ plot_day_bins = [-Inf,-2:2,Inf];
 plot_days_grp = discretize(max(ld_grp,-inf),plot_day_bins);
 
 stim_grp = cell2mat(cellfun(@(x) reshape(x,[],1),stim_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 [psth_avg,psth_grp] = ap.nestgroupfun({@mean,animal_groupfun},psth_norm_cat_smooth,animal_grp, ...
-    [plot_days_grp,stim_grp,kidx_grp]);
+    [plot_days_grp,stim_grp,domain_idx_grp]);
 psth_sem = ap.nestgroupfun({@mean,@AP_sem},psth_norm_cat_smooth,animal_grp, ...
-    [plot_days_grp,stim_grp,kidx_grp]);
+    [plot_days_grp,stim_grp,domain_idx_grp]);
 
 % (quick and dirty: plot n's)
 [psth_n,psth_n_grp] = ap.nestgroupfun({@mean,@length}, ...
     psth_norm_cat_smooth,animal_grp, ...
-    [ld_grp,stim_grp,kidx_grp]);
+    [ld_grp,stim_grp,domain_idx_grp]);
 figure; hold on;
 for curr_k = 1:n_k
     curr_plot_idx = psth_n_grp(:,2)==90 & psth_n_grp(:,3)==curr_k;
@@ -744,7 +744,7 @@ ylabel('N');
 % (get max: avg within day, max in time, avg agross animals)
 [psth_dayavg,psth_dayavg_grp] = ap.groupfun(@mean, ...
     psth_norm_cat_smooth, ...
-    [animal_grp,plot_days_grp,stim_grp,kidx_grp]);
+    [animal_grp,plot_days_grp,stim_grp,domain_idx_grp]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
 [psth_max,psth_max_grp] = ap.nestgroupfun({@mean,animal_groupfun}, ...
@@ -761,7 +761,7 @@ day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)
 figure;
 h = tiledlayout(n_k,length(unique(stim_grp)),'TileIndexing','column');
 for curr_stim = unique(stim_grp)'
-    for curr_k = unique(kidx_grp)'
+    for curr_k = unique(domain_idx_grp)'
         nexttile; hold on; set(gca,'ColorOrder',day_colormap);
         plot(psth_avg(psth_grp(:,2) == curr_stim & psth_grp(:,3) == curr_k,:)')
     end
@@ -813,7 +813,7 @@ linkaxes(h.Children,'xy');
 % Plot PSTH max by learning day
 figure;
 h = tiledlayout(n_k,1);
-for curr_k = unique(kidx_grp)'
+for curr_k = unique(domain_idx_grp)'
     nexttile; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
     for curr_stim = unique(stim_grp)'
         plot_grps = psth_max_grp(:,2) == curr_stim & ...
@@ -835,7 +835,7 @@ for curr_animal = 1:max(animal_grp)
     for curr_day = 1:max(plot_days_grp)
         nexttile;
         curr_trials = find(animal_grp == curr_animal & stim_grp == 90 & ...
-            plot_days_grp == curr_day & kidx_grp == plot_k);
+            plot_days_grp == curr_day & domain_idx_grp == plot_k);
         imagesc(psth_t,[],movmean(psth_norm_cat_smooth(curr_trials,:),[3,1]));
         colormap(ap.colormap('WK'));
         clim([0,3]);
@@ -854,7 +854,7 @@ n_fast_trials = cellfun(@(x) sum(x <= 0.25),bhv.stim_to_move);
 % Get max of avg psth
 [psth_avg,psth_grp] = ap.nestgroupfun({@mean,@mean}, ...
     psth_norm_cat_smooth,(1:length(animal_grp))', ...
-    [animal_grp,ld_grp,stim_grp,kidx_grp]);
+    [animal_grp,ld_grp,stim_grp,domain_idx_grp]);
 
 max_t = psth_t > 0 & psth_t < 0.2;
 psth_avg_tmax = max(psth_avg(:,max_t),[],2);
@@ -896,8 +896,8 @@ axis padded
 
  %% MUA (task)
 
-[psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
+[psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+    ephys.binned_msn_spikes_stim_align,domain_idx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
@@ -908,13 +908,13 @@ psth_baseline = cellfun(@(mua) ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 % %%%%%%%%%%%%%%%% MOVE ALIGN
-% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-%     ephys.binned_msn_spikes_move_align,kidx_rec,'uni',false);
+% [psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+%     ephys.binned_msn_spikes_move_align,domain_idx_rec,'uni',false);
 % %%%%%%%%%%%%%%%%
 
 % %%%%%%%%%%%%%%%% OUTCOME ALIGN
-% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-%     ephys.binned_msn_spikes_outcome_align,kidx_rec,'uni',false);
+% [psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+%     ephys.binned_msn_spikes_outcome_align,domain_idx_rec,'uni',false);
 % %%%%%%%%%%%%%%%%
 
 psth_norm = cellfun(@(psth,baseline) ...
@@ -923,8 +923,8 @@ psth_norm = cellfun(@(psth,baseline) ...
 psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2]),[], ...
     length(psth_t)),psth_norm,'uni',false)),2,'gaussian',[100,0]);
 
-[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+[rxn_grp_sq,domain_idx_grp_sq] = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    bhv.stim_to_move,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
@@ -938,7 +938,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
 
 rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 
 day_grp = discretize(max(ld_grp,-inf),[-Inf,-3:2,Inf]);
@@ -948,7 +948,7 @@ figure; tiledlayout(n_k,max(day_grp),'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
        
         [~,sort_idx] = sort(rxn_grp(curr_trials));
 
@@ -967,7 +967,7 @@ figure; tiledlayout(max(day_grp),max(animal_grp), ...
 for curr_animal = 1:max(animal_grp)
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(animal_grp == curr_animal & day_grp == curr_day & kidx_grp == plot_k);
+        curr_trials = find(animal_grp == curr_animal & day_grp == curr_day & domain_idx_grp == plot_k);
         [~,sort_idx] = sort(rxn_grp(curr_trials));
         imagesc(psth_t,[],movmean(psth_norm_cat_smooth(curr_trials(sort_idx),:),[3,1]));
         colormap(ap.colormap('WK'));
@@ -1000,7 +1000,7 @@ figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
         curr_data = psth_norm_cat_smooth(curr_trials,:);
 
         switch split_type
@@ -1039,7 +1039,7 @@ figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
         curr_data = psth_norm_cat_smooth(curr_trials,:);
 
         switch split_type
@@ -1095,7 +1095,7 @@ n_split = 3;
 rxn_bins = [0.3,Inf];
 
 rxn_bin_grp = discretize(rxn_grp,rxn_bins);
-[~,~,rec_idx] = unique([animal_grp,day_grp,kidx_grp],'rows');
+[~,~,rec_idx] = unique([animal_grp,day_grp,domain_idx_grp],'rows');
 
 split_idx = nan(size(rec_idx));
 for curr_rec = 1:max(rec_idx)
@@ -1109,7 +1109,7 @@ end
 % for curr_k = 1:n_k
 %     for curr_day = unique(day_grp)'
 %         nexttile;
-%         curr_trials = find(day_grp == curr_day & kidx_grp == curr_k & rxn_bin_grp == 2);
+%         curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k & rxn_bin_grp == 2);
 %         plot(psth_t,ap.nestgroupfun({@mean,@mean},psth_norm_cat_smooth(curr_trials,:), ...
 %             animal_grp(curr_trials),split_idx(curr_trials))');
 %     end
@@ -1125,7 +1125,7 @@ figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day = 1:length(day_bins)-1
         nexttile; hold on;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
         curr_data = psth_norm_cat_smooth(curr_trials,:);
 
         data_t = psth_t > 0 & psth_t < 0.2;
@@ -1173,7 +1173,7 @@ split_idx = discretize(rxn_grp,rxn_bins);
 data_t = psth_t > 0 & psth_t < 0.2;
 
 [psth_mean,psth_mean_grp] = ap.groupfun(@mean,psth_norm_cat_smooth, ...
-    [animal_grp,plot_day_grp,split_idx,kidx_grp]);
+    [animal_grp,plot_day_grp,split_idx,domain_idx_grp]);
 
 psth_tgrp = mean(psth_mean(:,data_t),2);
 
@@ -1278,8 +1278,8 @@ axis padded
 
 %% MUA (task, raw vs move-removed)
 
-[psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
+[psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+    ephys.binned_msn_spikes_stim_align,domain_idx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
@@ -1290,13 +1290,13 @@ psth_baseline = cellfun(@(mua) ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 % %%%%%%%%%%%%%%%% MOVE ALIGN
-% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-%     ephys.binned_msn_spikes_move_align,kidx_rec,'uni',false);
+% [psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+%     ephys.binned_msn_spikes_move_align,domain_idx_rec,'uni',false);
 % %%%%%%%%%%%%%%%%
 
 % %%%%%%%%%%%%%%%% OUTCOME ALIGN
-% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-%     ephys.binned_msn_spikes_outcome_align,kidx_rec,'uni',false);
+% [psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+%     ephys.binned_msn_spikes_outcome_align,domain_idx_rec,'uni',false);
 % %%%%%%%%%%%%%%%%
 
 psth_norm = cellfun(@(psth,baseline) ...
@@ -1305,8 +1305,8 @@ psth_norm = cellfun(@(psth,baseline) ...
 psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2]),[], ...
     length(psth_t)),psth_norm,'uni',false)),2,'gaussian',[100,0]);
 
-[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+[rxn_grp_sq,domain_idx_grp_sq] = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    bhv.stim_to_move,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
@@ -1320,7 +1320,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
 
 rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 day_grp = discretize(max(ld_grp,-inf),[-Inf,-2:2,Inf]);
 
@@ -1330,7 +1330,7 @@ figure; tiledlayout(n_k,max(day_grp),'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
        
         [~,sort_idx] = sort(rxn_grp(curr_trials));
 
@@ -1347,7 +1347,7 @@ move_leeway = 0.1;
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);      
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);      
         [~,sort_idx] = sort(rxn_grp(curr_trials));
 
         curr_data = psth_norm_cat_smooth(curr_trials(sort_idx),:).* ...
@@ -1366,7 +1366,7 @@ move_leeway = 0.1;
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile; hold on;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);      
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);      
         
         % Average all data
         curr_data = psth_norm_cat_smooth(curr_trials,:);
@@ -1405,7 +1405,7 @@ n_depths = 6;
 depth_rec = cellfun(@(x) discretize(1:size(x,3),n_depths)', ...
     all_ctx_maps_to_str.cortex_kernel_px,'uni',false);
 
-[psth_stim_sum,psth_sum_kidx] = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+[psth_stim_sum,psth_sum_domain_idx] = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
     ephys.binned_msn_spikes_stim_align,depth_rec,'uni',false);
 
 psth_move_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
@@ -1430,8 +1430,8 @@ psth_stim = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_stim_sum,psth_bas
 psth_move = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_move_sum,psth_baseline,'uni',false));
 psth_outcome = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_outcome_sum,psth_baseline,'uni',false));
 
-[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+[rxn_grp_sq,domain_idx_grp_sq] = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    bhv.stim_to_move,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
@@ -1445,7 +1445,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
 
 rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 day_grp = discretize(max(ld_grp,-inf),[-Inf,-0,Inf]);
 
@@ -1457,7 +1457,7 @@ outcome_x = [-0.1,0.5];
 figure; h = tiledlayout(n_depths,3,'TileSpacing','tight');
 for curr_depth = 1:n_depths
 
-    curr_trials = kidx_grp == curr_depth;
+    curr_trials = domain_idx_grp == curr_depth;
 
     % Stim
     nexttile; hold on; axis off;
@@ -1491,14 +1491,14 @@ end
 
 %% MUA (task pre/post, by cluster)
 
-[psth_stim_sum,psth_sum_kidx] = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
-    ephys.binned_msn_spikes_stim_align,kidx_rec,'uni',false);
+[psth_stim_sum,psth_sum_domain_idx] = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
+    ephys.binned_msn_spikes_stim_align,domain_idx_rec,'uni',false);
 
 psth_move_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
-    ephys.binned_msn_spikes_move_align,kidx_rec,'uni',false);
+    ephys.binned_msn_spikes_move_align,domain_idx_rec,'uni',false);
 
 psth_outcome_sum = cellfun(@(mua,mua_group) ap.groupfun(@sum,mua,[],[],mua_group), ...
-    ephys.binned_msn_spikes_outcome_align,kidx_rec,'uni',false);
+    ephys.binned_msn_spikes_outcome_align,domain_idx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
@@ -1516,8 +1516,8 @@ psth_stim = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_stim_sum,psth_bas
 psth_move = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_move_sum,psth_baseline,'uni',false));
 psth_outcome = cell2mat(cellfun(psth_norm_smooth_reshape_fcn,psth_outcome_sum,psth_baseline,'uni',false));
 
-[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+[rxn_grp_sq,domain_idx_grp_sq] = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    bhv.stim_to_move,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
@@ -1531,7 +1531,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
 
 rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 day_grp = discretize(max(ld_grp,-inf),[-Inf,-0,Inf]);
 
@@ -1543,7 +1543,7 @@ outcome_x = [-0.1,0.5];
 figure; h = tiledlayout(n_k,3,'TileSpacing','tight');
 for curr_depth = 1:n_k
 
-    curr_trials = kidx_grp == curr_depth;
+    curr_trials = domain_idx_grp == curr_depth;
 
     % Stim
     nexttile; hold on; axis off;
@@ -1579,8 +1579,8 @@ end
 
 %% MUA (task, iti movements)
 
-[psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_msn_spikes_itimove_align,kidx_rec,'uni',false);
+[psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+    ephys.binned_msn_spikes_itimove_align,domain_idx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
@@ -1598,8 +1598,8 @@ psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2
 
 % (for iti movements)
 % (ephys.iti_fastmove_maxvel or ephys.iti_fastmove_tduration)
-[rxn_grp_sq,kidx_grp_sq] = cellfun(@(move_stat,kidx) ndgrid(move_stat,kidx), ...
-    ephys.iti_fastmove_maxvel,psth_sum_kidx,'uni',false);
+[rxn_grp_sq,domain_idx_grp_sq] = cellfun(@(move_stat,domain_idx) ndgrid(move_stat,domain_idx), ...
+    ephys.iti_fastmove_maxvel,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
@@ -1613,7 +1613,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
 
 rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 
 day_grp = discretize(max(ld_grp,-inf),[-Inf,-3:2,Inf]);
@@ -1623,7 +1623,7 @@ figure; tiledlayout(n_k,max(day_grp),'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
        
         [~,sort_idx] = sort(rxn_grp(curr_trials));
 
@@ -1649,7 +1649,7 @@ figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','none');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
         curr_data = psth_norm_cat_smooth(curr_trials,:);
 
         switch split_type
@@ -1681,7 +1681,7 @@ figure('color','w'); h = tiledlayout(n_k,max(day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day = unique(day_grp)'
         nexttile;
-        curr_trials = find(day_grp == curr_day & kidx_grp == curr_k);
+        curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k);
         curr_data = psth_norm_cat_smooth(curr_trials,:);
 
         switch split_type
@@ -1724,8 +1724,8 @@ set(h.Children,'colororder',ap.colormap('KR',n_split));
 
 %% MUA (task, no-stim)
 
-[psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-    ephys.binned_spikes_stim_align,kidx_rec,'uni',false);
+[psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+    ephys.binned_spikes_stim_align,domain_idx_rec,'uni',false);
 
 % (currently psth time is hard coded: save this somewhere)
 psth_t = -0.5:0.001:1;
@@ -1736,8 +1736,8 @@ psth_baseline = cellfun(@(mua) ...
     psth_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 % %%%%%%%%%%%%%%%% MOVE ALIGN
-% [psth_sum,psth_sum_kidx] = cellfun(@(mua,kidx) ap.groupfun(@sum,mua,[],[],kidx), ...
-%     ephys.binned_spikes_move_align,kidx_rec,'uni',false);
+% [psth_sum,psth_sum_domain_idx] = cellfun(@(mua,domain_idx) ap.groupfun(@sum,mua,[],[],domain_idx), ...
+%     ephys.binned_spikes_move_align,domain_idx_rec,'uni',false);
 % %%%%%%%%%%%%%%%%
 
 psth_norm = cellfun(@(psth,baseline) ...
@@ -1745,11 +1745,11 @@ psth_norm = cellfun(@(psth,baseline) ...
 
 psth_norm_cat_smooth = smoothdata(cell2mat(cellfun(@(x) reshape(permute(x,[1,3,2]),[], ...
     length(psth_t)),psth_norm,'uni',false)),2,'gaussian',[30,0]);
-[rxn_grp_sq,kidx_grp_sq] = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    bhv.stim_to_move,psth_sum_kidx,'uni',false);
+[rxn_grp_sq,domain_idx_grp_sq] = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    bhv.stim_to_move,psth_sum_domain_idx,'uni',false);
 
-opacity_grp_sq = cellfun(@(stim,kidx) ndgrid(stim,kidx), ...
-    ephys.trial_opacity,psth_sum_kidx,'uni',false);
+opacity_grp_sq = cellfun(@(stim,domain_idx) ndgrid(stim,domain_idx), ...
+    ephys.trial_opacity,psth_sum_domain_idx,'uni',false);
 
 animal_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(grp2idx(ephys.animal)),rxn_grp_sq,'uni',false));
@@ -1763,7 +1763,7 @@ ld_grp = cell2mat(cellfun(@(animal,grp) repmat(animal,numel(grp),1),    ...
     num2cell(bhv.days_from_learning),rxn_grp_sq,'uni',false));
 
 rxn_grp = cell2mat(cellfun(@(x) reshape(x,[],1),rxn_grp_sq,'uni',false));
-kidx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),kidx_grp_sq,'uni',false));
+domain_idx_grp = cell2mat(cellfun(@(x) reshape(x,[],1),domain_idx_grp_sq,'uni',false));
 
 opacity_grp = cell2mat(cellfun(@(x) reshape(x,[],1),opacity_grp_sq,'uni',false));
 
@@ -1775,7 +1775,7 @@ for curr_opacity = 0:1
     for curr_k = 1:n_k
         for curr_day = unique(day_grp)'
             nexttile;
-            curr_trials = find(td_grp >= 2 & kidx_grp == curr_k & opacity_grp == curr_opacity);
+            curr_trials = find(td_grp >= 2 & domain_idx_grp == curr_k & opacity_grp == curr_opacity);
 
             [~,sort_idx] = sort(rxn_grp(curr_trials));
             imagesc(psth_t,[],movmean(psth_norm_cat_smooth(curr_trials(sort_idx),:),[10,5]));
@@ -1809,7 +1809,7 @@ for curr_opacity = 0:1
     for curr_k = 1:n_k
         for curr_day = unique(day_grp)'
             nexttile;
-            curr_trials = find(day_grp == curr_day & kidx_grp == curr_k & opacity_grp == curr_opacity);
+            curr_trials = find(day_grp == curr_day & domain_idx_grp == curr_k & opacity_grp == curr_opacity);
             curr_data = psth_norm_cat_smooth(curr_trials,:);
 
             switch split_type

@@ -928,10 +928,10 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'DS016';
+animal = 'AM026';
 
 % Just load all images
-histology_path = plab.locations.filename('server',animal,[],[],'histology','raw');
+histology_path = plab.locations.filename('server',animal,[],[],'histology');
 histology_dir = dir(fullfile(histology_path,'*.tif'));
 
 histology_filenames = cellfun(@(path,name) fullfile(path,name), ...

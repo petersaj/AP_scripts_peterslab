@@ -11,7 +11,7 @@
 % Check for valid dataset selection
 if ~exist('load_dataset','var')
     error('No load_dataset specified')
-elseif ~ismember(load_dataset,{'passive','task'})
+elseif ~ismember(load_dataset,{'passive','task','general'})
     error('Unknown load_dataset: %s',load_dataset);
 end
 
@@ -102,6 +102,8 @@ end
 
 %% Ephys: create cluster MUA and data indices
 
+if ~strcmp(load_dataset,'general')
+
 % Sum spikes from depth into cluster multiunit
 [striatum_mua_sum,striatum_kidx] = cellfun(@(mua,kidx) ...
     ap.groupfun(@sum,mua,[],[],kidx), ...
@@ -151,6 +153,7 @@ switch load_dataset
             ephys.trial_stim_values,num2cell(striatum_mua_rec_n),'uni',false));
 end
 
+end
 
 %% Ephys: create indicies for single units
 
@@ -259,11 +262,12 @@ end
 
 % Get ROI activity
 wf_striatum_roi = permute(ap.wf_roi(U_master, ...
-    permute(cell2mat(wf.V_event_align),[3,2,1,4]),[],[],striatum_wf_roi),[3,2,1]);
+    permute(cell2mat(wf.V_event_align),[3,2,1,4]),[],[],striatum_wf_roi),[3,2,1,4]);
+warning('Why does this step take so long?')
 
 % (baseline-subtract)
 baseline_t = wf_t < 0;
-wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:),2);
+wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:,:),2);
 
 
 %% Set flag for loaded data
