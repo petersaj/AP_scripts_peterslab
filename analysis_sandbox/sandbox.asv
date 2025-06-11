@@ -368,3 +368,48 @@ xlabel('\Delta reaction (trial n-1 vs n+1)')
 ylabel('Reaction (trial n)')
 xline(0);
 
+
+
+%% rxn day split
+
+% Plot reaction time/index, by training day and learning day
+training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
+    unique(bhv.animal,'stable'),'uni',false));
+
+rxn_cat = cell2mat(bhv.(['stimwheel_rxn_',use_stat]));
+rxn_null_cat = cell2mat(bhv.(['stimwheel_rxn_null_',use_stat]));
+rxn_idx_cat = (rxn_null_cat-rxn_cat)./(rxn_null_cat+rxn_cat);
+
+[rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_cat,bhv.days_from_learning);
+rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,bhv.days_from_learning);
+
+rxn_mean = ap.groupfun(@mean,rxn_cat,bhv.days_from_learning);
+rxn_sem = ap.groupfun(@AP_sem,rxn_cat,bhv.days_from_learning);
+
+
+n_daysplit = 3;
+use_rxn = cellfun(@(x) ~isnan(x),bhv.stim_to_move_nullmean,'uni',false);
+
+rxn_daysplit_mean = cellfun(@(x,idx) ap.groupfun(@mean,x(idx), ...
+    ap.quantile_bin(sum(idx),n_daysplit)),bhv.stim_to_move,use_rxn,'uni',false);
+
+rxn_null_daysplit_mean = cellfun(@(x,idx) ap.groupfun(@mean,x(idx), ...
+    ap.quantile_bin(sum(idx),n_daysplit)),bhv.stim_to_move_nullmean,use_rxn,'uni',false);
+
+rxn_idx_daysplit = cellfun(@(meas,null) (null-meas)./(null+meas), ...
+    rxn_daysplit_mean,rxn_null_daysplit_mean,'uni',false);
+
+[rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,cell2mat(rxn_idx_daysplit), ...
+    [repelem(bhv.days_from_learning,n_daysplit), ...
+    repmat((1:n_daysplit)',length(rxn_idx_daysplit),1)]);
+
+rxn_idx_sem = ap.groupfun(@AP_sem,cell2mat(rxn_idx_daysplit), ...
+    [repelem(bhv.days_from_learning,n_daysplit), ...
+    repmat((1:n_daysplit)',length(rxn_idx_daysplit),1)]);
+
+plot_days = -3:2;
+figure;plot(rxn_group_x(:,1)+(rxn_group_x(:,2)-1).*1/(n_daysplit),rxn_idx_mean,'.k')
+
+
+
+
