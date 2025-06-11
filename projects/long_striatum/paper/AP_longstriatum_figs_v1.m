@@ -22,7 +22,30 @@ load_dataset = 'noact';
 AP_longstriatum_load_data;
 %%%
 
-% Plot reaction time index split by day
+% Plot reaction time by learning day
+figure;
+h = tiledlayout(1,2);
+
+rxn_cat = cell2mat(bhv.(['stimwheel_rxn_',use_stat]));
+rxn_null_cat = cell2mat(bhv.(['stimwheel_rxn_null_',use_stat]));
+
+[rxn_mean,rxn_group_x] = ap.groupfun(@mean,rxn_cat,bhv.days_from_learning);
+rxn_sem = ap.groupfun(@AP_sem,rxn_cat,bhv.days_from_learning);
+
+rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,bhv.days_from_learning);
+rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,bhv.days_from_learning);
+
+plot_days = -3:2;
+plot_day_idx = ismember(rxn_group_x,plot_days);
+
+nexttile; hold on;
+plot(rxn_group_x(plot_day_idx),rxn_null_mean(plot_day_idx),'r','linewidth',2);
+plot(rxn_group_x(plot_day_idx),rxn_mean(plot_day_idx),'k','linewidth',2);
+set(gca,'YScale','log');
+xline(0);
+ylabel('Reaction time')
+
+% Plot reaction time index, split within day
 n_daysplit = 3;
 use_rxn = cellfun(@(x) ~isnan(x),bhv.stim_to_move_nullmean,'uni',false);
 
@@ -35,16 +58,13 @@ rxn_null_daysplit_mean = cellfun(@(x,idx) ap.groupfun(@mean,x(idx), ...
 rxn_idx_daysplit = cell2mat(cellfun(@(meas,null) (null-meas)./(null+meas), ...
     rxn_daysplit_mean,rxn_null_daysplit_mean,'uni',false)')';
 
-[rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_daysplit, ...
+rxn_idx_mean = ap.groupfun(@mean,rxn_idx_daysplit, ...
     bhv.days_from_learning);
 
 rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_daysplit, ...
     bhv.days_from_learning);
 
-plot_days = -3:2;
-plot_day_idx = ismember(rxn_group_x,plot_days);
-
-figure;
+nexttile;
 rxn_group_x_daysplit = rxn_group_x+(0:n_daysplit)./n_daysplit;
 errorbar(reshape(rxn_group_x_daysplit(plot_day_idx,:)',[],1), ...
     reshape(padarray(rxn_idx_mean(plot_day_idx,:),[0,1],nan,'post')',[],1), ...
@@ -53,44 +73,6 @@ ylabel('Reaction index');
 xlabel('Day from learning');
 xline(0,'r');
 
-ap.prettyfig;
-
-% Plot reaction time/index, by training day and learning day
-training_day = cell2mat(cellfun(@(x) (1:sum(strcmp(bhv.animal,x)))', ...
-    unique(bhv.animal,'stable'),'uni',false));
-
-rxn_cat = cell2mat(bhv.(['stimwheel_rxn_',use_stat]));
-rxn_null_cat = cell2mat(bhv.(['stimwheel_rxn_null_',use_stat]));
-rxn_idx_cat = (rxn_null_cat-rxn_cat)./(rxn_null_cat+rxn_cat);
-
-[rxn_idx_mean,rxn_group_x] = ap.groupfun(@mean,rxn_idx_cat,bhv.days_from_learning);
-rxn_idx_sem = ap.groupfun(@AP_sem,rxn_idx_cat,bhv.days_from_learning);
-
-rxn_mean = ap.groupfun(@mean,rxn_cat,bhv.days_from_learning);
-rxn_sem = ap.groupfun(@AP_sem,rxn_cat,bhv.days_from_learning);
-
-rxn_null_mean = ap.groupfun(@mean,rxn_null_cat,bhv.days_from_learning);
-rxn_null_sem = ap.groupfun(@AP_sem,rxn_null_cat,bhv.days_from_learning);
-
-plot_x = -3:2;
-plot_x_idx = ismember(rxn_group_x,plot_x);
-
-figure; h = tiledlayout(1,2);
-
-nexttile; hold on;
-plot(rxn_group_x(plot_x_idx),rxn_null_mean(plot_x_idx),'r','linewidth',2);
-plot(rxn_group_x(plot_x_idx),rxn_mean(plot_x_idx),'k','linewidth',2);
-set(gca,'YScale','log');
-xline(0);
-ylabel('Reaction index')
-
-nexttile
-errorbar(rxn_group_x(plot_x_idx),rxn_idx_mean(plot_x_idx),rxn_idx_sem(plot_x_idx),'k','linewidth',2);
-xline(0);
-ylabel('Reaction index')
-
-linkaxes(h.Children(1:2:end),'y');
-linkaxes(h.Children(2:2:end),'y');
 ap.prettyfig;
 
 
