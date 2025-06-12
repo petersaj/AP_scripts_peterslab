@@ -311,7 +311,7 @@ elseif length(unique(sign(curr_group(curr_group ~= 0)))) == 2
 end
 
 % Plot smoothed PSTH
-smooth_size = 50;
+smooth_size = 100;
 bin_t = mean(diff(gui_data.t));
 
 curr_psth = grpstats(curr_raster,curr_group,@(x) mean(x,1))./bin_t;

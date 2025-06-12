@@ -42,7 +42,7 @@ for curr_k = 1:n_k
         for curr_day_grp = 1:length(plot_day_bins)-1
             nexttile;
 
-            curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+            curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
                 plot_day_grp == curr_day_grp & ...
                 striatum_sua_grp.tan);
 
@@ -80,7 +80,7 @@ for curr_k = 1:n_k
         % (plot scatter)
         nexttile(h_scatter); axis equal; hold on;
          
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
             plot_day_grp == curr_day_grp & ...
             striatum_sua_grp.tan);
 
@@ -136,7 +136,7 @@ stim_colormap = ap.colormap('BKR',n_stim);
 for curr_k = 1:n_k
     for curr_day_grp = 1:length(plot_day_bins)-1
 
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
             plot_day_grp == curr_day_grp & ...
             striatum_sua_grp.tan);
 
@@ -169,7 +169,7 @@ h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day_grp = 1:max(plot_day_grp)
 
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
             plot_day_grp == curr_day_grp & celltype_id ~= 0);
 
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
@@ -210,7 +210,7 @@ for curr_k = 1:n_k
 
     nexttile; hold on;
 
-    curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+    curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
         plot_day_grp == 1 & celltype_id ~= 0);
 
     curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
@@ -222,7 +222,7 @@ for curr_k = 1:n_k
     rc_diff_med = ap.groupfun(@nanmedian,rc_diff,celltype_id(curr_units));
     plot(categorical(celltype_order),rc_diff_med,'_b','MarkerSize',10);
 
-    curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+    curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
         plot_day_grp == 2 & celltype_id ~= 0);
 
     curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
@@ -252,7 +252,7 @@ h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day_grp = 1:max(plot_day_grp)
 
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
             plot_day_grp == curr_day_grp & celltype_id ~= 0);
 
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
@@ -295,7 +295,7 @@ h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day_grp = 1:max(plot_day_grp)
 
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
             plot_day_grp == curr_day_grp & celltype_id ~= 0);
 
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
@@ -359,7 +359,7 @@ h = tiledlayout(n_k,max(plot_day_grp),'TileSpacing','compact');
 for curr_k = 1:n_k
     for curr_day_grp = 1:max(plot_day_grp)
 
-        curr_units = find(striatum_sua_grp.kidx == curr_k & ...
+        curr_units = find(striatum_sua_grp.domain_idx == curr_k & ...
             plot_day_grp == curr_day_grp & celltype_id ~= 0);
 
         curr_unit_mean = squeeze(mean(striatum_sua(curr_units,stim_t,:),2));
@@ -417,7 +417,7 @@ AP_longstriatum_load_data;
 %%%
 
 % Set striatal domains to plot (combines if multiple)
-plot_kidx = 1;
+plot_domains = 1;
 
 % Set days to group
 plot_day_bins = [-inf,-2,0,inf];
@@ -428,9 +428,7 @@ celltypes = ["msn","fsi","tan"];
 striatum_sua_tavg = nan(size(striatum_sua,[1,3]));
 for curr_celltype = celltypes
 
-    curr_units = find( ...
-        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
-        striatum_sua_grp.(curr_celltype));
+    curr_units = find(striatum_sua_grp.(curr_celltype));
 
     % Get window from mean activity across all cells
     curr_sua_mean = mean(ap.groupfun(@mean, ...
@@ -461,7 +459,7 @@ for curr_day_grp = 1:length(plot_day_bins)-1
 
     % Get units and sorting
     curr_units = find( ...
-        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
         plot_day_grp == curr_day_grp & ...
         striatum_sua_grp.tan);
 
@@ -520,7 +518,7 @@ h = tiledlayout(1,n_stim*max(plot_day_grp),'TileSpacing','compact');
 stim_colormap = ap.colormap('BKR',n_stim);
 for curr_day_grp = 1:length(plot_day_bins)-1
     curr_units = find(...
-        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
         plot_day_grp == curr_day_grp & ...
         striatum_sua_grp.tan);
 
@@ -551,7 +549,7 @@ h = tiledlayout(1,max(plot_day_grp),'TileSpacing','compact');
 for curr_day_grp = 1:max(plot_day_grp)
 
     curr_units = find( ...
-        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
         plot_day_grp == curr_day_grp & celltype_id ~= 0);
 
     curr_act_mean = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(curr_units,:), ...
@@ -600,7 +598,7 @@ psth_t = -0.5:0.001:1;
 baseline_t = psth_t < 0;
 softnorm = 1;
 sua_baseline = cellfun(@(sua) ...
-    mean(sua(:,baseline_t,:),[2,3]), ...
+    mean(sua(:,baseline_t,1),[2,3]), ...
     ephys.unit_event_psths,'uni',false,'ErrorHandler',@(varargin) NaN);
 
 striatum_sua_task = cell2mat(cellfun(@(data,baseline,striatum_units) ...
@@ -610,12 +608,12 @@ striatum_sua_task = cell2mat(cellfun(@(data,baseline,striatum_units) ...
 % Plot heatmap
 figure;
 colormap(ap.colormap('BWR',[],2));
-h = tiledlayout(max(plot_day_grp),1,'TileSpacing','compact');
+h = tiledlayout(max(plot_day_grp),size(striatum_sua_task,3),'TileSpacing','compact');
 for curr_day_grp = 1:length(plot_day_bins)-1
 
     % Get units and sorting
     curr_units = find( ...
-        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
         plot_day_grp == curr_day_grp & ...
         striatum_sua_grp.tan);
 
@@ -636,11 +634,13 @@ for curr_day_grp = 1:length(plot_day_bins)-1
         ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
         num2cell(striatum_sua_grp.unit_id(plot_units))];
 
-    nexttile;
-    imagesc(psth_t,[],striatum_sua_task(plot_units,:,1));
-    clim([-1,1])
-    xlim([-0.2,0.8])
-    yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
+    for curr_align = 1:size(striatum_sua_task,3)
+        nexttile;
+        imagesc(psth_t,[],striatum_sua_task(plot_units,:,curr_align));
+        clim([-1,1])
+        xlim([-0.2,0.8])
+        yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
+    end
 
 end
 linkaxes(h.Children,'xy');
@@ -649,21 +649,24 @@ ap.prettyfig;
 
 % Plot average
 figure;
-h = tiledlayout(1,max(plot_day_grp),'TileSpacing','compact');
+h = tiledlayout(max(plot_day_grp),size(striatum_sua_task,3),'TileSpacing','compact');
 stim_colormap = ap.colormap('BKR',n_stim);
 for curr_day_grp = 1:length(plot_day_bins)-1
+
     curr_units = find(...
-        ismember(striatum_sua_grp.kidx,plot_kidx) & ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
         plot_day_grp == curr_day_grp & ...
         striatum_sua_grp.tan);
 
-    curr_sua_mean = mean(ap.groupfun(@mean, ...
-        striatum_sua_task(curr_units,:,1),striatum_sua_grp.animal(curr_units)),1);
-    curr_sua_sem = AP_sem(ap.groupfun(@mean, ...
-        striatum_sua_task(curr_units,:,1),striatum_sua_grp.animal(curr_units)),1);
+    for curr_align = 1:size(striatum_sua_task,3)
+        curr_sua_mean = mean(ap.groupfun(@mean, ...
+            striatum_sua_task(curr_units,:,curr_align),striatum_sua_grp.animal(curr_units)),1);
+        curr_sua_sem = AP_sem(ap.groupfun(@mean, ...
+            striatum_sua_task(curr_units,:,curr_align),striatum_sua_grp.animal(curr_units)),1);
+        nexttile;
+        ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,[0.7,0,0]);
+    end
 
-    nexttile;
-    ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem,[0.7,0,0]);
 end
 linkaxes(h.Children,'xy');
 ap.prettyfig;
