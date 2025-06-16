@@ -155,7 +155,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
-%% Ephys: create indicies for single units
+%% Ephys: concatenate single units and create indicies
 
 if ~strcmp(load_dataset,'noact')
 

@@ -607,7 +607,7 @@ striatum_sua_task = cell2mat(cellfun(@(data,baseline,striatum_units) ...
 
 % Plot heatmap
 figure;
-colormap(ap.colormap('BWR',[],2));
+colormap(ap.colormap('BWR',[],1));
 h = tiledlayout(max(plot_day_grp),size(striatum_sua_task,3),'TileSpacing','compact');
 for curr_day_grp = 1:length(plot_day_bins)-1
 
@@ -637,7 +637,7 @@ for curr_day_grp = 1:length(plot_day_bins)-1
     for curr_align = 1:size(striatum_sua_task,3)
         nexttile;
         imagesc(psth_t,[],striatum_sua_task(plot_units,:,curr_align));
-        clim([-1,1])
+        clim([-2,2])
         xlim([-0.2,0.8])
         yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
     end

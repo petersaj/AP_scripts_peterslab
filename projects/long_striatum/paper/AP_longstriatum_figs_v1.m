@@ -35,7 +35,7 @@ rxn_null_mean_daysplit = cell2mat(cellfun(@(x,idx) ap.groupfun(@mean,x(idx), ...
 rxn_idx_daysplit = (rxn_null_mean_daysplit-rxn_mean_daysplit)./ ...
     (rxn_null_mean_daysplit+rxn_mean_daysplit);
 
-rxn_daysplit_mean = ap.groupfun(@mean,rxn_mean_daysplit, ...
+[rxn_daysplit_mean,rxn_group_x] = ap.groupfun(@mean,rxn_mean_daysplit, ...
     bhv.days_from_learning);
 rxn_null_daysplit_mean = ap.groupfun(@mean,rxn_null_mean_daysplit, ...
     bhv.days_from_learning);
@@ -44,6 +44,9 @@ rxn_idx_daysplit_mean = ap.groupfun(@mean,rxn_idx_daysplit, ...
     bhv.days_from_learning);
 rxn_idx_daysplit_sem = ap.groupfun(@AP_sem,rxn_idx_daysplit, ...
     bhv.days_from_learning);
+
+plot_days = -3:2;
+plot_day_idx = ismember(rxn_group_x,plot_days);
 
 figure; tiledlayout(2,1);
 rxn_group_x_daysplit = rxn_group_x+(0:n_daysplit)./n_daysplit;
@@ -64,7 +67,6 @@ errorbar(reshape(rxn_group_x_daysplit(plot_day_idx,:)',[],1), ...
 xline(0,'r');
 ylabel('Association index');
 xlabel('Day from learning');
-
 ap.prettyfig;
 
 
@@ -389,7 +391,7 @@ ap.prettyfig;
 %% [Fig 2X] Cortex ROIs
 
 %%% Load data for figure
-load_dataset = 'task';
+load_dataset = 'noact';
 AP_longstriatum_load_data;
 %%%
 
@@ -802,7 +804,7 @@ title(h,'Cortex');
 ap.prettyfig;
 
 
-%% [Supp. Fig 1x] Example striatal domains
+%% [Supp. Fig 1x] Striatal domain clustering and classification
 
 %%% Load data for figure
 load_dataset = 'noact';
@@ -810,7 +812,7 @@ AP_longstriatum_load_data;
 %%%
 
 % Choose animal and day to plot
-use_animal = 'AP025';
+use_animal = 'AM026';
 use_ld = 0;
 use_rec = strcmp(bhv.animal,use_animal) & bhv.days_from_learning == use_ld;
 use_cortex_kernel = ctx_str_maps.cortex_striatum_map{use_rec};
@@ -881,13 +883,14 @@ domain_mua = zeros(n_domains,diff(plot_t)/bin_t);
 for curr_domain = 1:n_domains
     curr_spikes = spike_times_timelite(isbetween(spike_times_timelite,plot_t(1),plot_t(2)) & ...
         ismember(depth_group,find(domain_idx_rec{use_rec} == curr_domain)));
-    domain_mua(curr_domain,:) = histcounts(curr_spikes,plot_t(1):bin_t:plot_t(2));
+    domain_mua(curr_domain,:) = histcounts(curr_spikes,plot_t(1):bin_t:plot_t(2))./bin_t;
 end
 
 figure;
 plot(conv(plot_t(1):bin_t:plot_t(2),[0.5,0.5],'valid'),domain_mua','linewidth',2);
 set(gca,'ColorOrder',domain_color_rgb);
 axis off;
+ap.scalebar(10,500);
 ap.prettyfig
 
 

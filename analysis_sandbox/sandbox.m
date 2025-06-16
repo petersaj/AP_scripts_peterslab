@@ -368,3 +368,55 @@ xlabel('\Delta reaction (trial n-1 vs n+1)')
 ylabel('Reaction (trial n)')
 xline(0);
 
+%% tan nostim 
+
+% 
+% % Load task SUA
+% load(fullfile(data_path,'ephys_task'));
+
+striatum_units = cellfun(@(x) ~isnan(x),ephys.unit_depth_group,'uni',false);
+
+% (bombcell cell types)
+striatum_sua_grp.msn = cell2mat(cellfun(@(grp,str) logical(grp(str)), ...
+    ephys.str_msn_idx,striatum_units,'uni',false));
+striatum_sua_grp.fsi = cell2mat(cellfun(@(grp,str) logical(grp(str)), ...
+    ephys.str_fsi_idx,striatum_units,'uni',false));
+striatum_sua_grp.tan = cell2mat(cellfun(@(grp,str) logical(grp(str)), ...
+    ephys.str_tan_idx,striatum_units,'uni',false));
+
+striatum_sua_grp.domain_idx = cell2mat(cellfun(@(depth,domain_idx,striatum_units) domain_idx(depth(striatum_units)), ...
+        ephys.unit_depth_group,domain_idx_rec,striatum_units,'uni',false));
+
+% (hardcoding day for now)
+striatum_units_n_rec = cellfun(@sum,striatum_units);
+striatum_sua_grp.ld = cell2mat(cellfun(@(grp,n_units) repmat(grp,n_units,1), ...
+        num2cell(repmat((1:7)',2,1)),num2cell(striatum_units_n_rec),'uni',false));
+
+psth_t = -0.5:0.001:1;
+baseline_t = psth_t < 0;
+softnorm = 1;
+sua_baseline = cellfun(@(sua) ...
+    mean(sua(:,baseline_t,1),[2,3]), ...
+    ephys.unit_event_stimon_psths,'uni',false,'ErrorHandler',@(varargin) NaN);
+
+spikes_norm_smooth_reshape_fcn = @(spikes,baseline) ...
+    smoothdata((spikes-baseline)./(baseline+softnorm),2,'gaussian',[100,0]);
+
+striatum_sua_task_stim = cell2mat(cellfun(@(data,baseline,striatum_units) ...
+    spikes_norm_smooth_reshape_fcn(data(striatum_units,:,:),baseline(striatum_units)), ...
+    ephys.unit_event_stimon_psths,sua_baseline,striatum_units,'uni',false));
+
+striatum_sua_task_nostim = cell2mat(cellfun(@(data,baseline,striatum_units) ...
+    spikes_norm_smooth_reshape_fcn(data(striatum_units,:,:),baseline(striatum_units)), ...
+    ephys.unit_event_stimoff_psths,sua_baseline,striatum_units,'uni',false));
+
+% plot_units = striatum_sua_grp.tan & ismember(striatum_sua_grp.domain_idx,3) & striatum_sua_grp.ld > 2;
+plot_units = striatum_sua_grp.tan & striatum_sua_grp.ld == 1;
+figure; h = tiledlayout(1,4);
+nexttile;imagesc(striatum_sua_task_stim(plot_units,:,1));clim([-3,3]);colormap(ap.colormap('BWR'))
+nexttile;imagesc(striatum_sua_task_nostim(plot_units,:,1));clim([-3,3]);colormap(ap.colormap('BWR'))
+nexttile;imagesc(striatum_sua_task_stim(plot_units,:,3));clim([-3,3]);colormap(ap.colormap('BWR'))
+nexttile;imagesc(striatum_sua_task_nostim(plot_units,:,3));clim([-3,3]);colormap(ap.colormap('BWR'))
+
+
+
