@@ -272,9 +272,9 @@ if gui_data.plot_widefield
 end
 
 if gui_data.plot_ephys
-    xrange = diff(xlim(gui_data.ephys_axis))/2.*[-1,1] + t_new;
+    xrange = 3.*[-1,0] + t_new;
     xlim(gui_data.ephys_axis,xrange);
-    set(gui_data.ephys_tmark,'Value',t_new);
+    set(gui_data.ephys_tmark,'Value',t_new+1);
 end
 
 % Update the time text

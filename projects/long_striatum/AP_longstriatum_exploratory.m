@@ -356,7 +356,7 @@ mua_task_k_permute = cellfun(@(x) permute(x,[3,2,1]),mua_task_k,'uni',false);
 % (can't do normal because fixed quiescence)
 % (some trials no stimuli)
 
-animals = {'AP026'};
+animals = {'AP024','AP026'};
 
 % Create master tiled layout
 figure;

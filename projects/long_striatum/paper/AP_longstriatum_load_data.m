@@ -44,7 +44,7 @@ learn_stat_p = 0.05;
 % Load behavior
 load(fullfile(data_path,'bhv'));
 
-% Set (overwrite) "learned_days" and "days_from_learning"
+% Set "learned_days" and "days_from_learning"
 bhv.learned_days = cellfun(@(x) x < learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
 for curr_animal = unique(bhv.animal)'
     curr_rows = strcmp(bhv.animal,curr_animal);
@@ -115,7 +115,7 @@ if ~strcmp(load_dataset,'noact')
     % Normalize and smooth multiunit
     % (currently psth time is hard coded: save this somewhere)
     psth_t = -0.5:0.001:1;
-    baseline_t = psth_t < 0;
+    baseline_t = psth_t < -0.2;
     softnorm = 10;
     mua_baseline = cellfun(@(mua) ...
         repmat(mean(mua(:,baseline_t,:,1),[1,2]),1,1,1,size(mua,4)), ...
