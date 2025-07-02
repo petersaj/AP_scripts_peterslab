@@ -267,7 +267,7 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2:2,Inf];
+plot_day_bins = [-Inf,-2:0,Inf];
 plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
@@ -813,6 +813,158 @@ for curr_domain = 1:size(striatum_wf_roi,3)
 end
 linkaxes(h.Children,'xy');
 title(h,'Cortex');
+ap.prettyfig;
+
+
+%% [Fig 4X] Striatum passive unit responses
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+% Set striatal domains to plot (combines if multiple)
+plot_domains = 1:2;
+
+% Set days to group
+plot_day_bins = [-inf,-2,0,Inf];
+plot_day_grp = discretize(max(-inf,striatum_sua_grp.ld),plot_day_bins);
+
+% Get max activity to stim onset
+stim_t = [0.05,0.15];
+striatum_sua_tavg = squeeze(mean(striatum_sua(:,isbetween(psth_t,stim_t(1),stim_t(2)),:),2));
+
+n_stim = size(striatum_sua,3);
+
+% Plot heatmap
+[~,max_stim] = max(striatum_sua_tavg,[],2);
+for curr_celltype = celltypes
+    figure;
+    colormap(ap.colormap('BWR',[],2));
+    h = tiledlayout(max(plot_day_grp)*n_stim,n_stim,'TileSpacing','none');
+    title(h,curr_celltype);
+    for curr_day_grp = 1:length(plot_day_bins)-1
+        for curr_max_stim = 1:n_stim
+
+            % Get units and sorting
+            curr_units = find( ...
+                ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+                plot_day_grp == curr_day_grp & ...
+                max_stim == curr_max_stim & ...
+                striatum_sua_grp.(curr_celltype) & ...
+                any(striatum_sua,[2,3]));
+     
+            [~,sort_idx] = sort(max(striatum_sua_tavg(curr_units,curr_max_stim),[],2),'descend');
+            plot_units = curr_units(sort_idx);
+
+            % (get rec/IDs of cells for single-unit PSTH plotting)
+            curr_sorted_unit_coordinate = ...
+                [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
+                ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
+                num2cell(striatum_sua_grp.unit_id(plot_units))];
+
+            % (smooth relative to number of number of units);
+            max_n_cells = max(ap.groupfun(@sum, ...
+                +(ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+                striatum_sua_grp.(curr_celltype)),plot_day_grp));
+            smooth_n = 5*max_n_cells/500;
+
+            for curr_stim = 1:n_stim
+                nexttile;
+                imagesc(psth_t,[],movmean(striatum_sua(plot_units,:,curr_stim),smooth_n,1));
+                clim([-1,1])
+                xlim([-0.2,0.8])
+                axis off;
+            end
+        end
+    end
+    linkaxes(h.Children,'xy');
+    ap.prettyfig;
+end
+
+% Plot max by stim response
+[~,max_stim] = max(striatum_sua_tavg,[],2);
+for curr_celltype = celltypes
+    figure;
+    h = tiledlayout(n_stim*max(plot_day_grp),1,'TileSpacing','compact');
+    title(h,curr_celltype);
+
+    stim_colormap = ap.colormap('BKR',n_stim);
+    for curr_day_grp = 1:length(plot_day_bins)-1
+        for curr_max_stim = 1:3
+
+            curr_units = ...
+                ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+                plot_day_grp == curr_day_grp & striatum_sua_grp.(curr_celltype) & ...
+                max_stim == curr_max_stim;
+
+            curr_act_mean = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(curr_units,:), ...
+                striatum_sua_grp.animal(curr_units),plot_day_grp(curr_units));
+
+            curr_act_sem = ap.nestgroupfun({@nanmean,@AP_sem},striatum_sua_tavg(curr_units,:), ...
+                striatum_sua_grp.animal(curr_units),plot_day_grp(curr_units));
+
+            nexttile; hold on;
+            b = bar(curr_act_mean,'FaceColor','flat','CData',stim_colormap);
+            errorbar(curr_act_mean,curr_act_sem, ...
+                'marker','none','linestyle','none','color','k','linewidth',1);
+
+        end
+    end
+    set(h.Children,'YTickLabel','')
+    set(h.Children(2:end),'XTickLabel','')
+    linkaxes(h.Children,'xy');
+    ap.prettyfig;
+end
+
+% Average stim response grouped by celltype
+plot_celltypes = ["tan","fsi","msn"];
+celltype_id = sum(cell2mat(arrayfun(@(x) ...
+    striatum_sua_grp.(plot_celltypes(x)).*x, ...
+    1:length(plot_celltypes),'uni',false)),2);
+
+stim_colormap = ap.colormap('BWR',n_stim);
+
+figure;
+h = tiledlayout(1,length(celltypes),'TileSpacing','compact');
+for curr_celltype = celltypes
+
+    curr_units =  ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        striatum_sua_grp.(curr_celltype);
+
+    curr_act_mean = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(curr_units,:), ...
+        striatum_sua_grp.animal(curr_units),plot_day_grp(curr_units));
+
+    curr_act_sem = ap.nestgroupfun({@nanmean,@AP_sem},striatum_sua_tavg(curr_units,:), ...
+        striatum_sua_grp.animal(curr_units),plot_day_grp(curr_units));
+
+    nexttile; hold on;
+    b = bar(curr_act_mean','FaceColor','flat');
+    [b.CData] = deal(stim_colormap);
+    errorbar(vertcat(b.XEndPoints)',curr_act_mean',curr_act_sem', ...
+        'marker','none','linestyle','none','color','k','linewidth',1);
+    title(curr_celltype);
+
+    % ~stats~
+    compare_day_grps = [1,2];
+    stat_meas = diff(curr_act_mean(compare_day_grps,:),[],1);
+
+    curr_stat_units = curr_units & ismember(plot_day_grp,compare_day_grps);
+    n_shuff = 1000;
+    stat_null = nan(n_shuff,3);
+    for curr_shuff = 1:n_shuff
+        plot_day_grp_shuff = ap.shake(plot_day_grp(curr_stat_units),1,striatum_sua_grp.animal(curr_stat_units));
+        curr_act_mean_shuff = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(curr_stat_units,:), ...
+            striatum_sua_grp.animal(curr_stat_units),plot_day_grp_shuff);
+        stat_null(curr_shuff,:) = diff(curr_act_mean_shuff,[],1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_null]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    fprintf('%s day grps %d,%d p = %.2g L, %.2g C, %.2g R\n',curr_celltype,compare_day_grps,stat_p);
+
+end
+linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 

@@ -514,8 +514,9 @@ end
 %     AP_longstriatum_psth_fig;
 % end
 
-% %%% TESTING: Plot example PSTHs
-% curr_unit = 1141;
+% % %%% TESTING: Plot example PSTHs
+% % curr_unit = 1141;
+% curr_unit = find(max_stim(plot_units)==3,1)+3;
 % animal = curr_sorted_unit_coordinate{curr_unit,1};
 % rec_day = curr_sorted_unit_coordinate{curr_unit,2};
 % plot_units = curr_sorted_unit_coordinate{curr_unit,3};
@@ -605,6 +606,41 @@ for curr_celltype = celltypes
     ap.prettyfig;
 end
 
+% % Plot max by stim response (group by day)
+% [~,max_stim] = max(striatum_sua_tavg,[],2);
+% for curr_celltype = celltypes
+%     figure;
+%     h = tiledlayout(max(plot_day_grp),1,'TileSpacing','tight');
+%     title(h,curr_celltype);
+% 
+%     stim_colormap = ap.colormap('BKR',n_stim);
+%     for curr_day_grp = 1:3
+% 
+%         curr_units = ...
+%             ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+%             striatum_sua_grp.(curr_celltype) & ...
+%             plot_day_grp == curr_day_grp;
+% 
+%         curr_act_mean = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(curr_units,:), ...
+%             striatum_sua_grp.animal(curr_units),max_stim(curr_units));
+% 
+%         curr_act_sem = ap.nestgroupfun({@nanmean,@AP_sem},striatum_sua_tavg(curr_units,:), ...
+%             striatum_sua_grp.animal(curr_units),max_stim(curr_units));
+% 
+%         nexttile; hold on;colormap(stim_colormap);
+%         b = bar(curr_act_mean,'FaceColor','flat');
+%         stim_cdata = num2cell(1:3);
+%         [b.CData] = deal(stim_cdata{:});
+%         errorbar(vertcat(b.XEndPoints)',curr_act_mean,curr_act_sem, ...
+%             'marker','none','linestyle','none','color','k','linewidth',1);
+% 
+%     end
+%     xlabel('Preferred stimulus');
+%     linkaxes(h.Children,'xy');
+%     ap.prettyfig;
+% end
+
+
 
 % Stim response by celltype
 plot_celltypes = ["tan","fsi","msn"];
@@ -689,7 +725,7 @@ for curr_celltype = celltypes
     title(curr_celltype);
 
     % ~stats~
-    compare_day_grps = 1:2;
+    compare_day_grps = [1,3];
     stat_meas = diff(curr_act_mean(compare_day_grps,:),[],1);
 
     curr_stat_units = curr_units & ismember(plot_day_grp,compare_day_grps);
@@ -820,12 +856,19 @@ for curr_day_grp = 1:length(plot_day_bins)-1
         ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
         num2cell(striatum_sua_grp.unit_id(plot_units))];
 
-    for curr_align = 1:size(striatum_sua_task,3)
+    % (smooth MSN/FSI because large number of units;
+    max_n_cells = max(ap.groupfun(@sum, ...
+        +(ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        striatum_sua_grp.(curr_celltype)),plot_day_grp));
+    smooth_n = 5*max_n_cells/500;
+
+    for curr_stim = 1:n_stim
         nexttile;
-        imagesc(psth_t,[],striatum_sua_task(plot_units,:,curr_align));
+        imagesc(psth_t,[],movmean(striatum_sua_task(plot_units,:,curr_stim),[smooth_n,0],1));
         clim([-1,1])
         xlim([-0.2,0.8])
         yline(cumsum(cellfun(@length,sort_idx_cell)),'k');
+        axis off;
     end
 
 end
