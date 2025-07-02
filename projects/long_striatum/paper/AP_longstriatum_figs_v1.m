@@ -347,53 +347,6 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 
-%% [Fig 2X] Striatum task max stim activity split aross session
-
-%%% Load data for figure
-load_dataset = 'task';
-AP_longstriatum_load_data;
-%%%
-
-rxn_cutoff = 0.3; % only plot trials with slow reaction times
-
-plot_day_bins = [-Inf,-2:2,Inf];
-plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
-
-% Split by trial percentile within day
-n_split = 3;
-split_idx = cell2mat(cellfun(@(n_trials,n_mua) ...
-    reshape(repmat(ap.quantile_bin(n_trials,n_split),1,n_mua),[],1), ...
-    num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
-
-% (mean across trials, max in time window, mean across animals)
-use_trials = striatum_mua_grp.rxn > rxn_cutoff;
-[activity_mean,activity_mean_grp] = ap.groupfun(@mean,striatum_mua(use_trials,:,1), ...
-    [striatum_mua_grp.animal(use_trials),plot_day_grp(use_trials), ...
-    split_idx(use_trials),striatum_mua_grp.domain_idx(use_trials)]);
-
-max_t = psth_t > 0 & psth_t < 0.2;
-activity_max = max(activity_mean(:,max_t),[],2);
-[activity_max_avg,activity_max_grp] = ap.nestgroupfun({@mean,@mean},activity_max,activity_mean_grp(:,1),activity_mean_grp(:,2:end));
-activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},activity_max,activity_mean_grp(:,1),activity_mean_grp(:,2:end));
-
-figure;
-h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','compact');
-for curr_domain = 1:n_domains
-    for curr_day = 1:length(plot_day_bins)-1
-        nexttile; hold on;
-        curr_data_idx = activity_max_grp(:,1) == curr_day & ...
-            activity_max_grp(:,3) == curr_domain;
-        errorbar(activity_max_avg(curr_data_idx),activity_max_sem(curr_data_idx),'k','linewidth',2);
-        axis padded
-        if curr_domain == 1
-            title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
-        end
-    end
-end
-linkaxes(h.Children,'xy');
-ap.prettyfig;
-
-
 %% [Fig 2X] Cortex ROIs
 
 %%% Load data for figure
@@ -501,7 +454,7 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 
-%% [Fig 2X] Cortex task max stim activity split aross session
+%% [Fig 2X] Cortex and striatal task max stim activity, split in session
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -510,40 +463,78 @@ AP_longstriatum_load_data;
 
 rxn_cutoff = 0.3; % only plot trials with slow reaction times
 
-plot_day_bins = [-Inf,-2:2,Inf];
-plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+plot_day_bins = [-Inf,-2:0,Inf];
+striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
 
 % Split by trial percentile within day
 n_split = 3;
-split_idx = cell2mat(cellfun(@(n_trials) ...
+
+striatum_split_idx = cell2mat(cellfun(@(n_trials,n_mua) ...
+    reshape(repmat(ap.quantile_bin(n_trials,n_split),1,n_mua),[],1), ...
+    num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+
+cortex_split_idx = cell2mat(cellfun(@(n_trials) ...
     ap.quantile_bin(n_trials,n_split), ...
     num2cell(cortex_trials_rec_n),'uni',false));
 
-% (mean across trials, max in time window, mean across animals)
-use_trials = wf_grp.rxn > rxn_cutoff;
-[activity_mean,activity_mean_grp] = ap.groupfun(@mean,wf_striatum_roi(use_trials,:,:), ...
-    [wf_grp.animal(use_trials),plot_day_grp(use_trials),split_idx(use_trials)]);
+% Get activity: trial mean > time max > animal mean 
+stim_t = [0,0.2];
 
-max_t = wf_t > 0 & wf_t < 0.2;
-activity_max = permute(max(activity_mean(:,max_t,:),[],2),[1,3,2]);
-[activity_max_avg,activity_max_grp] = ap.nestgroupfun({@mean,@mean},activity_max,activity_mean_grp(:,1),activity_mean_grp(:,2:end));
-activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},activity_max,activity_mean_grp(:,1),activity_mean_grp(:,2:end));
+% (striatum)
+striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
+[striatum_activity_mean,striatum_activity_mean_grp] = ap.groupfun(@mean,striatum_mua(striatum_use_trials,:,1), ...
+    [striatum_mua_grp.animal(striatum_use_trials),striatum_plot_day_grp(striatum_use_trials), ...
+    striatum_split_idx(striatum_use_trials),striatum_mua_grp.domain_idx(striatum_use_trials)]);
 
+striatum_activity_max = max(striatum_activity_mean(:,isbetween(psth_t,stim_t(1),stim_t(2))),[],2);
+[striatum_activity_max_avg,striatum_activity_max_grp] = ap.nestgroupfun({@mean,@mean},striatum_activity_max,striatum_activity_mean_grp(:,1),striatum_activity_mean_grp(:,2:end));
+striatum_activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},striatum_activity_max,striatum_activity_mean_grp(:,1),striatum_activity_mean_grp(:,2:end));
+
+% (cortex)
+cortex_use_trials = wf_grp.rxn > rxn_cutoff;
+[cortex_activity_mean,cortex_activity_mean_grp] = ap.groupfun(@mean,wf_striatum_roi(cortex_use_trials,:,:,1), ...
+    [wf_grp.animal(cortex_use_trials),cortex_plot_day_grp(cortex_use_trials),cortex_split_idx(cortex_use_trials)]);
+
+cortex_activity_max = permute(max(cortex_activity_mean(:,isbetween(wf_t,stim_t(1),stim_t(2)),:),[],2),[1,3,2]);
+[cortex_activity_max_avg,cortex_activity_max_grp] = ap.nestgroupfun({@mean,@mean},cortex_activity_max,cortex_activity_mean_grp(:,1),cortex_activity_mean_grp(:,2:end));
+cortex_activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},cortex_activity_max,cortex_activity_mean_grp(:,1),cortex_activity_mean_grp(:,2:end));
+
+% Plot cortex and striatum overlaid
 figure;
-h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','compact');
+h = tiledlayout(n_domains,length(plot_day_bins)-1,'TileSpacing','compact');
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         nexttile; hold on;
-        curr_data_idx = activity_max_grp(:,1) == curr_day;
-        ap.errorfill(1:n_split,activity_max_avg(curr_data_idx,curr_domain), ...
-            activity_max_sem(curr_data_idx),[0,0.6,0],0.5,false,2);
-        axis padded
+
+        yyaxis left;
+        curr_striatum_data_idx = cortex_activity_max_grp(:,1) == curr_day;
+        ap.errorfill(1:n_split,cortex_activity_max_avg(curr_striatum_data_idx,curr_domain), ...
+            cortex_activity_max_sem(curr_striatum_data_idx),[0,0.6,0],0.5,false,2);
+
+        yyaxis right;
+        curr_cortex_data_idx = striatum_activity_max_grp(:,1) == curr_day & ...
+            striatum_activity_max_grp(:,3) == curr_domain;
+        errorbar(striatum_activity_max_avg(curr_cortex_data_idx), ...
+            striatum_activity_max_sem(curr_cortex_data_idx),'k','linewidth',2);
+
         if curr_domain == 1
             title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
         end
     end
 end
-linkaxes(h.Children,'xy');
+
+% Link all cortex/striatum axes
+for curr_ax = 1:length(h.Children)
+    yyaxis(h.Children(curr_ax),'left');
+end
+linkaxes(h.Children);
+for curr_ax = 1:length(h.Children)
+    yyaxis(h.Children(curr_ax),'right');
+end
+linkaxes(h.Children);
+
 ap.prettyfig;
 
 
