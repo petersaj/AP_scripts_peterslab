@@ -187,13 +187,15 @@ xlabel('Time from event');
 %     'AM018','AM019','AM021','AM022','AM026','AM029', ...
 %     'AP023','AP025'};
 
-% animals = {'AM018','AM019','AM021','AM022'};
-animals = {'AM016','AM018'};
+% animals = {'AM016','AM018'};
+% animals = {'AM012','AM017','AM021','AM022'};
+% animals = {'AM019'};
+animals = {'AM017'};
 % animals = {'DS016'};
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
 
 % Set reaction statistic to use
-use_stat = 'mean';
+use_stat = 'std';
 learn_p = 0.05;
 
 % Create master tiled layout
@@ -250,7 +252,7 @@ for curr_animal_idx = 1:length(animals)
             sum([trial_events.values.Outcome])];
 
         % Align wheel movement to stim onset
-        align_times = stimOn_times;clc
+        align_times = stimOn_times;
         pull_times = align_times + surround_time_points;
 
         frac_move_day(curr_recording) = nanmean(wheel_move);

@@ -82,15 +82,15 @@ for curr_trial = 1:n_trials
     % (debugging: plot trial)
     if false
 
-        trial_start_t = min(curr_quiescence_resets_timelite) - 2;
+        trial_start_t = stimOff_times(curr_trial-1);
         trial_end_t = stimOn_times(curr_trial) + 4;
         curr_t_idx = timelite.timestamps > trial_start_t & timelite.timestamps < trial_end_t;
 
-        figure;
+        figure; hold on;
         % (wheel velocity)
         plot(timelite.timestamps(curr_t_idx),wheel_velocity(curr_t_idx));
         % (quiescence resets)
-        xline(curr_quiescence_resets_timelite,'c')
+        plot(curr_quiescence_resets_timelite,0,'|k')
         % (stim onset)
         xline(stimOn_times(curr_trial),'g','linewidth',2);
         % (move onset)
@@ -111,7 +111,7 @@ stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
 % Create null reaction distribution 
 % (only from trials with reaction times > 0ms: negative reaction times mean
 % the quiescence time wasn't working exactly)
-stim_rxn_threshold = 0;
+stim_rxn_threshold = -Inf;
 null_use_trials = (stim_to_move > stim_rxn_threshold) & ~cellfun(@isempty,stim_to_move_valid);
 
 n_samples = 10000;
@@ -123,28 +123,34 @@ stim_to_move_null(null_use_trials,:) = ...
 stim_to_move_nullmean = mean(stim_to_move_null,2);
 
 % Get reaction statistic
-% (mad or mean, no median because doesn't look reliable)
-
 % (default is mad)
 if nargin < 4 || isempty(use_stat)
     use_stat = 'mad';
 end
 
+% %%%%%% TESTING: NAN-OUT SHORT TRIALS
+% rxn_cutoff = 0.1;
+% stim_to_move = stim_to_move.*AP_nanout(stim_to_move < rxn_cutoff);
+% stim_to_move_null = stim_to_move_null.*AP_nanout(stim_to_move_null < rxn_cutoff);
+% %%%%%%%%%%%%%%
+
 switch use_stat
     case 'mad'
-        % (median absolute devation)
         rxn_stat = mad(stim_to_move(null_use_trials),1,1);
         rxn_null_stat_distribution = mad(stim_to_move_null(null_use_trials,:),1,1);
 
+    case 'std'
+        rxn_stat = std(stim_to_move(null_use_trials),[],1,'omitmissing');
+        rxn_null_stat_distribution = std(stim_to_move_null(null_use_trials,:),[],1,'omitmissing');
+
     case 'mean'
-        % (mean)
-        rxn_stat = mean(stim_to_move(null_use_trials),1);
-        rxn_null_stat_distribution = mean(stim_to_move_null(null_use_trials,:),1);
+        rxn_stat = mean(stim_to_move(null_use_trials),1,'omitmissing');
+        rxn_null_stat_distribution = mean(stim_to_move_null(null_use_trials,:),1,'omitmissing');
 
     case 'median'
-        % (median)
-        rxn_stat = median(stim_to_move(null_use_trials),1);
-        rxn_null_stat_distribution = median(stim_to_move_null(null_use_trials,:),1);
+        rxn_stat = median(stim_to_move(null_use_trials),1,'omitmissing');
+        rxn_null_stat_distribution = median(stim_to_move_null(null_use_trials,:),1,'omitmissing');
+
 end
 
 rxn_stat_rank = tiedrank(horzcat(rxn_stat,rxn_null_stat_distribution));
