@@ -30,6 +30,7 @@ end
 clearvars -except load_dataset
 fprintf('Loading dataset: %s...\n',load_dataset);
 
+
 %% Set data path
 
 data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
@@ -155,6 +156,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
+
 %% Ephys: concatenate single units and create indicies
 
 if ~strcmp(load_dataset,'noact')
@@ -222,6 +224,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
+
 %% Widefield: create indices
 
 if ~strcmp(load_dataset,'noact')
@@ -251,6 +254,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
+
 %% Widefield ROIs by corticostriatal maps
 
 % Create ROIs by striatum cluster maps
@@ -278,6 +282,7 @@ if ~strcmp(load_dataset,'noact')
     wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:,:),2);
 
 end
+
 
 %% Set flag for loaded data
 

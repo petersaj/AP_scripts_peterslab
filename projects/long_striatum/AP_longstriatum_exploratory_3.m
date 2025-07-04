@@ -1,6 +1,12 @@
 %% Notes
 
 % After starting figure code: tests for figures
+% (using preprocessing in AP_longstriatum_load_data)
+
+%% N days from learning
+
+[n,ld] = ap.groupfun(@sum,ones(size(bhv.days_from_learning)),bhv.days_from_learning);
+figure;plot(ld,n);
 
 
 %% Striatal passive TAN/celltype responses by stim
@@ -1303,6 +1309,70 @@ for curr_celltype = celltypes
     end
 end
 ap.prettyfig;
+
+
+%% Cortex movie (task or passive)
+
+plot_day_bins = [-Inf,-1:1,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+% (task)
+[wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean},cell2mat(wf.V_event_align), ...
+    wf_grp.animal,plot_day_grp);
+wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg,[3,2,1,4]));
+
+% (passive)
+[wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean},cell2mat(wf.V_event_align), ...
+    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
+wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg(wf_avg_grp(:,2)==90,:,:),[3,2,1]));
+
+
+ap.imscroll(wf_avg_px(:,:,:,:,1));
+colormap(ap.colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]);
+axis image off;
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
+
+
+%% mPFC - troubleshooting per animal
+
+wf_striatum_roi_rec = cellfun(@(act,stim) ap.groupfun(@mean,act,stim), ...
+    mat2cell(wf_striatum_roi,cellfun(@length,wf.trial_stim_values)), ...
+    wf.trial_stim_values,'uni',false);
+
+figure; tiledlayout;
+animals = unique(bhv.animal);
+for curr_animal = animals'
+    curr_data = cat(4,wf_striatum_roi_rec{strcmp(bhv.animal,curr_animal)});
+
+    nexttile;
+    imagesc(permute(curr_data(3,:,2,:),[4,2,1,3]));
+
+    clim([-1,1].*3e-3);
+    colormap(ap.colormap('PWG',[],1.5));
+    title(curr_animal);
+end
+
+
+% movies for single animal
+plot_animal = 'AM015';
+
+wf_avg_rec = cellfun(@(act,stim) ap.groupfun(@mean,act,stim), ...
+    wf.V_event_align,wf.trial_stim_values,'uni',false);
+
+wf_animal = plab.wf.svd2px(U_master, ...
+    permute(cat(4,wf_avg_rec{strcmp(wf.animal,plot_animal)}),[3,2,4,1]));
+
+ap.imscroll(wf_animal(:,:,:,:,3));
+colormap(ap.colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]);
+axis image off;
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
+set(gcf,'name',plot_animal);
+
+
+
+
 
 
 

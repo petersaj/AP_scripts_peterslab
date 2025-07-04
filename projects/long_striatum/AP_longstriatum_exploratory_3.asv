@@ -1,6 +1,7 @@
 %% Notes
 
 % After starting figure code: tests for figures
+% (using preprocessing in AP_longstriatum_load_data)
 
 
 %% Striatal passive TAN/celltype responses by stim
@@ -606,7 +607,7 @@ for curr_celltype = celltypes
     ap.prettyfig;
 end
 
-% % Plot max by stim response (diff
+% % Plot max by stim response (group by day)
 % [~,max_stim] = max(striatum_sua_tavg,[],2);
 % for curr_celltype = celltypes
 %     figure;
@@ -1303,6 +1304,27 @@ for curr_celltype = celltypes
     end
 end
 ap.prettyfig;
+
+
+%% Cortex movie (task or passive)
+
+plot_day_bins = [-Inf,-1:1,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+% (task)
+[wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean},cell2mat(wf.V_event_align), ...
+    wf_grp.animal,plot_day_grp);
+
+% (passivce
+
+wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg,[3,2,1,4]));
+
+ap.imscroll(wf_avg_px(:,:,:,:,1));
+colormap(ap.colormap('PWG',[],1.5));
+clim(max(abs(clim)).*[-1,1]);
+axis image off;
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
+
 
 
 

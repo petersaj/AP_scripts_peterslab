@@ -190,10 +190,10 @@ stim_regressors = cell2mat(arrayfun(@(x) ...
 n_components = 500;
 
 frame_shifts = -5:20;
-lambda = 20;
-cv = 3;
+lambda = 10;
+cv = 1;
 
-skip_t = 3; % seconds start/end to skip for artifacts
+skip_t = 10; % seconds start/end to skip for artifacts
 skip_frames = round(skip_t*wf_framerate);
 [kernels,predicted_signals,explained_var] = ...
     ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
