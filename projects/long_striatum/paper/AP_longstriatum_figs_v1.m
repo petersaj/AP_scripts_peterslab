@@ -377,7 +377,11 @@ end
 
 stat_rank = tiedrank([stat_meas,stat_null]')';
 stat_p = 1-stat_rank(:,1)/(n_shuff+1);
-fprintf('Day grps %d,%d p = D1: %.2g, D2: %.2g, D3: %.2g\n',compare_day_grps,stat_p);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],{'','*'});
+fprintf('Day grps %d,%d:\n',compare_day_grps);
+for curr_domain = 1:n_domains
+    fprintf('D%d p = %.2g%s\n',curr_domain,stat_p(curr_domain),stat_sig{curr_domain});
+end
 
 
 %% [Fig 2X] Cortex ROIs
@@ -439,7 +443,7 @@ ap.prettyfig;
 %%% Load data for figure
 load_dataset = 'task';
 AP_longstriatum_load_data;
-%%%.
+%%%
 
 plot_day_bins = [-Inf,-2,0,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
@@ -482,10 +486,46 @@ for curr_domain = 1:n_domains
         if curr_domain == 1
             title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
         end
+
+        % Store max response to stim for stats
+        stim_t = [0,0.2];
+        act_stim_max{curr_domain,curr_day} = ...
+            max(curr_data_no_move_animal_mean_mindata(:, ...
+            isbetween(wf_t,stim_t(1),stim_t(2))),[],2);
+
     end
 end
 linkaxes(h.Children,'xy');
 ap.prettyfig;
+
+
+% ~stats~
+compare_days = [-2,-2];
+[~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+
+stat_data = act_stim_max(:,compare_day_grps);
+stat_meas = diff(cellfun(@mean,stat_data),[],2);
+
+stat_domain_idx = cellfun(@(data,domain) repmat(domain,length(data),1), ...
+    stat_data,repmat(num2cell(1:n_domains)',1,2),'uni',false);
+
+n_shuff = 1000;
+stat_null = nan(n_domains,n_shuff);
+for curr_shuff = 1:n_shuff
+    stat_data_shuff = reshape(mat2cell(ap.shake(vertcat(stat_data{:}),1, ...
+        vertcat(stat_domain_idx{:})), ...
+        cellfun(@length,stat_data(:))),size(stat_data));
+
+    stat_null(:,curr_shuff) = diff(cellfun(@mean,stat_data_shuff),[],2);
+end
+
+stat_rank = tiedrank([stat_meas,stat_null]')';
+stat_p = 1-stat_rank(:,1)/(n_shuff+1);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],{'','*'});
+fprintf('Day grps %d,%d:\n',compare_day_grps);
+for curr_domain = 1:n_domains
+    fprintf('ROI%d p = %.2g%s\n',curr_domain,stat_p(curr_domain),stat_sig{curr_domain});
+end
 
 
 %% [Fig 2X] Cortex and striatal task max stim activity, split in session
