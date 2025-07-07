@@ -267,7 +267,7 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2:0,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
@@ -302,7 +302,7 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 % Plot average activity in trial (NaN-out movement times)
@@ -319,21 +319,18 @@ for curr_domain = 1:n_domains
         curr_data_no_move = curr_data.* ...
             ap.nanout(psth_t > striatum_mua_grp.rxn(curr_trials)-move_leeway);
 
+        % %%%% TESTING
+        % curr_data_no_move = curr_data.* ...
+        %     ap.nanout(striatum_mua_grp.rxn(curr_trials) < 0.3);
+        % %%%%%%%%%
+
         curr_data_mean = mean(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
         curr_data_sem = AP_sem(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
 
-        % Average data with movement removed
-        % (only plot no-move timepoints with at least N trials and N animals)
-        min_nomove_trials = 10;
-        min_noanimals_trials = 5;
-
-        curr_data_no_move_n = ap.groupfun(@(x) sum(~isnan(x)),curr_data_no_move,striatum_mua_grp.animal(curr_trials));
+        % Average data with movement removed 
         curr_data_no_move_animal_mean = ap.groupfun(@nanmean,curr_data_no_move,striatum_mua_grp.animal(curr_trials));
-        curr_data_no_move_animal_mean_mindata = curr_data_no_move_animal_mean.* ...
-            ap.nanout(curr_data_no_move_n < min_nomove_trials).* ...
-            ap.nanout(sum(curr_data_no_move_n >= min_nomove_trials) < min_noanimals_trials);
-        curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean_mindata,1);
-        curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean_mindata,1);
+        curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean,1);
+        curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean,1);
 
         % Plot w/ movement (shaded) and w/o movement (line)
         nexttile; hold on;
@@ -347,7 +344,7 @@ for curr_domain = 1:n_domains
         % Store max response to stim for stats
         stim_t = [0,0.2];
         act_stim_max{curr_domain,curr_day} = ...
-            max(curr_data_no_move_animal_mean_mindata(:, ...
+            max(curr_data_no_move_animal_mean(:, ...
             isbetween(psth_t,stim_t(1),stim_t(2))),[],2);
 
     end
@@ -365,7 +362,7 @@ stat_meas = diff(cellfun(@mean,stat_data),[],2);
 stat_domain_idx = cellfun(@(data,domain) repmat(domain,length(data),1), ...
     stat_data,repmat(num2cell(1:n_domains)',1,2),'uni',false);
 
-n_shuff = 1000;
+n_shuff = 10000;
 stat_null = nan(n_domains,n_shuff);
 for curr_shuff = 1:n_shuff
     stat_data_shuff = reshape(mat2cell(ap.shake(vertcat(stat_data{:}),1, ...
@@ -408,7 +405,7 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2:0,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 % Plot heatmaps sorted by reaction times
@@ -445,7 +442,7 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 % Plot average activity in trial (NaN-out movement times)
@@ -466,17 +463,10 @@ for curr_domain = 1:n_domains
         % (only plot no-move timepoints with at least N trials and N animals)
         curr_data_no_move = curr_data.* ...
             AP_nanout(wf_t > wf_grp.rxn(curr_trials)-move_leeway);
-
-        min_nomove_trials = 10;
-        min_noanimals_trials = 5;
-
-        curr_data_no_move_n = ap.groupfun(@(x) sum(~isnan(x)),curr_data_no_move,wf_grp.animal(curr_trials));
+      
         curr_data_no_move_animal_mean = ap.groupfun(@nanmean,curr_data_no_move,wf_grp.animal(curr_trials));
-        curr_data_no_move_animal_mean_mindata = curr_data_no_move_animal_mean.* ...
-            AP_nanout(curr_data_no_move_n < min_nomove_trials).* ...
-            AP_nanout(sum(curr_data_no_move_n >= min_nomove_trials) < min_noanimals_trials);
-        curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean_mindata,1);
-        curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean_mindata,1);
+        curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean,1);
+        curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean,1);
 
         % Plot
         nexttile; hold on;
@@ -490,7 +480,7 @@ for curr_domain = 1:n_domains
         % Store max response to stim for stats
         stim_t = [0,0.2];
         act_stim_max{curr_domain,curr_day} = ...
-            max(curr_data_no_move_animal_mean_mindata(:, ...
+            max(curr_data_no_move_animal_mean(:, ...
             isbetween(wf_t,stim_t(1),stim_t(2))),[],2);
 
     end
@@ -500,7 +490,7 @@ ap.prettyfig;
 
 
 % ~stats~
-compare_days = [-2,-2];
+compare_days = [-inf,-2];
 [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
 
 stat_data = act_stim_max(:,compare_day_grps);
@@ -509,7 +499,7 @@ stat_meas = diff(cellfun(@mean,stat_data),[],2);
 stat_domain_idx = cellfun(@(data,domain) repmat(domain,length(data),1), ...
     stat_data,repmat(num2cell(1:n_domains)',1,2),'uni',false);
 
-n_shuff = 1000;
+n_shuff = 10000;
 stat_null = nan(n_domains,n_shuff);
 for curr_shuff = 1:n_shuff
     stat_data_shuff = reshape(mat2cell(ap.shake(vertcat(stat_data{:}),1, ...
@@ -537,7 +527,7 @@ AP_longstriatum_load_data;
 
 rxn_cutoff = 0.3; % only plot trials with slow reaction times
 
-plot_day_bins = [-Inf,-2:2,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -614,7 +604,7 @@ linkaxes(h.Children);
 ylim(h(1).Children,[-0.2,6]);
 [h.Children.YColor] = deal([0,0,0]);
 
-xlim(h(1).Children,[0.8,3.2])
+xlim(h(1).Children,[0.8,n_split+0.2])
 
 ap.prettyfig;
 
@@ -626,7 +616,7 @@ load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-2:0,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
      ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
@@ -833,7 +823,7 @@ load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-1:1,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
      ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');

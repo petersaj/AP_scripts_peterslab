@@ -85,6 +85,16 @@ kmeans_cluster_mean = reshape(ap.groupfun(@nanmean, ...
 domain_idx_rec = mat2cell(domain_idx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     ctx_str_maps.cortex_striatum_map));
 
+% %%%% TESTING
+% % cumulative max
+% domain_idx_rec = cellfun(@cummax,domain_idx_rec,'uni',false);
+% domain_idx = cell2mat(domain_idx_rec);
+% 
+% % moving median
+% domain_idx_rec = cellfun(@(x) medfilt1(x,3),domain_idx_rec,'uni',false);
+% domain_idx = cell2mat(domain_idx_rec);
+% %%%%%%
+
 
 %% Widefield and ephys
 
@@ -116,10 +126,15 @@ if ~strcmp(load_dataset,'noact')
     % Normalize and smooth multiunit
     % (currently psth time is hard coded: save this somewhere)
     psth_t = -0.5:0.001:1;
-    baseline_t = psth_t < -0.2;
+    baseline_t = psth_t < 0;
     softnorm = 10;
+    % (to use day baseline)
+    % mua_baseline = cellfun(@(mua) ...
+    %     repmat(mean(mua(:,baseline_t,:,1),[1,2]),1,1,1,size(mua,4)), ...
+    %     striatum_mua_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
+    % (to use trial baseline)
     mua_baseline = cellfun(@(mua) ...
-        repmat(mean(mua(:,baseline_t,:,1),[1,2]),1,1,1,size(mua,4)), ...
+        repmat(mean(mua(:,baseline_t,:,1),[2]),1,1,1,size(mua,4)), ...
         striatum_mua_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
     spikes_norm_smooth_reshape_fcn = @(spikes,baseline) ...

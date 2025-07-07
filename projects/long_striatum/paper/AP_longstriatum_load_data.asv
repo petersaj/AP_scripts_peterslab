@@ -30,6 +30,7 @@ end
 clearvars -except load_dataset
 fprintf('Loading dataset: %s...\n',load_dataset);
 
+
 %% Set data path
 
 data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
@@ -38,7 +39,7 @@ data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','da
 %% Behavior
 
 % Set stat and p-value to define learning day
-use_stat = 'firstmove_mad';
+use_stat = 'firstmove_mean';
 learn_stat_p = 0.05;
 
 % Load behavior
@@ -83,6 +84,16 @@ kmeans_cluster_mean = reshape(ap.groupfun(@nanmean, ...
 % Package domain_idx by recording
 domain_idx_rec = mat2cell(domain_idx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
     ctx_str_maps.cortex_striatum_map));
+
+% %%%% TESTING
+% % cumulative max
+% domain_idx_rec = cellfun(@cummax,domain_idx_rec,'uni',false);
+% domain_idx = cell2mat(domain_idx_rec);
+% 
+% % moving median
+% domain_idx_rec = cellfun(@(x) medfilt(x,3),domain_idx_rec,'uni',false);
+% domain_idx = cell2mat(domain_idx_rec);
+% %%%%%%
 
 
 %% Widefield and ephys
@@ -155,6 +166,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
+
 %% Ephys: concatenate single units and create indicies
 
 if ~strcmp(load_dataset,'noact')
@@ -222,6 +234,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
+
 %% Widefield: create indices
 
 if ~strcmp(load_dataset,'noact')
@@ -251,6 +264,7 @@ if ~strcmp(load_dataset,'noact')
 
 end
 
+
 %% Widefield ROIs by corticostriatal maps
 
 % Create ROIs by striatum cluster maps
@@ -278,6 +292,7 @@ if ~strcmp(load_dataset,'noact')
     wf_striatum_roi = wf_striatum_roi - nanmean(wf_striatum_roi(:,baseline_t,:,:),2);
 
 end
+
 
 %% Set flag for loaded data
 

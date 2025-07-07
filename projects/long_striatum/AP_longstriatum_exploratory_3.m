@@ -1313,12 +1313,16 @@ ap.prettyfig;
 
 %% Cortex movie (task or passive)
 
-plot_day_bins = [-Inf,-1:1,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
-% (task)
-[wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean},cell2mat(wf.V_event_align), ...
-    wf_grp.animal,plot_day_grp);
+% (task - use rxn > thresh)
+use_trials = wf_grp.rxn >= 0.5;
+[wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean}, ...
+    cell2mat(cellfun(@(data,use_trials) data(use_trials,:,:,:), ...
+    wf.V_event_align,mat2cell(use_trials, ...
+    cellfun(@(x) size(x,1),wf.V_event_align)),'uni',false)), ...
+    wf_grp.animal(use_trials),plot_day_grp(use_trials));
 wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg,[3,2,1,4]));
 
 % (passive)
@@ -1326,8 +1330,9 @@ wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg,[3,2,1,4]));
     wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
 wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg(wf_avg_grp(:,2)==90,:,:),[3,2,1]));
 
-
-ap.imscroll(wf_avg_px(:,:,:,:,1));
+% Plot baseline-subtracted
+wf_baseline_t = wf_t < -0.1;
+ap.imscroll(wf_avg_px(:,:,:,:,1) - mean(wf_avg_px(:,:,wf_baseline_t,:,1),3));
 colormap(ap.colormap('PWG',[],1.5));
 clim(max(abs(clim)).*[-1,1]);
 axis image off;
