@@ -128,9 +128,9 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 
 %% Align wheel to event
 
-% align_times = stimOn_times(trial_opacity==1);
+align_times = stimOn_times;
 % align_times = photodiode_times(1:2:end);
-align_times = stimOn_times(align_category_all == 90);
+% align_times = stimOn_times(align_category_all == 90);
 % align_times = stimOn_times(stim_x == 90);
 % align_times = stim_move_time;
 % align_times = iti_fastmove_times;
@@ -182,12 +182,12 @@ xlabel('Time from event');
 
 %% Behavior across days
 
-animals = { ...
-    'AM011','AM012','AM014','AM015','AM016','AM017', ...
-    'AM018','AM019','AM021','AM022','AM026','AM029', ...
-    'AP023','AP025'};
+% animals = { ...
+%     'AM011','AM012','AM014','AM015','AM016','AM017', ...
+%     'AM018','AM019','AM021','AM022','AM026','AM029', ...
+%     'AP023','AP025'};
 
-% animals = {'AP025'};
+animals = {'AM016'};
 
 % Set reaction statistic to use
 use_stat = 'mean';

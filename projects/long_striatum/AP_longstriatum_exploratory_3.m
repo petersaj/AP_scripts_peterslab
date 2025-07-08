@@ -1317,7 +1317,7 @@ plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 % (task - use rxn > thresh)
-use_trials = wf_grp.rxn >= 0.5;
+use_trials = wf_grp.rxn >= 0.3;
 [wf_avg,wf_avg_grp] = ap.nestgroupfun({@mean,@mean}, ...
     cell2mat(cellfun(@(data,use_trials) data(use_trials,:,:,:), ...
     wf.V_event_align,mat2cell(use_trials, ...
@@ -1331,7 +1331,7 @@ wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg,[3,2,1,4]));
 wf_avg_px = plab.wf.svd2px(U_master,permute(wf_avg(wf_avg_grp(:,2)==90,:,:),[3,2,1]));
 
 % Plot baseline-subtracted
-wf_baseline_t = wf_t < -0.1;
+wf_baseline_t = wf_t < 0;
 ap.imscroll(wf_avg_px(:,:,:,:,1) - mean(wf_avg_px(:,:,wf_baseline_t,:,1),3));
 colormap(ap.colormap('PWG',[],1.5));
 clim(max(abs(clim)).*[-1,1]);
@@ -1376,8 +1376,101 @@ ap.wf_draw('ccf',[0.5,0.5,0.5]);
 set(gcf,'name',plot_animal);
 
 
+%% Reinhold behavior analysis: P(cue|move)
+
+animals = { ...
+    'AM011','AM012','AM014','AM015','AM016','AM017', ...
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
+
+use_stat = 'mean';
+
+% Grab learning day for each mouse
+bhv = struct;
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals{curr_animal_idx};
+
+    use_workflow = 'stim_wheel*';
+    % use_workflow = 'stim_wheel_right_stage\d';
+    % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
+%     use_workflow = '*audio_volume*';
+%     use_workflow = '*audio_frequency*';
+%     use_workflow = '*no_change*';
+%     use_workflow = '*size*';
+%     use_workflow = '*opacity*';
+%     use_workflow = '*angle';
+%     use_workflow = '*angle_size60';
+
+    recordings = plab.find_recordings(animal,[],use_workflow);
+
+    n_bins = 4;
+    p_cue_given_move = nan(length(recordings),n_bins);
+    rxn_stat_p = nan(length(recordings),1);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        % Get P(cue|wheel_move)
+        move_onsets = timelite.timestamps(diff(wheel_move) == 1);
+        move_onset_prev_stim = interp1(stimOn_times,stimOn_times,move_onsets,'previous','extrap');
+        move_prevstim_t = move_onsets - move_onset_prev_stim;
+
+        move_poststim = move_prevstim_t < 0.4;
+
+        % Bin by time within session
+        session_bin_edges = linspace(timelite.timestamps(1),timelite.timestamps(end),n_bins+1);
+        move_session_bins = discretize(move_onsets,session_bin_edges);
+        p_cue_given_move(curr_recording,:) = ap.groupfun(@mean,+move_poststim,move_session_bins);
+
+        % Get association stat
+        [rxn_stat_p(curr_recording), ...
+            rxn_stat(curr_recording),rxn_null_stat(curr_recording)] = ...
+            AP_stimwheel_association_pvalue( ...
+            stimOn_times,trial_events,stim_to_move,use_stat);
+
+    end
+
+    bhv(curr_animal_idx).p_cue_given_move = p_cue_given_move;
+    bhv(curr_animal_idx).rxn_stat_p = rxn_stat_p;
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+end
 
 
+ld = cellfun(@(x) ((1:size(x,1)) - find(x<0.05,1))',{bhv.rxn_stat_p}','uni',false);
+
+use_animals = ~cellfun(@isempty,ld);
+
+ld_cat = cell2mat(ld(use_animals));
+p_c2m = cell2mat({bhv(use_animals).p_cue_given_move}');
+
+ld_split = ld_cat + linspace(0,(n_bins-1)/n_bins,n_bins);
+
+[p_c2m_avg,p_c2m_avg_grp] = ap.groupfun(@mean,p_c2m(:),ld_split(:));
+p_c2m_sem = ap.groupfun(@AP_sem,p_c2m(:),ld_split(:));
+
+figure;
+errorbar( ...
+    padarray(reshape(p_c2m_avg_grp,n_bins,[]),[0,1],NaN,'post'), ...
+    padarray(reshape(p_c2m_avg,n_bins,[]),[0,2],NaN,'post'), ...
+    padarray(reshape(p_c2m_sem,n_bins,[]),[0,2],NaN,'post'),'k','linewidth',2);
+xlabel('Learned day')
+ylabel('P(stim|move)');
+xline(0,'r');
 
 
 

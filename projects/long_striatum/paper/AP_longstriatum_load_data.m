@@ -128,10 +128,12 @@ if ~strcmp(load_dataset,'noact')
     psth_t = -0.5:0.001:1;
     baseline_t = psth_t < 0;
     softnorm = 10;
+
     % (to use day baseline)
     % mua_baseline = cellfun(@(mua) ...
     %     repmat(mean(mua(:,baseline_t,:,1),[1,2]),1,1,1,size(mua,4)), ...
     %     striatum_mua_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
+    % OR
     % (to use trial baseline)
     mua_baseline = cellfun(@(mua) ...
         repmat(mean(mua(:,baseline_t,:,1),[2]),1,1,1,size(mua,4)), ...
@@ -288,9 +290,10 @@ end
 if ~strcmp(load_dataset,'noact')
 
     % Get ROI activity
-    wf_striatum_roi = permute(ap.wf_roi(U_master, ...
-        permute(cell2mat(wf.V_event_align),[3,2,1,4]),[],[],striatum_wf_roi),[3,2,1,4]);
-    warning('Why does this step take so long?')
+
+    wf_striatum_roi = cell2mat(cellfun(@(x) ...
+        permute(ap.wf_roi(U_master,permute(x,[3,2,1,4]),[],[],striatum_wf_roi), ...
+        [3,2,1,4]),wf.V_event_align,'uni',false));
 
     % (baseline-subtract)
     baseline_t = wf_t < 0;

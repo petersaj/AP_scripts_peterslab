@@ -114,6 +114,11 @@ stim_to_move_valid = cellfun(@(stim_time,move_time) move_time-stim_time, ...
 stim_rxn_threshold = -Inf;
 null_use_trials = (stim_to_move > stim_rxn_threshold) & ~cellfun(@isempty,stim_to_move_valid);
 
+% %%%%%%%%% TESTING
+% % use <90th percentile of reaction times (remove non-engaged outliers)
+% null_use_trials = null_use_trials & stim_to_move < prctile(stim_to_move,90);
+% %%%%%%%%%
+
 n_samples = 10000;
 stim_to_move_null = nan(length(stim_to_move),n_samples);
 stim_to_move_null(null_use_trials,:) = ...

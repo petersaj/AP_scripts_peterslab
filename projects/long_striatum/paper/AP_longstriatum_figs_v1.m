@@ -319,11 +319,6 @@ for curr_domain = 1:n_domains
         curr_data_no_move = curr_data.* ...
             ap.nanout(psth_t > striatum_mua_grp.rxn(curr_trials)-move_leeway);
 
-        % %%%% TESTING
-        % curr_data_no_move = curr_data.* ...
-        %     ap.nanout(striatum_mua_grp.rxn(curr_trials) < 0.3);
-        % %%%%%%%%%
-
         curr_data_mean = mean(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
         curr_data_sem = AP_sem(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
 
@@ -462,7 +457,7 @@ for curr_domain = 1:n_domains
         % Average data with movement removede
         % (only plot no-move timepoints with at least N trials and N animals)
         curr_data_no_move = curr_data.* ...
-            AP_nanout(wf_t > wf_grp.rxn(curr_trials)-move_leeway);
+            ap.nanout(wf_t > wf_grp.rxn(curr_trials)-move_leeway);
       
         curr_data_no_move_animal_mean = ap.groupfun(@nanmean,curr_data_no_move,wf_grp.animal(curr_trials));
         curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean,1);
