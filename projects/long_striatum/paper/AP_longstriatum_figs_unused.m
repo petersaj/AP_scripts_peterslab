@@ -162,3 +162,170 @@ end
 ap.prettyfig;
 
 
+%% [Fig 2X] Striatum task average PSTH w/ and w/o movement
+
+%%% Load data for figure
+load_dataset = 'task';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+
+% Plot average activity in trial (NaN-out movement times)
+figure; h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
+move_leeway = 0.1; % time pre-movement to exclude
+act_stim_max = cell(n_domains,length(unique(plot_day_grp)));
+for curr_domain = 1:n_domains
+    for curr_day = unique(plot_day_grp)'
+        
+        curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.domain_idx == curr_domain);      
+        
+        % Average all data
+        curr_data = striatum_mua(curr_trials,:,1);
+        curr_data_no_move = curr_data.* ...
+            ap.nanout(psth_t > striatum_mua_grp.rxn(curr_trials)-move_leeway);
+
+        curr_data_mean = mean(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
+        curr_data_sem = AP_sem(ap.groupfun(@nanmean,curr_data,striatum_mua_grp.animal(curr_trials)),1);
+
+        % Average data with movement removed 
+        curr_data_no_move_animal_mean = ap.groupfun(@nanmean,curr_data_no_move,striatum_mua_grp.animal(curr_trials));
+        curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean,1);
+        curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean,1);
+
+        % Plot w/ movement (shaded) and w/o movement (line)
+        nexttile; hold on;
+        ap.errorfill(psth_t,curr_data_mean,curr_data_sem,'k',0.3,false,2);
+        plot(psth_t,curr_data_no_move_mean,'k','linewidth',2);
+        axis off;
+        if curr_domain == 1
+            title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
+        end
+
+        % Store max response to stim for stats
+        stim_t = [0,0.2];
+        act_stim_max{curr_domain,curr_day} = ...
+            max(curr_data_no_move_animal_mean(:, ...
+            isbetween(psth_t,stim_t(1),stim_t(2))),[],2);
+
+    end
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
+
+% ~stats~
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
+
+stat_data = act_stim_max(:,compare_day_grps);
+stat_meas = diff(cellfun(@mean,stat_data),[],2);
+
+stat_domain_idx = cellfun(@(data,domain) repmat(domain,length(data),1), ...
+    stat_data,repmat(num2cell(1:n_domains)',1,2),'uni',false);
+
+n_shuff = 10000;
+stat_null = nan(n_domains,n_shuff);
+for curr_shuff = 1:n_shuff
+    stat_data_shuff = reshape(mat2cell(ap.shake(vertcat(stat_data{:}),1, ...
+        vertcat(stat_domain_idx{:})), ...
+        cellfun(@length,stat_data(:))),size(stat_data));
+
+    stat_null(:,curr_shuff) = diff(cellfun(@mean,stat_data_shuff),[],2);
+end
+
+stat_rank = tiedrank([stat_meas,stat_null]')';
+stat_p = 1-stat_rank(:,1)/(n_shuff+1);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],{'','*'});
+fprintf('Day grps %d,%d:\n',compare_day_grps);
+for curr_domain = 1:n_domains
+    fprintf('D%d p = %.2g%s\n',curr_domain,stat_p(curr_domain),stat_sig{curr_domain});
+end
+
+
+%% [Fig 2X] Cortex task average PSTH w/ and w/o movement
+
+%%% Load data for figure
+load_dataset = 'task';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+% Plot average activity in trial (NaN-out movement times)
+figure; h = tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
+move_leeway = 0.1;
+for curr_domain = 1:n_domains
+    for curr_day = unique(plot_day_grp)'
+        
+        curr_trials = find(plot_day_grp == curr_day);      
+        
+        % Average all data
+        curr_data = wf_striatum_roi(curr_trials,:,curr_domain,1);
+
+        curr_data_mean = mean(ap.groupfun(@nanmean,curr_data,wf_grp.animal(curr_trials)),1);
+        curr_data_sem = AP_sem(ap.groupfun(@nanmean,curr_data,wf_grp.animal(curr_trials)),1);
+
+        % Average data with movement removede
+        % (only plot no-move timepoints with at least N trials and N animals)
+        curr_data_no_move = curr_data.* ...
+            ap.nanout(wf_t > wf_grp.rxn(curr_trials)-move_leeway);
+      
+        curr_data_no_move_animal_mean = ap.groupfun(@nanmean,curr_data_no_move,wf_grp.animal(curr_trials));
+        curr_data_no_move_mean = nanmean(curr_data_no_move_animal_mean,1);
+        curr_data_no_move_sem = AP_sem(curr_data_no_move_animal_mean,1);
+
+        % Plot
+        nexttile; hold on;
+        ap.errorfill(wf_t,curr_data_mean,curr_data_sem,[0,0.6,0],0.3,false,2);
+        plot(wf_t,curr_data_no_move_mean,'color',[0,0.6,0],'linewidth',2);
+        axis off;
+        if curr_domain == 1
+            title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
+        end
+
+        % Store max response to stim for stats
+        stim_t = [0,0.2];
+        act_stim_max{curr_domain,curr_day} = ...
+            max(curr_data_no_move_animal_mean(:, ...
+            isbetween(wf_t,stim_t(1),stim_t(2))),[],2);
+
+    end
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
+
+
+% ~stats~
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
+
+stat_data = act_stim_max(:,compare_day_grps);
+stat_meas = diff(cellfun(@mean,stat_data),[],2);
+
+stat_domain_idx = cellfun(@(data,domain) repmat(domain,length(data),1), ...
+    stat_data,repmat(num2cell(1:n_domains)',1,2),'uni',false);
+
+n_shuff = 10000;
+stat_null = nan(n_domains,n_shuff);
+for curr_shuff = 1:n_shuff
+    stat_data_shuff = reshape(mat2cell(ap.shake(vertcat(stat_data{:}),1, ...
+        vertcat(stat_domain_idx{:})), ...
+        cellfun(@length,stat_data(:))),size(stat_data));
+
+    stat_null(:,curr_shuff) = diff(cellfun(@mean,stat_data_shuff),[],2);
+end
+
+stat_rank = tiedrank([stat_meas,stat_null]')';
+stat_p = 1-stat_rank(:,1)/(n_shuff+1);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],{'','*'});
+fprintf('Day grps %d,%d:\n',compare_day_grps);
+for curr_domain = 1:n_domains
+    fprintf('ROI%d p = %.2g%s\n',curr_domain,stat_p(curr_domain),stat_sig{curr_domain});
+end
+
+
+
