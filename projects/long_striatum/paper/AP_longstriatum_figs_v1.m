@@ -337,10 +337,10 @@ for curr_domain = 1:n_domains
         end
 
         % Store max response to stim for stats
-        stim_t = [0.05,0.2];
+        stim_t = [0,0.2];
         act_stim_max{curr_domain,curr_day} = ...
-            mean(curr_data_no_move_animal_mean(:, ...
-            isbetween(psth_t,stim_t(1),stim_t(2))),2);
+            max(curr_data_no_move_animal_mean(:, ...
+            isbetween(psth_t,stim_t(1),stim_t(2))),[],2);
 
     end
 end
@@ -348,8 +348,9 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 % ~stats~
-compare_days = [-inf,-2];
-[~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
 
 stat_data = act_stim_max(:,compare_day_grps);
 stat_meas = diff(cellfun(@mean,stat_data),[],2);
@@ -485,8 +486,9 @@ ap.prettyfig;
 
 
 % ~stats~
-compare_days = [-inf,-2];
-[~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
 
 stat_data = act_stim_max(:,compare_day_grps);
 stat_meas = diff(cellfun(@mean,stat_data),[],2);
@@ -522,7 +524,7 @@ AP_longstriatum_load_data;
 
 rxn_cutoff = 0.3; % only plot trials with slow reaction times
 
-plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_day_bins = [-Inf,-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -539,7 +541,7 @@ cortex_split_idx = cell2mat(cellfun(@(n_trials) ...
     num2cell(cortex_trials_rec_n),'uni',false));
 
 % Get activity: trial mean > time max > animal mean 
-stim_t = [0,0.2];
+stim_t = [0.05,0.2];
 
 % (striatum)
 striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
@@ -547,7 +549,7 @@ striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
     [striatum_mua_grp.animal(striatum_use_trials),striatum_plot_day_grp(striatum_use_trials), ...
     striatum_split_idx(striatum_use_trials),striatum_mua_grp.domain_idx(striatum_use_trials)]);
 
-striatum_activity_max = max(striatum_activity_mean(:,isbetween(psth_t,stim_t(1),stim_t(2))),[],2);
+striatum_activity_max = mean(striatum_activity_mean(:,isbetween(psth_t,stim_t(1),stim_t(2))),2);
 [striatum_activity_max_avg,striatum_activity_max_grp] = ap.nestgroupfun({@mean,@mean},striatum_activity_max,striatum_activity_mean_grp(:,1),striatum_activity_mean_grp(:,2:end));
 striatum_activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},striatum_activity_max,striatum_activity_mean_grp(:,1),striatum_activity_mean_grp(:,2:end));
 
@@ -556,7 +558,7 @@ cortex_use_trials = wf_grp.rxn > rxn_cutoff;
 [cortex_activity_mean,cortex_activity_mean_grp] = ap.groupfun(@mean,wf_striatum_roi(cortex_use_trials,:,:,1), ...
     [wf_grp.animal(cortex_use_trials),cortex_plot_day_grp(cortex_use_trials),cortex_split_idx(cortex_use_trials)]);
 
-cortex_activity_max = permute(max(cortex_activity_mean(:,isbetween(wf_t,stim_t(1),stim_t(2)),:),[],2),[1,3,2]);
+cortex_activity_max = permute(mean(cortex_activity_mean(:,isbetween(wf_t,stim_t(1),stim_t(2)),:),2),[1,3,2]);
 [cortex_activity_max_avg,cortex_activity_max_grp] = ap.nestgroupfun({@mean,@mean},cortex_activity_max,cortex_activity_mean_grp(:,1),cortex_activity_mean_grp(:,2:end));
 cortex_activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},cortex_activity_max,cortex_activity_mean_grp(:,1),cortex_activity_mean_grp(:,2:end));
 
@@ -695,8 +697,9 @@ ap.prettyfig;
 
 
 % ~stats~
-compare_days = [-inf,-2];
-[~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
 
 curr_data_idx = ismember(striatum_mua_dayavg_grp(:,2),compare_day_grps);
 
@@ -907,8 +910,9 @@ title(h,'Cortex');
 ap.prettyfig;
 
 % ~stats~
-compare_days = [-inf,-2];
-[~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
 
 curr_data_idx = ismember(wf_striatum_roi_grp(:,2),compare_day_grps);
 
@@ -926,20 +930,6 @@ end
 
 stat_rank = permute(tiedrank(permute([stat_meas,stat_null],[2,1,3])),[2,1,3]);
 stat_p = 1-stat_rank(:,1,:)/(n_shuff+1);
-
-fprintf('Stats: day grps %d vs %d\n',compare_days);
-for curr_roi = 1:n_domains
-    for curr_grp = 1:size(stat_p,1)
-        switch stat_p(curr_grp,:,curr_roi) < 0.05
-            case true
-                sig_flag = '*';
-            case false
-                sig_flag = '';
-        end
-        fprintf('Stim %3.f, ROI%d, p = %.2g%s\n', ...
-            [stat_grp(curr_grp),curr_roi,stat_p(curr_grp,:,curr_roi)],sig_flag);
-    end
-end
 
 fprintf('Stats: day grps %d vs %d\n',compare_days);
 stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
