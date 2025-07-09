@@ -275,17 +275,17 @@ end
 %% Widefield ROIs by corticostriatal maps
 
 % Create ROIs by striatum cluster maps
-kmeans_centroid_blur = imgaussfilt(kmeans_cluster_mean,5);
-[~,m] = max(kmeans_centroid_blur,[],[1,2],'linear');
-[mr,mc] = ind2sub(size(U_master,[1,2]),m);
-striatum_wf_roi = kmeans_centroid_blur > prctile(kmeans_centroid_blur,100,[1,2])*0.50;
-striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
-for k = 1:size(striatum_wf_roi,3)
-    [~,m] = max(imgaussfilt(kmeans_centroid_blur(:,:,k),10).* ...
-        round(linspace(1,0,size(kmeans_centroid_blur,2))),[],[1,2],'linear');
-    [mx,my] = ind2sub(size(U_master,[1,2]),m);
-    striatum_wf_roi(:,:,k) = bwselect(striatum_wf_roi(:,:,k),my,mx);
-end
+kmeans_centroid_blur = imgaussfilt(kmeans_cluster_mean,10);
+striatum_wf_roi = kmeans_centroid_blur > prctile(kmeans_centroid_blur,100,[1,2])*0.75;
+
+% (not needed anymore after increasing thresold?)
+% striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
+% for k = 1:size(striatum_wf_roi,3)
+%     [~,m] = max(imgaussfilt(kmeans_centroid_blur(:,:,k),10).* ...
+%         round(linspace(1,0,size(kmeans_centroid_blur,2))),[],[1,2],'linear');
+%     [mx,my] = ind2sub(size(U_master,[1,2]),m);
+%     striatum_wf_roi(:,:,k) = bwselect(striatum_wf_roi(:,:,k),my,mx);
+% end
 
 if ~strcmp(load_dataset,'noact')
 

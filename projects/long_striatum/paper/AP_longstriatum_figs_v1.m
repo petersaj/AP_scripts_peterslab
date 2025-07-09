@@ -337,10 +337,10 @@ for curr_domain = 1:n_domains
         end
 
         % Store max response to stim for stats
-        stim_t = [0,0.2];
+        stim_t = [0.05,0.2];
         act_stim_max{curr_domain,curr_day} = ...
-            max(curr_data_no_move_animal_mean(:, ...
-            isbetween(psth_t,stim_t(1),stim_t(2))),[],2);
+            mean(curr_data_no_move_animal_mean(:, ...
+            isbetween(psth_t,stim_t(1),stim_t(2))),2);
 
     end
 end
@@ -662,7 +662,7 @@ plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
     ap.groupfun(@mean,striatum_mua, ...
     [striatum_mua_grp.animal,plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
 
-max_t = psth_t > 0 & psth_t < 0.2;
+max_t = psth_t >= 0 & psth_t <= 0.2;
 striatum_mua_dayavg_tmax = max(striatum_mua_dayavg(:,max_t),[],2);
 
 [striatum_mua_max,striatum_mua_max_grp] = ap.nestgroupfun({@mean,@mean}, ...
@@ -716,17 +716,14 @@ stat_rank = tiedrank([stat_meas,stat_null]')';
 stat_p = 1-stat_rank(:,1)/(n_shuff+1);
 
 fprintf('Stats: day grps %d vs %d\n',compare_days);
-for curr_grp = 1:length(stat_p)
-    switch stat_p(curr_grp) < 0.05
-        case true
-            sig_flag = '*';
-        case false
-            sig_flag = '';
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+for curr_domain = 1:n_domains
+    for curr_stim = unique(stat_grp(:,1))'
+        curr_stat_idx = ismember(stat_grp,[curr_stim,curr_domain],'rows');
+        fprintf('D%d, Stim %3.f, p = %.2g%s\n', ...
+            curr_domain,stat_grp(curr_stat_idx,1),stat_p(curr_stat_idx),stat_sig(curr_stat_idx));
     end
-    fprintf('Stim %d, D%d, p = %.2g%s\n', ...
-        [stat_grp(curr_grp,:),stat_p(curr_grp)],sig_flag);
 end
-
 
 
 %% [Fig 3X] Striatum fraction stim-responsive units
@@ -783,7 +780,7 @@ load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-1:1,Inf];
+plot_day_bins = [-Inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
 stim_t = wf_t > 0 & wf_t < 0.2;
@@ -931,16 +928,26 @@ stat_rank = permute(tiedrank(permute([stat_meas,stat_null],[2,1,3])),[2,1,3]);
 stat_p = 1-stat_rank(:,1,:)/(n_shuff+1);
 
 fprintf('Stats: day grps %d vs %d\n',compare_days);
-for curr_grp = 1:size(stat_p,1)
-    for curr_roi = 1:n_domains
+for curr_roi = 1:n_domains
+    for curr_grp = 1:size(stat_p,1)
         switch stat_p(curr_grp,:,curr_roi) < 0.05
             case true
                 sig_flag = '*';
             case false
                 sig_flag = '';
         end
-        fprintf('Stim %d, ROI%d, p = %.2g%s\n', ...
+        fprintf('Stim %3.f, ROI%d, p = %.2g%s\n', ...
             [stat_grp(curr_grp),curr_roi,stat_p(curr_grp,:,curr_roi)],sig_flag);
+    end
+end
+
+fprintf('Stats: day grps %d vs %d\n',compare_days);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+for curr_domain = 1:n_domains
+    for curr_stim = unique(stat_grp(:,1))'
+        curr_stat_idx = ismember(stat_grp,curr_stim,'rows');
+        fprintf('ROI%d, Stim %3.f, p = %.2g%s\n', ...
+            curr_domain,stat_grp(curr_stat_idx),stat_p(curr_stat_idx,1,curr_domain),stat_sig(curr_stat_idx,1,curr_domain));
     end
 end
 

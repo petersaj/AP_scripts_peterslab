@@ -91,7 +91,7 @@ domain_idx_rec = mat2cell(domain_idx,cellfun(@(x) size(x,3).*(size(x,1)>0), ...
 % domain_idx = cell2mat(domain_idx_rec);
 % 
 % % moving median
-% domain_idx_rec = cellfun(@(x) medfilt(x,3),domain_idx_rec,'uni',false);
+% domain_idx_rec = cellfun(@(x) medfilt1(x,3),domain_idx_rec,'uni',false);
 % domain_idx = cell2mat(domain_idx_rec);
 % %%%%%%
 
@@ -126,10 +126,17 @@ if ~strcmp(load_dataset,'noact')
     % Normalize and smooth multiunit
     % (currently psth time is hard coded: save this somewhere)
     psth_t = -0.5:0.001:1;
-    baseline_t = psth_t < -0.2;
+    baseline_t = psth_t < 0;
     softnorm = 10;
+
+    % (to use day baseline)
+    % mua_baseline = cellfun(@(mua) ...
+    %     repmat(mean(mua(:,baseline_t,:,1),[1,2]),1,1,1,size(mua,4)), ...
+    %     striatum_mua_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
+    % OR
+    % (to use trial baseline)
     mua_baseline = cellfun(@(mua) ...
-        repmat(mean(mua(:,baseline_t,:,1),[1,2]),1,1,1,size(mua,4)), ...
+        repmat(mean(mua(:,baseline_t,:,1),[2]),1,1,1,size(mua,4)), ...
         striatum_mua_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
 
     spikes_norm_smooth_reshape_fcn = @(spikes,baseline) ...
@@ -268,10 +275,9 @@ end
 %% Widefield ROIs by corticostriatal maps
 
 % Create ROIs by striatum cluster maps
-kmeans_centroid_blur = imgaussfilt(kmeans_cluster_mean,5);
-[~,m] = max(kmeans_centroid_blur,[],[1,2],'linear');
-[mr,mc] = ind2sub(size(U_master,[1,2]),m);
-striatum_wf_roi = kmeans_centroid_blur > prctile(kmeans_centroid_blur,100,[1,2])*0.50;
+kmeans_centroid_blur = imgaussfilt(kmeans_cluster_mean,10);
+striatum_wf_roi = kmeans_centroid_blur > prctile(kmeans_centroid_blur,100,[1,2])*0.6;
+
 striatum_wf_roi(:,round(size(striatum_wf_roi,2)/2):end,:) = false;
 for k = 1:size(striatum_wf_roi,3)
     [~,m] = max(imgaussfilt(kmeans_centroid_blur(:,:,k),10).* ...
@@ -283,9 +289,10 @@ end
 if ~strcmp(load_dataset,'noact')
 
     % Get ROI activity
-    wf_striatum_roi = permute(ap.wf_roi(U_master, ...
-        permute(cell2mat(wf.V_event_align),[3,2,1,4]),[],[],striatum_wf_roi),[3,2,1,4]);
-    warning('Why does this step take so long?')
+
+    wf_striatum_roi = cell2mat(cellfun(@(x) ...
+        permute(ap.wf_roi(U_master,permute(x,[3,2,1,4]),[],[],striatum_wf_roi), ...
+        [3,2,1,4]),wf.V_event_align,'uni',false));
 
     % (baseline-subtract)
     baseline_t = wf_t < 0;
