@@ -420,3 +420,260 @@ ylim(h(1).Children,[-0.2,6]);
 xlim(h(1).Children,[0.8,n_split+0.2])
 
 ap.prettyfig;
+
+%% [Fig 2X] Cortex task trial heatmap (reaction-sorted)
+
+%%% Load data for figure
+load_dataset = 'task';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+% Plot heatmaps sorted by reaction times
+heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
+figure; tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
+for curr_domain = 1:n_domains
+    for curr_day = unique(plot_day_grp)'
+        nexttile;
+        curr_trials = find(plot_day_grp == curr_day);
+       
+        [sorted_rxn,sort_idx] = sort(wf_grp.rxn(curr_trials));
+        imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_domain,1),heatmap_smooth));
+        colormap(ap.colormap('PWG'));
+        clim(max(abs(clim)).*[-1,1]);
+        axis off;
+
+        hold on
+        xline(0,'color','r');
+        plot(sorted_rxn,1:length(curr_trials),'b');
+        xlim(prctile(psth_t,[0,100]));
+
+        if curr_domain == 1
+            title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
+        end
+    end
+end
+ap.prettyfig;
+
+%% [Fig 2X] Striatum task trial heatmap (reaction-sorted)
+
+%%% Load data for figure
+load_dataset = 'task';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+
+heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
+figure; tiledlayout(n_domains,max(plot_day_grp),'TileSpacing','none');
+for curr_domain = 1:n_domains
+    for curr_day = unique(plot_day_grp)'
+        nexttile;
+        curr_trials = find(plot_day_grp == curr_day & striatum_mua_grp.domain_idx == curr_domain);
+       
+        [sorted_rxn,sort_idx] = sort(striatum_mua_grp.rxn(curr_trials));      
+        imagesc(psth_t,[],movmean(striatum_mua(curr_trials(sort_idx),:,1),heatmap_smooth));
+        colormap(ap.colormap('WK'));
+        clim([0,3]);
+        axis off;
+
+        hold on
+        xline(0,'color','r');
+        plot(sorted_rxn,1:length(curr_trials),'b');
+        xlim(prctile(psth_t,[0,100]));
+
+        if curr_domain == 1
+            title(sprintf('%d:%d',plot_day_bins(curr_day),plot_day_bins(curr_day+1)));
+        end
+    end
+end
+ap.prettyfig;
+
+
+
+
+%% [Fig 2X] Cortex ROIs
+
+%%% Load data for figure
+load_dataset = 'noact';
+AP_longstriatum_load_data;
+%%%
+
+figure;tiledlayout(n_domains,1,'tilespacing','none')
+for curr_domain = 1:n_domains
+    nexttile;
+    imagesc(striatum_wf_roi(:,:,curr_domain));
+    axis image off; ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    colormap(ap.colormap('WG'));
+end
+ap.prettyfig;
+
+%% [Fig 3X] Cortex passive ROI max
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+[wf_striatum_roi_avg,wf_striatum_roi_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
+    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_striatum_roi_sem = ...
+    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
+    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+% Plot max in ROI by day
+stim_t = wf_t >= 0 & wf_t <= 0.2;
+
+[wf_striatum_roi_dayavg,wf_striatum_roi_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
+    (1:size(wf_striatum_roi,1))', ...
+    [wf_grp.animal,plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_striatum_roi_max = max(wf_striatum_roi_dayavg(:,stim_t,:),[],2);
+
+[wf_striatum_roi_max_avg,wf_striatum_roi_max_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi_max, ...
+    wf_striatum_roi_grp(:,1),wf_striatum_roi_grp(:,2:3));
+
+wf_striatum_roi_max_sem = ...
+    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi_max, ...
+    wf_striatum_roi_grp(:,1),wf_striatum_roi_grp(:,2:3));
+
+figure;
+h = tiledlayout(n_domains,1,'TileSpacing','tight');
+stim_colormap = ap.colormap('BKR',3);
+binned_days_x = interp1(find(~isinf(plot_day_bins)),...
+    plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
+for curr_domain = 1:size(striatum_wf_roi,3)
+    nexttile; hold on;
+    set(gca,'ColorOrder',stim_colormap);
+    for curr_stim = unique(unique(wf_striatum_roi_max_avg_grp(:,2)))'
+        curr_data_idx = wf_striatum_roi_max_avg_grp(:,2) == curr_stim;
+
+        errorbar(binned_days_x,wf_striatum_roi_max_avg(curr_data_idx,:,curr_domain), ...
+            wf_striatum_roi_max_sem(curr_data_idx,:,curr_domain),'linewidth',2);
+        ylabel('\DeltaF/F_0 max');
+        axis padded
+    end
+end
+linkaxes(h.Children,'xy');
+title(h,'Cortex');
+ap.prettyfig;
+
+% ~stats~
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
+
+curr_data_idx = ismember(wf_striatum_roi_grp(:,2),compare_day_grps);
+
+[stat_meas,stat_grp] = ap.nestgroupfun({@mean,@diff},wf_striatum_roi_max(curr_data_idx,:,:), ...
+    wf_striatum_roi_grp(curr_data_idx,2),wf_striatum_roi_grp(curr_data_idx,3));
+
+[~,~,shuff_grp] = unique(wf_striatum_roi_grp(curr_data_idx,[1,3]),'rows');
+n_shuff = 1000;
+stat_null = nan(size(stat_meas,1),n_shuff,n_domains);
+for curr_shuff = 1:n_shuff
+    curr_data_shuff = ap.shake(wf_striatum_roi_max(curr_data_idx,:,:),1,shuff_grp);
+    stat_null(:,curr_shuff,:) = ap.nestgroupfun({@mean,@diff},curr_data_shuff, ...
+        wf_striatum_roi_grp(curr_data_idx,2),wf_striatum_roi_grp(curr_data_idx,3));
+end
+
+stat_rank = permute(tiedrank(permute([stat_meas,stat_null],[2,1,3])),[2,1,3]);
+stat_p = 1-stat_rank(:,1,:)/(n_shuff+1);
+
+fprintf('Stats: day grps %d vs %d\n',compare_days);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+for curr_domain = 1:n_domains
+    for curr_stim = unique(stat_grp(:,1))'
+        curr_stat_idx = ismember(stat_grp,curr_stim,'rows');
+        fprintf('ROI%d, Stim %3.f, p = %.2g%s\n', ...
+            curr_domain,stat_grp(curr_stat_idx),stat_p(curr_stat_idx,1,curr_domain),stat_sig(curr_stat_idx,1,curr_domain));
+    end
+end
+
+%% [Fig 3X] Striatum PSTH max passive
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+
+[striatum_mua_dayavg,striatum_mua_dayavg_grp] = ...
+    ap.groupfun(@mean,striatum_mua, ...
+    [striatum_mua_grp.animal,plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+
+max_t = psth_t >= 0 & psth_t <= 0.2;
+striatum_mua_dayavg_tmax = max(striatum_mua_dayavg(:,max_t),[],2);
+
+[striatum_mua_max,striatum_mua_max_grp] = ap.nestgroupfun({@mean,@mean}, ...
+    striatum_mua_dayavg_tmax,striatum_mua_dayavg_grp(:,1), ...
+    striatum_mua_dayavg_grp(:,2:end));
+striatum_mua_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    striatum_mua_dayavg_tmax,striatum_mua_dayavg_grp(:,1), ...
+    striatum_mua_dayavg_grp(:,2:end));
+
+figure;
+h = tiledlayout(n_domains,1);
+stim_colormap = ap.colormap('BKR',3);
+binned_days_x = interp1(find(~isinf(plot_day_bins)),...
+    plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
+for curr_domain = unique(striatum_mua_grp.domain_idx)'
+    nexttile; hold on; set(gca,'ColorOrder',stim_colormap);
+    for curr_stim = unique(striatum_mua_grp.stim)'
+        plot_grps = striatum_mua_max_grp(:,2) == curr_stim & ...
+            striatum_mua_max_grp(:,3) == curr_domain;
+
+        errorbar(binned_days_x,striatum_mua_max(plot_grps), ...
+            striatum_mua_max_sem(plot_grps),'linewidth',2);
+    end
+    axis padded
+    xline(0);
+end
+linkaxes(h.Children,'xy');
+title(h,'Striatum');
+ap.prettyfig;
+
+
+% ~stats~
+% compare_days = [-inf,-2];
+% [~,compare_day_grps] = ismember(compare_days,plot_day_bins);
+compare_day_grps = [1,2];
+
+curr_data_idx = ismember(striatum_mua_dayavg_grp(:,2),compare_day_grps);
+
+[stat_meas,stat_grp] = ap.nestgroupfun({@mean,@diff},striatum_mua_dayavg_tmax(curr_data_idx), ...
+    striatum_mua_dayavg_grp(curr_data_idx,2),striatum_mua_dayavg_grp(curr_data_idx,3:end));
+
+[~,~,shuff_grp] = unique(striatum_mua_dayavg_grp(curr_data_idx,[1,3,4]),'rows');
+n_shuff = 1000;
+stat_null = nan(length(stat_meas),n_shuff);
+for curr_shuff = 1:n_shuff
+    curr_data_shuff = ap.shake(striatum_mua_dayavg_tmax(curr_data_idx),1,shuff_grp);
+    stat_null(:,curr_shuff) = ap.nestgroupfun({@mean,@diff},curr_data_shuff, ...
+        striatum_mua_dayavg_grp(curr_data_idx,2),striatum_mua_dayavg_grp(curr_data_idx,3:end));
+end
+
+stat_rank = tiedrank([stat_meas,stat_null]')';
+stat_p = 1-stat_rank(:,1)/(n_shuff+1);
+
+fprintf('Stats: day grps %d vs %d\n',compare_days);
+stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+for curr_domain = 1:n_domains
+    for curr_stim = unique(stat_grp(:,1))'
+        curr_stat_idx = ismember(stat_grp,[curr_stim,curr_domain],'rows');
+        fprintf('D%d, Stim %3.f, p = %.2g%s\n', ...
+            curr_domain,stat_grp(curr_stat_idx,1),stat_p(curr_stat_idx),stat_sig(curr_stat_idx));
+    end
+end
