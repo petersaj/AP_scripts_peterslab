@@ -329,9 +329,8 @@ end
 
 
 
-%% [Fig 2X] Cortex + striatal task max, split within session (OLD)
-% (old version: splits all days and averages n = sessions if multiple days
-% in a group)
+%% [Fig 2X] Cortex + striatal task max stim activity, within-session split
+% (old version: 
 
 %%% Load data for figure
 load_dataset = 'task';
