@@ -553,53 +553,6 @@ for curr_domain = 1:n_domains
 end
 
 
-%% [Fig 3X] Striatum PSTH passive
-
-%%% Load data for figure
-load_dataset = 'passive';
-AP_longstriatum_load_data;
-%%%
-
-plot_day_bins = [-Inf,-2,0,2,Inf];
-plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
-day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
-     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
-
-[striatum_mua_avg,striatum_mua_avg_grp] = ...
-    ap.nestgroupfun({@mean,@mean}, ...
-    striatum_mua,striatum_mua_grp.animal, ...
-    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
-striatum_mua_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    striatum_mua,striatum_mua_grp.animal, ...
-    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
-
-unique_stim = unique(striatum_mua_grp.stim);
-figure;
-h = tiledlayout(n_domains,max(plot_days_grp)*length(unique_stim),'TileSpacing','tight');
-for curr_domain = unique(striatum_mua_avg_grp(:,3))'
-    for curr_day = unique(striatum_mua_avg_grp(:,1))'
-        for plot_stim = unique_stim'
-            nexttile; axis off;
-            plot_data = striatum_mua_avg_grp(:,1) == curr_day & ...
-                striatum_mua_avg_grp(:,2) == plot_stim & ...
-                striatum_mua_avg_grp(:,3) == curr_domain;
-            if ~any(plot_data)
-                continue
-            end
-            ap.errorfill(psth_t,striatum_mua_avg(plot_data,:),striatum_mua_sem(plot_data,:), ...
-                day_colormap(curr_day,:));
-        end
-    end
-end
-linkaxes(h.Children,'xy');
-xlim([-0.2,0.8]);
-title(h,'Striatum');
-ap.prettyfig;
-
-
-
-
-
 %% [Fig 3X] Striatum fraction stim-responsive units
 
 %%% Load data for figure
@@ -647,7 +600,7 @@ linkaxes(h.Children,'xy');
 ap.prettyfig;
 
 
-%% [Fig 3X] Cortex map passive max
+%% [Fig 3X] Cortex + striatum PSTH passive
 
 %%% Load data for figure
 load_dataset = 'passive';
@@ -655,71 +608,60 @@ AP_longstriatum_load_data;
 %%%
 
 plot_day_bins = [-Inf,-2,0,2,Inf];
-plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+striatum_plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
-stim_t = wf_t > 0 & wf_t < 0.2;
-[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_event_align), ...
-    [wf_grp.animal,plot_day_grp,cell2mat(wf.trial_stim_values)]);
-
-wf_max_px = permute(max(plab.wf.svd2px(U_master,permute(wf_avg(:,stim_t,:),[3,2,1])),[],3),[1,2,4,3]);
-[wf_max_px_avg,wf_max_px_avg_grp] = ap.nestgroupfun({@mean,@mean},reshape(wf_max_px,[],size(wf_max_px,3))', ...
-    wf_avg_grp(:,1),wf_avg_grp(:,2:3));
-
-figure;
-h = tiledlayout(3,max(plot_day_grp),'TileIndexing','ColumnMajor','TileSpacing','none');
-for curr_day = unique(wf_max_px_avg_grp(:,1))'
-    for curr_stim = unique(wf_max_px_avg_grp(:,2))'
-        nexttile;
-        imagesc(reshape(wf_max_px_avg( ...
-            ismember(wf_max_px_avg_grp,[curr_day,curr_stim],'rows'),:), ...
-            size(U_master,[1,2])));
-        colormap(ap.colormap('PWG',[],1.5));
-        clim([-1,1]*1e-3*2);
-        axis image off;
-        ap.wf_draw('ccf',[0.5,0.5,0.5]);
-    end
-end
-ap.prettyfig;
-
-
-%% [Fig 3X] Cortex passive ROI average
-
-%%% Load data for figure
-load_dataset = 'passive';
-AP_longstriatum_load_data;
-%%%
-
-plot_day_bins = [-Inf,-2,0,2,Inf];
-plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
-day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
-     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
+[striatum_mua_avg,striatum_mua_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [striatum_plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+striatum_mua_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [striatum_plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
 
 [wf_striatum_roi_avg,wf_striatum_roi_avg_grp] = ...
     ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
-    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
-
+    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
 wf_striatum_roi_sem = ...
     ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
-    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
+    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+unique_stim = unique(striatum_mua_grp.stim);
+stim_color = {'KB','KW','KR'};
 
 figure;
-unique_stim = unique(cell2mat(wf.trial_stim_values));
-h = tiledlayout(n_domains,max(plot_day_grp)*length(unique_stim),'TileSpacing','tight');
-for curr_domain = 1:size(striatum_wf_roi,3)
-    for curr_ld = unique(plot_day_grp)'
-        for curr_stim = unique_stim'
-            nexttile; axis off;
-            curr_data_idx = wf_striatum_roi_avg_grp(:,1) == curr_ld & ...
-                wf_striatum_roi_avg_grp(:,2) == curr_stim;
+h = tiledlayout(n_domains*2,max(striatum_plot_days_grp)*length(unique_stim), ...
+    'TileIndexing','ColumnMajor','TileSpacing','tight');
+for curr_stim = unique_stim'
 
+    [~,curr_stim_idx] = ismember(curr_stim,unique_stim);
+    day_colormap = ap.colormap(stim_color{curr_stim_idx},length(plot_day_bins)-1);
+
+    for curr_day = 1:length(plot_day_bins)-1
+        for curr_domain = 1:n_domains
+
+            % (cortex)
+            nexttile; axis off;
+            curr_data_idx = wf_striatum_roi_avg_grp(:,1) == curr_day & ...
+                wf_striatum_roi_avg_grp(:,2) == curr_stim;
             ap.errorfill(wf_t,wf_striatum_roi_avg(curr_data_idx,:,curr_domain), ...
                 wf_striatum_roi_sem(curr_data_idx,:,curr_domain), ...
-                day_colormap(curr_ld,:));
+                day_colormap(curr_day,:));
+
+            % (striatum)
+            nexttile; axis off;
+            curr_data_idx = striatum_mua_avg_grp(:,1) == curr_day & ...
+                striatum_mua_avg_grp(:,2) == curr_stim & ...
+                striatum_mua_avg_grp(:,3) == curr_domain;
+            ap.errorfill(psth_t,striatum_mua_avg(curr_data_idx,:),striatum_mua_sem(curr_data_idx,:), ...
+                day_colormap(curr_day,:));
+
         end
     end
 end
-linkaxes(h.Children,'xy');
-title(h,'Cortex');
+linkaxes(h.Children(1:2:end),'y');
+linkaxes(h.Children(2:2:end),'y');
+xlim(h.Children,[0,0.5]);
 ap.prettyfig;
 
 
@@ -863,7 +805,7 @@ for curr_compare_day = 1:length(plot_day_bins)-2
 end
 
 
-%% [Fig 4X] Striatum passive unit responses
+%% [Fig 4X] Striatum passive unit heatmap
 
 %%% Load data for figure
 load_dataset = 'passive';
@@ -877,64 +819,81 @@ plot_domains = 1:2;
 plot_day_bins = [-inf,-2,0,Inf];
 plot_day_grp = discretize(max(-inf,striatum_sua_grp.ld),plot_day_bins);
 
-% Get max activity to stim onset
-stim_t = [0.05,0.15];
-striatum_sua_tavg = squeeze(mean(striatum_sua(:,isbetween(psth_t,stim_t(1),stim_t(2)),:),2));
-
-n_stim = size(striatum_sua,3);
+% Get max activity in type-relevant window
+stim_t = [0,0.2];
+stim_use_t = isbetween(psth_t,stim_t(1),stim_t(2));
+striatum_sua_tavg = permute(mean(striatum_sua(:,stim_use_t,:),2),[1,3,2]);
 
 % Plot heatmap
-[~,max_stim] = max(striatum_sua_tavg,[],2);
+celltypes = ["msn","fsi","tan"];
+n_stim = size(striatum_sua,3);
+
+figure;
+h = tiledlayout(1,length(celltypes),'TileSpacing','tight');
 for curr_celltype = celltypes
-    figure;
+    h_sub = tiledlayout(h,max(plot_day_grp),n_stim,'TileSpacing','tight');
+    [~,curr_celltype_idx] = ismember(curr_celltype,celltypes);
+    h_sub.Layout.Tile = curr_celltype_idx;
+
     colormap(ap.colormap('BWR',[],2));
-    h = tiledlayout(max(plot_day_grp)*n_stim,n_stim,'TileSpacing','none');
-    title(h,curr_celltype);
+    title(h_sub,curr_celltype);
     for curr_day_grp = 1:length(plot_day_bins)-1
-        for curr_max_stim = 1:n_stim
 
-            % Get units and sorting
-            curr_units = find( ...
-                ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-                plot_day_grp == curr_day_grp & ...
-                max_stim == curr_max_stim & ...
-                striatum_sua_grp.(curr_celltype) & ...
-                any(striatum_sua,[2,3]));
-     
-            [~,sort_idx] = sort(max(striatum_sua_tavg(curr_units,curr_max_stim),[],2),'descend');
-            plot_units = curr_units(sort_idx);
+        % Get units and sorting
+        curr_units = find( ...
+            ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+            plot_day_grp == curr_day_grp & ...
+            striatum_sua_grp.(curr_celltype));
 
-            % (get rec/IDs of cells for single-unit PSTH plotting)
-            curr_sorted_unit_coordinate = ...
-                [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
-                ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
-                num2cell(striatum_sua_grp.unit_id(plot_units))];
-
-            % (smooth relative to number of number of units);
-            max_n_cells = max(ap.groupfun(@sum, ...
-                +(ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-                striatum_sua_grp.(curr_celltype)),plot_day_grp));
-            smooth_n = 5*max_n_cells/500;
-
-            for curr_stim = 1:n_stim
-                nexttile;
-                imagesc(psth_t,[],movmean(striatum_sua(plot_units,:,curr_stim),smooth_n,1));
-                clim([-1,1])
-                xlim([-0.2,0.8])
-                axis off;
-            end
+        % (sort max stim, then max within stim)
+        sort_idx_cell = cell(3,1);
+        [~,max_stim] = max(striatum_sua_tavg,[],2);
+        for curr_stim_sort = 1:3
+            curr_stim_units = find(max_stim(curr_units)==curr_stim_sort);
+            [~,curr_sort_idx] = sort(max(striatum_sua_tavg(curr_units(curr_stim_units),curr_stim_sort),[],2),'descend');
+            sort_idx_cell{curr_stim_sort} = curr_stim_units(curr_sort_idx);
         end
+        sort_idx = cell2mat(sort_idx_cell);
+        plot_units = curr_units(sort_idx);
+
+        % (get rec/IDs of cells for single-unit PSTH plotting)
+        curr_sorted_unit_coordinate = ...
+            [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
+            ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
+            num2cell(striatum_sua_grp.unit_id(plot_units))];
+
+        % (y-smooth heatmaps with large number of units)
+        max_n_cells = max(ap.groupfun(@sum, ...
+            +(ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+            striatum_sua_grp.(curr_celltype)),plot_day_grp));
+        smooth_n = 5*max_n_cells/500;
+
+        for curr_stim = 1:n_stim
+            nexttile(h_sub); 
+            imagesc(psth_t,[],movmean(striatum_sua(plot_units,:,curr_stim),[smooth_n,0],1));
+            clim([-1,1])
+            yline(cumsum(cellfun(@length,sort_idx_cell(1:end-1))),'k');
+            axis off;
+        end
+
     end
-    linkaxes(h.Children,'xy');
-    ap.prettyfig;
 end
+linkaxes(vertcat(h.Children.Children),'x');
+xlim(vertcat(h.Children.Children),[0,0.5]);
+ap.prettyfig;
+
 
 % Plot max by stim response
-[~,max_stim] = max(striatum_sua_tavg,[],2);
+[~,unit_max_stim] = max(striatum_sua_tavg,[],2);
+
+figure;
+h = tiledlayout(1,length(celltypes),'TileSpacing','tight');
 for curr_celltype = celltypes
-    figure;
-    h = tiledlayout(n_stim*max(plot_day_grp),1,'TileSpacing','compact');
-    title(h,curr_celltype);
+
+    h_sub = tiledlayout(h,n_stim*max(plot_day_grp),1,'TileSpacing','tight');
+    [~,curr_celltype_idx] = ismember(curr_celltype,celltypes);
+    h_sub.Layout.Tile = curr_celltype_idx;
+    title(h_sub,curr_celltype);
 
     stim_colormap = ap.colormap('BKR',n_stim);
     for curr_day_grp = 1:length(plot_day_bins)-1
@@ -943,7 +902,7 @@ for curr_celltype = celltypes
             curr_units = ...
                 ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
                 plot_day_grp == curr_day_grp & striatum_sua_grp.(curr_celltype) & ...
-                max_stim == curr_max_stim;
+                unit_max_stim == curr_max_stim;
 
             curr_act_mean = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(curr_units,:), ...
                 striatum_sua_grp.animal(curr_units),plot_day_grp(curr_units));
@@ -951,26 +910,27 @@ for curr_celltype = celltypes
             curr_act_sem = ap.nestgroupfun({@nanmean,@AP_sem},striatum_sua_tavg(curr_units,:), ...
                 striatum_sua_grp.animal(curr_units),plot_day_grp(curr_units));
 
-            nexttile; hold on;
+            nexttile(h_sub); hold on;
             b = bar(curr_act_mean,'FaceColor','flat','CData',stim_colormap);
             errorbar(curr_act_mean,curr_act_sem, ...
                 'marker','none','linestyle','none','color','k','linewidth',1);
 
         end
     end
-    set(h.Children,'YTickLabel','')
-    set(h.Children(2:end),'XTickLabel','')
-    linkaxes(h.Children,'xy');
-    ap.prettyfig;
+    linkaxes(h_sub.Children,'y');
+
 end
+linkaxes(vertcat(h.Children.Children),'x');
+ap.prettyfig;
+
 
 % Average stim response grouped by celltype
-plot_celltypes = ["tan","fsi","msn"];
-celltype_id = sum(cell2mat(arrayfun(@(x) ...
-    striatum_sua_grp.(plot_celltypes(x)).*x, ...
-    1:length(plot_celltypes),'uni',false)),2);
-
 stim_colormap = ap.colormap('BWR',n_stim);
+
+stim_color = {'KB';'KW';'KR'};
+stim_day_colormap = mat2cell(reshape(permute(cell2mat(permute(cellfun(@(stim_color) ...
+    ap.colormap(stim_color,length(plot_day_bins)-1),stim_color,'uni',false), ...
+    [2,3,1])),[2,3,1]),3,[])',repelem(length(plot_day_bins)-1,n_stim),3);
 
 figure;
 h = tiledlayout(1,length(celltypes),'TileSpacing','compact');
@@ -988,7 +948,7 @@ for curr_celltype = celltypes
 
     nexttile; hold on;
     b = bar(curr_act_mean','FaceColor','flat');
-    [b.CData] = deal(stim_colormap);
+    [b.CData] = stim_day_colormap{:};
     errorbar(vertcat(b.XEndPoints)',curr_act_mean',curr_act_sem', ...
         'marker','none','linestyle','none','color','k','linewidth',1);
     title(curr_celltype);
@@ -1012,7 +972,7 @@ for curr_celltype = celltypes
     fprintf('%s day grps %d,%d p = %.2g L, %.2g C, %.2g R\n',curr_celltype,compare_day_grps,stat_p);
 
 end
-linkaxes(h.Children,'xy');
+linkaxes(h.Children,'x');
 ap.prettyfig;
 
 
@@ -1104,6 +1064,41 @@ set(gca,'ColorOrder',domain_color_rgb);
 axis off;
 ap.scalebar(10,500);
 ap.prettyfig
+
+
+%% [Supp. Fig 1x] Cortex map passive max
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+stim_t = wf_t > 0 & wf_t < 0.2;
+[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_event_align), ...
+    [wf_grp.animal,plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_max_px = permute(max(plab.wf.svd2px(U_master,permute(wf_avg(:,stim_t,:),[3,2,1])),[],3),[1,2,4,3]);
+[wf_max_px_avg,wf_max_px_avg_grp] = ap.nestgroupfun({@mean,@mean},reshape(wf_max_px,[],size(wf_max_px,3))', ...
+    wf_avg_grp(:,1),wf_avg_grp(:,2:3));
+
+figure;
+h = tiledlayout(3,max(plot_day_grp),'TileIndexing','ColumnMajor','TileSpacing','none');
+for curr_day = unique(wf_max_px_avg_grp(:,1))'
+    for curr_stim = unique(wf_max_px_avg_grp(:,2))'
+        nexttile;
+        imagesc(reshape(wf_max_px_avg( ...
+            ismember(wf_max_px_avg_grp,[curr_day,curr_stim],'rows'),:), ...
+            size(U_master,[1,2])));
+        colormap(ap.colormap('PWG',[],1.5));
+        clim([-1,1]*3e-3);
+        axis image off;
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    end
+end
+ap.prettyfig;
 
 
 %% (end timer)

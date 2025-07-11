@@ -280,7 +280,7 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'HA009';
+animal = 'HA014';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

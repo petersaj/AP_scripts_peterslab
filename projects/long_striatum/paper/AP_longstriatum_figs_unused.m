@@ -677,3 +677,86 @@ for curr_domain = 1:n_domains
             curr_domain,stat_grp(curr_stat_idx,1),stat_p(curr_stat_idx),stat_sig(curr_stat_idx));
     end
 end
+
+%% [Fig 3X] Cortex passive ROI average
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
+     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
+
+[wf_striatum_roi_avg,wf_striatum_roi_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
+    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_striatum_roi_sem = ...
+    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
+    wf_grp.animal,[plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+figure;
+unique_stim = unique(cell2mat(wf.trial_stim_values));
+h = tiledlayout(n_domains,max(plot_day_grp)*length(unique_stim),'TileSpacing','tight');
+for curr_domain = 1:size(striatum_wf_roi,3)
+    for curr_ld = unique(plot_day_grp)'
+        for curr_stim = unique_stim'
+            nexttile; axis off;
+            curr_data_idx = wf_striatum_roi_avg_grp(:,1) == curr_ld & ...
+                wf_striatum_roi_avg_grp(:,2) == curr_stim;
+
+            ap.errorfill(wf_t,wf_striatum_roi_avg(curr_data_idx,:,curr_domain), ...
+                wf_striatum_roi_sem(curr_data_idx,:,curr_domain), ...
+                day_colormap(curr_ld,:));
+        end
+    end
+end
+linkaxes(h.Children,'xy');
+title(h,'Cortex');
+ap.prettyfig;
+
+%% [Fig 3X] Striatum PSTH passive
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+day_colormap = unique(vertcat(flipud(ap.colormap('KB',sum(plot_day_bins(1:end-1)<=0))), ...
+     ap.colormap('KR',sum(plot_day_bins(1:end-1)>=0))),'stable','rows');
+
+[striatum_mua_avg,striatum_mua_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+striatum_mua_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [plot_days_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+
+unique_stim = unique(striatum_mua_grp.stim);
+figure;
+h = tiledlayout(n_domains,max(plot_days_grp)*length(unique_stim),'TileSpacing','tight');
+for curr_domain = unique(striatum_mua_avg_grp(:,3))'
+    for curr_day = unique(striatum_mua_avg_grp(:,1))'
+        for plot_stim = unique_stim'
+            nexttile; axis off;
+            plot_data = striatum_mua_avg_grp(:,1) == curr_day & ...
+                striatum_mua_avg_grp(:,2) == plot_stim & ...
+                striatum_mua_avg_grp(:,3) == curr_domain;
+            if ~any(plot_data)
+                continue
+            end
+            ap.errorfill(psth_t,striatum_mua_avg(plot_data,:),striatum_mua_sem(plot_data,:), ...
+                day_colormap(curr_day,:));
+        end
+    end
+end
+linkaxes(h.Children,'xy');
+xlim([-0.2,0.8]);
+title(h,'Striatum');
+ap.prettyfig;
