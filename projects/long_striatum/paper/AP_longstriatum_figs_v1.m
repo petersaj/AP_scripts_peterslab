@@ -367,7 +367,7 @@ linkaxes(h.Children(2:2:end));
 xlim(h.Children,[-0.1,0.5]);
 ap.prettyfig;
 
-% ~stats~
+% ~~~ STATS ~~~
 fprintf('---- STATS ----\n')
 compare_day_grps = [1,2];
 
@@ -532,7 +532,7 @@ xlim(h(1).Children,[0.8,n_split+0.2])
 
 ap.prettyfig;
 
-% ~stats~
+% ~~~ STATS ~~~
 fprintf('---- STATS ----\n')
 fprintf('1-way ANOVA:');
 for curr_domain = 1:n_domains
@@ -746,7 +746,7 @@ linkaxes(h.Children(2:2:end),'xy');
 
 ap.prettyfig;
 
-% ~stats~
+% ~~~ STATS ~~~
 fprintf('---- STATS ----\n')
 for curr_compare_day = 1:length(plot_day_bins)-2
 
@@ -953,7 +953,7 @@ for curr_celltype = celltypes
         'marker','none','linestyle','none','color','k','linewidth',1);
     title(curr_celltype);
 
-    % ~stats~
+    % ~~~ STATS ~~~
     fprintf('---- STATS ----\n')
     compare_day_grps = [1,2];
     stat_meas = diff(curr_act_mean(compare_day_grps,:),[],1);
@@ -974,6 +974,96 @@ for curr_celltype = celltypes
 end
 linkaxes(h.Children,'x');
 ap.prettyfig;
+
+% ~~~ STATS ~~~
+fprintf('---- STATS ----\n')
+
+% Shuffle day group for each cell independently (within animal)
+for curr_day_grp = 1:length(plot_day_bins)-1
+
+    compare_day_grps = curr_day_grp + [0,1];
+
+    celltype_idx = sum(cell2mat(cellfun(@(x) ...
+        striatum_sua_grp.(x),num2cell(celltypes),'uni',false)).* ...
+        (1:length(celltypes)),2);
+
+    stat_use_units = celltype_idx ~= 0 & ismember(plot_day_grp,compare_day_grps);
+
+    [stat_data,stat_data_grp] = ap.nestgroupfun({@nanmean,@nanmean},striatum_sua_tavg(stat_use_units,:), ...
+        striatum_sua_grp.animal(stat_use_units),[plot_day_grp(stat_use_units),celltype_idx(stat_use_units)]);
+
+    stat_meas = permute(stat_data(stat_data_grp(:,1) == compare_day_grps(2),:) - ...
+        stat_data(stat_data_grp(:,1) == compare_day_grps(1),:),[3,2,1]);
+
+    n_shuff = 10000;
+    [~,~,shuff_grp] = unique([striatum_sua_grp.animal(stat_use_units),celltype_idx(stat_use_units)],'rows');
+    stat_null = nan(n_shuff,n_stim,length(celltypes));
+    for curr_shuff = 1:n_shuff
+
+        curr_data_shuff = ap.shake(striatum_sua_tavg(stat_use_units,:),1,shuff_grp);
+
+        [stat_data,stat_data_grp] = ap.nestgroupfun({@nanmean,@nanmean},curr_data_shuff, ...
+            striatum_sua_grp.animal(stat_use_units),[plot_day_grp(stat_use_units),celltype_idx(stat_use_units)]);
+
+        stat_null(curr_shuff,:,:) = permute(stat_data(stat_data_grp(:,1) == compare_day_grps(2),:) - ...
+            stat_data(stat_data_grp(:,1) == compare_day_grps(1),:),[3,2,1]);
+
+    end
+
+    stat_rank = tiedrank([stat_meas;stat_null]);
+    stat_p = 1-stat_rank(1,:,:)/(n_shuff+1);
+
+    unique_stim = unique(striatum_mua_grp.stim)';
+    fprintf('Cell types: day grps %d vs %d\n',compare_day_grps);
+    stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+    for curr_celltype_idx = 1:length(celltypes)
+        for curr_stim_idx = 1:length(unique_stim)
+            fprintf('%s, Stim %3.f, p = %.2g%s\n', ...
+                celltypes(curr_celltype_idx),unique_stim(curr_stim_idx), ...
+                stat_p(1,curr_stim_idx,curr_celltype_idx), ...
+                stat_sig(1,curr_stim_idx,curr_celltype_idx));
+        end
+    end
+end
+
+% % ALT unused: shuffle day group for cell type average (within animal)
+% 
+% celltype_idx = sum(cell2mat(cellfun(@(x) ...
+%     striatum_sua_grp.(x),num2cell(celltypes),'uni',false)).* ...
+%     (1:length(celltypes)),2);
+% 
+% stat_use_units = celltype_idx ~= 0 & ismember(plot_day_grp,compare_day_grps);
+% 
+% [stat_data,stat_data_grp] = ap.groupfun(@nanmean,striatum_sua_tavg(stat_use_units,:), ...
+%     [striatum_sua_grp.animal(stat_use_units),plot_day_grp(stat_use_units),celltype_idx(stat_use_units)]);
+% 
+% stat_meas = permute(diff(reshape(ap.groupfun(@mean,stat_data, ...
+%     stat_data_grp(:,2:3))',n_stim,length(celltypes),2),[],3),[3,1,2]);
+% 
+% n_shuff = 10000;
+% [~,~,shuff_grp] = unique(stat_data_grp(:,[1,3]),'rows');
+% stat_null = nan(n_shuff,n_stim,length(celltypes));
+% for curr_shuff = 1:n_shuff
+%     curr_data_shuff = ap.shake(stat_data,1,shuff_grp);
+%     stat_null(curr_shuff,:,:) = ...
+%         permute(diff(reshape(ap.groupfun(@mean,curr_data_shuff, ...
+%         stat_data_grp(:,2:3))',n_stim,length(celltypes),2),[],3),[3,1,2]);
+% end
+% 
+% stat_rank = tiedrank([stat_meas;stat_null]);
+% stat_p = 1-stat_rank(1,:,:)/(n_shuff+1);
+% 
+% unique_stim = unique(striatum_mua_grp.stim)';
+% fprintf('Cell types: day grps %d vs %d\n',compare_day_grps);
+% stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+% for curr_celltype_idx = 1:length(celltypes)
+%     for curr_stim_idx = 1:length(unique_stim)
+%         fprintf('%s, Stim %3.f, p = %.2g%s\n', ...
+%             celltypes(curr_celltype_idx),unique_stim(curr_stim_idx), ...
+%             stat_p(1,curr_stim_idx,curr_celltype_idx), ...
+%             stat_sig(1,curr_stim_idx,curr_celltype_idx));              
+%     end
+% end
 
 
 %% [Supp. Fig 1x] Striatal domain clustering and classification
