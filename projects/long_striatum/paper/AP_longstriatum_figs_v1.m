@@ -816,7 +816,7 @@ AP_longstriatum_load_data;
 plot_domains = 1:2;
 
 % Set days to group
-plot_day_bins = [-inf,-2,0,Inf];
+plot_day_bins = [-inf,-2,0,2,Inf];
 plot_day_grp = discretize(max(-inf,striatum_sua_grp.ld),plot_day_bins);
 
 % Get max activity in type-relevant window
@@ -928,9 +928,9 @@ ap.prettyfig;
 stim_colormap = ap.colormap('BWR',n_stim);
 
 stim_color = {'KB';'KW';'KR'};
-stim_day_colormap = mat2cell(reshape(permute(cell2mat(permute(cellfun(@(stim_color) ...
+stim_day_colormap = reshape(mat2cell(permute(cell2mat(permute(cellfun(@(stim_color) ...
     ap.colormap(stim_color,length(plot_day_bins)-1),stim_color,'uni',false), ...
-    [2,3,1])),[2,3,1]),3,[])',repelem(length(plot_day_bins)-1,n_stim),3);
+    [2,3,1])),[3,2,1]),n_stim,3,ones(length(plot_day_bins)-1,1)),[],1);
 
 figure;
 h = tiledlayout(1,length(celltypes),'TileSpacing','compact');
@@ -979,7 +979,7 @@ ap.prettyfig;
 fprintf('---- STATS ----\n')
 
 % Shuffle day group for each cell independently (within animal)
-for curr_day_grp = 1:length(plot_day_bins)-1
+for curr_day_grp = 1:length(plot_day_bins)-2
 
     compare_day_grps = curr_day_grp + [0,1];
 
@@ -1026,7 +1026,8 @@ for curr_day_grp = 1:length(plot_day_bins)-1
     end
 end
 
-% % ALT unused: shuffle day group for cell type average (within animal)
+% % ALT STAT unused: shuffle day group for cell type average (within animal)
+% compare_day_grps = [2,3];
 % 
 % celltype_idx = sum(cell2mat(cellfun(@(x) ...
 %     striatum_sua_grp.(x),num2cell(celltypes),'uni',false)).* ...
