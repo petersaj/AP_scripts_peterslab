@@ -21,10 +21,12 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x(1:n_trials) == 90);
 
-modality = vertcat(trial_events.values(1:n_trials).TaskType);
-use_align = stimOn_times(modality == 0 & stim_to_move < 0.15);
+% modality = vertcat(trial_events.values(1:n_trials).TaskType);
+% use_align = stimOn_times(modality == 1);
 
-% use_align = stimOn_times;
+% use_align = reward_times;
+
+use_align = stimOn_times;
 
 % use_align = stimOff_times(trial_opacity == 1);
 
@@ -187,10 +189,10 @@ xlabel('Time from event');
 %     'AM018','AM019','AM021','AM022','AM026','AM029', ...
 %     'AP023','AP025'};
 
-animals = {'AM016'};
+animals = {'DS000','DS004','DS014','DS015','DS016'};
 
 % Set reaction statistic to use
-use_stat = 'mean';
+use_stat = 'mad';
 learn_p = 0.05;
 
 % Create master tiled layout
@@ -204,10 +206,10 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    use_workflow = 'stim_wheel*';
+    % use_workflow = 'stim_wheel*';
     % use_workflow = 'stim_wheel_right_stage\d';
-    % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
-%     use_workflow = '*audio_volume*';
+    use_workflow = 'stim_wheel_right_stage\d_audio_volume';
+    % use_workflow = '*audio_volume*';
 %     use_workflow = '*audio_frequency*';
 %     use_workflow = '*no_change*';
 %     use_workflow = '*size*';

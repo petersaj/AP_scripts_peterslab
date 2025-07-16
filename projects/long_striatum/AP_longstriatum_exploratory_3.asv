@@ -1383,6 +1383,11 @@ animals = { ...
     'AM018','AM019','AM021','AM022','AM026','AM029', ...
     'AP023','AP025'};
 
+% % DS TEST
+% animals = {'DS000','DS004','DS014','DS015','DS016'};
+animals = {'DS007','DS010','AP019','AP021','DS011','AP022'};
+
+
 use_stat = 'mean';
 
 % Grab learning day for each mouse
