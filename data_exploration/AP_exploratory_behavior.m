@@ -190,9 +190,9 @@ xlabel('Time from event');
 %     'AP023','AP025'};
 
 animals = {'DS000','DS004','DS014','DS015','DS016'};
-
+animals = {'DS014'};
 % Set reaction statistic to use
-use_stat = 'mad';
+use_stat = 'mean';
 learn_p = 0.05;
 
 % Create master tiled layout
