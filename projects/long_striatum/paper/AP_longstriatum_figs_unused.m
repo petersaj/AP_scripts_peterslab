@@ -760,3 +760,50 @@ linkaxes(h.Children,'xy');
 xlim([-0.2,0.8]);
 title(h,'Striatum');
 ap.prettyfig;
+
+
+%% [Fig 3X] Striatum fraction stim-responsive units
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+% Set days to group
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_day_grp = discretize(striatum_sua_grp.ld,plot_day_bins);
+
+% Grab "responsive" striatal units
+unit_responsive_p_thresh = 0.95;
+unit_responsive = cell2mat(horzcat(ephys.unit_resp_p_value{:})') > unit_responsive_p_thresh;
+striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
+
+% Get fraction of responsive unit (restrict to MSNs)
+use_units = striatum_sua_grp.msn;
+
+[unit_responsive_mean,unit_responsive_mean_group] = ap.nestgroupfun({@mean,@mean}, ...
+    +striatum_units_responsive(use_units,:),striatum_sua_grp.animal(use_units), ...
+    [plot_day_grp(use_units),striatum_sua_grp.domain_idx(use_units)]);
+
+unit_responsive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    +striatum_units_responsive(use_units,:),striatum_sua_grp.animal(use_units), ...
+    [plot_day_grp(use_units),striatum_sua_grp.domain_idx(use_units)]);
+
+figure;
+h = tiledlayout(n_domains,1);
+stim_colormap = ap.colormap('BKR',3);
+binned_days_x = interp1(find(~isinf(plot_day_bins)),...
+    plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
+for curr_domain = 1:n_domains
+    nexttile; hold on;
+    set(gca,'ColorOrder',stim_colormap);
+
+    curr_data_idx = unit_responsive_mean_group(:,2) == curr_domain;
+    errorbar(binned_days_x(unit_responsive_mean_group(curr_data_idx,1)), ...
+        unit_responsive_mean(curr_data_idx,:), ...
+        unit_responsive_sem(curr_data_idx,:),'linewidth',2);
+    ylabel('Frac. responsive units');
+    xline(0);
+end
+linkaxes(h.Children,'xy');
+ap.prettyfig;
