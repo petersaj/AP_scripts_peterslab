@@ -1508,7 +1508,7 @@ xline(0,'r');
 %% Single unit scatter/selectivity plots
 
 plot_celltype = "msn";
-plot_domains = 1:3;
+plot_domains = 1:2;
 
 % Get max response in window 
 use_t = psth_t > 0.05 & psth_t < 0.15;
@@ -1527,23 +1527,24 @@ unit_responsive_p_thresh = 0.95;
 unit_responsive = cell2mat(horzcat(ephys.unit_resp_p_value{:})') > unit_responsive_p_thresh;
 striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
 
-figure;
-h = tiledlayout(3,length(plot_day_bins)-1,'TileSpacing','tight');
-title(h,plot_celltype);
+unit_cr_diff = cell2mat(ephys.unit_cr_diff_p) > unit_responsive_p_thresh;
+striatum_unit_cr_diff = unit_cr_diff(cell2mat(striatum_units),:);
 
 % Scatter
 [~,striatum_units_responsive_category] = ...
     ismember(striatum_units_responsive(:,2:3), ...
-    [0,0; ...
-    1,0; ...
-    0,1; ...
-    1,1],'rows');
+    [0,0; ...         % 1 = neither C nor R
+    1,0; ...          % 2 = C
+    0,1; ...          % 3 = R
+    1,1],'rows');     % 4 = C+R
 striatum_units_responsive_category_col = ...
     [0.5,0.5,0.5; ...
     0,0,0; ...
     1,0,0; ...
     1,0,1];
 
+figure;
+h = tiledlayout(1,length(plot_day_bins)-1,'TileSpacing','tight');
 for curr_day_grp = 1:length(plot_day_bins)-1
     curr_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
         unit_plot_day_grp == curr_day_grp & ...
@@ -1551,14 +1552,44 @@ for curr_day_grp = 1:length(plot_day_bins)-1
 
     nexttile; axis equal
     scatter(unit_psth_max(curr_units,2),unit_psth_max(curr_units,3), ...
-        10+20*(striatum_units_responsive_category(curr_units)~=1), ...
+        3+20*(striatum_units_responsive_category(curr_units)~=1), ...
         striatum_units_responsive_category(curr_units),'filled');
     line(ylim,ylim);
     clim([1,4]);
 end
 colormap(striatum_units_responsive_category_col);
 
-% Average response to stimuli by responsiveness
+ap.prettyfig;
+linkaxes(h.Children,'xy');
+title(h,plot_celltype);
+
+figure;
+h = tiledlayout(1,length(plot_day_bins)-1,'TileSpacing','tight');
+for curr_day_grp = 1:length(plot_day_bins)-1
+    curr_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        unit_plot_day_grp == curr_day_grp & ...
+        any(striatum_units_responsive(:,2:3),2) & ...
+        striatum_sua_grp.(plot_celltype);
+
+    nexttile; axis equal
+    scatter(unit_psth_max(curr_units,2),unit_psth_max(curr_units,3), ...
+        10,[0.5,0.5,0.5],'filled');
+    line(ylim,ylim);
+    clim([1,4]);
+end
+colormap(striatum_units_responsive_category_col);
+
+ap.prettyfig;
+linkaxes(h.Children,'xy');
+title(h,plot_celltype);
+
+
+% Average response to stimuli by C/R responsiveness
+figure;
+h = tiledlayout(2,length(plot_day_bins)-1,'TileSpacing','tight');
+title(h,plot_celltype);
+
+n_stim = size(striatum_sua,3);
 stim_colormap = ap.colormap('BKR',n_stim);
 for curr_stim = 2:3
     for curr_day_grp = 1:length(plot_day_bins)-1
@@ -1579,9 +1610,68 @@ for curr_stim = 2:3
 end
 xlim([-0.2,0.8]);
 ap.prettyfig;
+linkaxes(h.Children,'xy');
 
-linkaxes(h.Children(length(h.Children):-1:1>length(plot_day_bins)-1),'xy');
-linkaxes(h.Children(~(length(h.Children):-1:1>length(plot_day_bins)-1)),'xy');
+% Average response to stimuli by C/R/C+R responsiveness
+figure;
+h = tiledlayout(3,length(plot_day_bins)-1,'TileSpacing','tight');
+title(h,plot_celltype);
+
+n_stim = size(striatum_sua,3);
+stim_colormap = ap.colormap('BKR',n_stim);
+for curr_responsive_category = 2:4
+    for curr_day_grp = 1:length(plot_day_bins)-1
+
+        nexttile; set(gca,'ColorOrder',stim_colormap);
+
+        curr_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+            unit_plot_day_grp == curr_day_grp & ...
+            striatum_units_responsive_category == curr_responsive_category & ...
+            striatum_sua_grp.(plot_celltype);
+        if ~any(curr_units)
+            continue
+        end
+
+        curr_sua_mean = permute(mean(ap.groupfun(@mean,striatum_sua(curr_units,:,:), ...
+            striatum_sua_grp.animal(curr_units)),1),[2,3,1]);
+        curr_sua_sem = permute(AP_sem(ap.groupfun(@mean,striatum_sua(curr_units,:,:), ...
+            striatum_sua_grp.animal(curr_units)),1),[2,3,1]);
+
+        ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem);
+    end
+end
+xlim([-0.2,0.8]);
+ap.prettyfig;
+linkaxes(h.Children,'xy');
+
+% Average response to stimuli by C/R/C+R responsiveness (all days combined)
+figure;
+h = tiledlayout(1,3,'TileSpacing','tight');
+title(h,plot_celltype);
+
+n_stim = size(striatum_sua,3);
+stim_colormap = ap.colormap('BKR',n_stim);
+for curr_responsive_category = 2:4
+
+        nexttile; set(gca,'ColorOrder',stim_colormap);
+
+        curr_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+            striatum_units_responsive_category == curr_responsive_category & ...
+            striatum_sua_grp.(plot_celltype);
+        if ~any(curr_units)
+            continue
+        end
+
+        curr_sua_mean = permute(mean(ap.groupfun(@mean,striatum_sua(curr_units,:,:), ...
+            striatum_sua_grp.animal(curr_units)),1),[2,3,1]);
+        curr_sua_sem = permute(AP_sem(ap.groupfun(@mean,striatum_sua(curr_units,:,:), ...
+            striatum_sua_grp.animal(curr_units)),1),[2,3,1]);
+
+        ap.errorfill(psth_t,curr_sua_mean,curr_sua_sem);
+end
+xlim([-0.2,0.8]);
+ap.prettyfig;
+linkaxes(h.Children,'xy');
 
 % Plot proportion overlap
 curr_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
@@ -1600,4 +1690,194 @@ for curr_day = 1:length(plot_day_bins)-1
     end
 end
 figure;bar(["C","R","C+R"],frac_responsive);
+ylabel('# this responsive / # any responsive')
+
+
+% Fraction of responsive units
+figure;
+h = tiledlayout(1,3);
+
+% (L/C/R, including double-counts for overlap)
+use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+    striatum_sua_grp.(plot_celltype);
+
+[unit_responsive_mean,unit_responsive_mean_group] = ap.nestgroupfun({@mean,@mean}, ...
+    +striatum_units_responsive(use_units,:),striatum_sua_grp.animal(use_units), ...
+    [unit_plot_day_grp(use_units)]);
+
+unit_responsive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    +striatum_units_responsive(use_units,:),striatum_sua_grp.animal(use_units), ...
+    [unit_plot_day_grp(use_units)]);
+
+nexttile; hold on;
+stim_colormap = ap.colormap('BKR',3);
+set(gca,'ColorOrder',stim_colormap);
+
+binned_days_x = interp1(find(~isinf(plot_day_bins)),...
+    plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
+
+errorbar(binned_days_x(unit_responsive_mean_group), ...
+    unit_responsive_mean,unit_responsive_sem,'linewidth',2);
+ylabel('Frac. responsive units');
+ap.prettyfig;
+
+
+% (R/C/R+C, splitting overlap)
+use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+    striatum_sua_grp.(plot_celltype);
+
+[unit_responsive_mean,unit_responsive_mean_group] = ap.nestgroupfun({@mean,@mean}, ...
+    +(striatum_units_responsive_category(use_units,:) == [2,3,4]),striatum_sua_grp.animal(use_units), ...
+    [unit_plot_day_grp(use_units)]);
+
+unit_responsive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    +(striatum_units_responsive_category(use_units,:) == [2,3,4]),striatum_sua_grp.animal(use_units), ...
+    [unit_plot_day_grp(use_units)]);
+
+nexttile; hold on;
+stim_colormap = striatum_units_responsive_category_col(2:end,:);
+set(gca,'ColorOrder',stim_colormap);
+
+binned_days_x = interp1(find(~isinf(plot_day_bins)),...
+    plot_day_bins(~isinf(plot_day_bins)),1:length(plot_day_bins)-1,'linear','extrap');
+
+errorbar(binned_days_x(unit_responsive_mean_group), ...
+    unit_responsive_mean,unit_responsive_sem,'linewidth',2);
+ylabel('Frac. responsive units');
+ap.prettyfig;
+
+% (R v C)
+use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+    striatum_sua_grp.(plot_celltype);
+
+[unit_cr_diff_mean,unit_cr_diff_group] = ap.nestgroupfun({@mean,@mean}, ...
+    +striatum_unit_cr_diff(use_units),striatum_sua_grp.animal(use_units), ...
+    [unit_plot_day_grp(use_units)]);
+
+unit_cr_diff_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    +striatum_unit_cr_diff(use_units),striatum_sua_grp.animal(use_units), ...
+    [unit_plot_day_grp(use_units)]);
+
+nexttile;
+errorbar(binned_days_x(unit_cr_diff_group), ...
+    unit_cr_diff_mean,unit_cr_diff_sem,'linewidth',2);
+ylabel('Frac. responsive units');
+ap.prettyfig;
+
+
+%%%% TESTING: histograms
+unit_psth_max_rc = diff(unit_psth_max(:,2:3),[],2);
+
+figure; hold on
+for curr_day_grp = 1:length(plot_day_bins)-1
+    use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        any(striatum_units_responsive(:,2:3),2) & ...
+        unit_plot_day_grp == curr_day_grp & ...
+        striatum_sua_grp.(plot_celltype);
+
+    histogram(unit_psth_max_rc(use_units),100,'normalization','probability');
+end
+
+figure; hold on
+use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+    any(striatum_units_responsive(:,2:3),2) & ...
+    striatum_sua_grp.(plot_celltype);
+histogram(unit_psth_max_rc(use_units),100,'normalization','probability');
+
+
+unit_psth_max_rc_null = diff(ap.shake(unit_psth_max(:,2:3),2),[],2);
+figure; hold on
+use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+    any(striatum_units_responsive(:,2:3),2) & ...
+    striatum_sua_grp.(plot_celltype);
+histogram(unit_psth_max_rc_null(use_units),100,'normalization','probability');
+
+
+
+% just one stim response
+figure;
+h = tiledlayout(length(plot_day_bins)-1,1);
+for curr_day_grp = 1:length(plot_day_bins)-1
+    use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        any(striatum_units_responsive(:,2:3),2) & ...
+        unit_plot_day_grp == curr_day_grp & ...
+        striatum_sua_grp.(plot_celltype);
+
+    nexttile; hold on;
+    histogram(unit_psth_max(use_units,3),linspace(0,10,30),'normalization','probability');
+end
+linkaxes(h.Children,'xy');
+
+
+
+%% Single-unit heatmap (C/R only, all days concat)
+
+% Set striatal domains to plot (combines if multiple)
+plot_domains = 1:2;
+plot_stim = 2:3;
+
+% Get mean activity in window after stim onset
+stim_t = [0,0.2];
+stim_use_t = isbetween(psth_t,stim_t(1),stim_t(2));
+striatum_sua_tavg = permute(mean(striatum_sua(:,stim_use_t,:),2),[1,3,2]);
+
+% Plot heatmap
+celltypes = ["msn","fsi","tan"];
+
+figure;
+h = tiledlayout(1,length(celltypes),'TileSpacing','tight');
+for curr_celltype = celltypes
+    h_sub = tiledlayout(h,1,length(plot_stim),'TileSpacing','tight');
+    [~,curr_celltype_idx] = ismember(curr_celltype,celltypes);
+    h_sub.Layout.Tile = curr_celltype_idx;
+
+    colormap(ap.colormap('BWR',[],2));
+    title(h_sub,curr_celltype);
+
+    % Get units and sorting
+    curr_units = find( ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        any(striatum_units_responsive(:,plot_stim),2) & ...
+        striatum_sua_grp.(curr_celltype));
+
+    % (sort max stim, then max within stim)
+    sort_idx_cell = cell(length(plot_stim),1);
+    [~,max_stim] = max(striatum_sua_tavg(:,plot_stim),[],2);
+    for curr_stim_sort = 1:length(plot_stim)
+        curr_stim_units = find(max_stim(curr_units)==curr_stim_sort);
+        [~,curr_sort_idx] = sort(max(striatum_sua_tavg(curr_units(curr_stim_units), ...
+            plot_stim(curr_stim_sort)),[],2),'descend');
+        sort_idx_cell{curr_stim_sort} = curr_stim_units(curr_sort_idx);
+    end
+    sort_idx = cell2mat(sort_idx_cell);
+    plot_units = curr_units(sort_idx);
+
+    % (get rec/IDs of cells for single-unit PSTH plotting)
+    curr_sorted_unit_coordinate = ...
+        [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
+        ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
+        num2cell(striatum_sua_grp.unit_id(plot_units))];
+
+    % (y-smooth heatmaps with large number of units)
+    smooth_n = 3*length(plot_units)/500;
+
+    for curr_stim = plot_stim
+        nexttile(h_sub);
+        imagesc(psth_t,[],movmean(striatum_sua(plot_units,:,curr_stim),[smooth_n,0],1));
+        clim([-1,1])
+        yline(cumsum(cellfun(@length,sort_idx_cell(1:end-1))),'k');
+        axis off;
+    end
+
+end
+linkaxes(vertcat(h.Children.Children),'x');
+xlim(vertcat(h.Children.Children),[0,0.5]);
+ap.prettyfig;
+
+
+
+
+
+
+
 
