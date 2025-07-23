@@ -255,7 +255,7 @@ end
 ap.prettyfig;
 
 
-%% [Fig 2X] Cortex + striatum task trial heatmap (reaction-sorted)
+%% [Fig 2X] Task cortex + striatum trial heatmap (reaction-sorted)
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -315,7 +315,7 @@ xlim(h.Children,[-0.5,1])
 ap.prettyfig;
 
 
-%% [Fig 2X] Cortex + striatum task average PSTH w/o movement
+%% [Fig 2X] Task cortex + striatum average PSTH w/o movement
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -430,7 +430,7 @@ for curr_domain = 1:n_domains
 end
 
 
-%% [Fig 2X] Cortex + striatum task max, split within session
+%% [Fig 2X] Task cortex + striatum max, split within session
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -553,7 +553,7 @@ for curr_domain = 1:n_domains
 end
 
 
-%% [Fig 3X] Cortex + striatum PSTH passive
+%% [Fig 3X] Passive Cortex + striatum PSTH
 
 %%% Load data for figure
 load_dataset = 'passive';
@@ -618,7 +618,7 @@ xlim(h.Children,[0,0.5]);
 ap.prettyfig;
 
 
-%% [Fig 3X] Cortex + striatum passive ROI max
+%% [Fig 3X] Passive cortex + striatum max
 
 %%% Load data for figure
 load_dataset = 'passive';
@@ -811,7 +811,7 @@ for curr_domain = 1:n_domains
 end
 
 
-%% [Fig 4X] Striatum passive unit heatmap
+%% [Fig 4X] Passive striatum unit heatmap
 
 %%% Load data for figure
 load_dataset = 'passive';
