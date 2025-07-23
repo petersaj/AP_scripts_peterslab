@@ -1504,6 +1504,70 @@ xlabel('Learned day')
 ylabel('P(stim|move)');
 xline(0,'r');
 
+%% Single-unit heatmap (C/R only, all days concat)
+
+% Set striatal domains to plot (combines if multiple)
+plot_domains = 1:2;
+plot_stim = 2:3;
+
+% Get mean activity in window after stim onset
+stim_t = [0,0.2];
+stim_use_t = isbetween(psth_t,stim_t(1),stim_t(2));
+striatum_sua_tavg = permute(mean(striatum_sua(:,stim_use_t,:),2),[1,3,2]);
+
+% Plot heatmap
+celltypes = ["msn","fsi","tan"];
+
+figure;
+h = tiledlayout(1,length(celltypes),'TileSpacing','tight');
+for curr_celltype = celltypes
+    h_sub = tiledlayout(h,1,length(plot_stim),'TileSpacing','tight');
+    [~,curr_celltype_idx] = ismember(curr_celltype,celltypes);
+    h_sub.Layout.Tile = curr_celltype_idx;
+
+    colormap(ap.colormap('BWR',[],2));
+    title(h_sub,curr_celltype);
+
+    % Get units and sorting
+    curr_units = find( ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        any(striatum_units_responsive(:,plot_stim),2) & ...
+        striatum_sua_grp.(curr_celltype));
+
+    % (sort max stim, then max within stim)
+    sort_idx_cell = cell(length(plot_stim),1);
+    [~,max_stim] = max(striatum_sua_tavg(:,plot_stim),[],2);
+    for curr_stim_sort = 1:length(plot_stim)
+        curr_stim_units = find(max_stim(curr_units)==curr_stim_sort);
+        [~,curr_sort_idx] = sort(max(striatum_sua_tavg(curr_units(curr_stim_units), ...
+            plot_stim(curr_stim_sort)),[],2),'descend');
+        sort_idx_cell{curr_stim_sort} = curr_stim_units(curr_sort_idx);
+    end
+    sort_idx = cell2mat(sort_idx_cell);
+    plot_units = curr_units(sort_idx);
+
+    % (get rec/IDs of cells for single-unit PSTH plotting)
+    curr_sorted_unit_coordinate = ...
+        [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
+        ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
+        num2cell(striatum_sua_grp.unit_id(plot_units))];
+
+    % (y-smooth heatmaps with large number of units)
+    smooth_n = 3*length(plot_units)/500;
+
+    for curr_stim = plot_stim
+        nexttile(h_sub);
+        imagesc(psth_t,[],movmean(striatum_sua(plot_units,:,curr_stim),[smooth_n,0],1));
+        clim([-1,1])
+        yline(cumsum(cellfun(@length,sort_idx_cell(1:end-1))),'k');
+        axis off;
+    end
+
+end
+linkaxes(vertcat(h.Children.Children),'x');
+xlim(vertcat(h.Children.Children),[0,0.5]);
+ap.prettyfig;
+
 
 %% Single unit scatter/selectivity plots
 
@@ -1541,9 +1605,6 @@ striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
 % unit_psth_max = ap.shake(unit_psth_max,1,shuff_grp);
 %
 % %%%%%%%%%%
-
-unit_cr_diff = cell2mat(ephys.unit_cr_diff_p) > unit_responsive_p_thresh;
-striatum_unit_cr_diff = unit_cr_diff(cell2mat(striatum_units),:);
 
 % Scatter
 [~,striatum_units_responsive_category] = ...
@@ -1784,24 +1845,6 @@ binned_days_x = interp1(find(~isinf(plot_day_bins)),...
 
 errorbar(binned_days_x(unit_responsive_mean_group), ...
     unit_responsive_mean,unit_responsive_sem,'linewidth',2);
-ylabel('Frac. responsive units');
-ap.prettyfig;
-
-% (R v C)
-use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-    striatum_sua_grp.(plot_celltype);
-
-[unit_cr_diff_mean,unit_cr_diff_group] = ap.nestgroupfun({@mean,@mean}, ...
-    +striatum_unit_cr_diff(use_units),striatum_sua_grp.animal(use_units), ...
-    [unit_plot_day_grp(use_units)]);
-
-unit_cr_diff_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    +striatum_unit_cr_diff(use_units),striatum_sua_grp.animal(use_units), ...
-    [unit_plot_day_grp(use_units)]);
-
-nexttile;
-errorbar(binned_days_x(unit_cr_diff_group), ...
-    unit_cr_diff_mean,unit_cr_diff_sem,'linewidth',2);
 ylabel('Frac. responsive units');
 ap.prettyfig;
 
@@ -2051,69 +2094,6 @@ end
 ap.prettyfig;
 
 
-%% Single-unit heatmap (C/R only, all days concat)
-
-% Set striatal domains to plot (combines if multiple)
-plot_domains = 1:2;
-plot_stim = 2:3;
-
-% Get mean activity in window after stim onset
-stim_t = [0,0.2];
-stim_use_t = isbetween(psth_t,stim_t(1),stim_t(2));
-striatum_sua_tavg = permute(mean(striatum_sua(:,stim_use_t,:),2),[1,3,2]);
-
-% Plot heatmap
-celltypes = ["msn","fsi","tan"];
-
-figure;
-h = tiledlayout(1,length(celltypes),'TileSpacing','tight');
-for curr_celltype = celltypes
-    h_sub = tiledlayout(h,1,length(plot_stim),'TileSpacing','tight');
-    [~,curr_celltype_idx] = ismember(curr_celltype,celltypes);
-    h_sub.Layout.Tile = curr_celltype_idx;
-
-    colormap(ap.colormap('BWR',[],2));
-    title(h_sub,curr_celltype);
-
-    % Get units and sorting
-    curr_units = find( ...
-        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-        any(striatum_units_responsive(:,plot_stim),2) & ...
-        striatum_sua_grp.(curr_celltype));
-
-    % (sort max stim, then max within stim)
-    sort_idx_cell = cell(length(plot_stim),1);
-    [~,max_stim] = max(striatum_sua_tavg(:,plot_stim),[],2);
-    for curr_stim_sort = 1:length(plot_stim)
-        curr_stim_units = find(max_stim(curr_units)==curr_stim_sort);
-        [~,curr_sort_idx] = sort(max(striatum_sua_tavg(curr_units(curr_stim_units), ...
-            plot_stim(curr_stim_sort)),[],2),'descend');
-        sort_idx_cell{curr_stim_sort} = curr_stim_units(curr_sort_idx);
-    end
-    sort_idx = cell2mat(sort_idx_cell);
-    plot_units = curr_units(sort_idx);
-
-    % (get rec/IDs of cells for single-unit PSTH plotting)
-    curr_sorted_unit_coordinate = ...
-        [ephys.animal(striatum_sua_grp.rec(plot_units)), ...
-        ephys.rec_day(striatum_sua_grp.rec(plot_units)), ...
-        num2cell(striatum_sua_grp.unit_id(plot_units))];
-
-    % (y-smooth heatmaps with large number of units)
-    smooth_n = 3*length(plot_units)/500;
-
-    for curr_stim = plot_stim
-        nexttile(h_sub);
-        imagesc(psth_t,[],movmean(striatum_sua(plot_units,:,curr_stim),[smooth_n,0],1));
-        clim([-1,1])
-        yline(cumsum(cellfun(@length,sort_idx_cell(1:end-1))),'k');
-        axis off;
-    end
-
-end
-linkaxes(vertcat(h.Children.Children),'x');
-xlim(vertcat(h.Children.Children),[0,0.5]);
-ap.prettyfig;
 
 
 
