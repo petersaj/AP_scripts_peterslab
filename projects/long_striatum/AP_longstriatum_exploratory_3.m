@@ -2117,7 +2117,6 @@ for curr_celltype = striatum_celltypes
     % 
     % end
 end
-
 ap.prettyfig;
 
 
@@ -2127,6 +2126,9 @@ for curr_unit = reshape(example_units,1,[])
     rec_day = ephys.rec_day{striatum_sua_grp.rec(curr_unit)};
     unit_id = striatum_sua_grp.unit_id(curr_unit);
     AP_longstriatum_psth_fig(animal,rec_day,unit_id);
+    % DOING HERE: 
+    % just code here instead of doing function
+    % drop task, shorten time
 end
 
 
