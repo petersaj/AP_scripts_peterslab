@@ -1,9 +1,7 @@
-% Plot task and passive PSTH/rasters for longstriatum data
+function AP_longstriatum_psth_fig(animal,rec_day,plot_units)
+% AP_longstriatum_psth_fig(animal,rec_day,plot_unit)
 %
-% Set variables: 
-% animal
-% rec_day
-% plot_units (can be multiple)
+% Plot task and passive PSTH/rasters for longstriatum data
 
 % Make figures
 h = gobjects(length(plot_units),1);
@@ -24,7 +22,7 @@ for workflow_idx = 1:2
             rec = plab.find_recordings(animal,rec_day,'*lcr*');
             rec_time = rec.recording{end};
     end
-    verbose = true;
+    verbose = false;
     load_parts.ephys = true;
     ap.load_recording;
 
