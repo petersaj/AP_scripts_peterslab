@@ -65,10 +65,10 @@ for curr_workflow = plot_workflows
         trial_sort = cellfun(@(x) 1:length(x),use_align,'uni',false);
 
     elseif contains(bonsai_workflow,'wheel')
-        use_trials = trial_outcome == 1;
+        use_trials = trial_outcome =
 
-        use_align = stimOn_times(use_trials);
-        [~,trial_sort] = sort(stim_to_move(use_trials));
+        use_align = stimOn_times(1:n_trials);
+        [~,trial_sort] = sort(stim_to_move(1:n_trials));
     end
 
     % If alignment times empty (e.g. not this modality), skip

@@ -1569,6 +1569,20 @@ xlim(vertcat(h.Children.Children),[0,0.5]);
 ap.prettyfig;
 
 
+% % Plot example PSTHs (temp - just uses last run sorting)
+% plot_units_n = 5;
+% figure;
+% h_units = tiledlayout(1,plot_units_n);
+% for curr_unit = sum(max_stim(curr_units)==1)+1:sum(max_stim(curr_units)==1)+plot_units_n
+%     animal = curr_sorted_unit_coordinate{curr_unit,1};
+%     rec_day = curr_sorted_unit_coordinate{curr_unit,2};
+%     unit_id = curr_sorted_unit_coordinate{curr_unit,3};
+%     AP_longstriatum_psth_fig(animal,rec_day,unit_id,false,h_units);    
+% end
+% linkaxes(vertcat(h_units.Children.Children),'x');
+% ap.prettyfig;
+
+
 %% Single unit scatter/selectivity plots
 
 plot_celltype = "tan";
@@ -1941,6 +1955,11 @@ stat_p = 1-stat_rank(:,1)/(n_shuff+1);
 
 %% R v C unit plots (v2, from above)
 
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
 plot_domains = 1:2;
 
 % Set stim to compare, and colors
@@ -2022,6 +2041,7 @@ for curr_celltype = striatum_celltypes
 
         [~,curr_stim_idx] = ismember(curr_stim,compare_stim);
         example_units(curr_celltype_idx,curr_stim_idx) = curr_example_unit;
+        
     end
 
     % Frac R/C/R+C as stacked barplot
@@ -2121,17 +2141,16 @@ ap.prettyfig;
 
 
 % Plot example PSTHs
-for curr_unit = reshape(example_units,1,[])
+figure;
+h_units = tiledlayout(1,numel(example_units));
+for curr_unit = reshape(example_units',1,[])
     animal = ephys.animal{striatum_sua_grp.rec(curr_unit)};
     rec_day = ephys.rec_day{striatum_sua_grp.rec(curr_unit)};
     unit_id = striatum_sua_grp.unit_id(curr_unit);
-    AP_longstriatum_psth_fig(animal,rec_day,unit_id);
-    % DOING HERE: 
-    % just code here instead of doing function
-    % drop task, shorten time
+    AP_longstriatum_psth_fig(animal,rec_day,unit_id,true,h_units);    
 end
-
-
+linkaxes(vertcat(h_units.Children.Children),'x');
+ap.prettyfig;
 
 
 

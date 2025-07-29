@@ -118,6 +118,9 @@ wf_avg = wf_avg_all{1};
 
 %% Align widefield (if load_parts.widefield_align not turned off)
 
+% load_parts.widefield_align: apply day/animal alignments to widefield
+% load_parts.widefield_master: convert widefield V's into master U's
+
 if ~isfield(load_parts,'widefield_align') || ...
         load_parts.widefield_align
     try
@@ -140,6 +143,7 @@ if ~isfield(load_parts,'widefield_align') || ...
     catch  me
         warning(me.identifier,'Widefield: %s',me.message);
         load_parts.widefield_align = false;
+        load_parts.widefield_master = false;
     end
 end
 
