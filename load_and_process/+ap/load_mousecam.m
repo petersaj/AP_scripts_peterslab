@@ -14,6 +14,11 @@ if verbose; disp('Loading Mousecam...'); end
 mousecam_fn = plab.locations.filename('server',animal,rec_day,rec_time,'mousecam','mousecam.mj2');
 mousecam_header_fn = plab.locations.filename('server',animal,rec_day,rec_time,'mousecam','mousecam_header.bin');
 
+if ~exist(mousecam_fn,'file')
+    warning('%s %s: no mousecam found',animal,rec_day);
+    return
+end
+
 % Read mousecam header and get flipper times
 mousecam_flipper_pin = 2;
 mousecam_header = plab.mousecam.read_mousecam_header(mousecam_header_fn, mousecam_flipper_pin);
