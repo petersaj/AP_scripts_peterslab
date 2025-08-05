@@ -1424,20 +1424,12 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    % use_workflow = 'stim_wheel*';
     use_workflow = 'stim_wheel_right_stage\d';
-    % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
-    %     use_workflow = '*audio_volume*';
-    %     use_workflow = '*audio_frequency*';
-    %     use_workflow = '*no_change*';
-    %     use_workflow = '*size*';
-    %     use_workflow = '*opacity*';
-    %     use_workflow = '*angle';
-    %     use_workflow = '*angle_size60';
-
     recordings = plab.find_recordings(animal,[],use_workflow);
 
-    n_bins = 4;
+    n_bins = 3;
+
+    move_rate = nan(length(recordings),n_bins);
     p_cue_given_move = nan(length(recordings),n_bins);
     rxn_stat_p = nan(length(recordings),1);
 
@@ -1463,6 +1455,8 @@ for curr_animal_idx = 1:length(animals)
         % Bin by time within session
         session_bin_edges = linspace(timelite.timestamps(1),timelite.timestamps(end),n_bins+1);
         move_session_bins = discretize(move_onsets,session_bin_edges);
+
+        move_rate(curr_recording,:) = ap.groupfun(@length,+move_poststim,move_session_bins)./diff(session_bin_edges)';
         p_cue_given_move(curr_recording,:) = ap.groupfun(@mean,+move_poststim,move_session_bins);
 
         % Get association stat
@@ -1473,6 +1467,7 @@ for curr_animal_idx = 1:length(animals)
 
     end
 
+    bhv(curr_animal_idx).move_rate = move_rate;
     bhv(curr_animal_idx).p_cue_given_move = p_cue_given_move;
     bhv(curr_animal_idx).rxn_stat_p = rxn_stat_p;
 
@@ -1488,14 +1483,30 @@ ld = cellfun(@(x) ((1:size(x,1)) - find(x<0.05,1))',{bhv.rxn_stat_p}','uni',fals
 use_animals = ~cellfun(@isempty,ld);
 
 ld_cat = cell2mat(ld(use_animals));
-p_c2m = cell2mat({bhv(use_animals).p_cue_given_move}');
+
+move_rate_cat = cell2mat({bhv(use_animals).move_rate}');
+p_c2m_cat = cell2mat({bhv(use_animals).p_cue_given_move}');
 
 ld_split = ld_cat + linspace(0,(n_bins-1)/n_bins,n_bins);
 
-[p_c2m_avg,p_c2m_avg_grp] = ap.groupfun(@mean,p_c2m(:),ld_split(:));
-p_c2m_sem = ap.groupfun(@AP_sem,p_c2m(:),ld_split(:));
+[move_rate_avg,move_rate_grp] = ap.groupfun(@mean,move_rate_cat(:),ld_split(:));
+move_rate_sem = ap.groupfun(@AP_sem,move_rate_cat(:),ld_split(:));
 
-figure;
+[p_c2m_avg,p_c2m_avg_grp] = ap.groupfun(@mean,p_c2m_cat(:),ld_split(:));
+p_c2m_sem = ap.groupfun(@AP_sem,p_c2m_cat(:),ld_split(:));
+
+figure; tiledlayout(2,1);
+
+nexttile; 
+errorbar( ...
+    padarray(reshape(move_rate_grp,n_bins,[]),[1,0],NaN,'post'), ...
+    padarray(reshape(move_rate_avg,n_bins,[]),[1,0],NaN,'post'), ...
+    padarray(reshape(move_rate_sem,n_bins,[]),[1,0],NaN,'post'),'k','linewidth',2);
+xlabel('Learned day')
+ylabel(' Move n');
+xline(0,'r');
+
+nexttile;
 errorbar( ...
     padarray(reshape(p_c2m_avg_grp,n_bins,[]),[1,0],NaN,'post'), ...
     padarray(reshape(p_c2m_avg,n_bins,[]),[1,0],NaN,'post'), ...
@@ -1503,6 +1514,70 @@ errorbar( ...
 xlabel('Learned day')
 ylabel('P(stim|move)');
 xline(0,'r');
+
+%% Behavior analysis: wheel velocity per ITI time
+
+animals = { ...
+    'AM011','AM012','AM014','AM015','AM016','AM017', ...
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
+
+% Grab learning day for each mouse
+bhv = struct;
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals{curr_animal_idx};
+
+    use_workflow = 'stim_wheel_right_stage\d';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+
+    rxn = nan(length(recordings),1);
+    iti_move = nan(length(recordings),1);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        % Get movement during whole session, and when stim off
+        stim_present = interp1([0;photodiode_times],[0;photodiode_values], ...
+            timelite.timestamps,'previous','extrap');
+
+        rxn_mean(curr_recording) = mean(stim_to_move);
+        move_total(curr_recording) = mean(abs(wheel_velocity));
+        move_nostim(curr_recording) = mean(abs(wheel_velocity(~stim_present)));
+
+    end
+
+    bhv(curr_animal_idx).rxn_mean = rxn_mean;
+    bhv(curr_animal_idx).move_total = move_total;
+    bhv(curr_animal_idx).move_nostim = move_nostim;
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+end
+
+rxn_mean_cat = AP_padcatcell(cellfun(@transpose,{bhv.rxn_mean},'uni',false));
+move_total_cat = AP_padcatcell(cellfun(@transpose,{bhv.move_total},'uni',false));
+move_nostim_cat = AP_padcatcell(cellfun(@transpose,{bhv.move_nostim},'uni',false));
+
+figure; tiledlayout(3,1);
+nexttile; errorbar(nanmean(rxn_mean_cat,2),AP_sem(rxn_mean_cat,2),'k','linewidth',2);
+ylabel('Reaction');
+nexttile; errorbar(nanmean(move_total_cat,2),AP_sem(move_total_cat,2),'k','linewidth',2);
+ylabel('Total movement');
+nexttile; errorbar(nanmean(move_nostim_cat,2),AP_sem(move_nostim_cat,2),'k','linewidth',2);
+ylabel('No-stim movement');
 
 %% Single-unit heatmap (C/R only, all days concat)
 
@@ -2041,7 +2116,7 @@ for curr_celltype = striatum_celltypes
 
         [~,curr_stim_idx] = ismember(curr_stim,compare_stim);
         example_units(curr_celltype_idx,curr_stim_idx) = curr_example_unit;
-        
+
     end
 
     % Frac R/C/R+C as stacked barplot

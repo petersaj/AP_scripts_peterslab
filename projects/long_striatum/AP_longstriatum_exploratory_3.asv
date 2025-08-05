@@ -1424,20 +1424,11 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    % use_workflow = 'stim_wheel*';
     use_workflow = 'stim_wheel_right_stage\d';
-    % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
-    %     use_workflow = '*audio_volume*';
-    %     use_workflow = '*audio_frequency*';
-    %     use_workflow = '*no_change*';
-    %     use_workflow = '*size*';
-    %     use_workflow = '*opacity*';
-    %     use_workflow = '*angle';
-    %     use_workflow = '*angle_size60';
-
     recordings = plab.find_recordings(animal,[],use_workflow);
 
-    n_bins = 4;
+    n_bins = 3;
+    n_move = nan(length(recordings),n_bins);
     p_cue_given_move = nan(length(recordings),n_bins);
     rxn_stat_p = nan(length(recordings),1);
 
@@ -1463,6 +1454,8 @@ for curr_animal_idx = 1:length(animals)
         % Bin by time within session
         session_bin_edges = linspace(timelite.timestamps(1),timelite.timestamps(end),n_bins+1);
         move_session_bins = discretize(move_onsets,session_bin_edges);
+
+        n_move = ap.groupfun(@length,+move_poststim,move_session_bins);
         p_cue_given_move(curr_recording,:) = ap.groupfun(@mean,+move_poststim,move_session_bins);
 
         % Get association stat
@@ -1503,6 +1496,70 @@ errorbar( ...
 xlabel('Learned day')
 ylabel('P(stim|move)');
 xline(0,'r');
+
+%% Behavior analysis: wheel velocity per ITI time
+
+animals = { ...
+    'AM011','AM012','AM014','AM015','AM016','AM017', ...
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
+
+% Grab learning day for each mouse
+bhv = struct;
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals{curr_animal_idx};
+
+    use_workflow = 'stim_wheel_right_stage\d';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+
+    rxn = nan(length(recordings),1);
+    iti_move = nan(length(recordings),1);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        % Get movement during whole session, and when stim off
+        stim_present = interp1([0;photodiode_times],[0;photodiode_values], ...
+            timelite.timestamps,'previous','extrap');
+
+        rxn_mean(curr_recording) = mean(stim_to_move);
+        move_total(curr_recording) = mean(abs(wheel_velocity));
+        move_nostim(curr_recording) = mean(abs(wheel_velocity(~stim_present)));
+
+    end
+
+    bhv(curr_animal_idx).rxn_mean = rxn_mean;
+    bhv(curr_animal_idx).move_total = move_total;
+    bhv(curr_animal_idx).move_nostim = move_nostim;
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+end
+
+rxn_mean_cat = AP_padcatcell(cellfun(@transpose,{bhv.rxn_mean},'uni',false));
+move_total_cat = AP_padcatcell(cellfun(@transpose,{bhv.move_total},'uni',false));
+move_nostim_cat = AP_padcatcell(cellfun(@transpose,{bhv.move_nostim},'uni',false));
+
+figure; tiledlayout(3,1);
+nexttile; errorbar(nanmean(rxn_mean_cat,2),AP_sem(rxn_mean_cat,2),'k','linewidth',2);
+ylabel('Reaction');
+nexttile; errorbar(nanmean(move_total_cat,2),AP_sem(move_total_cat,2),'k','linewidth',2);
+ylabel('Total movement');
+nexttile; errorbar(nanmean(move_nostim_cat,2),AP_sem(move_nostim_cat,2),'k','linewidth',2);
+ylabel('No-stim movement');
 
 %% Single-unit heatmap (C/R only, all days concat)
 
@@ -1569,17 +1626,18 @@ xlim(vertcat(h.Children.Children),[0,0.5]);
 ap.prettyfig;
 
 
-% Plot example PSTHs
-figure;
-h_units = tiledlayout(1,numel(example_units));
-for curr_unit = 1:5
-    animal = curr_sorted_unit_coordinate{curr_unit,1};
-    rec_day = curr_sorted_unit_coordinate{curr_unit,1};
-    unit_id = striatum_sua_grp.unit_id(curr_unit);
-    AP_longstriatum_psth_fig(animal,rec_day,unit_id,false,h_units);    
-end
-linkaxes(vertcat(h_units.Children.Children),'x');
-ap.prettyfig;
+% % Plot example PSTHs (temp - just uses last run sorting)
+% plot_units_n = 5;
+% figure;
+% h_units = tiledlayout(1,plot_units_n);
+% for curr_unit = sum(max_stim(curr_units)==1)+1:sum(max_stim(curr_units)==1)+plot_units_n
+%     animal = curr_sorted_unit_coordinate{curr_unit,1};
+%     rec_day = curr_sorted_unit_coordinate{curr_unit,2};
+%     unit_id = curr_sorted_unit_coordinate{curr_unit,3};
+%     AP_longstriatum_psth_fig(animal,rec_day,unit_id,false,h_units);    
+% end
+% linkaxes(vertcat(h_units.Children.Children),'x');
+% ap.prettyfig;
 
 
 %% Single unit scatter/selectivity plots
@@ -2017,7 +2075,7 @@ for curr_celltype = striatum_celltypes
     arrayfun(@(x) line(h_scatter(x),ax_range,ax_range,'color','k'),1:length(h_scatter));
 
     % Grab example units to plot
-    plot_unit_prctile = 100;
+    plot_unit_prctile = 90;
     plot_day_grp = 2;
     for curr_stim = compare_stim
 
@@ -2040,6 +2098,7 @@ for curr_celltype = striatum_celltypes
 
         [~,curr_stim_idx] = ismember(curr_stim,compare_stim);
         example_units(curr_celltype_idx,curr_stim_idx) = curr_example_unit;
+
     end
 
     % Frac R/C/R+C as stacked barplot
@@ -2145,7 +2204,7 @@ for curr_unit = reshape(example_units',1,[])
     animal = ephys.animal{striatum_sua_grp.rec(curr_unit)};
     rec_day = ephys.rec_day{striatum_sua_grp.rec(curr_unit)};
     unit_id = striatum_sua_grp.unit_id(curr_unit);
-    AP_longstriatum_psth_fig(animal,rec_day,unit_id,false,h_units);    
+    AP_longstriatum_psth_fig(animal,rec_day,unit_id,true,h_units);    
 end
 linkaxes(vertcat(h_units.Children.Children),'x');
 ap.prettyfig;
