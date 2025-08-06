@@ -1,4 +1,4 @@
-function AP_longstriatum_psth_fig(animal,rec_day,plot_unit,task_flag,parent_h)
+function AP_longstriatum_psth_fig(animal,rec_day,plot_unit,task_flag,quiescence_flag,parent_h)
 % AP_longstriatum_psth_fig(animal,rec_day,plot_units,task_flag,tile_h)
 %
 % animal/rec_day/plot_units: recording coordinate to plot
@@ -17,16 +17,21 @@ if ~exist('parent_h','var') || isempty(parent_h)
     parent_h = figure('color','w');
 end
 
+
+% Set colors and stimuli to plot
+task_color = {[0,0,0]};
+
+plot_stim = [0,90];
+stim_colors = {[0,0,1],[0,0.7,0]};
+
 % Make tiledlayout
-h = tiledlayout(parent_h,4+task_flag,1);
+h = tiledlayout(parent_h,length(plot_stim)+1+task_flag,1);
 % (if parent is tiled layout, set sub-layout as next available)
 if isa(parent_h,'matlab.graphics.layout.TiledChartLayout')
     h.Layout.Tile = length(parent_h.Children);
 end
 
-task_stim_colors = [0.7,0.7,0;ap.colormap('BKR',3)];
-plot_colororder = task_stim_colors([task_flag;true(3,1)],:);
-
+% Loop through workflows and plot spikes
 all_workflows = {'*wheel*','*lcr*'};
 plot_workflows = all_workflows([task_flag,true]);
 
@@ -42,6 +47,7 @@ for curr_workflow = plot_workflows
     % Get alignment times to use
     use_align = [];
     if contains(bonsai_workflow,'lcr')
+        curr_colors = stim_colors;
 
         % (get only quiescent trials)
         stim_window = [0,0.5];
@@ -52,19 +58,23 @@ for curr_workflow = plot_workflows
 
         stim_x = vertcat(trial_events.values.TrialStimX);
 
-        % % (plot quiescent trials only)
-        % use_align = cellfun(@(x) ...
-        %     stimOn_times(stim_x(1:length(stimOn_times)) == x & quiescent_trials), ...
-        %     num2cell(unique(stim_x)),'uni',false);
+        if quiescence_flag
+            % (plot quiescent trials only)
+            plot_trials = quiescent_trials;
+        elseif ~quiescence_flag
+            % (plot all trials)
+            plot_trials = true(size(stimOn_times));
+        end
 
-        % (plot all trials)
         use_align = cellfun(@(x) ...
-            stimOn_times(stim_x(1:length(stimOn_times)) == x), ...
-            num2cell(unique(stim_x)),'uni',false);
+            stimOn_times(stim_x(1:length(stimOn_times)) == x & plot_trials), ...
+            num2cell(plot_stim),'uni',false);
 
         trial_sort = cellfun(@(x) 1:length(x),use_align,'uni',false);
 
     elseif contains(bonsai_workflow,'wheel')
+        curr_colors = task_color;
+
         use_trials = trial_outcome == 1;
 
         use_align = stimOn_times(use_trials);
@@ -78,7 +88,7 @@ for curr_workflow = plot_workflows
 
     % Get psth/raster of spikes to plot
     raster_window = [-0.5,1.5];
-    psth_smoothing = 100;
+    psth_smoothing = 300;
     [use_spikes,spike_groups] = ismember(spike_templates,plot_unit);
     [psth,raster,raster_t] = ap.psth(spike_times_timelite(use_spikes), ...
         use_align,spike_groups(use_spikes), ...
@@ -86,8 +96,8 @@ for curr_workflow = plot_workflows
 
     % Plot PSTH
     nexttile(h,tilenum(h,1,1)); hold on;
-    set(gca,'ColorOrder',plot_colororder);
-    plot(raster_t,permute(psth,[2,3,1]),'linewidth',2);
+    p = plot(raster_t,permute(psth,[2,3,1]),'linewidth',2);
+    [p.Color] = curr_colors{:};
     xlim(raster_window)
     axis off;
     xline(0,'r');
@@ -100,7 +110,7 @@ for curr_workflow = plot_workflows
     for curr_raster = 1:length(raster)
         nexttile(h); hold on;
         [raster_y,raster_x] = find(raster{curr_raster}(trial_sort{curr_raster},:));
-        plot(raster_t(raster_x),raster_y,'.k');
+        plot(raster_t(raster_x),raster_y,'.','color',curr_colors{curr_raster});
         xlim(raster_window)
         axis off
         set(gca,'YDir','reverse');

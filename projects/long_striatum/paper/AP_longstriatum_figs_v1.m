@@ -811,14 +811,14 @@ for curr_domain = 1:n_domains
 end
 
 
-%% [Fig 4X] Passive striatum units R vs C response
+%% [Fig 4X] Passive striatum cell types and single-unit responses
 
 %%% Load data for figure
 load_dataset = 'passive';
 AP_longstriatum_load_data;
 %%%
 
-plot_domains = 1:3;
+plot_domains = 1:2;
 
 % Set stim to compare, and colors
 compare_stim = [2,3]; % C, R stim
@@ -837,178 +837,188 @@ unit_responsive_p_thresh = 0.99;
 unit_responsive = cell2mat(horzcat(ephys.unit_resp_p_value{:})') > unit_responsive_p_thresh;
 striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
 
-% Loop through celltypes, plot scatter and stim responsive overlap
+% Set celltypes to loop through
 striatum_celltypes = ["msn","fsi","tan"];
 
 figure;
-h = tiledlayout(length(striatum_celltypes),1,'TileSpacing','tight');
+h = tiledlayout(length(striatum_celltypes),2, ...
+    'TileSpacing','tight','TileIndexing','columnmajor');
+
+% Scatter plots R vs C (days combined)
 example_units = nan(length(striatum_celltypes),2);
+h_scatter = gobjects(size(striatum_celltypes));
 for curr_celltype = striatum_celltypes
 
-    h_sub = tiledlayout(h,1,length(plot_day_bins),'TileSpacing','tight');
+    curr_units = ...
+        ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        any(striatum_units_responsive(:,compare_stim),2) & ...
+        striatum_sua_grp.(curr_celltype);
+
+    curr_dot_size = 15;
+    curr_dot_color = ...
+        stim_1_color.*striatum_units_responsive(curr_units,compare_stim(1)) + ...
+        stim_2_color.*striatum_units_responsive(curr_units,compare_stim(2));
+
     [~,curr_celltype_idx] = ismember(curr_celltype,striatum_celltypes);
-    h_sub.Layout.Tile = curr_celltype_idx;
-    title(h_sub,curr_celltype);
+    h_scatter(curr_celltype_idx) = nexttile; hold on;
+    scatter(unit_psth_max(curr_units,2),unit_psth_max(curr_units,3), ...
+        curr_dot_size,curr_dot_color,'filled');
 
-    % Scatter
-    h_scatter = gobjects(length(plot_day_bins)-1,1);
-    for curr_day_grp = 1:length(plot_day_bins)-1
-        curr_units = ...
-            ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-            unit_plot_day_grp == curr_day_grp & ...
-            any(striatum_units_responsive(:,compare_stim),2) & ...
-            striatum_sua_grp.(curr_celltype);
-
-        curr_dot_size = 15;
-        curr_dot_color = ...
-            stim_1_color.*striatum_units_responsive(curr_units,compare_stim(1)) + ...
-            stim_2_color.*striatum_units_responsive(curr_units,compare_stim(2));
-
-        h_scatter(curr_day_grp) = nexttile(h_sub); hold on;
-        scatter(unit_psth_max(curr_units,2),unit_psth_max(curr_units,3), ...
-            curr_dot_size,curr_dot_color,'filled');
-    end
-
-    linkaxes(h_scatter,'xy');
     ax_range = [min([xlim,ylim]),max([xlim,ylim])];
     xlim(ax_range);ylim(ax_range);
-    axis(h_scatter,'square')
-    arrayfun(@(x) line(h_scatter(x),ax_range,ax_range,'color','k'),1:length(h_scatter));
+    axis(h_scatter(curr_celltype_idx),'square')
+    title(curr_celltype);
 
-    % Grab example units to plot
-    plot_unit_prctile = 90;
-    plot_day_grp = 2;
+end
+
+% Fraction [R,R+C] as stacked barplot over days
+for curr_celltype = striatum_celltypes
+
+    use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        striatum_sua_grp.(curr_celltype);
+
+    striatum_units_responsive_2_12 = permute(all(striatum_units_responsive(:,compare_stim) == ...
+        cat(3,[0,1],[1,1]),2),[1,3,2]);
+
+    [unit_responsive_mean,unit_responsive_mean_group] = ap.nestgroupfun({@mean,@mean}, ...
+        +striatum_units_responsive_2_12(use_units,:), ...
+        striatum_sua_grp.animal(use_units), ...
+        unit_plot_day_grp(use_units));
+
+    unit_responsive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+        +striatum_units_responsive_2_12(use_units,:), ...
+        striatum_sua_grp.animal(use_units), ...
+        unit_plot_day_grp(use_units));
+
+    nexttile; hold on;
+    set(gca,'ColorOrder',[stim_2_color;stim_1_color+stim_2_color]);
+    bar(unit_responsive_mean,'stacked');
+    ylabel('Frac. responsive units');
+    legend(["R","C+R"]);
+    title(curr_celltype);
+
+end
+
+ap.prettyfig;
+
+% Plot example PSTHs
+
+% (grab example units to plot)
+plot_unit_prctile = 80;
+for curr_celltype = striatum_celltypes
     for curr_stim = compare_stim
-
         curr_units = ...
             ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-            unit_plot_day_grp == plot_day_grp & ...
             striatum_units_responsive(:,curr_stim) & ...
             ~striatum_units_responsive(:,setxor(curr_stim,compare_stim)) & ...
             striatum_sua_grp.(curr_celltype);
 
         curr_unit_idx = find(curr_units);
         [~,sort_idx] = sort(unit_psth_max(curr_units,curr_stim));
-        
+
         curr_example_unit = curr_unit_idx(sort_idx(ceil(sum(curr_units).*plot_unit_prctile/100)));
 
         % (circle example units on scatter)
-        scatter(h_scatter(plot_day_grp), ...
+        [~,curr_celltype_idx] = ismember(curr_celltype,striatum_celltypes);
+
+        scatter(h_scatter(curr_celltype_idx), ...
             unit_psth_max(curr_example_unit,2),unit_psth_max(curr_example_unit,3), ...
             45,[0.5,0.5,0.5],'linewidth',2);
 
         [~,curr_stim_idx] = ismember(curr_stim,compare_stim);
         example_units(curr_celltype_idx,curr_stim_idx) = curr_example_unit;
-        
     end
-
-    % Frac R/C/R+C as stacked barplot
-    use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-        striatum_sua_grp.(curr_celltype);
-
-    striatum_units_responsive_1_12_2 = permute(all(striatum_units_responsive(:,compare_stim) == ...
-        cat(3,[1,0],[1,1],[0,1]),2),[1,3,2]);
-
-    [unit_responsive_mean,unit_responsive_mean_group] = ap.nestgroupfun({@mean,@mean}, ...
-        +striatum_units_responsive_1_12_2(use_units,:), ...
-        striatum_sua_grp.animal(use_units), ...
-        unit_plot_day_grp(use_units));
-
-    unit_responsive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-        +striatum_units_responsive_1_12_2(use_units,:), ...
-        striatum_sua_grp.animal(use_units), ...
-        unit_plot_day_grp(use_units));
-
-    nexttile(h_sub); hold on;
-    set(gca,'ColorOrder',[stim_1_color;stim_1_color+stim_2_color;stim_2_color]);
-    bar(unit_responsive_mean,'stacked');
-    ylabel('Frac. responsive units');
-    legend(["C","C+R","R"]);
-
-    % % ~~~ STATS ~~~
-    % fprintf('---- STATS ----\n')
-    % n_shuff = 10000;
-    % 
-    % % Compare R+C-responsive overlap to shuffling R/C responsiveness
-    % use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-    %     striatum_sua_grp.(curr_celltype);
-    % 
-    % [~,~,overlap_shuff_grp] = unique([striatum_sua_grp.animal, ...
-    %     unit_plot_day_grp, ...
-    %     ismember(striatum_sua_grp.domain_idx,plot_domains), ...
-    %     any(striatum_units_responsive(:,compare_stim),2) & ...
-    %     striatum_sua_grp.(curr_celltype)],'rows');
-    % 
-    % responsive_overlap_meas = ap.nestgroupfun({@mean,@mean}, ...
-    %     +(all(striatum_units_responsive(use_units,compare_stim),2)), ...
-    %     striatum_sua_grp.animal(use_units),unit_plot_day_grp(use_units));
-    % 
-    % responsive_overlap_shuff = nan(length(plot_day_bins)-1,n_shuff);
-    % for curr_shuff = 1:n_shuff
-    %     striatum_units_responsive_shuff = ap.shake(striatum_units_responsive(use_units,:),1,overlap_shuff_grp(use_units));
-    %     responsive_overlap_shuff(:,curr_shuff) = ap.nestgroupfun({@mean,@mean}, ...
-    %         +(all(striatum_units_responsive_shuff(:,compare_stim),2)),striatum_sua_grp.animal(use_units), ...
-    %         unit_plot_day_grp(use_units));
-    % end
-    % 
-    % stat_rank = tiedrank([responsive_overlap_meas,responsive_overlap_shuff]')';
-    % stat_p = stat_rank(:,1)/(n_shuff+1);
-    % 
-    % fprintf('Overlap stim %d + %d < shuffle:\n',compare_stim);
-    % stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
-    % for curr_day = 1:length(plot_day_bins)-1
-    %     fprintf('%s day grp %d, p = %.2g%s\n',curr_celltype,curr_day, ...
-    %         stat_p(curr_day),stat_sig(curr_day));
-    % end
-    % 
-    % 
-    % % Compare R-responsive fraction across days
-    % for curr_compare_day = 1:length(plot_day_bins)-2
-    % 
-    %     compare_day_grps = curr_compare_day+[0,1];
-    % 
-    %     use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
-    %         ismember(unit_plot_day_grp,compare_day_grps) & ...
-    %         striatum_sua_grp.(curr_celltype);
-    % 
-    %     [~,~,r_shuff_grp] = unique([striatum_sua_grp.animal, ...
-    %         ismember(striatum_sua_grp.domain_idx,plot_domains), ...
-    %         striatum_sua_grp.(curr_celltype)],'rows');
-    % 
-    %     r_frac_meas = diff(ap.nestgroupfun({@mean,@mean}, ...
-    %         +(all(striatum_units_responsive(use_units,3),2)), ...
-    %         striatum_sua_grp.animal(use_units),unit_plot_day_grp(use_units)));
-    % 
-    %     r_frac_shuff = nan(n_shuff,1);
-    %     for curr_shuff = 1:n_shuff
-    %         unit_plot_day_grp_shuff = ap.shake(unit_plot_day_grp(use_units,:),1,r_shuff_grp(use_units));
-    %         r_frac_shuff(curr_shuff) = diff(ap.nestgroupfun({@mean,@mean}, ...
-    %             +(all(striatum_units_responsive(use_units,3),2)), ...
-    %             striatum_sua_grp.animal(use_units),unit_plot_day_grp_shuff));
-    %     end
-    % 
-    %     stat_rank = tiedrank([r_frac_meas;r_frac_shuff]);
-    %     stat_p = 1-stat_rank(1)/(n_shuff+1);
-    % 
-    %     stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
-    %     fprintf('%s R-frac day %d vs %d: p = %.2g%s\n',curr_celltype,compare_day_grps,stat_p,stat_sig);
-    % 
-    % end
 end
-ap.prettyfig;
 
-
-% Plot example PSTHs
-figure;
+% (load and plot example units)
+figure('Name',sprintf('%d%%ile',plot_unit_prctile));
 h_units = tiledlayout(1,numel(example_units));
 for curr_unit = reshape(example_units',1,[])
     animal = ephys.animal{striatum_sua_grp.rec(curr_unit)};
     rec_day = ephys.rec_day{striatum_sua_grp.rec(curr_unit)};
     unit_id = striatum_sua_grp.unit_id(curr_unit);
-    AP_longstriatum_psth_fig(animal,rec_day,unit_id,true,h_units);    
+
+    task_flag = true; % (plot task activity)
+    quiescence_flag = false; % (plot all trials in passive);
+    AP_longstriatum_psth_fig(animal,rec_day,unit_id,task_flag,quiescence_flag,h_units);    
 end
-linkaxes(vertcat(h_units.Children.Children),'x');
+xlim(vertcat(h_units.Children.Children),[-0.1,0.5])
+unit_plots = {h_units.Children.Children};
+raster_plots = cellfun(@(x) x(1:end-1),unit_plots,'uni',false);
+linkaxes(vertcat(raster_plots{:}),'y');
 ap.prettyfig;
+
+
+% ~~~ STATS ~~~
+fprintf('---- STATS ----\n')
+n_shuff = 10000;
+
+for curr_celltype = striatum_celltypes
+
+    % Compare R+C overlap to shuffling R/C responsiveness
+    use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+        striatum_sua_grp.(curr_celltype);
+
+    [~,~,overlap_shuff_grp] = unique([ ...
+        striatum_sua_grp.animal, ...
+        unit_plot_day_grp, ...
+        striatum_sua_grp.domain_idx, ...
+        any(striatum_units_responsive(:,compare_stim),2) & ...
+        striatum_sua_grp.(curr_celltype)],'rows');
+
+    responsive_overlap_meas = mean(ap.groupfun(@mean, ...
+        +(all(striatum_units_responsive(use_units,compare_stim),2)), ...
+        striatum_sua_grp.animal(use_units)));
+
+    responsive_overlap_shuff = nan(n_shuff,1);
+    for curr_shuff = 1:n_shuff
+        striatum_units_responsive_shuff = ap.shake(striatum_units_responsive(use_units,:),1,overlap_shuff_grp(use_units));
+        responsive_overlap_shuff(curr_shuff) = mean(ap.groupfun(@mean, ...
+            +(all(striatum_units_responsive_shuff(:,compare_stim),2)), ...
+            striatum_sua_grp.animal(use_units)));
+    end
+
+    stat_rank = tiedrank([responsive_overlap_meas;responsive_overlap_shuff]);
+    stat_p = stat_rank(1)/(n_shuff+1);
+
+    stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+    fprintf('%s R+C overlap vs shuffle: p = %.2g%s\n',curr_celltype, ...
+        stat_p,stat_sig);
+
+    % Compare R fraction (R-only and R+C) across days
+    for curr_compare_day = 1:length(plot_day_bins)-2
+
+        compare_day_grps = curr_compare_day+[0,1];
+
+        use_units = ismember(striatum_sua_grp.domain_idx,plot_domains) & ...
+            ismember(unit_plot_day_grp,compare_day_grps) & ...
+            striatum_sua_grp.(curr_celltype);
+
+        [~,~,r_shuff_grp] = unique([striatum_sua_grp.animal, ...
+            striatum_sua_grp.domain_idx, ...
+            striatum_sua_grp.(curr_celltype)],'rows');
+
+        r_frac_meas = diff(ap.nestgroupfun({@mean,@mean}, ...
+            +(all(striatum_units_responsive(use_units,3),2)), ...
+            striatum_sua_grp.animal(use_units),unit_plot_day_grp(use_units)));
+
+        r_frac_shuff = nan(n_shuff,1);
+        for curr_shuff = 1:n_shuff
+            unit_plot_day_grp_shuff = ap.shake(unit_plot_day_grp(use_units,:),1,r_shuff_grp(use_units));
+            r_frac_shuff(curr_shuff) = diff(ap.nestgroupfun({@mean,@mean}, ...
+                +(all(striatum_units_responsive(use_units,3),2)), ...
+                striatum_sua_grp.animal(use_units),unit_plot_day_grp_shuff));
+        end
+
+        stat_rank = tiedrank([r_frac_meas;r_frac_shuff]);
+        stat_p = 1-stat_rank(1)/(n_shuff+1);
+
+        stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
+        fprintf('%s R-frac day %d vs %d: p = %.2g%s\n',curr_celltype,compare_day_grps,stat_p,stat_sig);
+    end
+
+end
+
 
 
 %% [Supp. Fig 1x] Striatal domain clustering and classification
