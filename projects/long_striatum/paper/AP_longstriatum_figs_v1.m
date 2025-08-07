@@ -90,7 +90,7 @@ animal_days = find(strcmp(bhv.animal,use_animal));
 plot_days = [2,length(animal_days)];
 
 figure;
-h = tiledlayout(2,2);
+h = tiledlayout(2,3);
 title(h,sprintf('%s, days %d,%d',use_animal,plot_days));
 for curr_rec_idx = plot_days
 
@@ -114,26 +114,39 @@ for curr_rec_idx = plot_days
     axis image off;
     clim([0,12000]);
 
+    % Plot average domain map colored and combined
+    domain_avg = ap.groupfun(@mean,ctx_str_maps.cortex_striatum_map{use_rec},[],[],domain_idx_rec{use_rec});
+
+    col_lim = [0,0.01];
+    domain_colored = nan([size(domain_avg),3]);
+    for curr_domain = 1:n_domains
+        curr_colormap = ap.colormap(['W',domain_color{curr_domain}],[],2);
+        curr_map_gray = 1+round(mat2gray(domain_avg(:,:,curr_domain),col_lim).*(size(curr_colormap,1)-1));
+        domain_colored(:,:,curr_domain,:) = reshape(curr_colormap(curr_map_gray,:),size(curr_map_gray,1),size(curr_map_gray,2),3,[]);
+    end
+
+    domain_colored_combined = squeeze(min(domain_colored,[],3));
+    
+    nexttile(h);
+    image(domain_colored_combined)
+    axis image off;
+    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+
     % Plot units and overlay clustering
     domain_color_rgb = [1,0,0;0,1,0;0,0,1];
     
     ax = nexttile(h); hold on;
 
     curr_domain_idx = domain_idx_rec{use_rec};
-    % (interpolate if nans)
-    curr_domain_idx_nonan = interp1(find(~isnan(curr_domain_idx)), ...
-        curr_domain_idx(~isnan(curr_domain_idx)),1:length(curr_domain_idx), ...
-        'next');
-
     domain_im = permute(domain_color_rgb(curr_domain_idx_nonan,:),[1,3,2]);
-    imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec},domain_im);
+    imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec}/1000,domain_im);
     ax.YDir = 'reverse';
 
     spike_rate = (accumarray(findgroups(spike_templates),1)+1)/ ...
         range(spike_times_timelite);
     unit_dots = scatter( ...
-        spike_rate,template_depths(unique(spike_templates)),20,'k','filled');
-    ylabel('Depth (\mum)')
+        spike_rate,template_depths(unique(spike_templates))/1000,20,'k','filled');
+    ylabel('Depth (mm)')
     xlabel('Spike rate')
     set(gca,'XScale','log');
 
@@ -1121,6 +1134,56 @@ xline(0,'r');
 
 ap.prettyfig;
 
+
+%% [Supp. Fig 2A] Histology slices
+
+animals = [ ...
+    "AM011","AM012","AM014","AM015","AM016","AM017", ...
+    "AM018","AM019","AM021","AM022","AM026","AM029", ...
+    "AP023","AP025"];
+
+% (manually selected slice with probe tract for each animal)
+animal_slices = [ ...
+    6, 5, 8, 2, 5, 8, ...
+    6, 5, 3, 3, 4, 3, ...
+    4, 3];
+
+figure; h = tiledlayout('flow','TileSpacing','tight');
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals(curr_animal_idx);
+    use_slice = animal_slices(curr_animal_idx);
+
+    % Just load all images
+    histology_path = plab.locations.filename('server',animal,[],[],'histology');
+    histology_dir = dir(fullfile(histology_path,'*.tif'));
+
+    histology_filenames = cellfun(@(path,name) fullfile(path,name), ...
+        {histology_dir.folder},{histology_dir.name},'uni',false);
+    [~,sort_idx] = natsortfiles(histology_filenames);
+
+    histology_im = tiffreadVolume(histology_filenames{sort_idx(use_slice)});
+   
+    % Plot slice as RGB
+    chan_cols = [0,1,0;1,0,0];
+
+    chan_clim = double(prctile(histology_im,[10,90],[1,2])).*[1;2];
+
+    histology_im_rgb = min(1,sum(cell2mat(arrayfun(@(chan) ...
+        mat2gray(histology_im(:,:,chan),chan_clim(:,:,chan)).* ...
+        permute(chan_cols(chan,:),[1,3,2]), ...
+        permute(1:n_chan,[1,3,4,2]),'uni',false)),4));
+
+    nexttile; 
+    image(histology_im_rgb); 
+    axis image off;
+
+end
+
+ap.prettyfig;
+
+
 %% [Supp. Fig 3x] Striatal domain clustering and classification
 
 %%% Load data for figure
@@ -1156,7 +1219,11 @@ end
 clim(h.Children,[0,0.01]);
 ap.prettyfig;
 
-% Plot domain means
+% Plot domain means and ROIs
+striatum_wf_roi_outlines = ...
+    arrayfun(@(curr_domain) ...
+    bwboundaries(striatum_wf_roi(:,:,curr_domain)),1:n_domains);
+
 figure;
 h = tiledlayout(n_domains,1,'tilespacing','none');
 for curr_domain = 1:n_domains
@@ -1165,6 +1232,10 @@ for curr_domain = 1:n_domains
     axis image off
     colormap(gca,ap.colormap(['W',domain_color{curr_domain}],[],2));
     ap.wf_draw('cortex',[0.5,0.5,0.5]);
+
+    patch(striatum_wf_roi_outlines{curr_domain}(:,2), ...
+        striatum_wf_roi_outlines{curr_domain}(:,1),'w', ...
+        'FaceColor','none','EdgeColor','y','linewidth',2);
 end
 clim(h.Children,[0,0.01]);
 ap.prettyfig;
