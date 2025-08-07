@@ -1,3 +1,66 @@
+%% [Fig 1X] Example striatal units and corticostriatal maps (old version)
+
+%%% Load data for figure
+load_dataset = 'noact';
+AP_longstriatum_load_data;
+%%%
+
+% Choose animal and day to plot
+use_animal = 'AM026';
+
+animal_days = find(strcmp(bhv.animal,use_animal));
+plot_days = [1,length(animal_days)];
+
+figure;
+h = tiledlayout(2,2);
+title(h,sprintf('%s, days %d,%d',use_animal,plot_days));
+for curr_rec_idx = plot_days
+
+    % Load data from example recording
+    use_rec = animal_days(curr_rec_idx);
+    animal = bhv.animal{use_rec};
+    rec_day = bhv.rec_day{use_rec};
+    recordings = plab.find_recordings(animal,rec_day,'stim_wheel*');
+    rec_time = recordings.recording{end};
+    load_parts.ephys = true;
+    ap.load_recording;
+
+    % Plot units and overlay clustering
+    domain_color = {'R','G','B'};
+    domain_color_rgb = [1,0,0;0,1,0;0,0,1];
+
+    ax = nexttile(h); hold on;
+
+    domain_im = permute(domain_color_rgb(domain_idx_rec{use_rec},:),[1,3,2]);
+    imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec},domain_im);
+    ax.YDir = 'reverse';
+
+    ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,[],ax)
+    yline(ctx_str_maps.depth_group_edges{use_rec},'linewidth',2,'color',[0.5,0.5,0.5]);
+
+    % Plot average domain map colored and combined
+    domain_avg = ap.groupfun(@mean,ctx_str_maps.cortex_striatum_map{use_rec},[],[],domain_idx_rec{use_rec});
+
+    col_lim = [0,0.01];
+    domain_colored = nan([size(domain_avg),3]);
+    for curr_domain = 1:n_domains
+        curr_colormap = ap.colormap(['W',domain_color{curr_domain}],[],2);
+        curr_map_gray = 1+round(mat2gray(domain_avg(:,:,curr_domain),col_lim).*(size(curr_colormap,1)-1));
+        domain_colored(:,:,curr_domain,:) = reshape(curr_colormap(curr_map_gray,:),size(curr_map_gray,1),size(curr_map_gray,2),3,[]);
+    end
+
+    domain_colored_combined = squeeze(min(domain_colored,[],3));
+    
+    nexttile(h);
+    image(domain_colored_combined)
+    axis image off;
+    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+
+end
+
+ap.prettyfig;
+
+
 %% [Fig 1X] Cortex map depths pre/post learning
 
 %%% Load data for figure
@@ -1250,4 +1313,39 @@ for curr_unit = reshape(example_units',1,[])
     AP_longstriatum_psth_fig(animal,rec_day,unit_id,true,h_units);    
 end
 linkaxes(vertcat(h_units.Children.Children),'x');
+ap.prettyfig;
+
+
+%% [Supp. Fig 1x] Cortex map passive max
+
+%%% Load data for figure
+load_dataset = 'passive';
+AP_longstriatum_load_data;
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+
+stim_t = wf_t > 0 & wf_t < 0.2;
+[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_event_align), ...
+    [wf_grp.animal,plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+wf_max_px = permute(max(plab.wf.svd2px(U_master,permute(wf_avg(:,stim_t,:),[3,2,1])),[],3),[1,2,4,3]);
+[wf_max_px_avg,wf_max_px_avg_grp] = ap.nestgroupfun({@mean,@mean},reshape(wf_max_px,[],size(wf_max_px,3))', ...
+    wf_avg_grp(:,1),wf_avg_grp(:,2:3));
+
+figure;
+h = tiledlayout(3,max(plot_day_grp),'TileIndexing','ColumnMajor','TileSpacing','none');
+for curr_day = unique(wf_max_px_avg_grp(:,1))'
+    for curr_stim = unique(wf_max_px_avg_grp(:,2))'
+        nexttile;
+        imagesc(reshape(wf_max_px_avg( ...
+            ismember(wf_max_px_avg_grp,[curr_day,curr_stim],'rows'),:), ...
+            size(U_master,[1,2])));
+        colormap(ap.colormap('PWG',[],1.5));
+        clim([-1,1]*3e-3);
+        axis image off;
+        ap.wf_draw('ccf',[0.5,0.5,0.5]);
+    end
+end
 ap.prettyfig;

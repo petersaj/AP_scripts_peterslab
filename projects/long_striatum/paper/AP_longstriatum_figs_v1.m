@@ -76,7 +76,7 @@ xlabel('Days to learn');
 ap.prettyfig;
 
 
-%% [Fig 1X] Example striatal units and corticostriatal maps
+%% [Fig 1D] Example widefield/units
 
 %%% Load data for figure
 load_dataset = 'noact';
@@ -84,10 +84,10 @@ AP_longstriatum_load_data;
 %%%
 
 % Choose animal and day to plot
-use_animal = 'AM026';
+use_animal = 'AP023';
 
 animal_days = find(strcmp(bhv.animal,use_animal));
-plot_days = [1,length(animal_days)];
+plot_days = [2,length(animal_days)];
 
 figure;
 h = tiledlayout(2,2);
@@ -103,47 +103,42 @@ for curr_rec_idx = plot_days
     load_parts.ephys = true;
     ap.load_recording;
 
-    % Plot widefield average (last day recording only)
-    if curr_rec_idx == plot_days(end)
-        wf_day_path = plab.locations.filename('server',animal,rec_day,[],'widefield');
-        mean_image_fn = fullfile(wf_day_path,sprintf('meanImage_blue.npy'));
-        wf_avg = plab.wf.wf_align(readNPY(mean_image_fn),animal,rec_day);
-        figure;imagesc(wf_avg);
-        ap.wf_draw('cortex','y');
-        axis image off;
-        ap.prettyfig;
-    end
+    % Plot widefield average
+    nexttile(h);
+
+    wf_day_path = plab.locations.filename('server',animal,rec_day,[],'widefield');
+    mean_image_fn = fullfile(wf_day_path,sprintf('meanImage_blue.npy'));
+    wf_avg = plab.wf.wf_align(readNPY(mean_image_fn),animal,rec_day);
+    imagesc(wf_avg);
+    ap.wf_draw('cortex','y');
+    axis image off;
+    clim([0,12000]);
 
     % Plot units and overlay clustering
-    domain_color = {'R','G','B'};
     domain_color_rgb = [1,0,0;0,1,0;0,0,1];
-
+    
     ax = nexttile(h); hold on;
 
-    domain_im = permute(domain_color_rgb(domain_idx_rec{use_rec},:),[1,3,2]);
+    curr_domain_idx = domain_idx_rec{use_rec};
+    % (interpolate if nans)
+    curr_domain_idx_nonan = interp1(find(~isnan(curr_domain_idx)), ...
+        curr_domain_idx(~isnan(curr_domain_idx)),1:length(curr_domain_idx), ...
+        'next');
+
+    domain_im = permute(domain_color_rgb(curr_domain_idx_nonan,:),[1,3,2]);
     imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec},domain_im);
     ax.YDir = 'reverse';
 
-    ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,[],ax)
-    yline(ctx_str_maps.depth_group_edges{use_rec},'linewidth',2,'color',[0.5,0.5,0.5]);
+    spike_rate = (accumarray(findgroups(spike_templates),1)+1)/ ...
+        range(spike_times_timelite);
+    unit_dots = scatter( ...
+        spike_rate,template_depths(unique(spike_templates)),20,'k','filled');
+    ylabel('Depth (\mum)')
+    xlabel('Spike rate')
+    set(gca,'XScale','log');
 
-    % Plot average domain map colored and combined
-    domain_avg = ap.groupfun(@mean,ctx_str_maps.cortex_striatum_map{use_rec},[],[],domain_idx_rec{use_rec});
 
-    col_lim = [0,0.01];
-    domain_colored = nan([size(domain_avg),3]);
-    for curr_domain = 1:n_domains
-        curr_colormap = ap.colormap(['W',domain_color{curr_domain}],[],2);
-        curr_map_gray = 1+round(mat2gray(domain_avg(:,:,curr_domain),col_lim).*(size(curr_colormap,1)-1));
-        domain_colored(:,:,curr_domain,:) = reshape(curr_colormap(curr_map_gray,:),size(curr_map_gray,1),size(curr_map_gray,2),3,[]);
-    end
-
-    domain_colored_combined = squeeze(min(domain_colored,[],3));
-    
-    nexttile(h);
-    image(domain_colored_combined)
-    axis image off;
-    ap.wf_draw('cortex',[0.5,0.5,0.5]);
+    % ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,[],ax)
 
 end
 
@@ -1020,8 +1015,113 @@ for curr_celltype = striatum_celltypes
 end
 
 
+%% [Supp. Fig 1D] P(stim|move)
 
-%% [Supp. Fig 1x] Striatal domain clustering and classification
+animals = { ...
+    'AM011','AM012','AM014','AM015','AM016','AM017', ...
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
+
+use_stat = 'mean';
+
+% Grab learning day for each mouse
+bhv = struct;
+
+for curr_animal_idx = 1:length(animals)
+
+    animal = animals{curr_animal_idx};
+
+    use_workflow = 'stim_wheel_right_stage\d';
+    recordings = plab.find_recordings(animal,[],use_workflow);
+
+    n_bins = 3;
+
+    move_rate = nan(length(recordings),n_bins);
+    p_cue_given_move = nan(length(recordings),n_bins);
+    rxn_stat_p = nan(length(recordings),1);
+
+    for curr_recording = 1:length(recordings)
+
+        % Grab pre-load vars
+        preload_vars = who;
+
+        % Load data
+        rec_day = recordings(curr_recording).day;
+        rec_time = recordings(curr_recording).recording{end};
+        load_parts = struct;
+        load_parts.behavior = true;
+        ap.load_recording;
+
+        % Get P(cue|wheel_move)
+        move_onsets = timelite.timestamps(diff(wheel_move) == 1);
+        move_onset_prev_stim = interp1(stimOn_times,stimOn_times,move_onsets,'previous','extrap');
+        move_prevstim_t = move_onsets - move_onset_prev_stim;
+
+        move_poststim = move_prevstim_t < 0.4;
+
+        % Bin by time within session
+        session_bin_edges = linspace(timelite.timestamps(1),timelite.timestamps(end),n_bins+1);
+        move_session_bins = discretize(move_onsets,session_bin_edges);
+
+        move_rate(curr_recording,:) = ap.groupfun(@length,+move_poststim,move_session_bins)./diff(session_bin_edges)';
+        p_cue_given_move(curr_recording,:) = ap.groupfun(@mean,+move_poststim,move_session_bins);
+
+        % Get association stat
+        [rxn_stat_p(curr_recording), ...
+            rxn_stat(curr_recording),rxn_null_stat(curr_recording)] = ...
+            AP_stimwheel_association_pvalue( ...
+            stimOn_times,trial_events,stim_to_move,use_stat);
+
+    end
+
+    bhv(curr_animal_idx).move_rate = move_rate;
+    bhv(curr_animal_idx).p_cue_given_move = p_cue_given_move;
+    bhv(curr_animal_idx).rxn_stat_p = rxn_stat_p;
+
+    % Clear vars except pre-load for next loop
+    clearvars('-except',preload_vars{:});
+    AP_print_progress_fraction(curr_recording,length(recordings));
+
+end
+
+ld = cellfun(@(x) ((1:size(x,1)) - find(x<0.05,1))',{bhv.rxn_stat_p}','uni',false);
+use_animals = ~cellfun(@isempty,ld);
+
+move_rate_cat = cell2mat({bhv(use_animals).move_rate}');
+p_c2m_cat = cell2mat({bhv(use_animals).p_cue_given_move}');
+
+ld_cat = cell2mat(ld(use_animals));
+ld_split = ld_cat + linspace(0,(n_bins-1)/n_bins,n_bins);
+
+[move_rate_avg,move_rate_grp] = ap.groupfun(@mean,move_rate_cat(:),ld_split(:));
+move_rate_sem = ap.groupfun(@AP_sem,move_rate_cat(:),ld_split(:));
+
+[p_c2m_avg,p_c2m_avg_grp] = ap.groupfun(@mean,p_c2m_cat(:),ld_split(:));
+p_c2m_sem = ap.groupfun(@AP_sem,p_c2m_cat(:),ld_split(:));
+
+figure; tiledlayout(2,1);
+
+nexttile; 
+errorbar( ...
+    padarray(reshape(move_rate_grp,n_bins,[]),[1,0],NaN,'post'), ...
+    padarray(reshape(move_rate_avg,n_bins,[]),[1,0],NaN,'post'), ...
+    padarray(reshape(move_rate_sem,n_bins,[]),[1,0],NaN,'post'),'k','linewidth',2);
+xlabel('Learned day')
+ylabel(' Move n');
+xline(0,'r');
+
+nexttile;
+errorbar( ...
+    padarray(reshape(p_c2m_avg_grp,n_bins,[]),[1,0],NaN,'post'), ...
+    padarray(reshape(p_c2m_avg,n_bins,[]),[1,0],NaN,'post'), ...
+    padarray(reshape(p_c2m_sem,n_bins,[]),[1,0],NaN,'post'),'k','linewidth',2);
+xlabel('Learned day')
+ylabel('P(stim|move)');
+xline(0,'r');
+
+ap.prettyfig;
+
+%% [Supp. Fig 3x] Striatal domain clustering and classification
 
 %%% Load data for figure
 load_dataset = 'noact';
@@ -1109,41 +1209,6 @@ set(gca,'ColorOrder',domain_color_rgb);
 axis off;
 ap.scalebar(10,500);
 ap.prettyfig
-
-
-%% [Supp. Fig 1x] Cortex map passive max
-
-%%% Load data for figure
-load_dataset = 'passive';
-AP_longstriatum_load_data;
-%%%
-
-plot_day_bins = [-Inf,-2,0,2,Inf];
-plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
-
-stim_t = wf_t > 0 & wf_t < 0.2;
-[wf_avg,wf_avg_grp] = ap.groupfun(@mean,cell2mat(wf.V_event_align), ...
-    [wf_grp.animal,plot_day_grp,cell2mat(wf.trial_stim_values)]);
-
-wf_max_px = permute(max(plab.wf.svd2px(U_master,permute(wf_avg(:,stim_t,:),[3,2,1])),[],3),[1,2,4,3]);
-[wf_max_px_avg,wf_max_px_avg_grp] = ap.nestgroupfun({@mean,@mean},reshape(wf_max_px,[],size(wf_max_px,3))', ...
-    wf_avg_grp(:,1),wf_avg_grp(:,2:3));
-
-figure;
-h = tiledlayout(3,max(plot_day_grp),'TileIndexing','ColumnMajor','TileSpacing','none');
-for curr_day = unique(wf_max_px_avg_grp(:,1))'
-    for curr_stim = unique(wf_max_px_avg_grp(:,2))'
-        nexttile;
-        imagesc(reshape(wf_max_px_avg( ...
-            ismember(wf_max_px_avg_grp,[curr_day,curr_stim],'rows'),:), ...
-            size(U_master,[1,2])));
-        colormap(ap.colormap('PWG',[],1.5));
-        clim([-1,1]*3e-3);
-        axis image off;
-        ap.wf_draw('ccf',[0.5,0.5,0.5]);
-    end
-end
-ap.prettyfig;
 
 
 %% (end timer)
