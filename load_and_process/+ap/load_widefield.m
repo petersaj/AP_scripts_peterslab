@@ -65,8 +65,9 @@ elseif wf_cam_tl_frame_diff < 0
             % RARE CASE: if few missing frames and no dropped frames
             % detected, assume it was the last frame that was dropped (since
             % this drop is undetectable. Discovered in AP029 2024-12-09 1356)
-            wf_use_frames = [true(length(widefield_expose_times)-1,1);false];
-            warning('Widefield: dropped [%d] frames that could not be detected, assuming drops at the end',-wf_cam_tl_frame_diff);
+            wf_use_frames = true(size(widefield_expose_times));
+            wf_use_frames(end+wf_cam_tl_frame_diff+1:end) = false;
+            warning('Widefield: dropped frames could not be detected, assuming drops at the end',-wf_cam_tl_frame_diff);
         else
             % If few dropped frames and not all identified, error out
             error('Widefield: could not identify dropped frames')
