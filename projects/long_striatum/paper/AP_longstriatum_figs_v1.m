@@ -1028,6 +1028,59 @@ for curr_celltype = striatum_celltypes
 end
 
 
+%% [Supp. Fig 1A-B] Example wheel velocity
+
+animal = 'AM021';
+
+use_workflow = 'stim_wheel*';
+recordings = plab.find_recordings(animal,[],use_workflow);
+
+plot_days = [2,length(recordings)];
+
+surround_time = [-2,2];
+surround_sample_rate = 100;
+surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+
+figure;
+h = tiledlayout(2,2,'TileSpacing','tight');
+for curr_day = plot_days
+
+    % Load data
+    rec_day = recordings(curr_day).day;
+    rec_time = recordings(curr_day).recording{end};
+    load_parts = struct;
+    load_parts.behavior = true;
+    ap.load_recording;
+
+    % Plot example wheel velocity
+    plot_t = [220,285]; % s, example time to plot
+    plot_t_idx = isbetween(timelite.timestamps,plot_t(1),plot_t(2));
+
+    nexttile;
+    plot(timelite.timestamps(plot_t_idx),wheel_velocity(plot_t_idx),'k','linewidth',1);
+    xline(stimOn_times(isbetween(stimOn_times,plot_t(1),plot_t(2))),'g');
+    xline(stimOff_times(isbetween(stimOff_times,plot_t(1),plot_t(2))),'r');
+    xline(reward_times(isbetween(reward_times,plot_t(1),plot_t(2))),'b');
+        
+    % Plot stim-aligned wheel velocity
+    align_times = stimOn_times;
+    pull_times = align_times + surround_time_points;
+    event_aligned_wheel_vel = interp1(timelite.timestamps,wheel_velocity,pull_times);
+
+    nexttile;
+    imagesc(surround_time_points,[],event_aligned_wheel_vel);
+    xline(0,'k');
+    clim(4500.*[-1,1])
+    colormap(gca,ap.colormap('BWR'));
+
+end
+
+linkaxes(h.Children(1:2:end),'xy');
+linkaxes(h.Children(2:2:end),'xy');
+
+ap.prettyfig;
+
+
 %% [Supp. Fig 1D] P(stim|move)
 
 animals = { ...
