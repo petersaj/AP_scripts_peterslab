@@ -1334,6 +1334,99 @@ axis off;
 ap.scalebar(10,500);
 ap.prettyfig
 
+%% [Supp. Fig  5] Striatum cell type properties 
+
+% Load ephys properties
+data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
+load(fullfile(data_path,'ephys_properties'));
+
+% Concatenate data
+striatum_celltype_cat.msn = logical(vertcat(ephys_properties.str_msn_idx{:}));
+striatum_celltype_cat.fsi = logical(vertcat(ephys_properties.str_fsi_idx{:}));
+striatum_celltype_cat.tan = logical(vertcat(ephys_properties.str_tan_idx{:}));
+
+waveform_norm_cat = vertcat(ephys_properties.waveform{:})./max(abs(vertcat(ephys_properties.waveform{:})),[],2);
+
+acg_cat = vertcat(ephys_properties.acg{:});
+acg_t = -500:500; % (just hardcoding - set somewhere in bombcell)
+
+waveform_duration_cat = vertcat(ephys_properties.waveformDuration_peakTrough_us{:});
+postspike_suppression_cat = vertcat(ephys_properties.postSpikeSuppression_ms{:});
+firing_rate_cat = vertcat(ephys_properties.mean_firingRate{:});
+
+figure;
+striatum_celltypes = ["msn","fsi","tan"];
+h = tiledlayout(length(striatum_celltypes),2);
+for curr_celltype = striatum_celltypes
+    nexttile;
+    ap.errorfill([],nanmean(waveform_norm_cat(striatum_celltype_cat.(curr_celltype),:),1), ...
+        nanstd(waveform_norm_cat(striatum_celltype_cat.(curr_celltype),:),1));
+
+    nexttile;
+    ap.errorfill(acg_t,nanmean(acg_cat(striatum_celltype_cat.(curr_celltype),:),1), ...
+        nanstd(acg_cat(striatum_celltype_cat.(curr_celltype),:),1));
+end
+linkaxes(h.Children(1:2:end),'xy');
+linkaxes(h.Children(2:2:end),'xy');
+xlim(h.Children(1),[-1,1].*300);
+ylim(h.Children(1),[0,50]);
+ap.prettyfig;
+
+% Histograms of properties
+figure; tiledlayout(length(striatum_celltypes),3);
+for curr_celltype = striatum_celltypes
+    nexttile; 
+    histogram(waveform_duration_cat(striatum_celltype_cat.(curr_celltype)), ...
+        linspace(0,prctile(waveform_duration_cat,99),20), ...
+        'normalization','probability', ...
+        'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
+    xlabel('Waveform duration'); xline(400,'r','linewidth',2);
+    title(curr_celltype);
+
+    nexttile; 
+    histogram(postspike_suppression_cat(striatum_celltype_cat.(curr_celltype)), ...
+        linspace(0,prctile(postspike_suppression_cat,99),20), ...
+        'normalization','probability', ...
+        'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
+    xlabel('Postspike suppression'); xline(40,'r','linewidth',2);
+    title(curr_celltype);
+
+    nexttile; 
+    histogram(firing_rate_cat(striatum_celltype_cat.(curr_celltype)), ...
+        linspace(0,prctile(firing_rate_cat,99),20), ...
+        'normalization','probability', ...
+        'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
+    xlabel('Firing rate');
+    title(curr_celltype);
+end
+ap.prettyfig;
+
+% Plot number/fraction of units
+celltype_rec_n = cell2mat(arrayfun(@(x) cellfun(@(celltype,str) sum(celltype(str)), ...
+    ephys_properties.(sprintf('str_%s_idx',x)), ...
+    ephys_properties.striatal_units),striatum_celltypes,'uni',false));
+
+celltype_rec_frac = cell2mat(arrayfun(@(x) cellfun(@(celltype,str) mean(celltype(str)), ...
+    ephys_properties.(sprintf('str_%s_idx',x)), ...
+    ephys_properties.striatal_units),striatum_celltypes,'uni',false));
+
+figure; tiledlayout(1,2);
+nexttile; hold on;
+bar(striatum_celltypes,nanmean(celltype_rec_n,1));
+errorbar(categorical(striatum_celltypes),nanmean(celltype_rec_n,1), ...
+    nanstd(celltype_rec_n,1),'k', ...
+    'LineStyle','none','LineWidth',2,'CapSize',0);
+ylabel('Number of units')
+
+nexttile; hold on;
+bar(striatum_celltypes,nanmean(celltype_rec_frac,1));
+errorbar(categorical(striatum_celltypes),nanmean(celltype_rec_frac,1), ...
+    nanstd(celltype_rec_frac,1),'k', ...
+    'LineStyle','none','LineWidth',2,'CapSize',0);
+ylabel('Fraction of units');
+
+ap.prettyfig;
+
 
 %% (end timer)
 
