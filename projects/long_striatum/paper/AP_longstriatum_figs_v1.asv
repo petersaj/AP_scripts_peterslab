@@ -263,7 +263,7 @@ end
 ap.prettyfig;
 
 
-%% [Fig 2X] Task cortex + striatum trial heatmap (reaction-sorted)
+%% [Fig 2A,C] Task cortex + striatum trial heatmap (reaction-sorted)
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -323,7 +323,7 @@ xlim(h.Children,[-0.5,1])
 ap.prettyfig;
 
 
-%% [Fig 2X] Task cortex + striatum average PSTH w/o movement
+%% [Fig 2B,E] Task cortex + striatum average PSTH w/o movement
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -1028,6 +1028,59 @@ for curr_celltype = striatum_celltypes
 end
 
 
+%% [Supp. Fig 1A-B] Example wheel velocity
+
+animal = 'AM021';
+
+use_workflow = 'stim_wheel*';
+recordings = plab.find_recordings(animal,[],use_workflow);
+
+plot_days = [2,length(recordings)];
+
+surround_time = [-2,2];
+surround_sample_rate = 100;
+surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+
+figure;
+h = tiledlayout(2,2,'TileSpacing','tight');
+for curr_day = plot_days
+
+    % Load data
+    rec_day = recordings(curr_day).day;
+    rec_time = recordings(curr_day).recording{end};
+    load_parts = struct;
+    load_parts.behavior = true;
+    ap.load_recording;
+
+    % Plot example wheel velocity
+    plot_t = [220,285]; % s, example time to plot
+    plot_t_idx = isbetween(timelite.timestamps,plot_t(1),plot_t(2));
+
+    nexttile;
+    plot(timelite.timestamps(plot_t_idx),wheel_velocity(plot_t_idx),'k','linewidth',1);
+    xline(stimOn_times(isbetween(stimOn_times,plot_t(1),plot_t(2))),'g');
+    xline(stimOff_times(isbetween(stimOff_times,plot_t(1),plot_t(2))),'r');
+    xline(reward_times(isbetween(reward_times,plot_t(1),plot_t(2))),'b');
+        
+    % Plot stim-aligned wheel velocity
+    align_times = stimOn_times;
+    pull_times = align_times + surround_time_points;
+    event_aligned_wheel_vel = interp1(timelite.timestamps,wheel_velocity,pull_times);
+
+    nexttile;
+    imagesc(surround_time_points,[],event_aligned_wheel_vel);
+    xline(0,'k');
+    clim(4500.*[-1,1])
+    colormap(gca,ap.colormap('BWR'));
+
+end
+
+linkaxes(h.Children(1:2:end),'xy');
+linkaxes(h.Children(2:2:end),'xy');
+
+ap.prettyfig;
+
+
 %% [Supp. Fig 1D] P(stim|move)
 
 animals = { ...
@@ -1219,7 +1272,11 @@ end
 clim(h.Children,[0,0.01]);
 ap.prettyfig;
 
-% Plot domain means
+% Plot domain means and ROIs
+striatum_wf_roi_outlines = ...
+    arrayfun(@(curr_domain) ...
+    bwboundaries(striatum_wf_roi(:,:,curr_domain)),1:n_domains);
+
 figure;
 h = tiledlayout(n_domains,1,'tilespacing','none');
 for curr_domain = 1:n_domains
@@ -1228,18 +1285,13 @@ for curr_domain = 1:n_domains
     axis image off
     colormap(gca,ap.colormap(['W',domain_color{curr_domain}],[],2));
     ap.wf_draw('cortex',[0.5,0.5,0.5]);
+
+    patch(striatum_wf_roi_outlines{curr_domain}(:,2), ...
+        striatum_wf_roi_outlines{curr_domain}(:,1),'w', ...
+        'FaceColor','none','EdgeColor','y','linewidth',2);
 end
 clim(h.Children,[0,0.01]);
 ap.prettyfig;
-
-
-%%%%%%% WORKING
-
-
-striatum_wf_roi
-
-
-%%%%%%%%%%%%%%
 
 % Load data from example recording
 animal = bhv.animal{use_rec};
@@ -1281,6 +1333,107 @@ set(gca,'ColorOrder',domain_color_rgb);
 axis off;
 ap.scalebar(10,500);
 ap.prettyfig
+
+%% [Supp. Fig  5] Striatum cell type properties 
+
+% Load ephys properties
+data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
+load(fullfile(data_path,'ephys_properties'));
+
+% Concatenate data
+striatum_celltypes = ["msn","fsi","tan"];
+
+striatum_celltype_cat.msn = logical(vertcat(ephys_properties.str_msn_idx{:}));
+striatum_celltype_cat.fsi = logical(vertcat(ephys_properties.str_fsi_idx{:}));
+striatum_celltype_cat.tan = logical(vertcat(ephys_properties.str_tan_idx{:}));
+
+% (remove units that are likely light artifacts)
+for curr_celltype = striatum_celltypes
+    framerate = 70;
+    light_at = max(acg_cat(:,acg_t<-200),[],2) > framerate;
+end
+
+
+waveform_norm_cat = vertcat(ephys_properties.waveform{:})./max(abs(vertcat(ephys_properties.waveform{:})),[],2);
+
+acg_cat = vertcat(ephys_properties.acg{:});
+acg_t = -500:500; % (just hardcoding - it's set somewhere in bombcell)
+
+waveform_duration_cat = vertcat(ephys_properties.waveformDuration_peakTrough_us{:});
+postspike_suppression_cat = vertcat(ephys_properties.postSpikeSuppression_ms{:});
+firing_rate_cat = vertcat(ephys_properties.mean_firingRate{:});
+
+figure;
+h = tiledlayout(length(striatum_celltypes),2);
+for curr_celltype = striatum_celltypes
+    nexttile;
+    ap.errorfill([],nanmean(waveform_norm_cat(striatum_celltype_cat.(curr_celltype),:),1), ...
+        nanstd(waveform_norm_cat(striatum_celltype_cat.(curr_celltype),:),1));
+
+    nexttile;
+    ap.errorfill(acg_t,nanmean(acg_cat(striatum_celltype_cat.(curr_celltype),:),1), ...
+        nanstd(acg_cat(striatum_celltype_cat.(curr_celltype),:),1));
+end
+linkaxes(h.Children(1:2:end),'xy');
+linkaxes(h.Children(2:2:end),'xy');
+xlim(h.Children(1),[-1,1].*300);
+ylim(h.Children(1),[0,50]);
+ap.prettyfig;
+
+% Histograms of properties
+figure; tiledlayout(length(striatum_celltypes),3);
+for curr_celltype = striatum_celltypes
+    nexttile; 
+    histogram(waveform_duration_cat(striatum_celltype_cat.(curr_celltype)), ...
+        linspace(0,prctile(waveform_duration_cat,99),20), ...
+        'normalization','probability', ...
+        'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
+    xlabel('Waveform duration'); xline(400,'r','linewidth',2);
+    title(curr_celltype);
+
+    nexttile; 
+    histogram(postspike_suppression_cat(striatum_celltype_cat.(curr_celltype)), ...
+        linspace(0,prctile(postspike_suppression_cat,99),20), ...
+        'normalization','probability', ...
+        'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
+    xlabel('Postspike suppression'); xline(40,'r','linewidth',2);
+    title(curr_celltype);
+
+    nexttile; 
+    histogram(firing_rate_cat(striatum_celltype_cat.(curr_celltype)), ...
+        linspace(0,prctile(firing_rate_cat,99),20), ...
+        'normalization','probability', ...
+        'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
+    xlabel('Firing rate');
+    title(curr_celltype);
+end
+ap.prettyfig;
+
+% Plot number/fraction of units
+celltype_rec_n = cell2mat(arrayfun(@(x) cellfun(@(celltype,str) sum(celltype(str)), ...
+    ephys_properties.(sprintf('str_%s_idx',x)), ...
+    ephys_properties.striatal_units),striatum_celltypes,'uni',false));
+
+celltype_rec_frac = cell2mat(arrayfun(@(x) cellfun(@(celltype,str) mean(celltype(str)), ...
+    ephys_properties.(sprintf('str_%s_idx',x)), ...
+    ephys_properties.striatal_units),striatum_celltypes,'uni',false));
+
+figure; tiledlayout(1,2);
+nexttile; hold on;
+bar(striatum_celltypes,nanmean(celltype_rec_n,1));
+errorbar(categorical(striatum_celltypes),nanmean(celltype_rec_n,1), ...
+    nanstd(celltype_rec_n,1),'k', ...
+    'LineStyle','none','LineWidth',2,'CapSize',0);
+ylabel('Number of units')
+
+nexttile; hold on;
+bar(striatum_celltypes,nanmean(celltype_rec_frac,1));
+errorbar(categorical(striatum_celltypes),nanmean(celltype_rec_frac,1), ...
+    nanstd(celltype_rec_frac,1),'k', ...
+    'LineStyle','none','LineWidth',2,'CapSize',0);
+ylabel('Fraction of units');
+
+ap.prettyfig;
 
 
 %% (end timer)
