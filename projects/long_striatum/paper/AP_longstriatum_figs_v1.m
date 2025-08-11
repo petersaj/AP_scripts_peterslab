@@ -1,7 +1,6 @@
 %% Figures for longitudinal striatum+cortex project
 %
-% Data packaged by AM save scripts
-% Analysis taken fom `AP_longstriatum_exploratory_2`
+% Data packaged in +Marica_2025.package namespace
 %
 % Uses `AP_longstriatum_load_data` to load/prep relevant data at the start
 % of each figure (doesn't re-load if already overloaded - this lets each
@@ -1347,13 +1346,6 @@ striatum_celltype_cat.msn = logical(vertcat(ephys_properties.str_msn_idx{:}));
 striatum_celltype_cat.fsi = logical(vertcat(ephys_properties.str_fsi_idx{:}));
 striatum_celltype_cat.tan = logical(vertcat(ephys_properties.str_tan_idx{:}));
 
-% (remove units that are likely light artifacts)
-framerate = 70;
-light_artifact_units = max(acg_cat(:,acg_t<-200),[],2) > framerate;
-for curr_celltype = striatum_celltypes
-    striatum_celltype_cat.(curr_celltype)(light_artifact_units) = false;
-end
-
 waveform_norm_cat = vertcat(ephys_properties.waveform{:})./max(abs(vertcat(ephys_properties.waveform{:})),[],2);
 
 acg_cat = vertcat(ephys_properties.acg{:});
@@ -1362,6 +1354,13 @@ acg_t = -500:500; % (just hardcoding - it's set somewhere in bombcell)
 waveform_duration_cat = vertcat(ephys_properties.waveformDuration_peakTrough_us{:});
 postspike_suppression_cat = vertcat(ephys_properties.postSpikeSuppression_ms{:});
 firing_rate_cat = vertcat(ephys_properties.mean_firingRate{:});
+
+% (remove units that are likely light artifacts)
+framerate = 70;
+light_artifact_units = max(acg_cat(:,acg_t<-200),[],2) > framerate;
+for curr_celltype = striatum_celltypes
+    striatum_celltype_cat.(curr_celltype)(light_artifact_units) = false;
+end
 
 figure;
 h = tiledlayout(length(striatum_celltypes),2);
