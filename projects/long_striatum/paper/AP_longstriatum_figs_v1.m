@@ -263,7 +263,7 @@ end
 ap.prettyfig;
 
 
-%% [Fig 2X] Task cortex + striatum trial heatmap (reaction-sorted)
+%% [Fig 2A,C] Task cortex + striatum trial heatmap (reaction-sorted)
 
 %%% Load data for figure
 load_dataset = 'task';
@@ -323,7 +323,7 @@ xlim(h.Children,[-0.5,1])
 ap.prettyfig;
 
 
-%% [Fig 2X] Task cortex + striatum average PSTH w/o movement
+%% [Fig 2B,E] Task cortex + striatum average PSTH w/o movement
 
 %%% Load data for figure
 load_dataset = 'task';
