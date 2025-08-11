@@ -10,6 +10,8 @@ gui_data = struct;
 gui_data.plot_mousecam = false;
 gui_data.plot_widefield = false;
 gui_data.plot_ephys = false;
+gui_data.plot_behavior = false;
+gui_data.plot_screen = false;
 
 % (timelite - required for timestamps)
 try
@@ -72,6 +74,44 @@ try
     gui_data.plot_ephys = true;
 end
 
+%(behavior)
+try
+    timelite = evalin('base','timelite');
+    wheel_velocity = evalin('base','wheel_velocity');
+    photodiode_trace = evalin('base','photodiode_trace');
+    reward_thresh = evalin('base','reward_thresh');
+    lick_thresh = evalin('base','lick_thresh');
+    wheel_move= evalin('base','wheel_move');
+
+    gui_data.behavior_t=timelite.timestamps;
+
+    wheel_velocity_norm = (wheel_velocity - min(wheel_velocity)) / (max(wheel_velocity) - min(wheel_velocity));...
+
+    gui_data.behavior_matrix=[(photodiode_trace>3)+4.4,...
+        reward_thresh+3.3,...
+        wheel_move+2.2,...
+        wheel_velocity_norm+1.1,...
+        lick_thresh];
+    gui_data.plot_behavior = true;
+
+end
+
+%（screen）
+try
+    timelite = evalin('base','timelite');
+    % stim_pos = evalin('base','stim_pos');
+    gray_bg = evalin('base','gray_bg');
+    % grating_pattern= evalin('base','grating_pattern');
+    % screen_w= evalin('base','screen_w');
+    % screen_h= evalin('base','screen_h');
+    gui_data.screen_t=timelite.timestamps;
+    gui_data.plot_screen = true;
+
+end
+
+
+
+
 % Set up time
 gui_data.t = prctile(timelite.timestamps,[0,100]);
 gui_data.t_curr = 0;
@@ -82,6 +122,11 @@ set(gui_fig,'WindowScrollWheelFcn',{@imgSlider_MouseWheel, gui_fig});
 set(gui_fig, 'KeyPressFcn', {@im_keypress, gui_fig});
 
 tiledlayout(gui_fig,'flow');
+
+
+
+
+
 
 % (mousecam)
 if gui_data.plot_mousecam
@@ -95,6 +140,20 @@ if gui_data.plot_mousecam
     clim(gui_data.mousecam_axis,[0,255]);
 end
 
+% (behavior)
+if gui_data.plot_behavior
+    
+    gui_data.behavior_axis = nexttile;
+    plot(gui_data.behavior_axis,gui_data.behavior_t,gui_data.behavior_matrix)
+    behavior_xlim = gui_data.t_curr + [-1,1];
+     xlim(gui_data.behavior_axis,behavior_xlim);
+     yticks([0 1.1 2.2 3.3 4.4])
+     yticklabels({'lick','wheel velocity','wheel move','reward','stim'})
+       gui_data.behavior_tmark = xline(gui_data.t_curr,'r');
+
+ylim([-0.1 5.5])
+end
+
 % (widefield)
 if gui_data.plot_widefield
     gui_data.wf_axis = nexttile;
@@ -104,6 +163,15 @@ if gui_data.plot_widefield
     axis(gui_data.wf_axis,'off','image');
     clim(gui_data.wf_axis,[-1,1].*median(std(gui_data.wf_V,[],2))*2);
     colormap(gui_data.wf_axis,ap.colormap('PWG'));
+end
+
+% (screen)
+if gui_data.plot_screen
+    gui_data.screen_axis = nexttile;
+    frame=gray_bg;
+    gui_data.screen_im = imagesc(gui_data.screen_axis,frame,[0 1]);
+    axis(gui_data.screen_axis,'off','image');
+    % colormap(gui_data.screen_axis,'gray');
 end
 
 % (ephys)
@@ -118,6 +186,7 @@ if gui_data.plot_ephys
     xlim(gui_data.ephys_axis,ephys_xlim);
     clim(gui_data.ephys_axis,[0,max(gui_data.ephys,[],'all')*0.5]);
     colormap(gui_data.ephys_axis,ap.colormap('WK'));
+
 end
 
 % Set up scrollbar (use timer function to prevent lag)
@@ -272,9 +341,42 @@ if gui_data.plot_widefield
 end
 
 if gui_data.plot_ephys
-    xrange = 3.*[-1,0] + t_new;
+    xrange = 2.*[-0.5,0.5] + t_new;
     xlim(gui_data.ephys_axis,xrange);
-    set(gui_data.ephys_tmark,'Value',t_new+1);
+    set(gui_data.ephys_tmark,'Value',t_new);
+end
+
+if gui_data.plot_behavior
+    xrange = [-1,1] + t_new;
+    xlim(gui_data.behavior_axis,xrange);
+   set(gui_data.behavior_tmark,'Value',t_new);
+end
+
+if gui_data.plot_screen
+    gray_bg = evalin('base','gray_bg');
+    stim_pos = evalin('base','stim_pos');
+    screen_w = evalin('base','screen_w');
+    screen_h = evalin('base','screen_h');
+    radius = evalin('base','radius');
+    grating_pattern= evalin('base','grating_pattern');
+
+        [~,screen_frame] = min(abs(t_new - gui_data.screen_t));
+         
+        frame = gray_bg;  % 每次重新生成背景
+    if ~isnan(stim_pos(screen_frame,1))
+        cx = round(stim_pos(screen_frame,1));
+        cy = round(stim_pos(screen_frame,2));
+        x_range = (cx-radius):(cx+radius);
+        y_range = (cy-radius):(cy+radius);
+        
+        valid_x = x_range > 0 & x_range <= screen_w;
+        valid_y = y_range > 0 & y_range <= screen_h;
+        
+        frame(y_range(valid_y), x_range(valid_x)) = ...
+            grating_pattern(valid_y, valid_x);
+    end
+
+   set(gui_data.screen_im,'CData',frame);
 end
 
 % Update the time text
