@@ -3,11 +3,47 @@
 % Data packaged in +Marica_2025.package namespace
 %
 % Uses `AP_longstriatum_load_data` to load/prep relevant data at the start
-% of each figure (doesn't re-load if already overloaded - this lets each
-% panel be run independently, or for the entire script to be run straight
-% through)
+% of each figure. Doesn't re-load data if already loaded.
+% 
+% Each cell can be run independently, or whole script can be run through.
+% If script run through, figure/stat saving is set at top.
 
 tic
+
+%% Set path to save figures and print stats (if script thru-run)
+
+% Path to save figures
+fig_savepath = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','figures','matlab_figs');
+
+% Filename to print stats
+stat_savefn = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','figures','matlab_figs','stats.txt');
+
+% Set flag to overwrite save
+if strcmp(getenv('USERNAME'),'petersa')
+    % (safety catch: save only on AP's computer)
+    user_confirm = strcmp(questdlg('Overwite saved figures?', ...
+        'Confirm save','No','Yes','No'),'Yes');
+    if user_confirm
+
+        % (turn on flag to save figs)
+        fig_save_flag = true;
+
+        % (create stat file for writing)
+        stat_fid = fopen(stat_savefn,'w');
+
+        % (set stats to print to stat file)
+        print_stat = @(varargin) print_stat(varargin{:});
+
+        % (set function to save figures)
+        save_figs = @() arrayfun(@(curr_fig) saveas(curr_fig, ...
+            fullfile(fig_savepath,strrep(curr_fig.Name,' ','_')),'fig'), ...
+            findall(0,'Type','figure'));
+
+    end
+else
+    fig_save_flag = false;
+end
+
 
 %% [Fig 1X] Reaction stat and learning histogram
 
@@ -42,7 +78,7 @@ rxn_idx_daysplit_sem = ap.groupfun(@AP_sem,rxn_idx_daysplit, ...
 plot_days = -3:2;
 plot_day_idx = ismember(rxn_group_x,plot_days);
 
-figure; tiledlayout(2,1);
+figure('Name','Fig 1 rxn'); tiledlayout(2,1);
 rxn_group_x_daysplit = rxn_group_x+(0:n_daysplit)./n_daysplit;
 
 nexttile; hold on; set(gca,'YScale','log');
@@ -68,11 +104,17 @@ ap.prettyfig;
 n_learned_day = cellfun(@(x) max([0, ...
     find(bhv.learned_days(strcmp(bhv.animal,x)),1)]), ...
     unique(bhv.animal,'stable'));
-figure;
+figure('Name','Fig S1 hist');
 histogram(n_learned_day,-0.5:max(n_learned_day)+0.5,'FaceColor','k','EdgeColor','none');
 ylabel('Number of mice');
 xlabel('Days to learn');
 ap.prettyfig;
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
 
 %% [Fig 1D] Example widefield/units
@@ -88,7 +130,7 @@ use_animal = 'AP023';
 animal_days = find(strcmp(bhv.animal,use_animal));
 plot_days = [2,length(animal_days)];
 
-figure;
+figure('Name','Fig 1 examples');
 h = tiledlayout(2,3);
 title(h,sprintf('%s, days %d,%d',use_animal,plot_days));
 for curr_rec_idx = plot_days
@@ -149,12 +191,15 @@ for curr_rec_idx = plot_days
     xlabel('Spike rate')
     set(gca,'XScale','log');
 
-
-    % ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,[],ax)
-
 end
 
 ap.prettyfig;
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
 
 %% [Fig 1X] Corticostriatal map pre/post learning
@@ -180,7 +225,7 @@ plot_day_grp = discretize(max(wf_map_grp.ld,-inf),plot_day_bins);
     reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])', ...
     wf_map_grp.animal,[plot_day_grp,domain_idx]);
 
-figure;
+figure('Name','Fig 1 cstr maps');
 domain_color = {'R','G','B'};
 h = tiledlayout(n_domains,length(plot_day_bins)-1,'TileSpacing','none');
 for curr_domain = 1:n_domains
@@ -197,6 +242,12 @@ for curr_domain = 1:n_domains
 end
 
 ap.prettyfig;
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
 
 %% [Fig 1X] Striatal MUA pre/post learning
@@ -216,7 +267,7 @@ stim_x = [-0.2,0.15];
 move_x = [-0.05,0.4];
 outcome_x = [-0.1,0.5];
 
-figure; h = tiledlayout(n_domains,3,'TileSpacing','tight');
+figure('Name','Fig 1 mua'); h = tiledlayout(n_domains,3,'TileSpacing','tight');
 for curr_depth = 1:n_domains
 
     curr_trials = striatum_mua_grp.domain_idx == curr_depth;
@@ -261,6 +312,12 @@ end
 [h.Children.DataAspectRatio] = deal(min(vertcat(h.Children.DataAspectRatio),[],1));
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% [Fig 2A,C] Task cortex + striatum trial heatmap (reaction-sorted)
 
@@ -277,7 +334,7 @@ striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 % Plot heatmaps sorted by reaction times
 heatmap_smooth = [20,1]; % ([trials,time] to smooth for graphics)
 
-figure; 
+figure('Name','Fig 2 heatmaps'); 
 h = tiledlayout(n_domains*2,max(cortex_plot_day_grp), ...
     'TileIndexing','ColumnMajor','TileSpacing','Tight');
 for curr_day = unique(cortex_plot_day_grp)'
@@ -321,6 +378,12 @@ linkaxes(h.Children,'x');
 xlim(h.Children,[-0.5,1])
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% [Fig 2B,E] Task cortex + striatum average PSTH w/o movement
 
@@ -355,7 +418,7 @@ wf_striatum_roi_nomove_sem = ...
 
 str_day_color = ap.colormap('KW',length(plot_day_bins)-1);
 ctx_day_color = ap.colormap('KG',length(plot_day_bins)-1);
-figure; h = tiledlayout(n_domains*2,1,'TileSpacing','tight');
+figure('Name','Fig 2 psth'); h = tiledlayout(n_domains*2,1,'TileSpacing','tight');
 for curr_domain = 1:n_domains
 
     nexttile; hold on; set(gca,'ColorOrder',ctx_day_color);
@@ -375,7 +438,6 @@ xlim(h.Children,[-0.1,0.5]);
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-fprintf('---- STATS ----\n')
 compare_day_grps = [1,2];
 
 stim_t = [0,0.2];
@@ -420,20 +482,27 @@ for curr_shuff = 1:n_shuff
 
 end
 
-fprintf('Day grps %d,%d:\n',compare_day_grps);
+print_stat('\n--FIG 2--\n');
+print_stat('Average PSTH tmax, day grps %d,%d:\n',compare_day_grps);
 
 cortex_stat_rank = tiedrank([cortex_stat_meas,cortex_stat_null]')';
 cortex_stat_p = 1-cortex_stat_rank(:,1)/(n_shuff+1);
 cortex_stat_sig = discretize(cortex_stat_p < 0.05,[0,1,Inf],{'','*'});
 for curr_domain = 1:n_domains
-    fprintf('CTX%d p = %.2g%s\n',curr_domain,cortex_stat_p(curr_domain),cortex_stat_sig{curr_domain});
+    print_stat('CTX%d p = %.2g%s\n',curr_domain,cortex_stat_p(curr_domain),cortex_stat_sig{curr_domain});
 end
 
 striatum_stat_rank = tiedrank([striatum_stat_meas,striatum_stat_null]')';
 striatum_stat_p = 1-striatum_stat_rank(:,1)/(n_shuff+1);
 striatum_stat_sig = discretize(striatum_stat_p < 0.05,[0,1,Inf],{'','*'});
 for curr_domain = 1:n_domains
-    fprintf('STR%d p = %.2g%s\n',curr_domain,striatum_stat_p(curr_domain),striatum_stat_sig{curr_domain});
+    print_stat('STR%d p = %.2g%s\n',curr_domain,striatum_stat_p(curr_domain),striatum_stat_sig{curr_domain});
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -490,7 +559,7 @@ cortex_activity_max = permute(max(cortex_activity_mean(:,isbetween(wf_t,stim_t(1
 cortex_activity_max_sem = ap.nestgroupfun({@mean,@AP_sem},cortex_activity_max,cortex_activity_mean_grp(:,1),cortex_activity_mean_grp(:,2:end));
 
 % Plot cortex and striatum overlaid
-figure;
+figure('Name','Fig 2 session split');
 h = tiledlayout(n_domains,length(plot_day_bins)-1,'TileSpacing','compact');
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
@@ -540,14 +609,14 @@ xlim(h(1).Children,[0.8,n_split+0.2])
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-fprintf('---- STATS ----\n')
-fprintf('1-way ANOVA:');
+frpintf(stat_fid,'\n--FIG 2--\n');
+print_stat('Session-split 1-way ANOVA:');
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         stat_data_idx = ismember(striatum_activity_mean_grp(:,[2,4]),[curr_day,curr_domain],'rows');
         p = anovan(striatum_activity_max(stat_data_idx),striatum_activity_mean_grp(stat_data_idx,3),'display','off');
         stat_sig = discretize(p < 0.05,[0,1,Inf],["","*"]);
-        fprintf('STR %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig)
+        print_stat('STR %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig)
     end
 end
 for curr_domain = 1:n_domains
@@ -555,8 +624,14 @@ for curr_domain = 1:n_domains
         stat_data_idx = cortex_activity_mean_grp(:,2) == curr_day;
         p = anovan(cortex_activity_max(stat_data_idx,curr_domain),cortex_activity_mean_grp(stat_data_idx,3),'display','off');
         stat_sig = discretize(p < 0.05,[0,1,Inf],["","*"]);
-        fprintf('CTX %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig)
+        print_stat('CTX %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig)
     end
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -589,7 +664,7 @@ wf_striatum_roi_sem = ...
 unique_stim = unique(striatum_mua_grp.stim);
 stim_color = {'KB','KW','KR'};
 
-figure;
+figure('Name','Fig 3 psth');
 h = tiledlayout(n_domains*2,max(striatum_plot_days_grp)*length(unique_stim), ...
     'TileIndexing','ColumnMajor','TileSpacing','tight');
 for curr_stim = unique_stim'
@@ -623,6 +698,12 @@ linkaxes(h.Children(1:2:end),'y');
 linkaxes(h.Children(2:2:end),'y');
 xlim(h.Children,[0,0.5]);
 ap.prettyfig;
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
 
 %% [Fig 3X] Passive cortex + striatum max
@@ -672,7 +753,7 @@ striatum_mua_max_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
     striatum_mua_dayavg_grp(:,2:end));
 
 % Plot activity by day
-figure;
+figure('Name','Fig 3 tmax');
 h = tiledlayout(n_domains,2,'TileSpacing','tight');
 stim_colormap = ap.colormap('BKR',3);
 binned_days_x = interp1(find(~isinf(plot_day_bins)),...
@@ -707,8 +788,9 @@ linkaxes(h.Children(2:2:end),'xy');
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-fprintf('---- STATS ----\n')
 % (compare day i to i+1)
+frpintf(stat_fid,'\n--FIG 3--\n');
+frpintf(stat_fid,'PSTH max');
 for curr_compare_day = 1:length(plot_day_bins)-2
 
     compare_day_grps = curr_compare_day+[0,1];
@@ -743,28 +825,29 @@ for curr_compare_day = 1:length(plot_day_bins)-2
     striatum_stat_rank = tiedrank([striatum_stat_meas,striatum_stat_null]')';
     striatum_stat_p = 1-striatum_stat_rank(:,1)/(n_shuff+1);
 
-    fprintf('Cortex: day grps %d vs %d\n',compare_day_grps);
+    print_stat('Cortex: day grps %d vs %d\n',compare_day_grps);
     stat_sig = discretize(cortex_stat_p < 0.05,[0,1,Inf],["","*"]);
     for curr_domain = 1:n_domains
         for curr_stim = unique(cortex_stat_grp(:,1))'
             curr_stat_idx = ismember(cortex_stat_grp,curr_stim,'rows');
-            fprintf('ROI%d, Stim %3.f, p = %.2g%s\n', ...
+            print_stat('ROI%d, Stim %3.f, p = %.2g%s\n', ...
                 curr_domain,cortex_stat_grp(curr_stat_idx),cortex_stat_p(curr_stat_idx,1,curr_domain),stat_sig(curr_stat_idx,1,curr_domain));
         end
     end
 
-    fprintf('Striatum: day grps %d vs %d\n',compare_day_grps);
+    print_stat('Striatum: day grps %d vs %d\n',compare_day_grps);
     stat_sig = discretize(striatum_stat_p < 0.05,[0,1,Inf],["","*"]);
     for curr_domain = 1:n_domains
         for curr_stim = unique(striatum_stat_grp(:,1))'
             curr_stat_idx = ismember(striatum_stat_grp,[curr_stim,curr_domain],'rows');
-            fprintf('D%d, Stim %3.f, p = %.2g%s\n', ...
+            print_stat('D%d, Stim %3.f, p = %.2g%s\n', ...
                 curr_domain,striatum_stat_grp(curr_stat_idx,1),striatum_stat_p(curr_stat_idx),stat_sig(curr_stat_idx));
         end
     end
 end
 
 % (compare C to R stim within-day)
+frpintf(stat_fid,'PSTH max stim comparison');
 compare_stim = [0,90];
 
 cortex_stat_usedata = ismember(wf_striatum_roi_grp(:,3),compare_stim);
@@ -797,24 +880,30 @@ cortex_stat_p = 1-cortex_stat_rank(:,1,:)/(n_shuff+1);
 striatum_stat_rank = tiedrank([striatum_stat_meas,striatum_stat_null]')';
 striatum_stat_p = 1-striatum_stat_rank(:,1)/(n_shuff+1);
 
-fprintf('Cortex: Stim %d vs %d\n',compare_stim);
+print_stat('Cortex: Stim %d vs %d\n',compare_stim);
 stat_sig = discretize(cortex_stat_p,[-Inf,0.05,0.95,Inf],["*-","","*+"]);
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         curr_stat_idx = ismember(cortex_stat_grp,curr_day,'rows');
-        fprintf('ROI%d, Day %d, p = %.2g%s\n', ...
+        print_stat('ROI%d, Day %d, p = %.2g%s\n', ...
             curr_domain,cortex_stat_grp(curr_stat_idx),cortex_stat_p(curr_stat_idx,1,curr_domain),stat_sig(curr_stat_idx,1,curr_domain));
     end
 end
 
-fprintf('Striatum: Stim %d vs %d\n',compare_stim);
+print_stat('Striatum: Stim %d vs %d\n',compare_stim);
 stat_sig = discretize(striatum_stat_p,[-Inf,0.05,0.95,Inf],["*-","","*+"]);
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         curr_stat_idx = ismember(striatum_stat_grp,[curr_day,curr_domain],'rows');
-        fprintf('D%d, Day %d, p = %.2g%s\n', ...
+        print_stat('D%d, Day %d, p = %.2g%s\n', ...
             curr_domain,striatum_stat_grp(curr_stat_idx,1),striatum_stat_p(curr_stat_idx),stat_sig(curr_stat_idx));
     end
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -847,7 +936,7 @@ striatum_units_responsive = unit_responsive(cell2mat(striatum_units),:);
 % Set celltypes to loop through
 striatum_celltypes = ["msn","fsi","tan"];
 
-figure;
+figure('Name','Fig 4 scatter bar');
 h = tiledlayout(length(striatum_celltypes),2, ...
     'TileSpacing','tight','TileIndexing','columnmajor');
 
@@ -938,7 +1027,7 @@ for curr_celltype = striatum_celltypes
 end
 
 % (load and plot example units)
-figure('Name',sprintf('%d%%ile',plot_unit_prctile));
+figure('Name',sprintf('Fig 4 %d%%ile',plot_unit_prctile));
 h_units = tiledlayout(1,numel(example_units));
 for curr_unit = reshape(example_units',1,[])
     animal = ephys.animal{striatum_sua_grp.rec(curr_unit)};
@@ -957,9 +1046,8 @@ ap.prettyfig;
 
 
 % ~~~ STATS ~~~
-fprintf('---- STATS ----\n')
 n_shuff = 10000;
-
+print_stat('\n--FIG 4--\n');
 for curr_celltype = striatum_celltypes
 
     % Compare R+C overlap to shuffling R/C responsiveness
@@ -989,7 +1077,7 @@ for curr_celltype = striatum_celltypes
     stat_p = stat_rank(1)/(n_shuff+1);
 
     stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
-    fprintf('%s R+C overlap vs shuffle: p = %.2g%s\n',curr_celltype, ...
+    print_stat('%s R+C overlap vs shuffle: p = %.2g%s\n',curr_celltype, ...
         stat_p,stat_sig);
 
     % Compare R fraction (R-only and R+C) across days
@@ -1021,9 +1109,15 @@ for curr_celltype = striatum_celltypes
         stat_p = 1-stat_rank(1)/(n_shuff+1);
 
         stat_sig = discretize(stat_p < 0.05,[0,1,Inf],["","*"]);
-        fprintf('%s R-frac day %d vs %d: p = %.2g%s\n',curr_celltype,compare_day_grps,stat_p,stat_sig);
+        print_stat('%s R-frac day %d vs %d: p = %.2g%s\n',curr_celltype,compare_day_grps,stat_p,stat_sig);
     end
 
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -1040,7 +1134,7 @@ surround_time = [-2,2];
 surround_sample_rate = 100;
 surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
 
-figure;
+figure('Name','Fig S1 example wheel');
 h = tiledlayout(2,2,'TileSpacing','tight');
 for curr_day = plot_days
 
@@ -1078,6 +1172,12 @@ linkaxes(h.Children(1:2:end),'xy');
 linkaxes(h.Children(2:2:end),'xy');
 
 ap.prettyfig;
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
 
 %% [Supp. Fig 1D] P(stim|move)
@@ -1164,7 +1264,7 @@ move_rate_sem = ap.groupfun(@AP_sem,move_rate_cat(:),ld_split(:));
 [p_c2m_avg,p_c2m_avg_grp] = ap.groupfun(@mean,p_c2m_cat(:),ld_split(:));
 p_c2m_sem = ap.groupfun(@AP_sem,p_c2m_cat(:),ld_split(:));
 
-figure; tiledlayout(2,1);
+figure('Name','Fig S1 p stim move'); tiledlayout(2,1);
 
 nexttile; 
 errorbar( ...
@@ -1186,6 +1286,12 @@ xline(0,'r');
 
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% [Supp. Fig 2A] Histology slices
 
@@ -1200,7 +1306,7 @@ animal_slices = [ ...
     6, 5, 3, 3, 4, 3, ...
     4, 3];
 
-figure; h = tiledlayout('flow','TileSpacing','tight');
+figure('Name','Fig 2 histology'); h = tiledlayout('flow','TileSpacing','tight');
 
 for curr_animal_idx = 1:length(animals)
 
@@ -1235,6 +1341,12 @@ end
 
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% [Supp. Fig 3x] Striatal domain clustering and classification
 
@@ -1253,7 +1365,7 @@ domain_color = {'R','G','B'};
 
 % Plot all domains
 % (grayscale and colored by domain)
-figure;
+figure('Name','Fig S3 map examples');
 h = tiledlayout(size(use_cortex_kernel,3),2,'TileSpacing','none');
 for curr_depth=1:size(use_cortex_kernel, 3)
     nexttile;
@@ -1276,7 +1388,7 @@ striatum_wf_roi_outlines = ...
     arrayfun(@(curr_domain) ...
     bwboundaries(striatum_wf_roi(:,:,curr_domain)),1:n_domains);
 
-figure;
+figure('Name','Fig S3 domain maps');
 h = tiledlayout(n_domains,1,'tilespacing','none');
 for curr_domain = 1:n_domains
     nexttile;
@@ -1301,7 +1413,7 @@ load_parts.ephys = true;
 ap.load_recording;
 
 % Plot units and overlay clustering
-figure; 
+figure('Name','Fig S3 example units'); 
 ax = axes; hold on;
 
 domain_color_rgb = [1,0,0;0,1,0;0,0,1];
@@ -1326,12 +1438,19 @@ for curr_domain = 1:n_domains
     domain_mua(curr_domain,:) = histcounts(curr_spikes,plot_t(1):bin_t:plot_t(2))./bin_t;
 end
 
-figure;
+figure('Name','Fig S3 example mua');
 plot(conv(plot_t(1):bin_t:plot_t(2),[0.5,0.5],'valid'),domain_mua','linewidth',2);
 set(gca,'ColorOrder',domain_color_rgb);
 axis off;
 ap.scalebar(10,500);
 ap.prettyfig
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% [Supp. Fig  5] Striatum cell type properties 
 
@@ -1362,7 +1481,7 @@ for curr_celltype = striatum_celltypes
     striatum_celltype_cat.(curr_celltype)(light_artifact_units) = false;
 end
 
-figure;
+figure('Name','Fig S5 celltype features');
 h = tiledlayout(length(striatum_celltypes),2);
 for curr_celltype = striatum_celltypes
     nexttile;
@@ -1380,7 +1499,7 @@ ylim(h.Children(1),[0,50]);
 ap.prettyfig;
 
 % Histograms of properties
-figure; tiledlayout(length(striatum_celltypes),3);
+figure('Name','Fig S5 celltype histograms'); tiledlayout(length(striatum_celltypes),3);
 for curr_celltype = striatum_celltypes
     nexttile; 
     histogram(waveform_duration_cat(striatum_celltype_cat.(curr_celltype)), ...
@@ -1417,7 +1536,7 @@ celltype_rec_frac = cell2mat(arrayfun(@(x) cellfun(@(celltype,str) mean(celltype
     ephys_properties.(sprintf('str_%s_idx',x)), ...
     ephys_properties.striatal_units),striatum_celltypes,'uni',false));
 
-figure; tiledlayout(1,2);
+figure('Name','Fig S5 celltype n'); tiledlayout(1,2);
 nexttile; hold on;
 bar(striatum_celltypes,nanmean(celltype_rec_n,1));
 errorbar(categorical(striatum_celltypes),nanmean(celltype_rec_n,1), ...
@@ -1434,8 +1553,19 @@ ylabel('Fraction of units');
 
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% (end timer)
+
+% Close stat file
+if fig_save_flag
+    fclose(stat_fid);
+end
 
 toc
 

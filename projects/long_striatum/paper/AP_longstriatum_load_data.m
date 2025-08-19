@@ -30,6 +30,11 @@ end
 clearvars -except load_dataset
 fprintf('Loading dataset: %s...\n',load_dataset);
 
+% For printing stats: if no stat file, print to command line
+if ~exist(stat_fid,'var') || ~stat_fid
+    print_stat = @(varargin) fprintf(varargin{:});
+end
+
 
 %% Set data path
 
