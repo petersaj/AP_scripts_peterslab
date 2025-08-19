@@ -32,7 +32,7 @@ if strcmp(getenv('USERNAME'),'petersa')
         stat_fid = fopen(stat_savefn,'w');
 
         % (set stats to print to stat file)
-        print_stat = @(varargin) print_stat(varargin{:});
+        print_stat = @(varargin) fprintf(stat_fid,varargin{:});
 
         % (set function to save figures)
         save_figs = @() arrayfun(@(curr_fig) saveas(curr_fig, ...
@@ -158,6 +158,7 @@ for curr_rec_idx = plot_days
     % Plot average domain map colored and combined
     domain_avg = ap.groupfun(@mean,ctx_str_maps.cortex_striatum_map{use_rec},[],[],domain_idx_rec{use_rec});
 
+    domain_color = {'R','G','B'};
     col_lim = [0,0.01];
     domain_colored = nan([size(domain_avg),3]);
     for curr_domain = 1:n_domains
@@ -179,7 +180,7 @@ for curr_rec_idx = plot_days
     ax = nexttile(h); hold on;
 
     curr_domain_idx = domain_idx_rec{use_rec};
-    domain_im = permute(domain_color_rgb(curr_domain_idx_nonan,:),[1,3,2]);
+    domain_im = permute(domain_color_rgb(curr_domain_idx,:),[1,3,2]);
     imagesc(ax,[],ctx_str_maps.depth_group_edges{use_rec}/1000,domain_im);
     ax.YDir = 'reverse';
 
@@ -609,14 +610,14 @@ xlim(h(1).Children,[0.8,n_split+0.2])
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-frpintf(stat_fid,'\n--FIG 2--\n');
+print_stat('\n--FIG 2--\n');
 print_stat('Session-split 1-way ANOVA:');
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         stat_data_idx = ismember(striatum_activity_mean_grp(:,[2,4]),[curr_day,curr_domain],'rows');
         p = anovan(striatum_activity_max(stat_data_idx),striatum_activity_mean_grp(stat_data_idx,3),'display','off');
         stat_sig = discretize(p < 0.05,[0,1,Inf],["","*"]);
-        print_stat('STR %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig)
+        print_stat('STR %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig);
     end
 end
 for curr_domain = 1:n_domains
@@ -624,7 +625,7 @@ for curr_domain = 1:n_domains
         stat_data_idx = cortex_activity_mean_grp(:,2) == curr_day;
         p = anovan(cortex_activity_max(stat_data_idx,curr_domain),cortex_activity_mean_grp(stat_data_idx,3),'display','off');
         stat_sig = discretize(p < 0.05,[0,1,Inf],["","*"]);
-        print_stat('CTX %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig)
+        print_stat('CTX %d, day grp %d, p = %.2g%s\n',curr_domain,curr_day,p,stat_sig);
     end
 end
 

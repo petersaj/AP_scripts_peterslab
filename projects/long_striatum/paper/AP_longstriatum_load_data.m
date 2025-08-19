@@ -26,12 +26,12 @@ if ~load_dataset_overwrite && ...
     return
 end
 
-% Before loading, clear workspace
-clearvars -except load_dataset
+% Before loading, clear workspace except for fig settings
+clearvars -except load_dataset fig_save_flag stat_fid print_stat save_figs
 fprintf('Loading dataset: %s...\n',load_dataset);
 
 % For printing stats: if no stat file, print to command line
-if ~exist(stat_fid,'var') || ~stat_fid
+if ~exist('stat_fid','var') || ~stat_fid
     print_stat = @(varargin) fprintf(varargin{:});
 end
 
