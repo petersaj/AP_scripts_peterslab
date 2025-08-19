@@ -790,8 +790,8 @@ ap.prettyfig;
 
 % ~~~ STATS ~~~
 % (compare day i to i+1)
-frpintf(stat_fid,'\n--FIG 3--\n');
-frpintf(stat_fid,'PSTH max');
+print_stat('\n--FIG 3--\n');
+print_stat('PSTH max');
 for curr_compare_day = 1:length(plot_day_bins)-2
 
     compare_day_grps = curr_compare_day+[0,1];
@@ -848,7 +848,7 @@ for curr_compare_day = 1:length(plot_day_bins)-2
 end
 
 % (compare C to R stim within-day)
-frpintf(stat_fid,'PSTH max stim comparison');
+print_stat('PSTH max stim comparison');
 compare_stim = [0,90];
 
 cortex_stat_usedata = ismember(wf_striatum_roi_grp(:,3),compare_stim);
