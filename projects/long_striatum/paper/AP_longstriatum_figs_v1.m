@@ -611,7 +611,7 @@ ap.prettyfig;
 
 % ~~~ STATS ~~~
 print_stat('\n--FIG 2--\n');
-print_stat('Session-split 1-way ANOVA:');
+print_stat('Session-split 1-way ANOVA:\n');
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
         stat_data_idx = ismember(striatum_activity_mean_grp(:,[2,4]),[curr_day,curr_domain],'rows');
@@ -791,7 +791,7 @@ ap.prettyfig;
 % ~~~ STATS ~~~
 % (compare day i to i+1)
 print_stat('\n--FIG 3--\n');
-print_stat('PSTH max');
+print_stat('PSTH max\n');
 for curr_compare_day = 1:length(plot_day_bins)-2
 
     compare_day_grps = curr_compare_day+[0,1];
@@ -848,7 +848,7 @@ for curr_compare_day = 1:length(plot_day_bins)-2
 end
 
 % (compare C to R stim within-day)
-print_stat('PSTH max stim comparison');
+print_stat('PSTH max stim comparison\n');
 compare_stim = [0,90];
 
 cortex_stat_usedata = ismember(wf_striatum_roi_grp(:,3),compare_stim);
@@ -1028,7 +1028,7 @@ for curr_celltype = striatum_celltypes
 end
 
 % (load and plot example units)
-figure('Name',sprintf('Fig 4 %d%%ile',plot_unit_prctile));
+figure('Name',sprintf('Fig 4 %dprctile',plot_unit_prctile));
 h_units = tiledlayout(1,numel(example_units));
 for curr_unit = reshape(example_units',1,[])
     animal = ephys.animal{striatum_sua_grp.rec(curr_unit)};
@@ -1307,7 +1307,7 @@ animal_slices = [ ...
     6, 5, 3, 3, 4, 3, ...
     4, 3];
 
-figure('Name','Fig 2 histology'); h = tiledlayout('flow','TileSpacing','tight');
+figure('Name','Fig S2 histology'); h = tiledlayout('flow','TileSpacing','tight');
 
 for curr_animal_idx = 1:length(animals)
 
@@ -1332,10 +1332,11 @@ for curr_animal_idx = 1:length(animals)
     histology_im_rgb = min(1,sum(cell2mat(arrayfun(@(chan) ...
         mat2gray(histology_im(:,:,chan),chan_clim(:,:,chan)).* ...
         permute(chan_cols(chan,:),[1,3,2]), ...
-        permute(1:n_chan,[1,3,4,2]),'uni',false)),4));
+        permute(1:size(histology_im,3),[1,3,4,2]),'uni',false)),4));
 
     nexttile; 
-    image(histology_im_rgb); 
+    downsample_factor = 5;
+    image(imresize(histology_im_rgb,1/downsample_factor)); 
     axis image off;
 
 end
@@ -1561,12 +1562,14 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% (end timer)
+%% Close and clear
 
 % Close stat file
 if fig_save_flag
     fclose(stat_fid);
 end
+
+clearvars
 
 toc
 
