@@ -45,7 +45,7 @@ if strcmp(getenv('USERNAME'),'petersa')
 end
 
 
-%% [Fig 1X] Reaction stat and learning histogram
+%% [Fig 1X] Reaction mean/index, and learning day histogram
 
 %%% Load data for figure
 load_dataset = 'noact';
@@ -109,6 +109,14 @@ histogram(n_learned_day,-0.5:max(n_learned_day)+0.5,'FaceColor','k','EdgeColor',
 ylabel('Number of mice');
 xlabel('Days to learn');
 ap.prettyfig;
+
+% ~~~ STATS ~~~
+print_stat('\n--FIG 1--\n');
+
+stat_day = -1;
+p = anovan(reshape(rxn_idx_daysplit(stat_use_data,:),[],1), ...
+    reshape(repmat(1:3,sum(stat_use_data),1),[],1),'display','off'); 
+print_stat('1-way ANOVA rxn idx day %d, p = %.2g\n',stat_day,p);
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
@@ -244,6 +252,59 @@ end
 
 ap.prettyfig;
 
+% ~~~ STATS ~~~
+%%% WORKING HERE %%%
+print_stat('\n--FIG 1--\n');
+
+
+
+%%%% shuff as above - but grp first
+% (this isn't going to work b/c mean then diff - need to shuff then mean)
+[x_animal,x_grp] = ap.groupfun(@mean, ...
+    reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])', ...
+    [wf_map_grp.animal,plot_day_grp,domain_idx]);
+
+r_diff = nan(max(x_grp(:,1)),n_domains);
+for curr_animal = unique(wf_map_grp.animal)'
+    for curr_domain = 1:n_domains
+        try
+        r_diff(curr_animal,curr_domain) = ...
+            sum(abs(x_animal(ismember(x_grp,[curr_animal,1,curr_domain],'rows'),:) - ...
+            x_animal(ismember(x_grp,[curr_animal,2,curr_domain],'rows'),:)),2);
+        catch me
+            continue
+        end
+    end
+end
+r_diff_mean = nanmean(r_diff,1);
+
+
+
+
+
+%%% anova doesn't work - breaks if it's too big
+
+[x,x_grp] = ap.groupfun(@mean, ...
+    reshape(cat(3,ctx_str_maps.cortex_striatum_map{:}),prod(U_size),[])', ...
+    [wf_map_grp.animal,plot_day_grp,domain_idx]);
+
+% (downsample)
+[x,x_grp] = ap.groupfun(@mean, ...
+    reshape(imresize(cat(3,ctx_str_maps.cortex_striatum_map{:}),1/20),[], ...
+    size(cat(3,ctx_str_maps.cortex_striatum_map{:}),3))', ...
+    [wf_map_grp.animal,plot_day_grp,domain_idx]);
+
+curr_domain = 1;
+
+stat_use_grps = x_grp(:,3) == curr_domain;
+stat_data = x(stat_use_grps,:);
+g = repmat(x_grp(stat_use_grps,2),1,size(stat_data,2));
+px_g = repmat(1:size(stat_data,2),sum(stat_use_grps),1);
+
+p = anovan(stat_data(:),{g(:),px_g(:)},'model','interaction','display','off');
+
+
+
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
     save_figs();
@@ -264,44 +325,28 @@ learn_colormap = ap.colormap('BKR',3);
 prepost_colormap = max(0,learn_colormap([1,end],:)-0.2);
 
 % Plot average task activity (pre/post learning)
-stim_x = [-0.2,0.15];
-move_x = [-0.05,0.4];
-outcome_x = [-0.1,0.5];
+align_t = { ...
+    [-0.2,0.15]; % stim
+    [-0.05,0.4]; % move
+    [-0.1,0.5]}; % reward
 
 figure('Name','Fig 1 mua'); h = tiledlayout(n_domains,3,'TileSpacing','tight');
 for curr_depth = 1:n_domains
 
     curr_trials = striatum_mua_grp.domain_idx == curr_depth;
 
-    % Stim
-    nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
-    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
-        striatum_mua(curr_trials,:,1),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
-        striatum_mua(curr_trials,:,1),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
-    xlim(stim_x);
-    xline(0);
-
-    % Move
-    nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
-    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
-        striatum_mua(curr_trials,:,2),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
-        striatum_mua(curr_trials,:,2),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
-    xlim(move_x);
-    xline(0);
-
-    % Outcome
-    nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
-    curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
-        striatum_mua(curr_trials,:,3),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
-        striatum_mua(curr_trials,:,3),striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
-    ap.errorfill(psth_t,curr_data_mean',curr_data_sem');
-    xlim(outcome_x);
-    xline(0);
+    for curr_align = 1:3
+        use_t = isbetween(psth_t,align_t{curr_align}(1),align_t{curr_align}(2));
+        nexttile; hold on; set(gca,'ColorOrder',prepost_colormap);
+        curr_data_mean = ap.nestgroupfun({@nanmean,@nanmean}, ...
+            striatum_mua(curr_trials,use_t,curr_align), ...
+            striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        curr_data_sem = ap.nestgroupfun({@nanmean,@AP_sem}, ...
+            striatum_mua(curr_trials,use_t,curr_align), ...
+            striatum_mua_grp.animal(curr_trials),plot_day_grp(curr_trials));
+        ap.errorfill(psth_t(use_t),curr_data_mean',curr_data_sem');
+        xline(0);
+    end
 
 end
 % (link all y, and x of same-alignment)
@@ -312,6 +357,31 @@ end
 % (set same data aspect to have same x-size)
 [h.Children.DataAspectRatio] = deal(min(vertcat(h.Children.DataAspectRatio),[],1));
 ap.prettyfig;
+
+% ~~~ STATS ~~~
+print_stat('\n--FIG 1--\n');
+print_stat('MUA 2-way ANOVA, group x time interaction:\n')
+for curr_align = 1:3
+
+    use_t = isbetween(psth_t,align_t{curr_align}(1),align_t{curr_align}(2));
+
+    [curr_data_animalmean,curr_data_animalmean_grp] = ...
+        ap.groupfun(@nanmean,striatum_mua(:,use_t,curr_align), ...
+        [striatum_mua_grp.animal,plot_day_grp,striatum_mua_grp.domain_idx]);
+
+    for curr_domain = 1:n_domains
+        curr_grps_use = curr_data_animalmean_grp(:,3) == curr_domain;
+        stat_grp_day = repmat(curr_data_animalmean_grp(curr_grps_use,2),1,sum(use_t));
+        stat_grp_t = repmat(1:sum(use_t),size(stat_grp_day,1),1);
+
+        p = anovan(reshape(curr_data_animalmean(curr_grps_use,:),[],1), ...
+            {stat_grp_t(:),stat_grp_day(:)},'model','interaction','display','off');
+        
+        print_stat('Align %d, domain %d, p = %.2g\n',curr_align,curr_domain,p(3));
+    end
+
+end
+
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
