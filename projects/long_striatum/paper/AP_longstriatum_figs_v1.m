@@ -16,32 +16,32 @@ tic
 fig_savepath = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','figures','matlab_figs');
 
 % Filename to print stats
-stat_savefn = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','figures','matlab_figs','stats.txt');
+stat_savefn = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','figures','stats.txt');
 
 % Set flag to overwrite save
 if strcmp(getenv('USERNAME'),'petersa')
-    % (safety catch: save only on AP's computer)
-    user_confirm = strcmp(questdlg('Overwite saved figures?', ...
-        'Confirm save','No','Yes','No'),'Yes');
-    if user_confirm
 
+    % (safety catch: save only on AP's computer)
+    fig_overwrite_confirm = strcmp(questdlg('Overwite saved figures?', ...
+        'Confirm save','No','Yes','No'),'Yes');
+    if fig_overwrite_confirm
         % (turn on flag to save figs)
         fig_save_flag = true;
-
-        % (create stat file for writing)
-        stat_fid = fopen(stat_savefn,'w');
-
-        % (set stats to print to stat file)
-        print_stat = @(varargin) fprintf(stat_fid,varargin{:});
-
         % (set function to save figures)
         save_figs = @() arrayfun(@(curr_fig) saveas(curr_fig, ...
             fullfile(fig_savepath,strrep(curr_fig.Name,' ','_')),'fig'), ...
             findall(0,'Type','figure'));
-
     end
-else
-    fig_save_flag = false;
+
+    stat_overwrite_confirm = strcmp(questdlg('Overwrite stats?', ...
+        'Confirm save','No','Yes','No'),'Yes');
+    if stat_overwrite_confirm
+        % (create stat file for writing)
+        stat_fid = fopen(stat_savefn,'w');
+        % (set stats to print to stat file)
+        print_stat = @(varargin) fprintf(stat_fid,varargin{:});
+    end
+
 end
 
 
@@ -1505,7 +1505,7 @@ figure('Name','Fig S5 celltype histograms'); tiledlayout(length(striatum_celltyp
 for curr_celltype = striatum_celltypes
     nexttile; 
     histogram(waveform_duration_cat(striatum_celltype_cat.(curr_celltype)), ...
-        linspace(0,prctile(waveform_duration_cat,99),20), ...
+        [-Inf,linspace(0,prctile(waveform_duration_cat,99),20),Inf], ...
         'normalization','probability', ...
         'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
     xlabel('Waveform duration'); xline(400,'r','linewidth',2);
@@ -1513,7 +1513,7 @@ for curr_celltype = striatum_celltypes
 
     nexttile; 
     histogram(postspike_suppression_cat(striatum_celltype_cat.(curr_celltype)), ...
-        linspace(0,prctile(postspike_suppression_cat,99),20), ...
+        [-Inf,linspace(0,prctile(postspike_suppression_cat,99),20),Inf], ...
         'normalization','probability', ...
         'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
     xlabel('Postspike suppression'); xline(40,'r','linewidth',2);
@@ -1521,7 +1521,7 @@ for curr_celltype = striatum_celltypes
 
     nexttile; 
     histogram(firing_rate_cat(striatum_celltype_cat.(curr_celltype)), ...
-        linspace(0,prctile(firing_rate_cat,99),20), ...
+        [-Inf,linspace(0,prctile(firing_rate_cat,99),20),Inf], ...
         'normalization','probability', ...
         'FaceColor','k','FaceAlpha',1,'EdgeColor','none');
     xlabel('Firing rate');
