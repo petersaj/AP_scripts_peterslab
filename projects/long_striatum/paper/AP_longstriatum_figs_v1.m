@@ -393,7 +393,7 @@ load_dataset = 'task';
 AP_longstriatum_load_data;
 %%%
 
-plot_day_bins = [-Inf,-1,0,Inf];
+plot_day_bins = [-Inf,-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -439,65 +439,71 @@ xlim(h.Children,[-0.1,0.5]);
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-compare_day_grps = [1,2];
+print_stat('\n--FIG 2--\n');
+for curr_compare_day = 1:length(plot_day_bins)-2
 
-stim_t = [0,0.2];
-cortex_stim_t = isbetween(wf_t,stim_t(1),stim_t(2));
-striatum_stim_t = isbetween(psth_t,stim_t(1),stim_t(2));
+    compare_day_grps = curr_compare_day+[0,1];
 
-[wf_striatum_roi_nomove_animal,wf_striatum_roi_nomove_animal_grp] = ...
-    ap.groupfun(@nanmean,wf_striatum_roi_nomove, ...
-    [wf_grp.animal,cortex_plot_day_grp]);
-wf_striatum_roi_nomove_animal_tmax = max(wf_striatum_roi_nomove_animal(:,cortex_stim_t,:),[],2);
+    stim_t = [0,0.2];
+    cortex_stim_t = isbetween(wf_t,stim_t(1),stim_t(2));
+    striatum_stim_t = isbetween(psth_t,stim_t(1),stim_t(2));
 
-cortex_stat_usedata = ismember(wf_striatum_roi_nomove_animal_grp(:,2),compare_day_grps);
-cortex_stat_meas = permute(diff(ap.groupfun(@mean,wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:), ...
-    wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,2)),[],1),[3,2,1]);
+    [wf_striatum_roi_nomove_animal,wf_striatum_roi_nomove_animal_grp] = ...
+        ap.groupfun(@nanmean,wf_striatum_roi_nomove, ...
+        [wf_grp.animal,cortex_plot_day_grp]);
+    wf_striatum_roi_nomove_animal_tmax = max(wf_striatum_roi_nomove_animal(:,cortex_stim_t,:),[],2);
 
-[striatum_mua_nomove_animal,striatum_mua_nomove_animal_grp] = ...
-    ap.groupfun(@nanmean,striatum_mua_nomove, ...
-    [striatum_mua_grp.animal,striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
-striatum_mua_nomove_animal_tmax = max(striatum_mua_nomove_animal(:,striatum_stim_t),[],2);
-
-striatum_stat_usedata = ismember(striatum_mua_nomove_animal_grp(:,2),compare_day_grps);
-striatum_stat_meas = ap.nestgroupfun({@mean,@diff},striatum_mua_nomove_animal_tmax(striatum_stat_usedata), ...
-    striatum_mua_nomove_animal_grp(striatum_stat_usedata,2),striatum_mua_nomove_animal_grp(striatum_stat_usedata,3));
-
-n_shuff = 10000;
-cortex_stat_null = nan(n_domains,n_shuff);
-striatum_stat_null = nan(n_domains,n_shuff);
-for curr_shuff = 1:n_shuff
-
-    curr_ctx_shuff = ...
-        ap.shake(wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:),1);
-    cortex_stat_null(:,curr_shuff) = ...
-        permute(diff(ap.groupfun(@mean,curr_ctx_shuff, ...
+    cortex_stat_usedata = ismember(wf_striatum_roi_nomove_animal_grp(:,2),compare_day_grps);
+    cortex_stat_meas = permute(diff(ap.groupfun(@mean,wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:), ...
         wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,2)),[],1),[3,2,1]);
 
-    curr_str_shuff = ...
-        ap.shake(striatum_mua_nomove_animal_tmax(striatum_stat_usedata),1, ...
-        striatum_mua_nomove_animal_grp(striatum_stat_usedata,3));
-    striatum_stat_null(:,curr_shuff) = ...
-        ap.nestgroupfun({@mean,@diff},curr_str_shuff, ...
+    [striatum_mua_nomove_animal,striatum_mua_nomove_animal_grp] = ...
+        ap.groupfun(@nanmean,striatum_mua_nomove, ...
+        [striatum_mua_grp.animal,striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
+    [~,~,striatum_shuffgroup] = unique(striatum_mua_nomove_animal_grp(:,[1,3]),'rows');
+    striatum_mua_nomove_animal_tmax = max(striatum_mua_nomove_animal(:,striatum_stim_t),[],2);
+
+    striatum_stat_usedata = ismember(striatum_mua_nomove_animal_grp(:,2),compare_day_grps);
+    striatum_stat_meas = ap.nestgroupfun({@mean,@diff},striatum_mua_nomove_animal_tmax(striatum_stat_usedata), ...
         striatum_mua_nomove_animal_grp(striatum_stat_usedata,2),striatum_mua_nomove_animal_grp(striatum_stat_usedata,3));
 
-end
+    n_shuff = 10000;
+    cortex_stat_null = nan(n_domains,n_shuff);
+    striatum_stat_null = nan(n_domains,n_shuff);
+    for curr_shuff = 1:n_shuff
 
-print_stat('\n--FIG 2--\n');
-print_stat('Average PSTH tmax, day grps %d,%d:\n',compare_day_grps);
+        curr_ctx_shuff = ...
+            ap.shake(wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:),1, ...
+            wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,1));
+        cortex_stat_null(:,curr_shuff) = ...
+            permute(diff(ap.groupfun(@mean,curr_ctx_shuff, ...
+            wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,2)),[],1),[3,2,1]);     
 
-cortex_stat_rank = tiedrank([cortex_stat_meas,cortex_stat_null]')';
-cortex_stat_p = 1-cortex_stat_rank(:,1)/(n_shuff+1);
-cortex_stat_sig = discretize(cortex_stat_p < 0.05,[0,1,Inf],{'','*'});
-for curr_domain = 1:n_domains
-    print_stat('CTX%d p = %.2g%s\n',curr_domain,cortex_stat_p(curr_domain),cortex_stat_sig{curr_domain});
-end
+        curr_str_shuff = ...
+            ap.shake(striatum_mua_nomove_animal_tmax(striatum_stat_usedata),1, ...
+            striatum_shuffgroup(striatum_stat_usedata));
+        striatum_stat_null(:,curr_shuff) = ...
+            ap.nestgroupfun({@mean,@diff},curr_str_shuff, ...
+            striatum_mua_nomove_animal_grp(striatum_stat_usedata,2),striatum_mua_nomove_animal_grp(striatum_stat_usedata,3));
 
-striatum_stat_rank = tiedrank([striatum_stat_meas,striatum_stat_null]')';
-striatum_stat_p = 1-striatum_stat_rank(:,1)/(n_shuff+1);
-striatum_stat_sig = discretize(striatum_stat_p < 0.05,[0,1,Inf],{'','*'});
-for curr_domain = 1:n_domains
-    print_stat('STR%d p = %.2g%s\n',curr_domain,striatum_stat_p(curr_domain),striatum_stat_sig{curr_domain});
+    end
+
+    print_stat('Average PSTH tmax, day grps %d,%d:\n',compare_day_grps);
+
+    cortex_stat_rank = tiedrank([cortex_stat_meas,cortex_stat_null]')';
+    cortex_stat_p = 1-cortex_stat_rank(:,1)/(n_shuff+1);
+    cortex_stat_sig = discretize(cortex_stat_p < 0.05,[0,1,Inf],{'','*'});
+    for curr_domain = 1:n_domains
+        print_stat('CTX%d p = %.2g%s\n',curr_domain,cortex_stat_p(curr_domain),cortex_stat_sig{curr_domain});
+    end
+
+    striatum_stat_rank = tiedrank([striatum_stat_meas,striatum_stat_null]')';
+    striatum_stat_p = 1-striatum_stat_rank(:,1)/(n_shuff+1);
+    striatum_stat_sig = discretize(striatum_stat_p < 0.05,[0,1,Inf],{'','*'});
+    for curr_domain = 1:n_domains
+        print_stat('STR%d p = %.2g%s\n',curr_domain,striatum_stat_p(curr_domain),striatum_stat_sig{curr_domain});
+    end
+
 end
 
 % ~~~ SAVE FIGS ~~~
@@ -1565,7 +1571,7 @@ end
 %% Close and clear
 
 % Close stat file
-if fig_save_flag
+if exist('stat_fid','var')
     fclose(stat_fid);
 end
 
