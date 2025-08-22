@@ -114,9 +114,10 @@ ap.prettyfig;
 print_stat('\n--FIG 1--\n');
 
 stat_day = -1;
+stat_use_data = bhv.days_from_learning == stat_day;
 p = anovan(reshape(rxn_idx_daysplit(stat_use_data,:),[],1), ...
     reshape(repmat(1:3,sum(stat_use_data),1),[],1),'display','off'); 
-print_stat('1-way ANOVA rxn idx day %d, p = %.2g\n',stat_day,p);
+print_stat('Rxn idx 1-way ANOVA day %d, p = %.2g\n',stat_day,p);
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
@@ -253,30 +254,33 @@ end
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-%%% WORKING HERE %%%
 print_stat('\n--FIG 1--\n');
 
-%%%%% try: correlation within vs across
-%%% this is sig different??? urgh
-
+% Average maps in domain within recording
 [maps_animal,maps_grp] = ap.groupfun(@mean, ...
     cat(3,ctx_str_maps.cortex_striatum_map{:}), ...
     [],[],[wf_map_grp.animal,wf_map_grp.ld,domain_idx,plot_day_grp]);
 
-maps_corr_grid = corrcoef(reshape(maps_animal,[],size(maps_animal,3)));
+% Median filter and rectify > 0.5x max weight
+maps_animal_filt = medfilt3(maps_animal,[3,3,1]);
+maps_animal_filt(maps_animal_filt < max(maps_animal_filt,[],[1,2]).*0.5) = 0;
+
+% Get grid of correlations
+maps_corr_grid = corrcoef(reshape(maps_animal_filt,[],size(maps_animal_filt,3)));
 animal_grid = repmat(maps_grp(:,1),1,size(maps_grp,1));
 
-fprintf('Correlation within vs across day group:\n');
+% Loop through domains, get corr across day vs day-shuffle w/i animal
+print_stat('Map correlation across day group vs shuffle:\n');
 for curr_domain = 1:n_domains
 
     curr_idx = ...
         maps_grp(:,1) == maps_grp(:,1)' & ...   % same animal
         (maps_grp(:,3) == curr_domain & ...
         maps_grp(:,3)' == curr_domain) & ...    % in domain
-        maps_grp(:,4) ~= maps_grp(:,4)' & ...   % across days
+        maps_grp(:,4) ~= maps_grp(:,4)' & ...   % across day groups
         tril(true(size(maps_grp,1)),-1);        % single comparisons
 
-    map_corr = mean(ap.groupfun(@median,maps_corr_grid(curr_idx),animal_grid(curr_idx)));
+    map_corr = mean(ap.groupfun(@mean,maps_corr_grid(curr_idx),animal_grid(curr_idx)));
 
     [~,~,shuff_grp] = unique(maps_grp(:,[1,3]),'rows');
     n_shuff = 10000;
@@ -288,65 +292,18 @@ for curr_domain = 1:n_domains
             maps_grp(:,1) == maps_grp(:,1)' & ...   % same animal
             (maps_grp(:,3) == curr_domain & ...
             maps_grp(:,3)' == curr_domain) & ...    % in domain
-            day_grp_shuff ~= day_grp_shuff' & ...   % across days
+            day_grp_shuff ~= day_grp_shuff' & ...   % across day groups
             tril(true(size(maps_grp,1)),-1);        % single comparisons
 
-        map_corr_shuff(curr_shuff) = mean(ap.groupfun(@median, ...
+        map_corr_shuff(curr_shuff) = mean(ap.groupfun(@mean, ...
             maps_corr_grid(curr_idx),animal_grid(curr_idx)));
     end
 
     stat_rank = tiedrank([map_corr;map_corr_shuff]);
     stat_p = stat_rank(1)/(n_shuff+1);
-    fprintf('Domain %d, p = %.2g\n',curr_domain,stat_p);
+    print_stat('Domain %d, p = %.2g\n',curr_domain,stat_p);
 
 end
-
-
-% another shuff option: mean by day group, then correlate
-% (this is non-sig, but super slow)
-
-[maps_animal,maps_grp] = ap.groupfun(@mean, ...
-    cat(3,ctx_str_maps.cortex_striatum_map{:}), ...
-    [],[],[wf_map_grp.animal,wf_map_grp.ld,domain_idx,plot_day_grp]);
-
-[maps_learnavg,maps_learnavg_grp] = ap.nestgroupfun({@mean,@mean}, ...
-    reshape(maps_animal,[],size(maps_animal,3))', ...
-    maps_grp(:,1),[maps_grp(:,3),maps_grp(:,4)]);
-
-map_corr_grid = corrcoef(maps_learnavg');
-
-curr_idx = maps_learnavg_grp(:,1) == maps_learnavg_grp(:,1)' & ...
-    maps_learnavg_grp(:,2) ~= maps_learnavg_grp(:,2)' & ...
-    tril(true(size(maps_learnavg_grp,1)),-1);
-
-map_corr = map_corr_grid(curr_idx);
-
-[~,~,shuff_grp] = unique(maps_grp(:,[1,3]),'rows');
-n_shuff = 1000;
-map_corr_shuff = nan(n_domains,n_shuff);
-for curr_shuff = 1:n_shuff
-    day_grp_shuff = ap.shake(maps_grp(:,4),1,shuff_grp);
-
-    [maps_learnavg,maps_learnavg_grp] = ap.nestgroupfun({@mean,@mean}, ...
-        reshape(maps_animal,[],size(maps_animal,3))', ...
-        maps_grp(:,1),[maps_grp(:,3),day_grp_shuff]);
-
-    map_corr_grid = corrcoef(maps_learnavg');
-
-    curr_idx = maps_learnavg_grp(:,1) == maps_learnavg_grp(:,1)' & ...
-        maps_learnavg_grp(:,2) ~= maps_learnavg_grp(:,2)' & ...
-        tril(true(size(maps_learnavg_grp,1)),-1);
-
-    map_corr_shuff(:,curr_shuff) = map_corr_grid(curr_idx);
-    disp(curr_shuff);
-end
-
-stat_rank = tiedrank([map_corr,map_corr_shuff]')';
-stat_p = stat_rank(:,1)/(n_shuff+1);
-for curr_domain = 1:n_domains
-    fprintf('Domain %d, p = %.2g\n',curr_domain,stat_p(curr_domain));
-end
-
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag

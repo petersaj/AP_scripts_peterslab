@@ -64,6 +64,7 @@ end
 
 % Load maps
 load(fullfile(data_path,'ctx_str_maps'));
+% load(fullfile(data_path,'ctx_str_maps_Umaster'));
 U_size = size(ctx_str_maps.cortex_striatum_map{1},[1,2]);
 
 % K-means cluster maps
