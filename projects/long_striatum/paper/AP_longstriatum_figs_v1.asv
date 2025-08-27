@@ -1072,16 +1072,15 @@ for curr_celltype = striatum_celltypes
         if curr_ax > 1
             h_scatter(curr_celltype_idx,curr_ax).XTick = '';
             h_scatter(curr_celltype_idx,curr_ax).YTick = '';
-        else
-            title(curr_celltype);
         end
     end
+
+    title(curr_celltype);
+
 end
 for curr_celltype = 1:length(striatum_celltypes)
     linkaxes(h_scatter(curr_celltype,:));
-    ax_range = [0,max(cell2mat(ylim(h_scatter(curr_celltype,:))),[],'all')];
-    [h_scatter(curr_celltype,:).XLim] = deal(ax_range);
-    [h_scatter(curr_celltype,:).YLim] = deal(ax_range);
+
 end
 ap.prettyfig;
 

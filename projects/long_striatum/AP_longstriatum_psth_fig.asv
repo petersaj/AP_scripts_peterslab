@@ -109,17 +109,14 @@ for curr_workflow = plot_workflows
     end
     for curr_raster = 1:length(raster)
         nexttile(h); hold on;
-
-        % Sub-sample to only plot max of n trials        
-        raster_trials_n = 50;
-        raster_trials_plot = unique(round(linspace(1,size(raster{curr_raster},1),raster_trials_n)));
-
-        [raster_y,raster_x] = find(raster{curr_raster}(trial_sort{curr_raster}(raster_trials_plot),:));
+        [raster_y,raster_x] = find(raster{curr_raster}(trial_sort{curr_raster},:));
         plot(raster_t(raster_x),raster_y,'.','color',curr_colors{curr_raster});
         xlim(raster_window)
         axis off
         set(gca,'YDir','reverse');
-        line(repelem(0,2),[0,length(raster_trials_plot)],'color','r','linewidth',1);
+        xline(0,'r');
+
+        line(repelem(min(xlim),2),[0,length(use_align)],'m','linewi)
 
         if contains(bonsai_workflow,'lcr')
             title('Passive');
