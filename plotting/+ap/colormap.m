@@ -3,8 +3,10 @@ function cmap = colormap(cmap_type,n_colors,cmap_gamma)
 % cmap = ap.colormap(cmap_type,n_colors,cmap_gamma)
 %
 % cmap_type: color extremes as letters, or 'tube' for categorical (max n=15)
-% (currently defined: W,K,G,B,P,R, base must be W or K)
+% (currently defined by letter: W,K,G,B,P,R, base must be W or K)
+% (can also be a number as angle, e.g. 'W70')
 % e.g. 'WR' = white->red, 'BKR' = blue->black->red
+%
 %
 % n_colors: number of colors along the map (default = 2^8 = 256)
 %
@@ -58,13 +60,15 @@ end
 
 %% If color gradient chosen, create gradient
 
+custom_color = sscanf(cmap_type,'%*c%u');
+
 % Set default number of colors
 if ~exist('n_colors','var') || isempty(n_colors)
     n_colors = 2^8; % default 8-bit color
 end
 
 % If diverging colormap, force number of colors to be odd
-if length(cmap_type) == 3
+if length(cmap_type) == 3 && isempty(custom_color)
     n_colors = n_colors - (1-mod(n_colors,2));
 end
 
@@ -98,7 +102,14 @@ col.P = 315;
 col.B = 250;
 col.R = 30;
 
+% (custom color: add into X and re-set cmap_type as X - slightly hacky)
+if ~isempty(custom_color)
+    col.X = custom_color;
+    cmap_type = strrep(cmap_type,num2str(custom_color),'X');
+end
+
 % (to plot colors while writing/troubleshooting)
+% (this doesn't work anymore...?)
 plot_col = false;
 if plot_col
     all_col = cell2mat(cellfun(@(x) permute(lab2rgb(interp1([K_lum,W_lum], ...

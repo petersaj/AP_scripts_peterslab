@@ -928,7 +928,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP025';
+animal = 'AP023';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');
