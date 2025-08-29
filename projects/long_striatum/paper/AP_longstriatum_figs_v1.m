@@ -167,7 +167,8 @@ for curr_rec_idx = plot_days
     % Plot average domain map colored and combined
     domain_avg = ap.groupfun(@mean,ctx_str_maps.cortex_striatum_map{use_rec},[],[],domain_idx_rec{use_rec});
 
-    domain_color = {'R','G','B'};
+    % domain_color = {'R','G','B'};
+    domain_color = {'180','60','310'};
     col_lim = [0,0.01];
     domain_colored = nan([size(domain_avg),3]);
     for curr_domain = 1:n_domains
@@ -236,7 +237,8 @@ plot_day_grp = discretize(max(wf_map_grp.ld,-inf),plot_day_bins);
     wf_map_grp.animal,[plot_day_grp,domain_idx]);
 
 figure('Name','Fig 1 cstr maps');
-domain_color = {'R','G','B'};
+% domain_color = {'R','G','B'};
+domain_color = {'180','60','310'};
 h = tiledlayout(n_domains,length(plot_day_bins)-1,'TileSpacing','none');
 for curr_domain = 1:n_domains
     for curr_day = 1:length(plot_day_bins)-1
@@ -1484,7 +1486,8 @@ use_ld = 0;
 use_rec = strcmp(bhv.animal,use_animal) & bhv.days_from_learning == use_ld;
 use_cortex_kernel = ctx_str_maps.cortex_striatum_map{use_rec};
 
-domain_color = {'R','G','B'};
+% domain_color = {'R','G','B'};
+domain_color = {'180','60','310'};
 
 % Plot all domains
 % (grayscale and colored by domain)
