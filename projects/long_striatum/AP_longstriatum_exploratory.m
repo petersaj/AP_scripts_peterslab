@@ -2631,7 +2631,7 @@ for i = 1:n_k
     ap.wf_draw('ccf','k');
 end
 
-%%%%%
+%%%%%%
 
 % get rid of maps that aren't at least x correlation to template 
 
