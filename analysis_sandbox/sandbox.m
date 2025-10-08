@@ -216,7 +216,8 @@ end
 % workflow = '*no_change*';
 % workflow = '*opacity*';
 % workflow = '*angle*';
-workflow = 'stim_wheel_right_stage1';
+% workflow = 'stim_wheel_right_stage1';
+workflow = 'ImageDisplay';
 
 task_dir = dir(fullfile(plab.locations.server_data_path, ...
     '**','bonsai','**',strcat(workflow,'.bonsai')));
