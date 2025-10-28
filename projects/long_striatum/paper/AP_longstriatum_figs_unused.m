@@ -1253,7 +1253,7 @@ linkaxes(vertcat(h_units.Children.Children),'x');
 ap.prettyfig;
 
 
-%% [Supp. Fig 1x] Cortex map passive max
+%% [Supp. Fig 1x] Cortex image passive max
 
 %%% Load data for figure
 load_dataset = 'passive';

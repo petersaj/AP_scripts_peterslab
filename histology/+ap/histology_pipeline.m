@@ -9,7 +9,7 @@
 % step?
 
 % Set animal and plot probe positions
-animal = 'DS010';
+animal = 'AP009';
 ap.plot_probe_positions(animal);
 
 % Day selection for each histology trajectory
@@ -31,7 +31,7 @@ disp(['Saved ' probe_ccf_filename]);
 
 %% Align histology depth to recording
 
-animal = 'DS010';
+animal = 'AP009';
 
 probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
     'histology','*','probe_ccf.mat'));
@@ -57,7 +57,7 @@ for curr_probe = 1:length(probe_ccf)
         continue
     end
 
-    % Plot tajectory areas
+    % Plot trajectory areas
     trajectory_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
         probe_ccf(curr_probe).trajectory_areas.color_hex_triplet,'uni',false)),[1,3,2]);
 
@@ -111,8 +111,8 @@ fprintf('Saved %s\n',probe_ccf_filename);
 
 %% Align depth to recording for one day? 
 
-animal = 'AP015';
-rec_day = '2024-02-22';
+animal = 'AP009';
+rec_day = '2023-07-12';
 load_parts.ephys = true;
 ap.load_recording;
 
@@ -255,11 +255,16 @@ end
 allen_atlas_path = fileparts(which('template_volume_10um.npy'));
 st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
 
-slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP014\histology\processed';
+slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP009\histology';
+
+rec_day = '2023-07-12';
+animal = 'AP009';
+load_parts.ephys = true;
+ap.load_recording;
 
 use_probe = 1;
 AP_align_probe_histology(st,slice_path, ...
-    spike_times_timeline,spike_templates,template_depths,1);
+    spike_times_timelite,spike_templates,template_depths,1);
 
 
 

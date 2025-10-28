@@ -32,6 +32,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
             vertcat(trial_events.values(1:n_trials).TaskType) == 0;
     else
         use_trials = true(size(stim_to_move));
+        % use_trials = ap.quantile_bin(length(stim_to_move),3) == 3;
     end
 
     align_times = [ ...
@@ -118,26 +119,26 @@ set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
 [roi_trace,roi_mask] = ap.wf_roi(wf_U,wf_V,wf_avg);
 
-% % LCR passive: align to quiescent stim onset
-% stim_window = [0,0.5];
-% quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-%     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-%     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-%     1:length(stimOn_times))';
-% 
-% align_times = stimOn_times(quiescent_trials);
-% if isfield(trial_events.values,'TrialStimX')
-%     align_category_all = vertcat(trial_events.values.TrialStimX);
-% elseif isfield(trial_events.values,'StimFrequence')
-%     align_category_all = vertcat(trial_events.values.StimFrequence);
-% end
-% align_category = align_category_all(quiescent_trials);
-% baseline_times = stimOn_times(quiescent_trials);
+% LCR passive: align to quiescent stim onset
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    1:length(stimOn_times))';
 
-% (task)
-align_times = stimOn_times(1:n_trials);
-baseline_times = stimOn_times(1:n_trials);
-align_category = ones(size(align_times));
+align_times = stimOn_times(quiescent_trials);
+if isfield(trial_events.values,'TrialStimX')
+    align_category_all = vertcat(trial_events.values.TrialStimX);
+elseif isfield(trial_events.values,'StimFrequence')
+    align_category_all = vertcat(trial_events.values.StimFrequence);
+end
+align_category = align_category_all(quiescent_trials);
+baseline_times = stimOn_times(quiescent_trials);
+
+% % (task)
+% align_times = stimOn_times(1:n_trials);
+% baseline_times = stimOn_times(1:n_trials);
+% align_category = ones(size(align_times));
 
 % Align ROI trace to align times
 surround_window = [-1,2];
@@ -161,7 +162,9 @@ h = tiledlayout(1,max(align_id));
 for curr_id = 1:max(align_id)
 
     curr_trials = find(align_id == curr_id);
-    [~,sort_idx] = sort(stim_to_move(curr_trials));
+
+    sort_idx = 1:length(curr_trials);
+    % [~,sort_idx] = sort(stim_to_move(curr_trials));
 
     nexttile;
     imagesc(t,[],aligned_trace_baselinesub(curr_trials(sort_idx),:))
@@ -187,10 +190,10 @@ stim_regressors = cell2mat(arrayfun(@(x) ...
     histcounts(stimOn_times(stim_type == x),time_bins), ...
     unique(stim_type),'uni',false));
 
-n_components = 500;
+n_components = 200;
 
-frame_shifts = -5:20;
-lambda = 10;
+frame_shifts = -5:30;
+lambda = 20;
 cv = 1;
 
 skip_t = 10; % seconds start/end to skip for artifacts

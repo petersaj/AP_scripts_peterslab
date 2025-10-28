@@ -168,7 +168,7 @@ if plot_units
         ap.load_recording;
 
         unit_axes = nexttile(h); hold on;
-        ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas,unit_axes);
+        ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas,unit_axes);
 
         drawnow;
 

@@ -1,5 +1,5 @@
 function unit_dots = plot_unit_depthrate(spike_times,spike_templates,template_depths,probe_areas,plot_axes)
-% plot_unit_depthrate(spike_templates,template_depths,probe_areas,plot_axes)
+% plot_unit_depthrate(spike_times,spike_templates,template_depths,probe_areas,plot_axes)
 %
 % Plot unit depth vs spike rate, with areas (if available)
 

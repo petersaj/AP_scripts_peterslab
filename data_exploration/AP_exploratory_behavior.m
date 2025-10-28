@@ -4,19 +4,17 @@
 %% Align mousecam to event
 
 % (passive)
-stim_window = [0,0.2];
+stim_window = [0,0.5];
 quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
     1:length(stimOn_times))';
 
-% use_align = stimOn_times(quiescent_trials);
-
 % stim_x = vertcat(trial_events.values.StimFrequence);
 % use_align = stimOn_times(stim_x == 8000  & quiescent_trials);
 
-% stim_x = vertcat(trial_events.values.TrialStimX);
-% use_align = stimOn_times(stim_x == 90);
+stim_x = vertcat(trial_events.values.TrialStimX);
+use_align = stimOn_times(quiescent_trials & stim_x == 90);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x(1:n_trials) == 90);
@@ -26,7 +24,7 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 
 % use_align = reward_times;
 
-use_align = stimOn_times;
+% use_align = stimOn_times;
 
 % use_align = stimOff_times(trial_opacity == 1);
 
