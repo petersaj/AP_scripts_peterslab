@@ -205,7 +205,7 @@ n_components = 200;
 
 frame_shifts = 0:20;
 lambda = 20;
-cv = 3;
+cv = 2l;
 
 skip_t = 10; % seconds start/end to skip for artifacts
 skip_frames = round(skip_t*wf_framerate);
