@@ -498,7 +498,7 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 %%%
 
-plot_day_bins = [-8,-1,0,Inf];
+plot_day_bins = [-8,-2,-1,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -556,7 +556,7 @@ Marica_2025.figures.load_data;
 %%%
 
 % plot_day_bins = [-8,-1,0,Inf];
-plot_day_bins = [-8,-1,0,Inf];
+plot_day_bins = [-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -670,8 +670,8 @@ for curr_compare_day = 1:length(plot_day_bins)-2
     [striatum_mua_nomove_animal,striatum_mua_nomove_animal_grp] = ...
         ap.groupfun(@nanmean,striatum_mua_nomove, ...
         [striatum_mua_grp.animal,striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
-    [~,~,striatum_shuffgroup] = unique(striatum_mua_nomove_animal_grp(:,[1,3]),'rows'); % within animals
-    % [~,~,striatum_shuffgroup] = unique(striatum_mua_nomove_animal_grp(:,[3]),'rows'); % across animals
+    % [~,~,striatum_shuffgroup] = unique(striatum_mua_nomove_animal_grp(:,[1,3]),'rows'); % within animals
+    [~,~,striatum_shuffgroup] = unique(striatum_mua_nomove_animal_grp(:,[3]),'rows'); % across animals
     striatum_mua_nomove_animal_tmax = max(striatum_mua_nomove_animal(:,striatum_stim_t),[],2);
 
     striatum_stat_usedata = ismember(striatum_mua_nomove_animal_grp(:,2),compare_day_grps);
@@ -683,11 +683,11 @@ for curr_compare_day = 1:length(plot_day_bins)-2
     striatum_stat_null = nan(n_domains,n_shuff);
     for curr_shuff = 1:n_shuff
 
-        curr_ctx_shuff = ... % within animals
-            ap.shake(wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:),1, ...
-            wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,1));
-        % curr_ctx_shuff = ... % across animals
-        %     ap.shake(wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:),1);
+        % curr_ctx_shuff = ... % within animals
+        %     ap.shake(wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:),1, ...
+        %     wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,1));
+        curr_ctx_shuff = ... % across animals
+            ap.shake(wf_striatum_roi_nomove_animal_tmax(cortex_stat_usedata,:,:),1);
 
         cortex_stat_null(:,curr_shuff) = ...
             permute(diff(ap.groupfun(@mean,curr_ctx_shuff, ...
@@ -724,7 +724,7 @@ end
 %% Task stats: shuffle days across animals (not just within)
 
 % plot_day_bins = [-8,-1,0,Inf];
-plot_day_bins = [-8,-2,0,2];
+plot_day_bins = [-8,-2,-1,0,1];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -739,7 +739,7 @@ wf_striatum_roi_nomove = wf_striatum_roi(:,:,:,1).*ap.nanout(wf_t > wf_grp.rxn-m
 % wf_striatum_roi_nomove = wf_striatum_roi(:,:,:,1).*ap.nanout(wf_grp.rxn < 0.3);
 
 
-curr_compare_day = 1;
+curr_compare_day = 3;
 
 compare_day_grps = curr_compare_day+[0,1];
 

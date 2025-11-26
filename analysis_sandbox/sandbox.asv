@@ -18,13 +18,15 @@ basicUrl = 'https://oxford.mcms-pro.com/api';
 % basicUrl = 'https://oxford-uat.mcms-pro.com/api';
 authenticateEndpoint = [basicUrl '/authenticate'];
 
-mcms_login = inputdlg({'MCMS username','MCMS password'});
+usr = inputdlg('MCMS password');
 
+usr = 'ap7';
+psw = 'Bluecookiejar';
 
 headers = struct;
 headers.Accept = '*/*';
-headers.username = mcms_login{1};
-headers.password = mcms_login{2};
+headers.username = usr;
+headers.password = psw;
 
 header_cell = [fieldnames(headers),struct2cell(headers)];
 
