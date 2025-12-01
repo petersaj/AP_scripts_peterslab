@@ -2,129 +2,12 @@
 %
 % dev/test code
 
-%% Testing MCMS API
 
-% MCMS API documentation is here:
-% Production: https://oxford.colonymanagement.org/api/swagger-ui/index.html
-% Test: https://oxford-uat.colonymanagement.org/api/swagger-ui/index.html
+%% MCMS API test
 
-% Get authentication token
+mcms_token = plab.mcms.login;
 
-% API index: https://oxford.mcms-pro.com/api/swagger-ui/index.html
-
-% (production)
-basicUrl = 'https://oxford.mcms-pro.com/api';
-% (test database)
-% basicUrl = 'https://oxford-uat.mcms-pro.com/api';
-authenticateEndpoint = [basicUrl '/authenticate'];
-
-mcms_login = inputdlg({'MCMS username','MCMS password'});
-
-
-headers = struct;
-headers.Accept = '*/*';
-headers.username = mcms_login{1};
-headers.password = mcms_login{2};
-
-header_cell = [fieldnames(headers),struct2cell(headers)];
-
-options = weboptions( ...
-    'MediaType','application/json', ...
-    'ContentType','json', ...
-    'RequestMethod','post', ...
-    'HeaderFields',header_cell);
-mcms_token = webread(authenticateEndpoint,options);
-
-
-% Get procedure list
-
-proceduresEndpoint = [basicUrl '/procedures'];
-headers = struct;
-headers.Accept = 'application/json';
-headers.Authorization = ['Bearer ' mcms_token.token];
-
-header_cell = [fieldnames(headers),struct2cell(headers)];
-
-options = weboptions( ...
-    'MediaType','application/json', ...
-    'ContentType','json', ...
-    'HeaderFields',header_cell);
-
-data = webread(proceduresEndpoint,options);
-
-% Get weights
-
-curr_animal = '02150140';
-
-endpoint = [basicUrl '/animalweights/animal/' curr_animal];
-headers = struct;
-headers.Accept = 'application/json';
-headers.Authorization = ['Bearer ' mcms_token.token];
-
-header_cell = [fieldnames(headers),struct2cell(headers)];
-
-options = weboptions( ...
-    'MediaType','application/json', ...
-    'ContentType','json', ...
-    'HeaderFields',header_cell);
-
-data = webread(endpoint,options);
-
-
-data_timestamps = datetime({data.sampleDate},'InputFormat','yyyy-MM-dd''T''HH:mm:ss.SSSZ','TimeZone','local');
-
-[~,sort_idx] = sort(data_timestamps);
-[data(sort_idx).weightValue]
-
-
-% Get animal via name
-curr_animal = 'TOAA2.1d';
-endpoint = [basicUrl '/animals/name/' curr_animal];
-headers = struct;
-headers.Accept = 'application/json';
-headers.Authorization = ['Bearer ' mcms_token.token];
-
-header_cell = [fieldnames(headers),struct2cell(headers)];
-
-options = weboptions( ...
-    'MediaType','application/json', ...
-    'ContentType','json', ...
-    'HeaderFields',header_cell);
-
-data = webread(endpoint,options);
-
-
-% Get project licenses
-
-endpoint = [basicUrl '/projectlicenses'];
-headers = struct;
-headers.Accept = 'application/json';
-headers.Authorization = ['Bearer ' mcms_token.token];
-
-header_cell = [fieldnames(headers),struct2cell(headers)];
-
-options = weboptions( ...
-    'MediaType','application/json', ...
-    'ContentType','json', ...
-    'HeaderFields',header_cell);
-
-data = webread(endpoint,options);
-
-% Cohort history
-curr_animal = '2152600';
-endpoint = [basicUrl '/animalcohorthistory/animal/' curr_animal];
-headers = struct;
-headers.Accept = 'application/json';
-headers.Authorization = ['Bearer ' mcms_token.token];
-
-header_cell = [fieldnames(headers),struct2cell(headers)];
-
-options = weboptions( ...
-    'MediaType','application/json', ...
-    'ContentType','json', ...
-    'HeaderFields',header_cell);
-
-data = webread(endpoint,options);
+weights = plab.mcms.query(mcms_token,'weight','AP032');
 
 
 %% temp histology: combine jpg channels
@@ -143,6 +26,7 @@ for slice = 1:8
     curr_gr_filename = fullfile(save_path,sprintf('%d.tif',slice));
     imwrite(curr_gr,curr_gr_filename);
 end
+
 
 %% temp histology: combine tiff channels
 

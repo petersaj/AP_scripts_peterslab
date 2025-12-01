@@ -189,7 +189,7 @@ colormap(AP_colormap('PWG'));
 %% Passive kernel
 
 switch bonsai_workflow
-    case 'lcr_passive'
+    case {'lcr_passive','lcr_passive_size60'}
         stim_type = vertcat(trial_events.values.TrialStimX);
     case 'hml_passive_audio'
         stim_type = vertcat(trial_events.values.StimFrequence);
