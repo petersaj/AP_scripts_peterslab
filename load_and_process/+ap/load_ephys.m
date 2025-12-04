@@ -71,10 +71,10 @@ open_ephys_path = cellfun(@(ephys_path,ephys_name) ...
     {open_ephys_path_dir.folder},{open_ephys_path_dir.name},'uni',false);
 
 % Get start time of ephys recording (unused currently)
-ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir(1).folder),'settings.xml');
-ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
-ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
-    'InputFormat','dd MMM yyyy HH:mm:ss');
+% ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir(1).folder),'settings.xml');
+% ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
+% ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
+%     'InputFormat','dd MMM yyyy HH:mm:ss');
 
 % Load Open Ephys metadata (for sample rate)
 oe_metadata_fn = fullfile(open_ephys_path{1},'structure.oebin');

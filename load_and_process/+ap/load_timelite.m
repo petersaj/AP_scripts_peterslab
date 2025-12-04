@@ -28,24 +28,26 @@ mousecam_exposeOff_times = timelite.timestamps(find(diff(mousecam_thresh) == -1)
 
 % Widefield times
 widefield_idx = strcmp({timelite.daq_info.channel_name}, 'widefield_camera');
-widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
-widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
-% clean noisy widefield trace if there are flips within 2 samples
-% (have seen twice: DS019 2025-01-20 0906, HA000 2025-01-21 1327)
-% (ignore first and last - can be funny depending on start/end signal)
-widefield_flip_idx = find(diff(widefield_thresh) ~= 0);
-if min(diff(widefield_flip_idx(2:end-1))) == 1
-    widefield_expose_times = timelite.timestamps(find(diff( ...
-        logical(medfilt1(+widefield_thresh,3))) == 1) + 1);
-    warning('%s %s %s: noisy widefield expose signal,median-filtering',animal,rec_day,rec_time);
-end
-% (if stuck high at start, long dark exposure as first frame, add first timepoint as timestamp)
-if widefield_thresh(1)
-    widefield_expose_times = [timelite.timestamps(1);widefield_expose_times];
-end
-% (if stuck high at the end, unrecorded bad frame: remove timestamp)
-if widefield_thresh(end)
-    widefield_expose_times(end) = [];
+if any(widefield_idx)
+    widefield_thresh = timelite.data(:,widefield_idx) >= ttl_thresh;
+    widefield_expose_times = timelite.timestamps(find(diff(widefield_thresh) == 1) + 1);
+    % clean noisy widefield trace if there are flips within 2 samples
+    % (have seen twice: DS019 2025-01-20 0906, HA000 2025-01-21 1327)
+    % (ignore first and last - can be funny depending on start/end signal)
+    widefield_flip_idx = find(diff(widefield_thresh) ~= 0);
+    if min(diff(widefield_flip_idx(2:end-1))) == 1
+        widefield_expose_times = timelite.timestamps(find(diff( ...
+            logical(medfilt1(+widefield_thresh,3))) == 1) + 1);
+        warning('%s %s %s: noisy widefield expose signal,median-filtering',animal,rec_day,rec_time);
+    end
+    % (if stuck high at start, long dark exposure as first frame, add first timepoint as timestamp)
+    if widefield_thresh(1)
+        widefield_expose_times = [timelite.timestamps(1);widefield_expose_times];
+    end
+    % (if stuck high at the end, unrecorded bad frame: remove timestamp)
+    if widefield_thresh(end)
+        widefield_expose_times(end) = [];
+    end
 end
 
 % Wheel position and velocity
@@ -55,7 +57,11 @@ wheel_position = timelite.data(:,timelite_wheel_idx);
 
 % Screen on times
 screen_idx = strcmp({timelite.daq_info.channel_name}, 'stim_screen');
-screen_on = timelite.data(:,screen_idx) > ttl_thresh;
+if any(screen_idx)
+    screen_on = timelite.data(:,screen_idx) > ttl_thresh;
+else
+    screen_on = true(size(timelite.timestamps));
+end
 
 % Photodiode flips
 photodiode_idx = strcmp({timelite.daq_info.channel_name}, 'photodiode');

@@ -435,7 +435,7 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 %%%
 
-plot_day_bins = [-10,-1,0,Inf];
+plot_day_bins = [-10,-2,0,Inf];
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
@@ -498,7 +498,7 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 %%%
 
-plot_day_bins = [-10,-1,0,Inf];
+plot_day_bins = [-10,-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -931,7 +931,7 @@ colormap(ap.colormap('PWG',[],1.5));
 clim([-1,1]*3e-3);
 axis image off;
 
-%% striatum TASK: get day it's different from previous 
+%% striatum TASK: get day it's different from first
 % (not working at the moment)
 
 %%% Load data for figure
@@ -957,16 +957,16 @@ for curr_animal = 1:length(unique(bhv.animal,'stable'))
     for curr_day = curr_animal_tds(2:end)'
 
         curr_baseline_trials = striatum_mua_grp.animal == curr_animal & ...
-            striatum_mua_grp.td < curr_day & ...
+            striatum_mua_grp.td == curr_day-1 & ...
             striatum_mua_grp.rxn >= rxn_cutoff & ...
             striatum_mua_grp.domain_idx == 1;
 
         curr_day_trials = striatum_mua_grp.animal == curr_animal & ...
             striatum_mua_grp.td == curr_day & ...
             striatum_mua_grp.rxn >= rxn_cutoff  &...
-            striatum_mua_grp.domain_idx == 1;
+            striatum_mua_grp.domain_idx;
 
-        if sum(curr_baseline_trials) < 10 || sum(curr_day_trials) < 10
+        if sum(curr_day_trials) < 10
             continue
         end
 
@@ -1051,10 +1051,6 @@ for curr_animal = 1:length(unique(bhv.animal,'stable'))
     n_shuff = 2000;
     mpfc_p = nan(size(curr_animal_tds));
     for curr_day = curr_animal_tds(2:end)'
-
-        curr_baseline_trials = wf_grp.animal == curr_animal & ...
-            wf_grp.td < curr_day & ...
-            wf_grp.rxn >= rxn_cutoff;
 
         curr_day_trials = wf_grp.animal == curr_animal & ...
             wf_grp.td == curr_day & ...

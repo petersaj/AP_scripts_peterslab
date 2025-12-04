@@ -303,7 +303,7 @@ ap.wf_retinotopy
 
 %% Create alignments
 
-animal = 'AP005';
+animal = 'AP034';
 
 % Get and save VFS maps for animal
 plab.wf.retinotopy_vfs_batch(animal);
