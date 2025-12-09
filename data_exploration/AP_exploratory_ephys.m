@@ -97,6 +97,8 @@ if contains(bonsai_workflow,{'passive','Image'})
     align_times_all = stimOn_times; 
     if isfield(trial_events.values,'TrialStimX')
         align_category_all = vertcat(trial_events.values.TrialStimX);
+    elseif isfield(trial_events.values,'TrialStimY')
+        align_category_all = vertcat(trial_events.values.TrialStimY);
     elseif isfield(trial_events.values,'StimFrequence')
         align_category_all = vertcat(trial_events.values.StimFrequence);
     elseif isfield(trial_events.values,'PictureID')
@@ -158,6 +160,10 @@ if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_x = vertcat(trial_events.values.TrialStimX);
     align_times = cellfun(@(x) stimOn_times(stim_x(1:length(stimOn_times)) == x & quiescent_trials),num2cell(unique(stim_x)),'uni',false);
+elseif contains(bonsai_workflow,'tmb')
+    % (vis passive)
+    stim_y = vertcat(trial_events.values.TrialStimY);
+    align_times = cellfun(@(x) stimOn_times(stim_y(1:length(stimOn_times)) == x & quiescent_trials),num2cell(unique(stim_y)),'uni',false);
 elseif contains(bonsai_workflow,'hml')
     % (aud passive)
     stim_x = vertcat(trial_events.values.StimFrequence);
@@ -198,6 +204,10 @@ if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimX);
     use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 90 & quiescent_trials);
+elseif contains(bonsai_workflow,'tmb')
+    % (vis passive)
+    stim_type = vertcat(trial_events.values.TrialStimY);
+    use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 30 & quiescent_trials);
 elseif contains(bonsai_workflow,'hml')
     % (aud passive)
     stim_type = vertcat(trial_events.values.StimFrequence);
@@ -225,7 +235,7 @@ event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
 event_response_p = event_response_rank(:,1)./(n_shuff+1);
 
 % Plot responsive units by depth
-unit_dots = ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas);
+unit_dots = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas);
 unit_dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
 
 % Plot rasters of responsive units (from above - if done)

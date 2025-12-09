@@ -174,8 +174,8 @@ if contains(bonsai_workflow,'stim_wheel')
 %     event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
 
 
-%% LCR passive, visual conditioning
-elseif contains(bonsai_workflow,{'lcr_passive','visual','passive_audio','ImageDisplay','auditory_operant'})
+%% Passive workflows
+elseif contains(bonsai_workflow,{'lcr_passive','visual','passive_audio','ImageDisplay','auditory_operant','tmb_passive'})
     % Passive protocol stim on times
 
     % Photodiode bug (old, now fixed): screen could flick to black briefly

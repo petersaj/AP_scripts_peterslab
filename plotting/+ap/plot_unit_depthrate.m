@@ -15,7 +15,13 @@ if exist('probe_areas','var') && ~isempty(probe_areas)
     probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
         probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
 
-    probe_areas_boundaries = probe_areas{1}.probe_depth;
+    if any(ismember(probe_areas{1}.Properties.VariableNames,'probe_depth'))
+        % (old format)
+        probe_areas_boundaries = probe_areas{1}.probe_depth;
+    elseif any(ismember(probe_areas{1}.Properties.VariableNames,'tip_distance'))
+        % (new format)
+        probe_areas_boundaries = 3840-probe_areas{1}.tip_distance*1000;
+    end
     probe_areas_centers = mean(probe_areas_boundaries,2);
 
     probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');

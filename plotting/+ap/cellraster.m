@@ -102,10 +102,10 @@ if exist('probe_areas','var')
     % Get area depth on probe (update this eventually)
     if any(strcmp('probe_depth',probe_areas.Properties.VariableNames))
         % Old: "probe_depth" relative to top to bank 0
-    probe_areas_boundaries = probe_areas.probe_depth;
-    elseif any(strcmp('probe_tip_distance',probe_areas.Properties.VariableNames))
-        % New: "probe_tip_distance" relative to probe tip
-        probe_areas_boundaries = 3.84-probe_areas.probe_tip_distance;
+        probe_areas_boundaries = probe_areas.probe_depth;
+    elseif any(strcmp('tip_distance',probe_areas.Properties.VariableNames))
+        % New: "tip_distance" relative to probe tip
+        probe_areas_boundaries = max(channel_positions(:,2))-probe_areas.tip_distance*1000;
     end
     probe_areas_centers = mean(probe_areas_boundaries,2);
 
