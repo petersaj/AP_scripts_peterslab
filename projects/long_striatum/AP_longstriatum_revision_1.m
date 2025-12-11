@@ -435,7 +435,7 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 %%%
 
-plot_day_bins = [-10,-1,0,Inf];
+plot_day_bins = [-Inf,-2,0,Inf];
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
@@ -498,7 +498,7 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 %%%
 
-plot_day_bins = [-10,-1,0,Inf];
+plot_day_bins = [-Inf,-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -556,7 +556,7 @@ Marica_2025.figures.load_data;
 %%%
 
 % plot_day_bins = [-8,-1,0,Inf];
-plot_day_bins = [-10,-2,0,Inf];
+plot_day_bins = [-Inf,-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -1111,11 +1111,11 @@ wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
         num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
-% % (to put back)
-% wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-%         num2cell(bhv.days_from_learning),wf.V_event_align,'uni',false));
-% striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-%         num2cell(bhv.days_from_learning),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+% (to put back)
+wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
+        num2cell(bhv.days_from_learning),wf.V_event_align,'uni',false));
+striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
+        num2cell(bhv.days_from_learning),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 %% mPFC TASK: get day it's different from baseline time
 

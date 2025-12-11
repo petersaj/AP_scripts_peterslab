@@ -191,7 +191,7 @@ xlabel('Time from event');
 %     'AP023','AP025'};
 
 animals = {'DS000','DS004','DS014','DS015','DS016'};
-animals = {'DS014'};
+animals = {'AP030'};
 % Set reaction statistic to use
 use_stat = 'mean';
 learn_p = 0.05;
@@ -207,9 +207,9 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    % use_workflow = 'stim_wheel*';
+    use_workflow = 'stim_wheel*';
     % use_workflow = 'stim_wheel_right_stage\d';
-    use_workflow = 'stim_wheel_right_stage\d_audio_volume';
+    % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
     % use_workflow = '*audio_volume*';
 %     use_workflow = '*audio_frequency*';
 %     use_workflow = '*no_change*';

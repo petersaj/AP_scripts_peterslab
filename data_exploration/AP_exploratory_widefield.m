@@ -114,16 +114,16 @@ clim(prctile(abs(aligned_px_avg(:)),100).*[-1,1]);
 axis image;
 set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
-% (to do median)
-aligned_px_median = ap.groupfun(@median, ...
-    plab.wf.svd2px(use_U,permute(aligned_v_baselinesub,[3,2,1])), ...
-    [],[],[],align_id);
-
-AP_imscroll(aligned_px_median,t);
-colormap(AP_colormap('PWG'));
-clim(prctile(abs(aligned_px_median(:)),100).*[-1,1]);
-axis image;
-set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
+% % (to do median)
+% aligned_px_median = ap.groupfun(@median, ...
+%     plab.wf.svd2px(use_U,permute(aligned_v_baselinesub,[3,2,1])), ...
+%     [],[],[],align_id);
+% 
+% AP_imscroll(aligned_px_median,t);
+% colormap(AP_colormap('PWG'));
+% clim(prctile(abs(aligned_px_median(:)),100).*[-1,1]);
+% axis image;
+% set(gcf,'name',sprintf('%s %s %s',animal,rec_day,bonsai_workflow));
 
 
 %% Align ROI to event
