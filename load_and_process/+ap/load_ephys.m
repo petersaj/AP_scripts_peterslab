@@ -320,7 +320,7 @@ if exist('probe_histology','var') && isfield(probe_histology.probe_ccf,'day') &&
     probe_areas = {probe_histology.probe_ccf(probe_histology_day_idx).trajectory_areas};
     if verbose; disp('Ephys: Loaded histology positions...'); end
 elseif exist('probe_nte','var')
-    probe_areas = probe_nte.probe_areas;
+    probe_areas = probe_nte.probe_areas(load_probe);
     if verbose; disp('Ephys: Loaded NTE positions...'); end
 end
 
