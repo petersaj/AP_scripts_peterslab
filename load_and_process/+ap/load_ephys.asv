@@ -24,10 +24,7 @@ if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
 
 %% Load and prepare Kilosort data
 
-% Set default probe to load
-if ~exist('load_probe','var')
-    load_probe = 1;
-end
+load_probe = 1;
 
 % NOTE: this doesn't allow for concatenated recordings at the moment. I
 % think this was multiple 'recording' folders in one experiment? But I
@@ -270,21 +267,23 @@ elseif length(flipper_flip_times_ephys) > length(flipper_times)
     % flips from a bad connection or resting voltage: remove short upward
     % flips
 
+
     bad_ephys_flips_down = open_ephys_flipper.value(curr_ephys_flipper_idx) == -1 & ...
         [0;diff(flipper_flip_times_ephys)] < 0.05;
 
-    use_ephys_flips = ~bad_ephys_flips_down & ~circshift(bad_ephys_flips_down,-1);
+    bad_ephys_flips = vertcat(find(bad_ephys_flips_down),find(bad_ephys_flips_down)-1);
 
-    if sum(use_ephys_flips) == length(flipper_times)
-        % Successful if same number of matched flips:
-        % use subset of ephys flips
-        sync_ephys = flipper_flip_times_ephys(use_ephys_flips);
-        % use all timelite flips
-        sync_timelite = flipper_times;
-    else
-        % If not, unclear where the matched flips are, error out
-        error('%s %s: flips ephys > timelite, cannot fix',animal,rec_day);
-    end
+    use_ephys_flips = 
+
+    flipper_flip_times_ephys(bad_ephys_flips) = [];
+
+    bad_ephys_flips = find(diff(flipper_flip_times_ephys)<0.05)+1;
+
+    r = flipper_flip_times_ephys(bad_ephys_flips)-ephys_timelite_flipper_lag;
+
+
+    error('%s %s: flips ephys > timelite, cannot fix',animal,rec_day);
+
 
 end
 
@@ -308,7 +307,8 @@ if ~isempty(histology_probe_filename)
 end
 
 % (load NTE positions if available)
-nte_positions_filename = dir(fullfile(ephys_path,'*probe_positions*.mat'));
+nte_positions_filename = dir(fullfile( ...
+    fileparts(open_ephys_path_dir(1).folder),'*probe_positions*.mat'));
 if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end

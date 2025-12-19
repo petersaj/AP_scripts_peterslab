@@ -1,4 +1,6 @@
 % (First: align/preprocess with AP_histology)
+%
+% This has become just a sandbox for histology
 
 %% Match trajectories with days
 % (plot NTE/histology days, select corresponding days from list)
@@ -255,10 +257,10 @@ end
 allen_atlas_path = fileparts(which('template_volume_10um.npy'));
 st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
 
-slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP009\histology';
+slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP010\histology';
 
-rec_day = '2023-07-12';
-animal = 'AP009';
+rec_day = '2023-08-24';
+animal = 'AP010';
 load_parts.ephys = true;
 ap.load_recording;
 
@@ -267,9 +269,98 @@ AP_align_probe_histology(st,slice_path, ...
     spike_times_timelite,spike_templates,template_depths,1);
 
 
+%% Testing: annotator saved coords
+
+annotation_vertices_ccf = ...
+    [vertcat(AP_histology_processing.annotation.vertices_ccf.ap), ...
+    vertcat(AP_histology_processing.annotation.vertices_ccf.ml), ...
+    vertcat(AP_histology_processing.annotation.vertices_ccf.dv)];
+
+% Create axis
+figure('color','w');
+ccf_ax = axes;
+set(ccf_ax,'ZDir','reverse');
+axis(ccf_ax,'vis3d','equal','manual','tight');
+hold(ccf_ax,'on');
+view(ccf_ax,[-30,25]);
+h_rot = rotate3d(ccf_ax);
+h_rot.Enable = 'on';
+
+% Plot 3D brain outlines
+[av,tv,gui_data.st] = ap_histology.load_ccf;
+
+slice_spacing = 5;
+brain_volume = ...
+    bwmorph3(bwmorph3(av(1:slice_spacing:end, ...
+    1:slice_spacing:end,1:slice_spacing:end)>1,'majority'),'majority');
+brain_outline_patchdata = isosurface(permute(brain_volume,[3,1,2]),0.5);
+brain_outline = patch(ccf_ax, ...
+    'Vertices',brain_outline_patchdata.vertices*slice_spacing, ...
+    'Faces',brain_outline_patchdata.faces, ...
+    'FaceColor',[0.7,0.7,0.7],'EdgeColor','none','FaceAlpha',0.1);
+
+% Plot annotation points
+plot3(annotation_vertices_ccf(:,1),annotation_vertices_ccf(:,2),annotation_vertices_ccf(:,3),'.r','MarkerSize',20)
 
 
 
+%% Testing: depth alignment tool v2
+
+allen_atlas_path = fileparts(which('template_volume_10um.npy'));
+st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
+
+animal = 'AP009';
+histology_path = fullfile(plab.locations.server_path,'Data',animal,'histology');
+
+rec_day = '2023-06-26';
+rec_time = '1603';
+
+load_parts.ephys = true;
+verbose = true;
+ap.load_recording;
+
+use_probe = 1;
+ap.histology_ephys_align(st,histology_path, ...
+    spike_times_timelite,spike_templates,template_depths,1);
+
+
+%% Grab areas along trajectory from probe annotation
+
+slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP009\histology';
+
+% Load probe CCF
+histology_processing_fn = fullfile(slice_path,'AP_histology_processing.mat');
+load(histology_processing_fn);
+
+annotation_vertices_ccf = ...
+    [vertcat(AP_histology_processing.annotation.vertices_ccf.ap), ...
+    vertcat(AP_histology_processing.annotation.vertices_ccf.dv), ...
+    vertcat(AP_histology_processing.annotation.vertices_ccf.ml)];
+
+
+%%%%% TEMP: grabbing from other places
+
+[av,tv,st] = ap_histology.load_ccf;
+
+% Get line of best fit through mean of marked points
+% (ensure vector goes downward in DV)
+probe_coords_mean = mean(annotation_vertices_ccf,1);
+xyz = bsxfun(@minus,annotation_vertices_ccf,probe_coords_mean);
+[~,~,V] = svd(xyz,0);
+histology_probe_direction = V(:,1).*[1;sign(V(2,1));1];
+
+% Evaluate line of best fit (length of probe to deepest point)
+[~,deepest_probe_idx] = max(annotation_vertices_ccf(:,2));
+probe_deepest_point = annotation_vertices_ccf(deepest_probe_idx,:);
+probe_deepest_point_com_dist = pdist2(probe_coords_mean,probe_deepest_point);
+probe_length_ccf = 3840/10; % mm / ccf voxel size
+
+probe_line_eval = probe_deepest_point_com_dist - [probe_length_ccf,0];
+probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
+
+%%%%%%%
+%%%% WORKING HERE: grab indices from probe trajectory
+%%%%%%%
 
 
 

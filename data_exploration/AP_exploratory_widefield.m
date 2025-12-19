@@ -316,14 +316,14 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'HA009';
+animal = 'DS025';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});
 wf_recordings = recordings(wf_days_idx);
 
 avg_im_aligned = cell(size(wf_recordings));
-for curr_day = 1:length(wf_recordings)
+for curr_day = 1%:length(wf_recordings)
     day = wf_recordings(curr_day).day;
 
     img_path = plab.locations.filename('server', ...

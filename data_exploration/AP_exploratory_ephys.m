@@ -203,7 +203,7 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimX);
-    use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 90 & quiescent_trials);
+    use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 0 & quiescent_trials);
 elseif contains(bonsai_workflow,'tmb')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimY);
@@ -938,7 +938,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AM025';
+animal = 'AP019';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');

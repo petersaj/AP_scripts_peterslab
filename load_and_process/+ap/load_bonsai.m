@@ -74,7 +74,7 @@ end
 %% --- Workflow-specific loading ---
 
 %% Stim wheel (task)
-if contains(bonsai_workflow,'stim_wheel')
+if contains(bonsai_workflow,'wheel')
     % Task: stim and response times
 
     % Photodiode bug (old, now fixed): screen could flick to black briefly
@@ -147,7 +147,7 @@ if contains(bonsai_workflow,'stim_wheel')
         end
     else
         % Without Bonsai event: closest reward to stim off on rewarded trials       
-        if n_trials > 1
+        if n_trials > 1 && ~isempty(reward_times)
             reward_times_task = interp1(reward_times,reward_times, ...
                 stimOff_times(trial_outcome(1:min(n_trials,length(stimOff_times)))==1),'nearest','extrap');
         end

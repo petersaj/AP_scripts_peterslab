@@ -16,8 +16,8 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 % stim_x = vertcat(trial_events.values.TrialStimX);
 % use_align = stimOn_times(quiescent_trials & stim_x == 90);
 
-stim_y = vertcat(trial_events.values.TrialStimY);
-use_align = stimOn_times(quiescent_trials & stim_y == 30);
+% stim_y = vertcat(trial_events.values.TrialStimY);
+% use_align = stimOn_times(quiescent_trials & stim_y == 30);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % use_align = stimOn_times(stim_x(1:n_trials) == 90);
@@ -27,7 +27,7 @@ use_align = stimOn_times(quiescent_trials & stim_y == 30);
 
 % use_align = reward_times;
 
-% use_align = stimOn_times;
+use_align = stimOn_times;
 
 % use_align = stimOff_times(trial_opacity == 1);
 
@@ -44,7 +44,7 @@ use_align = stimOn_times(quiescent_trials & stim_y == 30);
 vr = VideoReader(mousecam_fn);
 cam_im1 = read(vr,1);
 
-surround_times = [-0.2,1];
+surround_times = [-0.2,5];
 
 mousecam_framerate = vr.FrameRate;
 surround_frames = round(surround_times*mousecam_framerate);
@@ -190,8 +190,9 @@ xlabel('Time from event');
 %     'AM018','AM019','AM021','AM022','AM026','AM029', ...
 %     'AP023','AP025'};
 
-animals = {'DS000','DS004','DS014','DS015','DS016'};
-animals = {'AP030'};
+% animals = {'DS000','DS004','DS014','DS015','DS016'};
+% animals = {'AP030','AP031','AP032'};
+animals = {'AP033','AP034'};
 % Set reaction statistic to use
 use_stat = 'mean';
 learn_p = 0.05;
@@ -207,7 +208,7 @@ for curr_animal_idx = 1:length(animals)
 
     animal = animals{curr_animal_idx};
 
-    use_workflow = 'stim_wheel*';
+    use_workflow = '*wheel*';
     % use_workflow = 'stim_wheel_right_stage\d';
     % use_workflow = 'stim_wheel_right_stage\d_audio_volume';
     % use_workflow = '*audio_volume*';
