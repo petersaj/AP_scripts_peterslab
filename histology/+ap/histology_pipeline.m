@@ -326,7 +326,7 @@ ap.histology_ephys_align(st,histology_path, ...
 
 %% Grab areas along trajectory from probe annotation
 
-slice_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP009\histology';
+slice_path = 'C:\Users\peter\OneDrive\Desktop\test_hist';
 
 % Load probe CCF
 histology_processing_fn = fullfile(slice_path,'AP_histology_processing.mat');
@@ -346,7 +346,7 @@ annotation_vertices_ccf = ...
 probe_direction = probe_fit(:,1);
 % (ensure vector goes downward in DV)
 probe_direction(2) = abs(probe_direction(2));
-probe_vector = probe_coords_mean + padarray(probe_direction',[1,0],0,'pre');
+probe_vector = mean(annotation_vertices_ccf,1) + padarray(probe_direction',[1,0],0,'pre');
 
 % Grab AV values across probe trajectory
 max_eval = round(sqrt(max(size(av)).^2*2));
@@ -373,7 +373,8 @@ figure;image(trajectory_areas_rgb)
 % points - (not needed now? raw points)
 % trajectory_coords - CCF [n x 3]
 % trajectory areas - AV [n x 1]
-
+probe_ccf = struct('trajectory_coords',eval_points_ccf, ...
+    'trajectory_areas',probe_trajectory_av);
 
 % Draw points
 figure('color','w');
