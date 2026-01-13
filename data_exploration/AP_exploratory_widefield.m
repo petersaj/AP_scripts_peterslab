@@ -202,9 +202,9 @@ stim_regressors = cell2mat(arrayfun(@(x) ...
 
 n_components = 200;
 
-frame_shifts = 0:20;
+frame_shifts = -10:30;
 lambda = 20;
-cv = 3;
+cv = 1;
 
 skip_t = 10; % seconds start/end to skip for artifacts
 skip_frames = round(skip_t*wf_framerate);
@@ -255,9 +255,9 @@ stim_regressors = histcounts(stimOn_times,time_bins);
 
 n_components = 200;
 
-frame_shifts = 0:20;
+frame_shifts = -10:30;
 lambda = 20;
-cv_fold = 3;
+cv_fold = 1;
 
 skip_t = 60; % seconds start/end to skip for artifacts
 skip_frames = round(skip_t*wf_framerate);

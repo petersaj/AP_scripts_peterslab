@@ -1745,20 +1745,13 @@ spikes_norm_smooth_fcn = @(spikes,baseline) ...
     smoothdata((spikes-baseline)./(baseline+softnorm),2, ...
     'gaussian',[100,0]);
 
-striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
-    striatum_mua_sum,mua_baseline,'uni',false);
+striatum_mua_rec = cell2mat(cellfun(spikes_norm_smooth_fcn, ...
+    striatum_mua_sum,mua_baseline,'uni',false));
 
-striatum_mua_max_rec = cellfun(@(data,domain,rxn) ...
-    max([nanmean(data(rxn>rxn_cutoff,striatum_stim_t,domain==1,1),1),NaN],[],2), ...
-    striatum_mua_rec,striatum_domain_idx,bhv.stim_to_move, ...
-    'ErrorHandler',@(varargin) NaN);    
 
-figure; hold on
-yyaxis left; plot(rxn_idx,striatum_mua_max_rec,'.');
-ylabel('Str 1');
-yyaxis right; plot(rxn_idx,wf_striatum_roi_max_rec(:,2),'.')
-ylabel('mPFC');
-xlabel('Performance')
+
+
+
 
 
 

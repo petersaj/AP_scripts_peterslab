@@ -1,4 +1,6 @@
 function where2slice(animal)
+% where2slice(animal)
+%
 % Plot the anterior- and posterior-most CCF slices with probe to give a
 % ballpark of where to slice for histology
 
