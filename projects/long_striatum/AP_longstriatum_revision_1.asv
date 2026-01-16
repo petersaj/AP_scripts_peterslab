@@ -184,7 +184,8 @@ Marica_2025.figures.load_data;
 %%%
 
 % plot_day_bins = [-Inf,-2,0,2];
-plot_day_bins = [-10,-1,0,Inf];
+% plot_day_bins = [-10,-1,0,Inf];
+plot_day_bins = -10:10;
 
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
@@ -1692,14 +1693,37 @@ striatum_mua_grp.td = cell2mat(cellfun(@(grp,n_trials,n_mua) ...
     repmat(grp,n_trials*n_mua,1),num2cell(td_cat), ...
     num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
+%% (testing: plot psth for individual animal)
 
-%% Task: activity v performance
+spikes_norm_smooth_fcn = @(spikes,baseline) ...
+    smoothdata((spikes-baseline)./(baseline+softnorm),2, ...
+    'gaussian',[100,0]);
 
+striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
+    striatum_mua_sum,mua_baseline,'uni',false);
+
+
+striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
+    nanmean(data(trials,:,domain==1,1),1), ...
+    striatum_mua_rec,striatum_domain_idx,use_trials, ...
+    'ErrorHandler',@(varargin) NaN(1,1501),'uni',false);  
+
+striatum_mua_max_rec{25} = nan(1,1501);
+x = cell2mat(striatum_mua_max_rec);
+
+figure;plot(psth_t,x(strcmp(bhv.animal,'AM029'),:)');
+
+
+%% Activity v performance (task or passive)
+
+% Get performance as reaction index
 rxn_meas = cellfun(@nanmean,bhv.stim_to_move);
 rxn_null = cellfun(@nanmean,bhv.stim_to_move_nullmean);
 
 rxn_idx = (rxn_null-rxn_meas)./(rxn_null+rxn_meas);
 
+% rxn_idx = cellfun(@nanmedian,bhv.stim_to_move);
+% rxn_idx = bhv.days_from_learning;
 
 n_learned_day = cellfun(@(x) max([0, ...
     find(bhv.learned_days(strcmp(bhv.animal,x)),1)]), ...
@@ -1719,39 +1743,168 @@ for curr_animal = unique(bhv.animal)'
         rxn_idx(strcmp(bhv.animal,curr_animal)));
 end
 
-figure;plot(sort(rxn_idx),'.-k');
 
-
-
-
-
-rxn_cutoff = 0.3;
+% Get activity 
 
 % Average day, get max in time window
 stim_t = [0,0.2];
 cortex_stim_t = isbetween(wf_t,stim_t(1),stim_t(2));
 striatum_stim_t = isbetween(psth_t,stim_t(1),stim_t(2));
 
-% (cortex)
-use_wf_trials = wf_grp.rxn > rxn_cutoff;
+switch load_dataset
+    case 'task'
+        rxn_cutoff = 0.3;
+        use_trials = cellfun(@(x) x > rxn_cutoff,bhv.stim_to_move,'uni',false);
+    case 'passive'
+        use_trials = cellfun(@(x) x == 90,wf.trial_stim_values,'uni',false);
+end
+
 wf_striatum_roi_max_rec = cell2mat(cellfun(@(data,trials) ...
     squeeze(max(nanmean(data(trials,cortex_stim_t,:),1),[],2))', ...
     mat2cell(wf_striatum_roi(:,:,:,1),cortex_trials_rec_n,length(wf_t),3), ...
-    mat2cell(use_wf_trials,cortex_trials_rec_n),'uni',false));
+    use_trials,'uni',false));
 
-
-% (striatum)
 spikes_norm_smooth_fcn = @(spikes,baseline) ...
     smoothdata((spikes-baseline)./(baseline+softnorm),2, ...
     'gaussian',[100,0]);
+striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
+    striatum_mua_sum,mua_baseline,'uni',false);
 
-striatum_mua_rec = cell2mat(cellfun(spikes_norm_smooth_fcn, ...
-    striatum_mua_sum,mua_baseline,'uni',false));
+striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
+    max([nanmean(data(trials,striatum_stim_t,domain==1,1),1),NaN],[],2), ...
+    striatum_mua_rec,striatum_domain_idx,use_trials, ...
+    'ErrorHandler',@(varargin) NaN);    
+
+
+figure; hold on
+yyaxis left; plot(rxn_idx,striatum_mua_max_rec,'.','MarkerSize',15);
+ylabel('Str1');
+yyaxis right; plot(rxn_idx,wf_striatum_roi_max_rec(:,2),'.','MarkerSize',15)
+ylabel('mPFC');
+xlabel('Performance')
+
+
+n_rec = cellfun(@(x) sum(strcmp(x,bhv.animal)),unique(bhv.animal,'stable'));
+figure; 
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(striatum_mua_max_rec,n_rec));
+ylabel('Str1');
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
+ylabel('mPFC');
+
+figure; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y,z) plot3(x(~isnan(y)),y(~isnan(y)),z(~isnan(y)),'.','MarkerSize',15), ...
+    mat2cell(rxn_idx,n_rec),mat2cell(striatum_mua_max_rec,n_rec),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
+xlabel('Performance');
+ylabel('Striatum');
+zlabel('Cortex');
+view([45,45]); axis vis3d; grid on;
+
+
+n_rec = cellfun(@(x) sum(strcmp(x,bhv.animal)),unique(bhv.animal,'stable'));
+figure; 
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(y,'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(striatum_mua_max_rec,n_rec));
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(y,'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
+
+
+str_padcat = AP_padcatcell(mat2cell(striatum_mua_max_rec,n_rec));
+mpfc_padcat = AP_padcatcell(mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
+figure;
+yyaxis left; hold on;
+plot(str_padcat)
+plot(nanmean(str_padcat,2),'linewidth',3);
+yyaxis right; hold on;
+plot(mpfc_padcat)
+plot(nanmean(mpfc_padcat,2),'linewidth',3);
+
+
+%% Widefield kernels 
+
+%%% Load non-activity data
+load_dataset = 'noact';
+Marica_2025.figures.load_data;
+%%%
+
+% Load kernels
+U_master = plab.wf.load_master_U;
+load(fullfile(data_path,'wf_kernels'));
+
+n_vs = 200;
+task_kernel_avg = plab.wf.svd2px(U_master(:,:,1:n_vs),nanmean(cat(4,wf_kernels.task_kernels{:}),4));
+passive_kernel_avg = plab.wf.svd2px(U_master(:,:,1:n_vs),nanmean(cat(4,wf_kernels.passive_kernels{:}),4));
+
+ap.imscroll(task_kernel_avg);axis image
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
+
+ap.imscroll(passive_kernel_avg);axis image
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
 
 
 
+x = plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.task_kernels{:}),[],[],[],bhv.days_from_learning>=0));
+ap.imscroll(squeeze(x));
+axis image
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
+
+x = plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.passive_kernels{:}),[],[],[],bhv.days_from_learning>=0));
+ap.imscroll(squeeze(x(:,:,:,3,:)));
+axis image
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
+
+ld_x = unique(bhv.days_from_learning(~isnan(bhv.days_from_learning)));
+% r = squeeze(max(plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.task_kernels{:}),[],[],[],bhv.days_from_learning)),[],3));
+% r = squeeze(max(plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.passive_kernels{:}),[],[],[],bhv.days_from_learning)),[],3));
+ap.imscroll(r);
+axis image;
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
 
 
+n_rec = cellfun(@(x) sum(strcmp(x,bhv.animal)),unique(bhv.animal,'stable'));
+m_t = cell2mat(cellfun(@(x) ap.wf_roi(U_master(:,:,1:n_vs),x,[],[],striatum_wf_roi(:,:,2)),wf_kernels.task_kernels,'uni',false));
+m_p = cell2mat(cellfun(@(x) ap.wf_roi(U_master(:,:,1:n_vs),x,[],[],striatum_wf_roi(:,:,2)),cellfun(@(x) x(:,:,3),wf_kernels.passive_kernels,'uni',false),'uni',false));
 
+m_t_max = mat2cell(max(m_t,[],2),n_rec);
+m_p_max = mat2cell(max(m_p,[],2),n_rec);
+
+ld_rec = mat2cell(bhv.days_from_learning,n_rec);
+
+figure; 
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.-','MarkerSize',15),ld_rec,m_t_max);
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.-','MarkerSize',15),ld_rec,m_p_max);
+
+figure;
+hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),m_p_max,m_t_max);
+
+rxn_meas = cellfun(@nanmean,bhv.stim_to_move);
+rxn_null = cellfun(@nanmean,bhv.stim_to_move_nullmean);
+rxn_idx = (rxn_null-rxn_meas)./(rxn_null+rxn_meas);
+rxn_idx_rec = mat2cell(rxn_idx,n_rec);
+figure; 
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),rxn_idx_rec,m_t_max);
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),rxn_idx_rec,m_p_max);
+
+figure;
+hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(p,x,y) plot3(p(~isnan(y)),x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),rxn_idx_rec,m_p_max,mat2cell(striatum_mua_max_rec,n_rec));
+view([45,45]); axis vis3d; grid on;
+xlabel('Performance');ylabel('mPFC');zlabel('Striatum');
+
+
+figure; hold on
+plot(ap.groupfun(@mean,cell2mat(m_p_max),bhv.days_from_learning), ...
+    ap.groupfun(@mean,cell2mat(m_p_max),bhv.days_from_learning)
 
 
