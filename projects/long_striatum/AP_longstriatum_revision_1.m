@@ -183,9 +183,9 @@ load_dataset = 'passive';
 Marica_2025.figures.load_data;
 %%%
 
-% plot_day_bins = [-Inf,-2,0,2];
+plot_day_bins = [-Inf,-2,0,2];
 % plot_day_bins = [-10,-1,0,Inf];
-plot_day_bins = -10:10;
+% plot_day_bins = -10:10;
 
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
@@ -500,6 +500,7 @@ Marica_2025.figures.load_data;
 %%%
 
 plot_day_bins = [-10,-1,0,Inf];
+% plot_day_bins = [-Inf,-2,0,Inf];
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 
@@ -1711,7 +1712,7 @@ striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
 striatum_mua_max_rec{25} = nan(1,1501);
 x = cell2mat(striatum_mua_max_rec);
 
-figure;plot(psth_t,x(strcmp(bhv.animal,'AM029'),:)');
+figure;plot(psth_t,x(strcmp(bhv.animal,'AM022'),:)');
 
 
 %% Activity v performance (task or passive)
@@ -1792,6 +1793,15 @@ ylabel('Str1');
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
 ylabel('mPFC');
+
+
+
+
+figure; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x(~isnan(x)),y(~isnan(x)),'.','MarkerSize',15), ...
+    mat2cell(striatum_mua_max_rec,n_rec),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
+xlabel('Striatum');
+ylabel('Cortex');
 
 figure; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
 cellfun(@(x,y,z) plot3(x(~isnan(y)),y(~isnan(y)),z(~isnan(y)),'.','MarkerSize',15), ...
@@ -1902,26 +1912,33 @@ cellfun(@(p,x,y) plot3(p(~isnan(y)),x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',
 view([45,45]); axis vis3d; grid on;
 xlabel('Performance');ylabel('mPFC');zlabel('Striatum');
 
-% (passive)
-figure; hold on
-plot(ap.groupfun(@nanmean,cell2mat(m_p_max),bhv.days_from_learning), ...
-    ap.groupfun(@nanmean,striatum_mua_max_rec,bhv.days_from_learning));
 
-striatum_mua_max_rec_norm = cell2mat(cellfun(@(x) x-x(1),mat2cell(striatum_mua_max_rec,n_rec),'uni',false));
-m_p_max_norm = cell2mat(cellfun(@(x) x-x(1),m_p_max,'uni',false));
-figure; hold on
-plot(ap.groupfun(@nanmean,m_p_max_norm,bhv.days_from_learning), ...
-    ap.groupfun(@nanmean,striatum_mua_max_rec_norm,bhv.days_from_learning));
+switch load_dataset
+    case 'passive'
+        plot_k = m_p_max;
+    case 'task'
+        plot_k = m_t_max;
+end
 
-% (task)
-figure; hold on
-plot(ap.groupfun(@nanmean,cell2mat(m_t_max),bhv.days_from_learning), ...
-    ap.groupfun(@nanmean,striatum_mua_max_rec,bhv.days_from_learning));
+figure; 
+nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),plot_k,mat2cell(striatum_mua_max_rec,n_rec));
+plot(ap.groupfun(@nanmean,cell2mat(plot_k),bhv.days_from_learning), ...
+    ap.groupfun(@nanmean,striatum_mua_max_rec,bhv.days_from_learning),'k','linewidth',2);
+xlabel('mPFC - kernel')
 
-striatum_mua_max_rec_norm = cell2mat(cellfun(@(x) x-x(1),mat2cell(striatum_mua_max_rec,n_rec),'uni',false));
-m_t_max_norm = cell2mat(cellfun(@(x) x-x(1),m_t_max,'uni',false));
-figure; hold on
-plot(ap.groupfun(@nanmean,m_t_max_norm,bhv.days_from_learning), ...
-    ap.groupfun(@nanmean,striatum_mua_max_rec_norm,bhv.days_from_learning));
+nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.','MarkerSize',15), ...
+    mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),mat2cell(striatum_mua_max_rec,n_rec));
+plot(ap.groupfun(@nanmean,wf_striatum_roi_max_rec(:,2),bhv.days_from_learning), ...
+    ap.groupfun(@nanmean,striatum_mua_max_rec,bhv.days_from_learning),'k','linewidth',2);
+xlabel('mPFC - dff')
 
 
+str_norm = cellfun(@(x) x./max(x),mat2cell(striatum_mua_max_rec,n_rec),'uni',false);
+figure; 
+nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
+cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),plot_k,str_norm);
+plot(ap.groupfun(@nanmean,cell2mat(plot_k),bhv.days_from_learning), ...
+    ap.groupfun(@nanmean,cell2mat(str_norm),bhv.days_from_learning),'k','linewidth',2);
+xlabel('mPFC - kernel')
