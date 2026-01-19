@@ -425,6 +425,39 @@ stat_rank = tiedrank([d;d_shuff]);
 stat_p = 1-stat_rank(:,1)/(n_shuff+1);
 disp(stat_p(1));
 
+%% Passive trial-smoothed
+
+% try averaging trial-trial trends normalized to training time
+figure; hold on;
+n_points = 50;
+data_interp = nan(2,n_points,14);
+for use_animal = 1:14
+
+    use_s = striatum_mua_grp.animal==use_animal & ...
+        striatum_mua_grp.domain_idx==1 & ...
+        striatum_mua_grp.ld > -inf & ...
+        striatum_mua_grp.stim == 90;
+
+    s = mean(striatum_mua(use_s,isbetween(psth_t,0.05,0.15),1),2);
+
+    s_days = unique(striatum_mua_grp.ld(use_s));
+    c = mean(wf_striatum_roi(wf_grp.stim == 90 & wf_grp.animal==use_animal & ismember(wf_grp.ld,s_days),isbetween(wf_t,0.05,0.15),2),2);
+
+    if isempty(c)
+        continue
+    end
+
+    s_smooth = smoothdata(s,'movmean',20);
+    c_smooth = smoothdata(c,'movmean',20);
+    plot(smoothdata(s,'movmean',100),smoothdata(c,'movmean',100));
+
+    data_interp(1,:,use_animal) = s_smooth(round(linspace(1,length(s_smooth),n_points)));
+    data_interp(2,:,use_animal) = c_smooth(round(linspace(1,length(c_smooth),n_points)));
+end
+
+figure; hold on;
+plot(permute(data_interp(1,:,:),[2,3,1]),permute(data_interp(2,:,:),[2,3,1]));
+plot(nanmean(data_interp(1,:,:),3),nanmean(data_interp(2,:,:),3),'k','linewidth',2)
 
 
 
@@ -1765,11 +1798,11 @@ wf_striatum_roi_max_rec = cell2mat(cellfun(@(data,trials) ...
     mat2cell(wf_striatum_roi(:,:,:,1),cortex_trials_rec_n,length(wf_t),3), ...
     use_trials,'uni',false));
 
-spikes_norm_smooth_fcn = @(spikes,baseline) ...
-    smoothdata((spikes-baseline)./(baseline+softnorm),2, ...
+spikes_norm_smooth_fcn = @(spikes,sub_baseline,div_baseline) ...
+    smoothdata((spikes-sub_baseline)./(div_baseline+softnorm),2, ...
     'gaussian',[100,0]);
 striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
-    striatum_mua_sum,mua_baseline,'uni',false);
+    striatum_mua_sum,mua_sub_baseline,mua_div_baseline,'uni',false);
 
 striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
     max([nanmean(data(trials,striatum_stim_t,domain==1,1),1),NaN],[],2), ...
@@ -1789,9 +1822,11 @@ n_rec = cellfun(@(x) sum(strcmp(x,bhv.animal)),unique(bhv.animal,'stable'));
 figure; 
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(striatum_mua_max_rec,n_rec));
+plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,striatum_mua_max_rec,bhv.days_from_learning),'k','linewidth',2)
 ylabel('Str1');
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec));
+plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,wf_striatum_roi_max_rec(:,2),bhv.days_from_learning),'k','linewidth',2)
 ylabel('mPFC');
 
 
@@ -1935,10 +1970,49 @@ plot(ap.groupfun(@nanmean,wf_striatum_roi_max_rec(:,2),bhv.days_from_learning), 
 xlabel('mPFC - dff')
 
 
-str_norm = cellfun(@(x) x./max(x),mat2cell(striatum_mua_max_rec,n_rec),'uni',false);
+% Normalize task/passive by LD0 (save striatum_mua_max_rec passive in as matlab.mat on desktop)
+x = load('C:\Users\petersa\Desktop\matlab.mat');
+norm_val = cellfun(@(x,y) max([(x(y>0)),nan]),mat2cell(striatum_mua_max_rec,n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
+str_task_norm = cellfun(@(x,y) x./y,mat2cell(striatum_mua_max_rec,n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+str_passive_norm = cellfun(@(x,y) x./y,mat2cell(x.striatum_mua_max_rec,n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+
+norm_val = cellfun(@(x,y) max([(x(y>0)),nan]),m_t_max,mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
+m_t_max_norm = cellfun(@(x,y) x./y,m_t_max,norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+m_p_max_norm = cellfun(@(x,y) x./y,m_p_max,norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+
+% % (dff)
+% y = load('C:\Users\petersa\Desktop\matlab2.mat');
+% norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
+% m_t_max_norm = cellfun(@(x,y) x./y,mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+% m_p_max_norm = cellfun(@(x,y) x./y,mat2cell(y.wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+
 figure; 
 nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
-cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),plot_k,str_norm);
-plot(ap.groupfun(@nanmean,cell2mat(plot_k),bhv.days_from_learning), ...
-    ap.groupfun(@nanmean,cell2mat(str_norm),bhv.days_from_learning),'k','linewidth',2);
-xlabel('mPFC - kernel')
+plot(ap.groupfun(@nanmean,cell2mat(m_t_max_norm),bhv.days_from_learning), ...
+    ap.groupfun(@nanmean,cell2mat(str_task_norm),bhv.days_from_learning),'k','linewidth',2);
+plot(ap.groupfun(@nanmean,cell2mat(m_p_max_norm),bhv.days_from_learning), ...
+    ap.groupfun(@nanmean,cell2mat(str_passive_norm),bhv.days_from_learning),'r','linewidth',2);
+xlabel('mPFC - kernel') 
+
+figure; tiledlayout(2,2);
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(bhv.days_from_learning,n_rec),str_task_norm);
+plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,cell2mat(str_task_norm),bhv.days_from_learning),'k','linewidth',2)
+title('task');
+ylabel('Str1');
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(bhv.days_from_learning,n_rec),str_passive_norm);
+plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,cell2mat(str_passive_norm),bhv.days_from_learning),'k','linewidth',2)
+ylabel('Str1');
+title('passive');
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(bhv.days_from_learning,n_rec),m_t_max_norm);
+plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,cell2mat(m_t_max_norm),bhv.days_from_learning),'k','linewidth',2)
+ylabel('mPFC');
+title('task');
+nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
+cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(bhv.days_from_learning,n_rec),m_p_max_norm);
+plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,cell2mat(m_p_max_norm),bhv.days_from_learning),'k','linewidth',2)
+ylabel('mPFC');
+title('passive');
+
