@@ -1798,11 +1798,11 @@ wf_striatum_roi_max_rec = cell2mat(cellfun(@(data,trials) ...
     mat2cell(wf_striatum_roi(:,:,:,1),cortex_trials_rec_n,length(wf_t),3), ...
     use_trials,'uni',false));
 
-spikes_norm_smooth_fcn = @(spikes,baseline) ...
-    smoothdata((spikes-baseline)./(baseline+softnorm),2, ...
+spikes_norm_smooth_fcn = @(spikes,sub_baseline,div_baseline) ...
+    smoothdata((spikes-sub_baseline)./(div_baseline+softnorm),2, ...
     'gaussian',[100,0]);
 striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
-    striatum_mua_sum,mua_baseline,'uni',false);
+    striatum_mua_sum,mua_sub_baseline,mua_div_baseline,'uni',false);
 
 striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
     max([nanmean(data(trials,striatum_stim_t,domain==1,1),1),NaN],[],2), ...
@@ -1970,16 +1970,6 @@ plot(ap.groupfun(@nanmean,wf_striatum_roi_max_rec(:,2),bhv.days_from_learning), 
 xlabel('mPFC - dff')
 
 
-% str_norm = cellfun(@(x) x./max(x),mat2cell(striatum_mua_max_rec,n_rec),'uni',false);
-str_norm = cellfun(@(x,y) x./max(x(y==0)),mat2cell(striatum_mua_max_rec,n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) []);
-figure; 
-nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
-cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),plot_k,str_norm);
-plot(ap.groupfun(@nanmean,cell2mat(plot_k),bhv.days_from_learning), ...
-    ap.groupfun(@nanmean,cell2mat(str_norm),bhv.days_from_learning),'k','linewidth',2);
-xlabel('mPFC - kernel')
-
-
 % Normalize task/passive by LD0 (save striatum_mua_max_rec passive in as matlab.mat on desktop)
 x = load('C:\Users\petersa\Desktop\matlab.mat');
 norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),mat2cell(striatum_mua_max_rec,n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
@@ -1990,12 +1980,11 @@ norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),m_t_max,mat2cell(bhv.days_from_le
 m_t_max_norm = cellfun(@(x,y) x./y,m_t_max,norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 m_p_max_norm = cellfun(@(x,y) x./y,m_p_max,norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 
-% (
-norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
-m_t_max_norm = cellfun(@(x,y) x./y,mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
-m_p_max_norm = cellfun(@(x,y) x./y,mat2cell(x.wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
-
-
+% % (dff)
+% y = load('C:\Users\petersa\Desktop\matlab2.mat');
+% norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
+% m_t_max_norm = cellfun(@(x,y) x./y,mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
+% m_p_max_norm = cellfun(@(x,y) x./y,mat2cell(y.wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 
 figure; 
 nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
@@ -2003,7 +1992,7 @@ plot(ap.groupfun(@nanmean,cell2mat(m_t_max_norm),bhv.days_from_learning), ...
     ap.groupfun(@nanmean,cell2mat(str_task_norm),bhv.days_from_learning),'k','linewidth',2);
 plot(ap.groupfun(@nanmean,cell2mat(m_p_max_norm),bhv.days_from_learning), ...
     ap.groupfun(@nanmean,cell2mat(str_passive_norm),bhv.days_from_learning),'r','linewidth',2);
-xlabel('mPFC - kernel')
+xlabel('mPFC - kernel') 
 
 figure; tiledlayout(2,2);
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))

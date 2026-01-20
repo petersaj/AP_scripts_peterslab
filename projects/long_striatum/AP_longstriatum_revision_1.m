@@ -1,3 +1,5 @@
+%% Exploratory/testing for revision
+
 %% Activity by learning for individual animals
 % (also fold in task vs passive?)
 
@@ -1972,11 +1974,11 @@ xlabel('mPFC - dff')
 
 % Normalize task/passive by LD0 (save striatum_mua_max_rec passive in as matlab.mat on desktop)
 x = load('C:\Users\petersa\Desktop\matlab.mat');
-norm_val = cellfun(@(x,y) max([(x(y>0)),nan]),mat2cell(striatum_mua_max_rec,n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
+norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),mat2cell(striatum_mua_max_rec,n_rec),mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
 str_task_norm = cellfun(@(x,y) x./y,mat2cell(striatum_mua_max_rec,n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 str_passive_norm = cellfun(@(x,y) x./y,mat2cell(x.striatum_mua_max_rec,n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 
-norm_val = cellfun(@(x,y) max([(x(y>0)),nan]),m_t_max,mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
+norm_val = cellfun(@(x,y) max([(x(y==0)),nan]),m_t_max,mat2cell(bhv.days_from_learning,n_rec),'uni',false,'ErrorHandler',@(varargin) NaN);
 m_t_max_norm = cellfun(@(x,y) x./y,m_t_max,norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 m_p_max_norm = cellfun(@(x,y) x./y,m_p_max,norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 
@@ -1994,6 +1996,8 @@ plot(ap.groupfun(@nanmean,cell2mat(m_p_max_norm),bhv.days_from_learning), ...
     ap.groupfun(@nanmean,cell2mat(str_passive_norm),bhv.days_from_learning),'r','linewidth',2);
 xlabel('mPFC - kernel') 
 
+
+ 
 figure; tiledlayout(2,2);
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(bhv.days_from_learning,n_rec),str_task_norm);
