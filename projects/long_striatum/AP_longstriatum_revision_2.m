@@ -3,20 +3,28 @@
 
 %%
 
+load_dataset_retain = false;
 
 %%% Load non-activity data
 load_dataset = 'noact';
 Marica_2025.figures.load_data;
 %%%
 
-% Average day, get max in time window
-stim_t = [0,0.2];
-cortex_stim_t = isbetween(wf_t,stim_t(1),stim_t(2));
-striatum_stim_t = isbetween(psth_t,stim_t(1),stim_t(2));
+% Set up data structure params
+data_grid_params = struct;
+
+data_grid_params.stim_t = [0,0.2];
+data_grid_params.cortex_stim_t = isbetween(wf_t,stim_t(1),data_grid_params.stim_t(2));
+data_grid_params.striatum_stim_t = isbetween(psth_t,stim_t(1),data_grid_params.stim_t(2));
 
 % Get activity in grid: [animal x day x domain x stim]
-ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
-grid_size = [length(unique(bhv.animal)),length(ld_unique),n_domains];
+data_grid_params.ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
+data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
+
+% Set up data structure
+data_grids = struct;
+
+clearvars -except load_dataset_retain data_grid_params data_grids
 
 % Get striatum activity: task
 
@@ -26,28 +34,28 @@ Marica_2025.figures.load_data;
 %%%
 
 striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
-[~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,ld_unique);
+[~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,data_grid_params.ld_unique);
 
 [striatum_rec,striatum_rec_grp] = ap.groupfun(@nanmean,striatum_mua(:,:,1), ...
     [striatum_mua_grp.animal,striatum_ld_idx,striatum_mua_grp.domain_idx].* ...
     ap.nanout(~(striatum_use_trials & striatum_ld_idx)));
-striatum_rec_tmax = max(striatum_rec(:,striatum_stim_t),[],2);
+striatum_rec_tmax = max(striatum_rec(:,data_grid_params.striatum_stim_t),[],2);
 
-striatum_task_grid = accumarray(striatum_rec_grp,striatum_rec_tmax,grid_size,[],NaN);
-striatum_grid_taskld0norm = striatum_task_grid./striatum_task_grid(:,ld_unique==0,:);
+data_grids.striatum_task = accumarray(striatum_rec_grp,striatum_rec_tmax,data_grid_params.grid_size,[],NaN);
 
 % (widefield)
 wf_use_trials = wf_grp.rxn > rxn_cutoff;
-[~,wf_ld_idx] = ismember(wf_grp.ld,ld_unique);
+[~,wf_ld_idx] = ismember(wf_grp.ld,data_grid_params.ld_unique);
 
 [wf_roi_rec,wf_roi_rec_grp] = ap.groupfun(@nanmean,wf_striatum_roi(:,:,:,1), ...
     [wf_grp.animal,wf_ld_idx].* ...
     ap.nanout(~(wf_use_trials & wf_ld_idx)));
-wf_roi_rec_tmax = permute(max(wf_roi_rec(:,cortex_stim_t,:),[],2),[1,3,2]);
+wf_roi_rec_tmax = permute(max(wf_roi_rec(:,data_grid_params.cortex_stim_t,:),[],2),[1,3,2]);
 
-wf_roi_task_grid = cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
-    wf_roi_rec_tmax(:,domain),grid_size(1:2),[],NaN('single')),1:n_domains,'uni',false),[1,3,2]));
+data_grids.wf_roi_task = cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
+    wf_roi_rec_tmax(:,domain),data_grid_params.grid_size(1:2),[],NaN('single')),1:n_domains,'uni',false),[1,3,2]));
 
+clearvars -except load_dataset_retain data_grid_params data_grids
 
 % Get striatum activity: passive
 
@@ -56,32 +64,39 @@ load_dataset = 'passive';
 Marica_2025.figures.load_data;
 %%%
 
-[~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,ld_unique);
+[~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,data_grid_params.ld_unique);
 [~,striatum_stim_idx] = ismember(striatum_mua_grp.stim,unique(striatum_mua_grp.stim));
 
 [striatum_rec,striatum_rec_grp] = ap.groupfun(@nanmean,striatum_mua(:,:,1), ...
     [striatum_mua_grp.animal,striatum_ld_idx,striatum_mua_grp.domain_idx,striatum_stim_idx].* ...
     ap.nanout(~(striatum_ld_idx)));
-striatum_rec_tmax = max(striatum_rec(:,striatum_stim_t),[],2);
+striatum_rec_tmax = max(striatum_rec(:,data_grid_params.striatum_stim_t),[],2);
 
-striatum_passive_grid = accumarray(striatum_rec_grp,striatum_rec_tmax,[grid_size,max(striatum_stim_idx)],[],NaN);
+data_grids.striatum_passive = accumarray(striatum_rec_grp,striatum_rec_tmax,[data_grid_params.grid_size,max(striatum_stim_idx)],[],NaN);
 
 
 % (widefield)
-[~,wf_ld_idx] = ismember(wf_grp.ld,ld_unique);
+[~,wf_ld_idx] = ismember(wf_grp.ld,data_grid_params.ld_unique);
 [~,wf_stim_idx] = ismember(wf_grp.stim,unique(wf_grp.stim));
 
 [wf_roi_rec,wf_roi_rec_grp] = ap.groupfun(@nanmean,wf_striatum_roi(:,:,:,1), ...
     [wf_grp.animal,wf_ld_idx,wf_stim_idx].* ...
     ap.nanout(~(wf_ld_idx)));
-wf_roi_rec_tmax = permute(max(wf_roi_rec(:,cortex_stim_t,:),[],2),[1,3,2]);
+wf_roi_rec_tmax = permute(max(wf_roi_rec(:,data_grid_params.cortex_stim_t,:),[],2),[1,3,2]);
 
-wf_roi_passive_grid = permute(cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
-    wf_roi_rec_tmax(:,domain),[grid_size(1:2),length(unique(wf_grp.stim))], ...
+data_grids.wf_roi_passive = permute(cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
+    wf_roi_rec_tmax(:,domain),[data_grid_params.grid_size(1:2),length(unique(wf_grp.stim))], ...
     [],NaN('single')),1:n_domains,'uni',false),[1,3,4,2])),[1,2,4,3]);
 
+clearvars -except load_dataset_retain data_grid_params data_grids
 
 % Get widefield stim kernels
+
+%%% Load non-activity data
+load_dataset = 'noact';
+Marica_2025.figures.load_data;
+%%%
+
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'wf_kernels'));
 
@@ -97,9 +112,9 @@ wf_kernel_roi_task = cell2mat(cellfun(@(x) ...
 
 wf_kernel_roi_task_tmax = permute(max(wf_kernel_roi_task,[],2),[1,3,2]);
 
-wf_kernel_roi_task_grid = ...
+data_grids.wf_kernel_roi_task = ...
     cell2mat(permute(arrayfun(@(domain) accumarray(wf_grid_idx(wf_grid_idx_use,:), ...
-    wf_kernel_roi_task_tmax(wf_grid_idx_use,domain),grid_size(1:2),[],NaN('single')), ...
+    wf_kernel_roi_task_tmax(wf_grid_idx_use,domain),data_grid_params.grid_size(1:2),[],NaN('single')), ...
     1:n_domains,'uni',false),[1,3,2]));
 
 % (passive)
@@ -108,32 +123,37 @@ wf_kernel_roi_passive = cell2mat(cellfun(@(x) ...
     wf_kernels.passive_kernels,'uni',false));
 wf_kernel_roi_passive_tmax = permute(max(wf_kernel_roi_passive,[],2),[1,3,4,2]);
 
-wf_kernel_roi_passive_grid = cell2mat(permute(arrayfun(@(stim) ...
+data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     cell2mat(permute(arrayfun(@(domain) accumarray(wf_grid_idx(wf_grid_idx_use,:), ...
-    wf_kernel_roi_passive_tmax(wf_grid_idx_use,domain,stim),grid_size(1:2),[],NaN('single')), ...
+    wf_kernel_roi_passive_tmax(wf_grid_idx_use,domain,stim),data_grid_params.grid_size(1:2),[],NaN('single')), ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
 
-
-% (normalize to task LD0)
-wf_kernel_roi_task_grid_ld0norm = wf_kernel_roi_task_grid./wf_kernel_roi_task_grid(:,ld_unique==0,:);
-wf_kernel_roi_passive_grid_ld0norm = wf_kernel_roi_passive_grid./wf_kernel_roi_task_grid(:,ld_unique==0,:);
+clearvars -except load_dataset_retain data_grid_params data_grids
 
 
 
 
-
-plot_ld_idx = sum(~isnan(striatum_rec_grid_ld0norm(:,:,1))) > 3;
-plot_stim = 3;
-plot_str = 1;
-plot_wf_roi = 2;
-
-figure; hold on;
-
-plot(nanmean(wf_kernel_roi_task_grid_ld0norm(:,plot_ld_idx,plot_wf_roi),1), ...
-    nanmean(striatum_rec_grid_ld0norm(:,plot_ld_idx,plot_str),1),'.-','MarkerSize',15);
-
-plot(nanmean(wf_kernel_roi_passive_grid_ld0norm(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
-    nanmean(striatum_rec_grid_ld0norm(:,plot_ld_idx,plot_str),1),'.-','MarkerSize',15);
+% % (normalize to task LD0)
+% wf_kernel_roi_task_grid_ld0norm = wf_kernel_roi_task_grid./wf_kernel_roi_task_grid(:,data_grid_params.ld_unique==0,:);
+% wf_kernel_roi_passive_grid_ld0norm = wf_kernel_roi_passive_grid./wf_kernel_roi_task_grid(:,data_grid_params.ld_unique==0,:);
+% 
+% 
+% striatum_grid_taskld0norm = striatum_task_grid./striatum_task_grid(:,data_grid_params.ld_unique==0,:);
+% 
+% 
+% 
+% plot_ld_idx = sum(~isnan(striatum_rec_grid_ld0norm(:,:,1))) > 3;
+% plot_stim = 3;
+% plot_str = 1;
+% plot_wf_roi = 2;
+% 
+% figure; hold on;
+% 
+% plot(nanmean(wf_kernel_roi_task_grid_ld0norm(:,plot_ld_idx,plot_wf_roi),1), ...
+%     nanmean(striatum_rec_grid_ld0norm(:,plot_ld_idx,plot_str),1),'.-','MarkerSize',15);
+% 
+% plot(nanmean(wf_kernel_roi_passive_grid_ld0norm(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
+%     nanmean(striatum_rec_grid_ld0norm(:,plot_ld_idx,plot_str),1),'.-','MarkerSize',15);
 
 
 
