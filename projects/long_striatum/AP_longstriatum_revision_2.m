@@ -1,16 +1,13 @@
 %% Cleaning up analyses from 1
 
 
-%%
+%% Plot striatum vs mPFC in task/passive
 
 load_dataset_retain = false;
 
-%%% Load non-activity data
-load_dataset = 'noact';
+% ~~ Set up data structure params
+load_dataset = 'passive';
 Marica_2025.figures.load_data;
-%%%
-
-% Set up data structure params
 data_grid_params = struct;
 
 data_grid_params.stim_t = [0,0.2];
@@ -26,13 +23,11 @@ data_grids = struct;
 
 clearvars -except load_dataset_retain data_grid_params data_grids
 
-% Get striatum activity: task
-
-%%% Load task data
+% ~~ Get task activity
 load_dataset = 'task';
 Marica_2025.figures.load_data;
-%%%
 
+% (striatum)
 striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
 [~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,data_grid_params.ld_unique);
 
@@ -57,13 +52,11 @@ data_grids.wf_roi_task = cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_r
 
 clearvars -except load_dataset_retain data_grid_params data_grids
 
-% Get striatum activity: passive
-
-%%% Load non-activity data
+% Get passive activity
 load_dataset = 'passive';
 Marica_2025.figures.load_data;
-%%%
 
+% (striatum)
 [~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,data_grid_params.ld_unique);
 [~,striatum_stim_idx] = ismember(striatum_mua_grp.stim,unique(striatum_mua_grp.stim));
 
@@ -73,7 +66,6 @@ Marica_2025.figures.load_data;
 striatum_rec_tmax = max(striatum_rec(:,data_grid_params.striatum_stim_t),[],2);
 
 data_grids.striatum_passive = accumarray(striatum_rec_grp,striatum_rec_tmax,[data_grid_params.grid_size,max(striatum_stim_idx)],[],NaN);
-
 
 % (widefield)
 [~,wf_ld_idx] = ismember(wf_grp.ld,data_grid_params.ld_unique);
@@ -90,12 +82,9 @@ data_grids.wf_roi_passive = permute(cell2mat(permute(arrayfun(@(domain) accumarr
 
 clearvars -except load_dataset_retain data_grid_params data_grids
 
-% Get widefield stim kernels
-
-%%% Load non-activity data
+% ~~ Get widefield stim kernels
 load_dataset = 'noact';
 Marica_2025.figures.load_data;
-%%%
 
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'wf_kernels'));
