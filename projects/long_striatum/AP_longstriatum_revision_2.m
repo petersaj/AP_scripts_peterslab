@@ -149,5 +149,11 @@ plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim)./str_
     nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim)./wf_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
 ylabel('mPFC (avg)')
 
-
+figure;
+nexttile; hold on;
+plot(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),data_grids.striatum_task(:,plot_ld_idx,plot_str),'.k','MarkerSize',15);
+line(ylim,ylim);xlabel('Passive');ylabel('Task');title('Striatum');
+nexttile; hold on;
+plot(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),'.k','MarkerSize',15);
+line(ylim,ylim);xlabel('Passive');ylabel('Task');title('Cortex');
 
