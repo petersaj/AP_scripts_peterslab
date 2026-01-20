@@ -3,7 +3,7 @@
 
 %% Plot striatum vs mPFC in task/passive
 
-load_dataset_retain = false;
+load_dataset_retain = true;
 
 % ~~ Set up data structure params
 load_dataset = 'passive';
@@ -11,8 +11,9 @@ Marica_2025.figures.load_data;
 data_grid_params = struct;
 
 data_grid_params.stim_t = [0,0.2];
-data_grid_params.cortex_stim_t = isbetween(wf_t,stim_t(1),data_grid_params.stim_t(2));
-data_grid_params.striatum_stim_t = isbetween(psth_t,stim_t(1),data_grid_params.stim_t(2));
+data_grid_params.cortex_stim_t = isbetween(wf_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
+data_grid_params.striatum_stim_t = isbetween(psth_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
+data_grid_params.rxn_cutoff = 0.3;
 
 % Get activity in grid: [animal x day x domain x stim]
 data_grid_params.ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
@@ -28,7 +29,7 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 
 % (striatum)
-striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
+striatum_use_trials = striatum_mua_grp.rxn > data_grid_params.rxn_cutoff;
 [~,striatum_ld_idx] = ismember(striatum_mua_grp.ld,data_grid_params.ld_unique);
 
 [striatum_rec,striatum_rec_grp] = ap.groupfun(@nanmean,striatum_mua(:,:,1), ...
