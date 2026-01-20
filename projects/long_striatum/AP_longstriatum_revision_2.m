@@ -40,7 +40,7 @@ striatum_rec_tmax = max(striatum_rec(:,data_grid_params.striatum_stim_t),[],2);
 data_grids.striatum_task = accumarray(striatum_rec_grp,striatum_rec_tmax,data_grid_params.grid_size,[],NaN);
 
 % (widefield)
-wf_use_trials = wf_grp.rxn > rxn_cutoff;
+wf_use_trials = wf_grp.rxn > data_grid_params.rxn_cutoff;
 [~,wf_ld_idx] = ismember(wf_grp.ld,data_grid_params.ld_unique);
 
 [wf_roi_rec,wf_roi_rec_grp] = ap.groupfun(@nanmean,wf_striatum_roi(:,:,:,1), ...
@@ -92,7 +92,7 @@ load(fullfile(data_path,'wf_kernels'));
 
 n_vs = size(wf_kernels.task_kernels{1},1);
 
-wf_grid_idx = [grp2idx(wf.animal),grp2idx(bhv.days_from_learning)];
+wf_grid_idx = [grp2idx(bhv.animal),grp2idx(bhv.days_from_learning)];
 wf_grid_idx_use = ~any(isnan(wf_grid_idx),2);
 
 % (task)
@@ -121,29 +121,33 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
 clearvars -except load_dataset_retain data_grid_params data_grids
 
 
+% ~~ Plot
+
+% (normalize to task LD0)
+str_normval = data_grids.striatum_task(:,data_grid_params.ld_unique==0,:);
+wf_normval = data_grids.wf_roi_task(:,data_grid_params.ld_unique==0,:);
+wf_kernel_normval = data_grids.wf_kernel_roi_task(:,data_grid_params.ld_unique==0,:);
 
 
-% % (normalize to task LD0)
-% wf_kernel_roi_task_grid_ld0norm = wf_kernel_roi_task_grid./wf_kernel_roi_task_grid(:,data_grid_params.ld_unique==0,:);
-% wf_kernel_roi_passive_grid_ld0norm = wf_kernel_roi_passive_grid./wf_kernel_roi_task_grid(:,data_grid_params.ld_unique==0,:);
-% 
-% 
-% striatum_grid_taskld0norm = striatum_task_grid./striatum_task_grid(:,data_grid_params.ld_unique==0,:);
-% 
-% 
-% 
-% plot_ld_idx = sum(~isnan(striatum_rec_grid_ld0norm(:,:,1))) > 3;
-% plot_stim = 3;
-% plot_str = 1;
-% plot_wf_roi = 2;
-% 
-% figure; hold on;
-% 
-% plot(nanmean(wf_kernel_roi_task_grid_ld0norm(:,plot_ld_idx,plot_wf_roi),1), ...
-%     nanmean(striatum_rec_grid_ld0norm(:,plot_ld_idx,plot_str),1),'.-','MarkerSize',15);
-% 
-% plot(nanmean(wf_kernel_roi_passive_grid_ld0norm(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
-%     nanmean(striatum_rec_grid_ld0norm(:,plot_ld_idx,plot_str),1),'.-','MarkerSize',15);
+plot_ld_idx = sum(~isnan(data_grids.striatum_task(:,:,1))) > 3;
+plot_stim = 3;
+plot_str = 1;
+plot_wf_roi = 2;
+
+figure;
+nexttile; hold on;
+plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str)./str_normval(:,:,plot_str),1), ...
+    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi)./wf_kernel_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
+plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim)./str_normval(:,:,plot_str),1), ...
+    nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim)./wf_kernel_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
+ylabel('mPFC (kernel)')
+
+nexttile; hold on;
+plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str)./str_normval(:,:,plot_str),1), ...
+    nanmean(data_grids.wf_roi_task(:,plot_ld_idx,plot_wf_roi)./wf_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
+plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim)./str_normval(:,:,plot_str),1), ...
+    nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim)./wf_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
+ylabel('mPFC (avg)')
 
 
 
