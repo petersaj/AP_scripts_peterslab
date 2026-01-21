@@ -123,35 +123,45 @@ clearvars -except load_dataset_retain data_grid_params data_grids
 
 % ~~ Plot
 
-% (normalize to task LD0)
+% Normalize to task LD0
 str_normval = data_grids.striatum_task(:,data_grid_params.ld_unique==0,:);
 wf_normval = data_grids.wf_roi_task(:,data_grid_params.ld_unique==0,:);
 wf_kernel_normval = data_grids.wf_kernel_roi_task(:,data_grid_params.ld_unique==0,:);
 
-
+% Set days to plot (n>3)
 plot_ld_idx = sum(~isnan(data_grids.striatum_task(:,:,1))) > 3;
-plot_stim = 3;
-plot_str = 1;
-plot_wf_roi = 2;
 
-figure;
-nexttile; hold on;
-plot(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),data_grids.striatum_task(:,plot_ld_idx,plot_str),'.k','MarkerSize',15);
-line(ylim,ylim);xlabel('Passive');ylabel('Task');title('Striatum');
-nexttile; hold on;
-plot(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),'.k','MarkerSize',15);
-line(ylim,ylim);xlabel('Passive');ylabel('Task');title('Cortex');
-
-plot(data_grids.wf_kernel_roi_passive(:,8,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,8,plot_wf_roi),'.r','MarkerSize',15);
-
-
+% Plot task vs passive for mPFC and striatum
 max_ld = max(abs(data_grid_params.ld_unique(plot_ld_idx)));
 ld_colors = ap.colormap('BKR',max_ld*2+1);
 plot_ld_colors = ld_colors(ismember(-max_ld:max_ld, ...
     data_grid_params.ld_unique(plot_ld_idx)),:);
 
-plot(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),'.k','MarkerSize',15);
+plot_str = 1;
+plot_wf_roi = 2;
+plot_stim = 3;
 
+figure; tiledlayout(1,2);
+nexttile; 
+scatter(reshape(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),[],1), ...
+    reshape(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),[],1), ...
+    60,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
+xlim(prctile([xlim,ylim],[0,100]));ylim(xlim)
+axis square
+line(ylim,ylim,'linestyle','--','color',[0.5,0.5,0.5]);
+xlabel('Passive');ylabel('Task');
+title(sprintf('Cortex kernel %d',plot_wf_roi));
+
+nexttile; 
+scatter(reshape(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),[],1), ...
+    reshape(data_grids.striatum_task(:,plot_ld_idx,plot_str),[],1), ...
+    60,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
+xlim(prctile([xlim,ylim],[0,100]));ylim(xlim)
+axis square
+line(ylim,ylim,'linestyle','--','color',[0.5,0.5,0.5]);
+xlabel('Passive');ylabel('Task');
+title(sprintf('Striatum %d',plot_str));
+ap.prettyfig;
 
 % Plot striatum vs mPFC for task and passive
 outline_ld_cols = [0.5,0.5,0.5;0,0,0];
@@ -167,14 +177,18 @@ plot_passive = @(roi,str,plot_stim,col) plot(nanmean(data_grids.striatum_passive
     nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_kernel_normval(:,:,roi),1), ...
     '.-','color',col,'linewidth',2,'MarkerSize',30);
 
-figure; hold on;
-h = plot_task(2,1,[0.5,0,0]); outline_ld(h);
-h = plot_passive(2,1,3,[0.8,0.3,0.3]); outline_ld(h);
-h = plot_passive(2,1,2,[0.3,0.3,0.8]); outline_ld(h);
-h = plot_passive(2,1,1,[0.8,0.8,0.3]); outline_ld(h);
-xlabel('Striatum_{VIS} norm.')
-ylabel('mPFC norm.')
+plot_str = 1;
+plot_wf_roi = 2;
 
+figure; hold on;
+h = plot_task(plot_wf_roi,plot_str,[0.5,0,0]); outline_ld(h);
+stim_col = [0.8,0.8,0.3;0.3,0.3,0.8;0.8,0.3,0.3];
+for curr_stim = 1:3
+h = plot_passive(plot_wf_roi,plot_str,curr_stim,stim_col(curr_stim,:)); outline_ld(h);
+end
+xlabel(sprintf('Striatum %d (LD0-norm)',plot_str));
+ylabel(sprintf('Cortex kernel %d (LD0-norm)',plot_wf_roi));
+ap.prettyfig;
 
 
 
