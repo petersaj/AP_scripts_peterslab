@@ -136,24 +136,53 @@ plot_wf_roi = 2;
 
 figure;
 nexttile; hold on;
-plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str)./str_normval(:,:,plot_str),1), ...
-    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi)./wf_kernel_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
-plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim)./str_normval(:,:,plot_str),1), ...
-    nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim)./wf_kernel_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
-ylabel('mPFC (kernel)')
-
-nexttile; hold on;
-plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str)./str_normval(:,:,plot_str),1), ...
-    nanmean(data_grids.wf_roi_task(:,plot_ld_idx,plot_wf_roi)./wf_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
-plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim)./str_normval(:,:,plot_str),1), ...
-    nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim)./wf_normval(:,:,plot_wf_roi),1),'.-','MarkerSize',15);
-ylabel('mPFC (avg)')
-
-figure;
-nexttile; hold on;
 plot(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),data_grids.striatum_task(:,plot_ld_idx,plot_str),'.k','MarkerSize',15);
 line(ylim,ylim);xlabel('Passive');ylabel('Task');title('Striatum');
 nexttile; hold on;
 plot(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),'.k','MarkerSize',15);
 line(ylim,ylim);xlabel('Passive');ylabel('Task');title('Cortex');
+
+plot(data_grids.wf_kernel_roi_passive(:,8,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,8,plot_wf_roi),'.r','MarkerSize',15);
+
+
+max_ld = max(abs(data_grid_params.ld_unique(plot_ld_idx)));
+ld_colors = ap.colormap('BKR',max_ld*2+1);
+plot_ld_colors = ld_colors(ismember(-max_ld:max_ld, ...
+    data_grid_params.ld_unique(plot_ld_idx)),:);
+
+plot(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),'.k','MarkerSize',15);
+
+
+% Plot striatum vs mPFC for task and passive
+outline_ld_cols = [0.5,0.5,0.5;0,0,0];
+outline_ld = @(h) scatter(h.XData(ismember(data_grid_params.ld_unique(plot_ld_idx),[-1,0])), ...
+    h.YData(ismember(data_grid_params.ld_unique(plot_ld_idx),[-1,0])), ...
+    100,outline_ld_cols,'linewidth',3);
+
+plot_task = @(roi,str,col) plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
+    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,roi)./wf_kernel_normval(:,:,roi),1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30);
+
+plot_passive = @(roi,str,plot_stim,col) plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
+    nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_kernel_normval(:,:,roi),1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30);
+
+figure; hold on;
+h = plot_task(2,1,[0.5,0,0]); outline_ld(h);
+h = plot_passive(2,1,3,[0.8,0.3,0.3]); outline_ld(h);
+h = plot_passive(2,1,2,[0.3,0.3,0.8]); outline_ld(h);
+h = plot_passive(2,1,1,[0.8,0.8,0.3]); outline_ld(h);
+xlabel('Striatum_{VIS} norm.')
+ylabel('mPFC norm.')
+
+
+
+
+
+
+
+
+
+
+
 
