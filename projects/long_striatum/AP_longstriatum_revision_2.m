@@ -8,6 +8,8 @@ load_dataset_retain = true;
 % ~~ Set up data structure params
 load_dataset = 'passive';
 Marica_2025.figures.load_data;
+
+% Set up parameters for activity grids [animal x day x domain x stim]
 data_grid_params = struct;
 
 data_grid_params.stim_t = [0,0.2];
@@ -15,7 +17,6 @@ data_grid_params.cortex_stim_t = isbetween(wf_t,data_grid_params.stim_t(1),data_
 data_grid_params.striatum_stim_t = isbetween(psth_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
 data_grid_params.rxn_cutoff = 0.3;
 
-% Get activity in grid: [animal x day x domain x stim]
 data_grid_params.ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
 data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
 
@@ -142,20 +143,28 @@ plot_wf_roi = 2;
 plot_stim = 3;
 
 figure; tiledlayout(1,2);
-nexttile; 
+nexttile; hold on;
 scatter(reshape(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),[],1), ...
     reshape(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),[],1), ...
-    60,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
+    20,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
+plot(nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
+    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),1),'color',[0.5,0.5,0.5],'linewidth',2);
+scatter(nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
+    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),1),80,plot_ld_colors,'linewidth',4);
 xlim(prctile([xlim,ylim],[0,100]));ylim(xlim)
 axis square
 line(ylim,ylim,'linestyle','--','color',[0.5,0.5,0.5]);
 xlabel('Passive');ylabel('Task');
 title(sprintf('Cortex kernel %d',plot_wf_roi));
 
-nexttile; 
+nexttile; hold on;
 scatter(reshape(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),[],1), ...
     reshape(data_grids.striatum_task(:,plot_ld_idx,plot_str),[],1), ...
-    60,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
+    20,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
+plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),1), ...
+    nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str),1),'color',[0.5,0.5,0.5],'linewidth',2);
+scatter(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),1), ...
+    nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str),1),80,plot_ld_colors,'linewidth',4);
 xlim(prctile([xlim,ylim],[0,100]));ylim(xlim)
 axis square
 line(ylim,ylim,'linestyle','--','color',[0.5,0.5,0.5]);
@@ -190,13 +199,45 @@ xlabel(sprintf('Striatum %d (LD0-norm)',plot_str));
 ylabel(sprintf('Cortex kernel %d (LD0-norm)',plot_wf_roi));
 ap.prettyfig;
 
+% ~~~ STATS ~~~
+n_shuff = 10000;
+sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
+stat_day = -1; % day to compare vs mean(<day)
+plot_str = 1;
+plot_wf_roi = 2;
+plot_stim = 3;
 
+pre_days =  data_grid_params.ld_unique < -1;
+post_days = ismember(data_grid_params.ld_unique,-1);
 
+stat_label = {...
+    sprintf('task striatum %d',plot_str), ...
+    sprintf('passive striatum %d',plot_str), ...
+    sprintf('task cortex kernel %d',plot_wf_roi), ...
+    sprintf('passive cortex_kernel %d',plot_wf_roi)};
+pre_data = [...
+    nanmean(data_grids.striatum_task(:,pre_days,plot_str)./str_normval(:,:,plot_str),2), ...
+    nanmean(data_grids.striatum_passive(:,pre_days,plot_str,plot_stim)./str_normval(:,:,plot_str),2), ...
+    nanmean(data_grids.wf_kernel_roi_task(:,pre_days,plot_wf_roi)./wf_kernel_normval(:,:,plot_wf_roi),2), ...
+    nanmean(data_grids.wf_kernel_roi_passive(:,pre_days,plot_wf_roi,plot_stim)./wf_kernel_normval(:,:,plot_wf_roi),2)];
+post_data = [...
+    nanmean(data_grids.striatum_task(:,post_days,plot_str)./str_normval(:,:,plot_str),2), ...
+    nanmean(data_grids.striatum_passive(:,post_days,plot_str,plot_stim)./str_normval(:,:,plot_str),2), ...
+    nanmean(data_grids.wf_kernel_roi_task(:,post_days,plot_wf_roi)./wf_kernel_normval(:,:,plot_wf_roi),2), ...
+    nanmean(data_grids.wf_kernel_roi_passive(:,post_days,plot_wf_roi,plot_stim)./wf_kernel_normval(:,:,plot_wf_roi),2)];
 
-
-
-
+data_meas = nanmean(diff(cat(3,pre_data,post_data),[],3),1);
+data_shuff = nan(n_shuff,size(data_meas,2));
+for curr_shuff = 1:n_shuff
+    data_shuff(curr_shuff,:) = nanmean(diff(ap.shake(cat(3,pre_data,post_data),3),[],3),1);
+end
+stat_rank = tiedrank([data_meas;data_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+for curr_stat = 1:length(stat_p)
+    print_stat('Shuffle day %d vs mean(<): %s p = %.2g%s\n', ...
+        stat_day,stat_label{curr_stat},stat_p(curr_stat),sig_flag(stat_p(curr_stat)));
+end
 
 
 
