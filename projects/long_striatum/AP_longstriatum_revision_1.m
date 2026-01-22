@@ -2064,6 +2064,7 @@ figure;plot(wf_t,wf_roi_rec(idx,:,2)');
 %% R2: histological alignment
 
 %%%% this works - now just need to align all animals to atlas
+% AM011 done
 
 [av,tv,st] = ap_histology.load_ccf;
 
@@ -2157,7 +2158,7 @@ n_atlas_split = 6;
 atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_split+1));
 overlay_dilation = 1;
 
-histology_clim = [0,max(histology_volume,[],'all')/2];
+histology_clim = prctile(histology_volume(histology_volume>0),[20,100])./[1,4];
 
 %%%% colors
 animal_colors = ap.colormap('tube',14);
