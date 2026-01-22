@@ -2063,9 +2063,6 @@ figure;plot(wf_t,wf_roi_rec(idx,:,2)');
 
 %% R2: histological alignment
 
-%%%% this works - now just need to align all animals to atlas
-% AM011 done
-
 [av,tv,st] = ap_histology.load_ccf;
 
 animals = { ...
@@ -2073,121 +2070,114 @@ animals = { ...
     'AM018','AM019','AM021','AM022','AM026','AM029', ...
     'AP023','AP025'};
 
-% try AM011: display probe channel on CCF? 
+for curr_animal_idx = 1:length(animals)
 
-histology_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AM011\histology';
+    histology_path = plab.locations.filename('server',animals{curr_animal_idx},[],[],'histology');
+    load(fullfile(histology_path,'AP_histology_processing.mat'));
 
-load(fullfile(histology_path,'AP_histology_processing.mat'));
+    % Load images
+    image_path = histology_path;
+    image_dir = dir(fullfile(image_path,'*.tif'));
+    image_filenames = cellfun(@(path,name) fullfile(path,name), ...
+        {image_dir.folder},{image_dir.name},'uni',false);
+    [~,sort_idx] = ap_histology.natsortfiles(image_filenames);
 
-
-% Grab atlas images
-n_slices = length(images);
-slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
-slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
-for curr_slice = 1:length(images)
-    [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
-        ap_histology.grab_atlas_slice(av,tv, ...
-        AP_histology_processing.histology_ccf.slice_vector, ...
-        AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
-end
-
-
-% Load images
-image_path = histology_path;
-image_dir = dir(fullfile(image_path,'*.tif'));
-image_filenames = cellfun(@(path,name) fullfile(path,name), ...
-    {image_dir.folder},{image_dir.name},'uni',false);
-[~,sort_idx] = ap_histology.natsortfiles(image_filenames);
-
-images = cell(size(image_dir));
-for curr_im = 1:length(sort_idx)
-    images{curr_im} = tiffreadVolume( ...
-        image_filenames{sort_idx(curr_im)});
-    ap.print_progress_fraction(curr_im,length(sort_idx));
-end
-
-% Build volume of histology images
-histology_volume = zeros(size(tv),'single');
-
-probe_channel = 2;
-for curr_im_idx = 1:length(images)
-
-    % Rigid transform
-    im_rigid_transformed = ap_histology.rigid_transform( ...
-        images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
-
-    % Affine/nonlin transform
-    if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
-            (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
-            size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
-            size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
-        % Manual alignment (if >3 matched points)
-        histology2atlas_tform = fitgeotform2d( ...
-            AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
-            AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
-    elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
-        % Automatic alignment
-        histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
+    images = cell(size(image_dir));
+    for curr_im = 1:length(sort_idx)
+        images{curr_im} = tiffreadVolume( ...
+            image_filenames{sort_idx(curr_im)});
     end
 
-    atlas_slice_aligned = imwarp(im_rigid_transformed, ...
-        histology2atlas_tform,'nearest','OutputView', ...
-        imref2d(size(slice_atlas(curr_im_idx).av)));
+    % Grab atlas images
+    n_slices = length(images);
+    slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
+    slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
+    for curr_slice = 1:length(images)
+        [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
+            ap_histology.grab_atlas_slice(av,tv, ...
+            AP_histology_processing.histology_ccf.slice_vector, ...
+            AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
+    end
 
-    % % Check match
-    % figure;imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
+    % Build volume of histology images
+    histology_volume = zeros(size(tv),'single');
 
-    % Add points to volume in CCF space
-    curr_ccf_idx = sub2ind(size(tv), ...
-        round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
-        round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
-        round(slice_atlas_ccf(curr_im_idx).ml(:)));
+    probe_channel = 2;
+    for curr_im_idx = 1:length(images)
 
-    histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
-        single(atlas_slice_aligned(:));
+        % Rigid transform
+        im_rigid_transformed = ap_histology.rigid_transform( ...
+            images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
 
-    ap.print_progress_fraction(curr_im_idx,length(images));
+        % Affine/nonlin transform
+        if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
+                (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
+                size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
+                size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
+            % Manual alignment (if >3 matched points)
+            histology2atlas_tform = fitgeotform2d( ...
+                AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
+                AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
+        elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
+            % Automatic alignment
+            histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
+        end
 
+        atlas_slice_aligned = imwarp(im_rigid_transformed, ...
+            histology2atlas_tform,'nearest','OutputView', ...
+            imref2d(size(slice_atlas(curr_im_idx).av)));
+
+        % % Check match
+        % figure; imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
+
+        % Add points to volume in CCF space
+        curr_ccf_idx = sub2ind(size(tv), ...
+            round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
+            round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
+            round(slice_atlas_ccf(curr_im_idx).ml(:)));
+
+        histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
+            single(atlas_slice_aligned(:));
+
+    end
+
+    % Split striatum into bins, plot max within bins
+    striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
+    striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
+
+    n_atlas_split = 6;
+    atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_split+1));
+    overlay_dilation = 1;
+
+    histology_clim = double(prctile(histology_volume(histology_volume>0),[20,100])./[1,6]);
+
+    %%%% colors
+    animal_colors = ap.colormap('tube',14);
+    curr_color = animal_colors(1,:);
+
+    figure; tiledlayout('TileSpacing','none');
+    for curr_atlas_split = 1:n_atlas_split
+
+        plot_atlas_ap = round(mean(atlas_bins(curr_atlas_split+[0,1])));
+        curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
+
+        curr_histology_volume_max = ...
+            permute(max(histology_volume(atlas_bins(curr_atlas_split): ...
+            atlas_bins(curr_atlas_split+1),:,:),[],1),[2,3,1]);
+
+        curr_histology_volume_max_gray = mat2gray(curr_histology_volume_max,histology_clim);
+
+        curr_histology_volume_max_colored = ...
+            curr_histology_volume_max_gray.*permute(curr_color,[1,3,2]);
+
+        curr_histology_volume_max_colored_white = ...
+            curr_histology_volume_max_colored+(1-curr_histology_volume_max_gray);
+
+        curr_overlay = imoverlay(curr_histology_volume_max_colored_white,curr_ccf_borders,'k');
+
+        nexttile;imagesc(curr_overlay);axis image off;
+        drawnow;
+    end
 end
-
-% Split striatum into bins, plot max within bins
-striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
-striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
-
-n_atlas_split = 6;
-atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_split+1));
-overlay_dilation = 1;
-
-histology_clim = prctile(histology_volume(histology_volume>0),[20,100])./[1,4];
-
-%%%% colors
-animal_colors = ap.colormap('tube',14);
-curr_color = animal_colors(1,:);
-
-figure; tiledlayout('TileSpacing','none');
-for curr_atlas_split = 1:n_atlas_split
-
-    plot_atlas_ap = round(mean(atlas_bins(curr_atlas_split+[0,1])));
-    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
-
-    curr_histology_volume_max = ...
-        permute(max(histology_volume(atlas_bins(curr_atlas_split): ...
-        atlas_bins(curr_atlas_split+1),:,:),[],1),[2,3,1]);
-
-    curr_histology_volume_max_gray = mat2gray(curr_histology_volume_max,histology_clim);
-
-    curr_histology_volume_max_colored = ...
-        curr_histology_volume_max_gray.*permute(curr_color,[1,3,2]);
-
-    curr_histology_volume_max_colored_white = ...
-        curr_histology_volume_max_colored+(1-curr_histology_volume_max_gray);
-
-    curr_overlay = imoverlay(curr_histology_volume_max_colored_white,curr_ccf_borders,'k');
-
-    nexttile;imagesc(curr_overlay);axis image off;
-
-end
-
-
 
 
