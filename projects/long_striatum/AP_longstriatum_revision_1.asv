@@ -246,7 +246,7 @@ for curr_domain = 1:3
     xline(0);
 
     % (striatum)
-    nexttile; hold on; 
+    nexttile; hold on;
     set(gca,'ColorOrder',stim_colormap);
     curr_str_idx = striatum_mua_max_grp(:,3) == curr_domain;
     errorbar(binned_days_x, ...
@@ -482,7 +482,7 @@ striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 % Plot heatmaps sorted by reaction times
 heatmap_smooth = [5,1]; % ([trials,time] to smooth for graphics)
 
-figure('Name','Fig 2 heatmaps'); 
+figure('Name','Fig 2 heatmaps');
 h = tiledlayout(n_domains*2,max(cortex_plot_day_grp), ...
     'TileIndexing','ColumnMajor','TileSpacing','Tight');
 for curr_day = 1:length(plot_day_bins)-1
@@ -491,7 +491,7 @@ for curr_day = 1:length(plot_day_bins)-1
         % Cortex
         nexttile;
         curr_trials = find(cortex_plot_day_grp == curr_day);
-       
+
         [sorted_rxn,sort_idx] = sort(wf_grp.rxn(curr_trials));
         imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_domain,1),heatmap_smooth));
         colormap(gca,ap.colormap('WG'));
@@ -509,8 +509,8 @@ for curr_day = 1:length(plot_day_bins)-1
         % Striatum
         nexttile;
         curr_trials = find(striatum_plot_day_grp == curr_day & striatum_mua_grp.domain_idx == curr_domain);
-      
-        [sorted_rxn,sort_idx] = sort(striatum_mua_grp.rxn(curr_trials));      
+
+        [sorted_rxn,sort_idx] = sort(striatum_mua_grp.rxn(curr_trials));
         imagesc(psth_t,[],movmean(striatum_mua(curr_trials(sort_idx),:,1),heatmap_smooth));
         colormap(gca,ap.colormap('WK'));
         clim([0,3]);
@@ -728,7 +728,7 @@ for curr_compare_day = 1:length(plot_day_bins)-2
 
         cortex_stat_null(:,curr_shuff) = ...
             permute(diff(ap.groupfun(@mean,curr_ctx_shuff, ...
-            wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,2)),[],1),[3,2,1]);     
+            wf_striatum_roi_nomove_animal_grp(cortex_stat_usedata,2)),[],1),[3,2,1]);
 
         curr_str_shuff = ...
             ap.shake(striatum_mua_nomove_animal_tmax(striatum_stat_usedata),1, ...
@@ -851,7 +851,7 @@ b = max(striatum_mua_nomove_animal(data_idx,striatum_stim_t),[],2);
 
 % data_idx = wf_striatum_roi_nomove_animal_grp(:,2) == 1;
 % a = max(wf_striatum_roi_nomove_animal(data_idx,cortex_stim_t,2),[],2);
-% 
+%
 % data_idx = wf_striatum_roi_nomove_animal_grp(:,2) == 2;
 % b = max(wf_striatum_roi_nomove_animal(data_idx,cortex_stim_t,2),[],2);
 
@@ -969,7 +969,7 @@ colormap(ap.colormap('PWG',[],1.5));
 clim([-1,1]*3e-3);
 axis image off;
 
-%% striatum TASK: get day it's different from previous 
+%% striatum TASK: get day it's different from previous
 % (not working at the moment)
 
 %%% Load data for figure
@@ -1045,9 +1045,9 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(str_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(str_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(str_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(str_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % % (to put back)
 % wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
@@ -1106,7 +1106,7 @@ for curr_animal = 1:length(unique(bhv.animal,'stable'))
         curr_compare_idx_shuff = ap.shake(repmat(curr_compare_idx,1,n_shuff),1,curr_compare_idx>0);
 
         % % trial max, mean
-        % curr_mpfc_diff = diff(ap.groupfun(@mean,mpfc_avg,curr_compare_idx.*ap.nanout(curr_compare_idx==0)));    
+        % curr_mpfc_diff = diff(ap.groupfun(@mean,mpfc_avg,curr_compare_idx.*ap.nanout(curr_compare_idx==0)));
         % curr_mpfc_diff_shuff = ...
         %     (mpfc_avg'*(curr_compare_idx_shuff==2))./sum(curr_compare_idx_shuff==2) - ...
         %     (mpfc_avg'*(curr_compare_idx_shuff==1))./sum(curr_compare_idx_shuff==1);
@@ -1145,15 +1145,15 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % (to put back)
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(bhv.days_from_learning),wf.V_event_align,'uni',false));
+    num2cell(bhv.days_from_learning),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(bhv.days_from_learning),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(bhv.days_from_learning),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 %% *mPFC TASK: get day it's different from baseline time (do hemidiff first)
 
@@ -1236,9 +1236,9 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % % (to put back)
 % wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
@@ -1324,9 +1324,9 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % % (to put back)
 % wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
@@ -1410,9 +1410,9 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % % (to put back)
 % wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
@@ -1435,7 +1435,7 @@ Marica_2025.figures.load_data;
 wf_passive_naive = load("C:\Users\petersa\Desktop\wf_passive_naive.mat");
 %%%
 
-use_stim = 90; 
+use_stim = 90;
 
 stim_t = [0,0.2];
 cortex_stim_t = isbetween(wf_t,stim_t(1),stim_t(2));
@@ -1472,7 +1472,7 @@ for curr_animal = 1:length(unique(bhv.animal,'stable'))
     %     wf_grp.animal == curr_animal & ...
     %     wf_grp.stim == use_stim,:,2);
 
-     % (baseline = day 1 hemidiff)
+    % (baseline = day 1 hemidiff)
     curr_baseline_data = wf_striatum_roi(...
         wf_grp.td == 1 & ...
         wf_grp.animal == curr_animal & ...
@@ -1555,9 +1555,9 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % % (to put back)
 % wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
@@ -1664,9 +1664,9 @@ disp([n_learned_day,n_mpfc_diff_day,n_learned_day-n_mpfc_diff_day]);
 
 % Sub LD for mPFC day
 wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
-        num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),wf.V_event_align,'uni',false));
 striatum_mua_grp.ld = cell2mat(cellfun(@(grp,n_trials,n_mua) repmat(grp,n_trials*n_mua,1), ...
-        num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
+    num2cell(cell2mat(mpfc_diffday)),num2cell(striatum_trials_rec_n),num2cell(striatum_mua_rec_n),'uni',false));
 
 % % (to put back)
 % wf_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,1),1), ...
@@ -1742,7 +1742,7 @@ striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
 striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
     nanmean(data(trials,:,domain==1,1),1), ...
     striatum_mua_rec,striatum_domain_idx,use_trials, ...
-    'ErrorHandler',@(varargin) NaN(1,1501),'uni',false);  
+    'ErrorHandler',@(varargin) NaN(1,1501),'uni',false);
 
 striatum_mua_max_rec{25} = nan(1,1501);
 x = cell2mat(striatum_mua_max_rec);
@@ -1780,7 +1780,7 @@ for curr_animal = unique(bhv.animal)'
 end
 
 
-% Get activity 
+% Get activity
 
 % Average day, get max in time window
 stim_t = [0,0.2];
@@ -1809,7 +1809,7 @@ striatum_mua_rec = cellfun(spikes_norm_smooth_fcn, ...
 striatum_mua_max_rec = cellfun(@(data,domain,trials) ...
     max([nanmean(data(trials,striatum_stim_t,domain==1,1),1),NaN],[],2), ...
     striatum_mua_rec,striatum_domain_idx,use_trials, ...
-    'ErrorHandler',@(varargin) NaN);    
+    'ErrorHandler',@(varargin) NaN);
 
 
 figure; hold on
@@ -1821,7 +1821,7 @@ xlabel('Performance')
 
 
 n_rec = cellfun(@(x) sum(strcmp(x,bhv.animal)),unique(bhv.animal,'stable'));
-figure; 
+figure;
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(striatum_mua_max_rec,n_rec));
 plot(ap.groupfun(@nanmean,rxn_idx,bhv.days_from_learning),ap.groupfun(@nanmean,striatum_mua_max_rec,bhv.days_from_learning),'k','linewidth',2)
@@ -1850,7 +1850,7 @@ view([45,45]); axis vis3d; grid on;
 
 
 n_rec = cellfun(@(x) sum(strcmp(x,bhv.animal)),unique(bhv.animal,'stable'));
-figure; 
+figure;
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(y,'.-','MarkerSize',15),mat2cell(rxn_idx,n_rec),mat2cell(striatum_mua_max_rec,n_rec));
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
@@ -1868,7 +1868,7 @@ plot(mpfc_padcat)
 plot(nanmean(mpfc_padcat,2),'linewidth',3);
 
 
-%% Widefield kernels 
+%% Widefield kernels
 
 %%% Load non-activity data
 load_dataset = 'noact';
@@ -1923,7 +1923,7 @@ m_p_max = mat2cell(max(m_p,[],2),n_rec);
 
 ld_rec = mat2cell(bhv.days_from_learning,n_rec);
 
-figure; 
+figure;
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
 cellfun(@(x,y) plot(x,y,'.-','MarkerSize',15),ld_rec,m_t_max);
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
@@ -1937,7 +1937,7 @@ rxn_meas = cellfun(@nanmean,bhv.stim_to_move);
 rxn_null = cellfun(@nanmean,bhv.stim_to_move_nullmean);
 rxn_idx = (rxn_null-rxn_meas)./(rxn_null+rxn_meas);
 rxn_idx_rec = mat2cell(rxn_idx,n_rec);
-figure; 
+figure;
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
 cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),rxn_idx_rec,m_t_max);
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'));
@@ -1957,7 +1957,7 @@ switch load_dataset
         plot_k = m_t_max;
 end
 
-figure; 
+figure;
 nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
 cellfun(@(x,y) plot(x,y,'.','MarkerSize',15),plot_k,mat2cell(striatum_mua_max_rec,n_rec));
 plot(ap.groupfun(@nanmean,cell2mat(plot_k),bhv.days_from_learning), ...
@@ -1988,16 +1988,16 @@ m_p_max_norm = cellfun(@(x,y) x./y,m_p_max,norm_val,'uni',false,'ErrorHandler',@
 % m_t_max_norm = cellfun(@(x,y) x./y,mat2cell(wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 % m_p_max_norm = cellfun(@(x,y) x./y,mat2cell(y.wf_striatum_roi_max_rec(:,2),n_rec),norm_val,'uni',false,'ErrorHandler',@(varargin) []);
 
-figure; 
+figure;
 nexttile;hold on; set(gca,'ColorOrder',ap.colormap('tube'));
 plot(ap.groupfun(@nanmean,cell2mat(m_t_max_norm),bhv.days_from_learning), ...
     ap.groupfun(@nanmean,cell2mat(str_task_norm),bhv.days_from_learning),'k','linewidth',2);
 plot(ap.groupfun(@nanmean,cell2mat(m_p_max_norm),bhv.days_from_learning), ...
     ap.groupfun(@nanmean,cell2mat(str_passive_norm),bhv.days_from_learning),'r','linewidth',2);
-xlabel('mPFC - kernel') 
+xlabel('mPFC - kernel')
 
 
- 
+
 figure; tiledlayout(2,2);
 nexttile; hold on; set(gca,'ColorOrder',ap.colormap('tube'))
 cellfun(@(x,y) plot(x(~isnan(y)),y(~isnan(y)),'.-','MarkerSize',15),mat2cell(bhv.days_from_learning,n_rec),str_task_norm);
@@ -2049,7 +2049,7 @@ wf_use_trials = wf_grp.rxn > rxn_cutoff;
 grid_size = [length(unique(bhv.animal)),length(plot_day_bins)-1,n_domains];
 str_present_grid = accumarray(striatum_rec_grp,1,grid_size,@sum,0);
 ap.imscroll(str_present_grid);
-axis on; 
+axis on;
 
 plot_animal = 12; %9
 idx = striatum_rec_grp(:,1) == plot_animal & striatum_rec_grp(:,3) == 1;
@@ -2070,134 +2070,131 @@ animals = { ...
     'AM018','AM019','AM021','AM022','AM026','AM029', ...
     'AP023','AP025'};
 
-% try AM011: display probe channel on CCF? 
-
-histology_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AM011\histology';
-
-load(fullfile(histology_path,'AP_histology_processing.mat'));
-
-
-% Grab atlas images
-n_slices = length(images);
-slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
-slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
-for curr_slice = 1:length(images)
-    [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
-        ap_histology.grab_atlas_slice(av,tv, ...
-        AP_histology_processing.histology_ccf.slice_vector, ...
-        AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
-end
-
-
-% Load images
-image_path = histology_path;
-image_dir = dir(fullfile(image_path,'*.tif'));
-image_filenames = cellfun(@(path,name) fullfile(path,name), ...
-    {image_dir.folder},{image_dir.name},'uni',false);
-[~,sort_idx] = ap_histology.natsortfiles(image_filenames);
-
-images = cell(size(image_dir));
-for curr_im = 1:length(sort_idx)
-    images{curr_im} = tiffreadVolume( ...
-        image_filenames{sort_idx(curr_im)});
-    ap.print_progress_fraction(curr_im,length(sort_idx));
-end
-
-% Build volume of histology images
-histology_volume = zeros(size(tv),'single');
-
-probe_channel = 2;
-for curr_im_idx = 1:length(images)
-
-    % Rigid transform
-    im_rigid_transformed = ap_histology.rigid_transform( ...
-        images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
-
-    % Affine/nonlin transform
-    if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
-            (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
-            size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
-            size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
-        % Manual alignment (if >3 matched points)
-        histology2atlas_tform = fitgeotform2d( ...
-            AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
-            AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
-    elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
-        % Automatic alignment
-        histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
-    end
-
-    atlas_slice_aligned = imwarp(im_rigid_transformed, ...
-        histology2atlas_tform,'nearest','OutputView', ...
-        imref2d(size(slice_atlas(curr_im_idx).av)));
-
-    % % Check match
-    % figure;imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
-
-    % Add points to volume in CCF space
-    curr_ccf_idx = sub2ind(size(tv), ...
-        round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
-        round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
-        round(slice_atlas_ccf(curr_im_idx).ml(:)));
-
-    histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
-        single(atlas_slice_aligned(:));
-
-    ap.print_progress_fraction(curr_im_idx,length(images));
-
-end
-
-% Split striatum into bins, plot max within bins
+% Set atlas bins to plot through striatum
 striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
 striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
 
-n_atlas_split = 5;
-atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_split+1));
-overlay_dilation = 1;
+n_atlas_bins = 6;
+atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_bins+1));
 
-histology_clim = [0,max(histology_volume,[],'all')/2];
+histology_atlas_bin_max = cell(length(animals),n_atlas_bins);
 
-%%%% colors
-animal_colors = ap.colormap('tube',14);
-curr_color = animal_colors(1,:);
+for curr_animal_idx = 1:length(animals)
 
-figure; tiledlayout('TileSpacing','none');
-for curr_atlas_split = 1:n_atlas_split
+    histology_path = plab.locations.filename('server',animals{curr_animal_idx},[],[],'histology');
+    load(fullfile(histology_path,'AP_histology_processing.mat'));
 
-    plot_atlas_ap = round(mean(atlas_bins(curr_atlas_split+[0,1])));
-    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
+    % Load images
+    image_path = histology_path;
+    image_dir = dir(fullfile(image_path,'*.tif'));
+    image_filenames = cellfun(@(path,name) fullfile(path,name), ...
+        {image_dir.folder},{image_dir.name},'uni',false);
+    [~,sort_idx] = ap_histology.natsortfiles(image_filenames);
 
-    curr_histology_volume_max = ...
-        permute(max(histology_volume(atlas_bins(curr_atlas_split): ...
-        atlas_bins(curr_atlas_split+1),:,:),[],1),[2,3,1]);
+    images = cell(size(image_dir));
+    for curr_im = 1:length(sort_idx)
+        images{curr_im} = tiffreadVolume( ...
+            image_filenames{sort_idx(curr_im)});
+    end
 
-        curr_histology_volume_max_gray = mat2gray(curr_histology_volume_max,histology_clim);
+    % Grab atlas images
+    n_slices = length(images);
+    slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
+    slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
+    for curr_slice = 1:length(images)
+        [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
+            ap_histology.grab_atlas_slice(av,tv, ...
+            AP_histology_processing.histology_ccf.slice_vector, ...
+            AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
+    end
 
-    curr_histology_volume_max_colored = ...
-        curr_histology_volume_max_gray.*permute(curr_color,[1,3,2]);    
+    % Build volume of histology images
+    histology_volume = zeros(size(tv),'single');
+    probe_channel = 2;
+    for curr_im_idx = 1:length(images)
 
-    curr_histology_volume_max_colored_white = 
+        % Rigid transform
+        im_rigid_transformed = ap_histology.rigid_transform( ...
+            images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
 
- curr_histology_volume_max_colored+(1-curr_histology_volume_max);
+        % Affine/nonlin transform
+        if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
+                (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
+                size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
+                size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
+            % Manual alignment (if >3 matched points)
+            histology2atlas_tform = fitgeotform2d( ...
+                AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
+                AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
+        elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
+            % Automatic alignment
+            histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
+        end
 
-    curr_overlay = imoverlay(mat2gray(curr_histology_volume_max,histology_clim),curr_ccf_borders,'w');
+        atlas_slice_aligned = imwarp(im_rigid_transformed, ...
+            histology2atlas_tform,'nearest','OutputView', ...
+            imref2d(size(slice_atlas(curr_im_idx).av)));
 
-    nexttile;imagesc(curr_overlay);axis image off;
+        % % Check match
+        % figure; imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
 
+        % Add points to volume in CCF space
+        curr_ccf_idx = sub2ind(size(tv), ...
+            round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
+            round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
+            round(slice_atlas_ccf(curr_im_idx).ml(:)));
+
+        histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
+            single(atlas_slice_aligned(:));
+
+    end
+
+    % Get max of histology volume in atlas bins
+    for curr_atlas_bin = 1:n_atlas_bins
+        plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
+        histology_atlas_bin_max{curr_animal_idx,curr_atlas_bin} = ...
+            permute(max(histology_volume(atlas_bins(curr_atlas_bin): ...
+            atlas_bins(curr_atlas_bin+1),:,:),[],1),[2,3,1]);
+    end
+    
+    ap.print_progress_fraction(curr_animal_idx,length(animals));
 end
 
 
-
-color_vector = permute(gui_data.colors,[3,4,1,2]);
-clim_permute = permute(gui_data.clim,[2,3,1]);
-
-im_rescaled = double(min(max(gui_data.data{curr_im_idx} - ...
-    clim_permute(1,1,:),0),clim_permute(2,1,:)))./ ...
-    double(clim_permute(2,1,:));
-
-im_rgb = min(permute(sum(im_rescaled.*color_vector,3),[1,2,4,3]),1);
+% Plot probe channel overlay by colored an
+animal_colors = ap.colormap('tube',14);
 
 
+overlay_dilation = 1;
+
+histology_clim = arrayfun(@(x) ...
+    double([0,max(cat(3,histology_atlas_bin_max{x,:}),[],'all')/4]), ...
+    (1:length(animals))','uni',false);
+
+
+figure; tiledlayout('TileSpacing','none');
+for curr_atlas_bin = 1:n_atlas_bins
+
+    plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
+    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
+
+    curr_histology_volume_max_gray = cellfun(@(x,c) ...
+        mat2gray(x,c),histology_atlas_bin_max(:,curr_atlas_bin),histology_clim,'uni',false);
+        
+    curr_histology_volume_max_colored = ...
+        cat(4,curr_histology_volume_max_gray{:}).*permute(animal_colors,[3,4,2,1]);
+    
+    % (make this colored on white - not sure how to combined though)
+    % curr_histology_volume_max_colored_white = ...
+    %     curr_histology_volume_max_colored+(1-cat(4,curr_histology_volume_max_gray{:}));
+
+    curr_histology_combined = max(curr_histology_volume_max_colored,[],4);
+
+    curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'w');
+
+    nexttile;imagesc(curr_overlay);axis image off;
+    drawnow;
+end
 
 
 
