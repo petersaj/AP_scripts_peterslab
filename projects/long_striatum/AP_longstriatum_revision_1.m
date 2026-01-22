@@ -2063,6 +2063,8 @@ figure;plot(wf_t,wf_roi_rec(idx,:,2)');
 
 %% R2: histological alignment
 
+%%%% this works - now just need to align all animals to atlas
+
 [av,tv,st] = ap_histology.load_ccf;
 
 animals = { ...
@@ -2147,14 +2149,22 @@ for curr_im_idx = 1:length(images)
 
 end
 
-n_atlas_split = 10;
-atlas_bins = round(linspace(1,size(av,1),n_atlas_split+1));
+% Split striatum into bins, plot max within bins
+striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
+striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
+
+n_atlas_split = 6;
+atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_split+1));
 overlay_dilation = 1;
 
 histology_clim = [0,max(histology_volume,[],'all')/2];
 
+%%%% colors
+animal_colors = ap.colormap('tube',14);
+curr_color = animal_colors(1,:);
+
 figure; tiledlayout('TileSpacing','none');
-for curr_atlas_split = 1:n_atlas_split-1
+for curr_atlas_split = 1:n_atlas_split
 
     plot_atlas_ap = round(mean(atlas_bins(curr_atlas_split+[0,1])));
     curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
@@ -2163,22 +2173,19 @@ for curr_atlas_split = 1:n_atlas_split-1
         permute(max(histology_volume(atlas_bins(curr_atlas_split): ...
         atlas_bins(curr_atlas_split+1),:,:),[],1),[2,3,1]);
 
-    curr_overlay = imoverlay(mat2gray(curr_histology_volume_max,histology_clim),curr_ccf_borders,'w');
+    curr_histology_volume_max_gray = mat2gray(curr_histology_volume_max,histology_clim);
+
+    curr_histology_volume_max_colored = ...
+        curr_histology_volume_max_gray.*permute(curr_color,[1,3,2]);
+
+    curr_histology_volume_max_colored_white = ...
+        curr_histology_volume_max_colored+(1-curr_histology_volume_max_gray);
+
+    curr_overlay = imoverlay(curr_histology_volume_max_colored_white,curr_ccf_borders,'k');
 
     nexttile;imagesc(curr_overlay);axis image off;
 
 end
-
-% color_vector = permute(gui_data.colors,[3,4,1,2]);
-% clim_permute = permute(gui_data.clim,[2,3,1]);
-% 
-% im_rescaled = double(min(max(gui_data.data{curr_im_idx} - ...
-%     clim_permute(1,1,:),0),clim_permute(2,1,:)))./ ...
-%     double(clim_permute(2,1,:));
-% 
-% im_rgb = min(permute(sum(im_rescaled.*color_vector,3),[1,2,4,3]),1);
-
-
 
 
 
