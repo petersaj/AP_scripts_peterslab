@@ -13,14 +13,14 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 % stim_x = vertcat(trial_events.values.StimFrequence);
 % use_align = stimOn_times(stim_x == 8000  & quiescent_trials);
 
-stim_x = vertcat(trial_events.values.TrialStimX);
-use_align = stimOn_times(quiescent_trials & stim_x == 90);
+% stim_x = vertcat(trial_events.values.TrialStimX);
+% use_align = stimOn_times(quiescent_trials & stim_x == 90);
 
 % stim_y = vertcat(trial_events.values.TrialStimY);
 % use_align = stimOn_times(quiescent_trials & stim_y == 30);
 
-% stim_x = vertcat(trial_events.values.TrialX);
-% use_align = stimOn_times(stim_x(1:n_trials) == 90);
+stim_x = vertcat(trial_events.values.TrialX);
+use_align = stimOn_times(stim_x(1:n_trials) == 90);
 
 % modality = vertcat(trial_events.values(1:n_trials).TaskType);
 % use_align = stimOn_times(modality == 1);
@@ -131,12 +131,15 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 
 %% Align wheel to event
 
-align_times = stimOn_times;
+% align_times = stimOn_times;
 % align_times = photodiode_times(1:2:end);
 % align_times = stimOn_times(align_category_all == 90);
 % align_times = stimOn_times(stim_x == 90);
 % align_times = stim_move_time;
 % align_times = iti_fastmove_times;
+
+stim_x = vertcat(trial_events.values.TrialX);
+align_times = stimOn_times(stim_x(1:n_trials) == -90);
 
 surround_time = [-10,10];
 surround_sample_rate = 100;
@@ -192,7 +195,7 @@ xlabel('Time from event');
 
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
 % animals = {'AP030','AP031','AP032'};
-animals = {'AP033','AP034'};
+animals = {'PG001'};
 % Set reaction statistic to use
 use_stat = 'mean';
 learn_p = 0.05;

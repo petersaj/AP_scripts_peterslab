@@ -2028,20 +2028,33 @@ load_dataset = 'task';
 Marica_2025.figures.load_data;
 %%%
 
+% %%% Load data for figure
+% load_dataset = 'passive';
+% Marica_2025.figures.load_data;
+% %%%
+
+
 % Get PSTH by recording
 rxn_cutoff = 0.3;
-ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
+% ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
 
-plot_day_bins = [-Inf,-2:2,Inf];
+% plot_day_bins = [-Inf,-2,-1,0,1,Inf];
+plot_day_bins = [-Inf,-2,0,2];
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
+% (task)
 striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
+wf_use_trials = wf_grp.rxn > rxn_cutoff;
+
+% (passive)
+% striatum_use_trials = striatum_mua_grp.stim == 90;
+% wf_use_trials = wf_grp.stim == 90;
+
 [striatum_rec,striatum_rec_grp] = ap.groupfun(@nanmean,striatum_mua(:,:,1), ...
     [striatum_mua_grp.animal,striatum_plot_day_grp,striatum_mua_grp.domain_idx].* ...
     ap.nanout(~(striatum_use_trials)));
 
-wf_use_trials = wf_grp.rxn > rxn_cutoff;
 [wf_roi_rec,wf_roi_rec_grp] = ap.groupfun(@nanmean,wf_striatum_roi(:,:,:,1), ...
     [wf_grp.animal,cortex_plot_day_grp].*ap.nanout(~(wf_use_trials)));
 
@@ -2051,16 +2064,80 @@ str_present_grid = accumarray(striatum_rec_grp,1,grid_size,@sum,0);
 ap.imscroll(str_present_grid);
 axis on;
 
-plot_animal = 12; %9
-idx = striatum_rec_grp(:,1) == plot_animal & striatum_rec_grp(:,3) == 1;
-figure;imagesc(striatum_rec(idx,:));
-figure;plot(psth_t,striatum_rec(idx,:)');
+figure;tiledlayout(4,14,'TileSpacing','none','TileIndexing','ColumnMajor');
+for plot_animal = 1:14
 
-idx = wf_roi_rec_grp(:,1) == plot_animal;
-figure;imagesc(wf_roi_rec(idx,:,2));
-figure;plot(wf_t,wf_roi_rec(idx,:,2)');
+    plot_t = [0,0.5];
+    cortex_plot_t = isbetween(wf_t,plot_t(1),plot_t(2));
+    striatum_plot_t = isbetween(psth_t,plot_t(1),plot_t(2));
+
+    plot_domain = 1;
+    nexttile;
+    plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+        cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+    title(sprintf('Cortex %d',plot_domain)); axis off;
+    nexttile;
+    plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+        striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+    title(sprintf('Striatum %d',plot_domain)); axis off;
+
+    plot_domain = 2;
+    nexttile;
+    plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+        cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+    title(sprintf('Cortex %d',plot_domain)); axis off;
+    nexttile; 
+    plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+        striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+    title(sprintf('Striatum %d',plot_domain)); axis off;
+
+end
+
+figure; tiledlayout(4,1);
+plot_animal = 12;
+
+plot_t = [-0.5,0.5];
+cortex_plot_t = isbetween(wf_t,plot_t(1),plot_t(2));
+striatum_plot_t = isbetween(psth_t,plot_t(1),plot_t(2));
+
+plot_domain = 1;
+nexttile;
+plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+    cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+title(sprintf('Cortex %d',plot_domain)); axis off;
+nexttile;
+plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+    striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+title(sprintf('Striatum %d',plot_domain)); axis off;
+
+plot_domain = 2;
+nexttile;
+plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+    cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+title(sprintf('Cortex %d',plot_domain)); axis off;
+nexttile;
+plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+    striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+title(sprintf('Striatum %d',plot_domain)); axis off;
 
 
+%% (testing) plot domain map for animal/day
+
+x = cat(3,ctx_str_maps.cortex_striatum_map{:});
+
+idx = strcmp(bhv.animal,'AM029') & bhv.days_from_learning == 0;
+
+idx2 = cellfun(@(x) false(size(x)),domain_idx_rec,'uni',false);
+idx2{idx}(domain_idx_rec{idx} == 2) = true;
+
+k2 = x(:,:,cell2mat(idx2));
+
+disp(sum(cell2mat(idx2)));
+
+ap.imscroll(k2);
+axis image off
+clim(max(abs(clim)).*[-1,1]);
+colormap(gca,ap.colormap('PWG'));
 
 
 

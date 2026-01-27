@@ -484,7 +484,7 @@ switch mua_method
     case 'striatum'
         AP_longstriatum_find_striatum_depth
         depth_length = 200;
-        depth_group_edges = striatum_depth(1):200:striatum_depth(end);
+        depth_group_edges = striatum_depth(1):depth_length:striatum_depth(end);
         [~,~,depth_group] = histcounts(spike_depths,depth_group_edges);
         depth_groups_used = unique(depth_group);
         depth_group_centers = depth_group_edges(1:end-1)+(diff(depth_group_edges)/2);

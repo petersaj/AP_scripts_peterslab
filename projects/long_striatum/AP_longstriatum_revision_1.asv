@@ -2023,25 +2023,34 @@ title('passive');
 
 %% R1: Example animal
 
+% %%% Load data for figure
+% load_dataset = 'task';
+% Marica_2025.figures.load_data;
+% %%%
+
 %%% Load data for figure
-load_dataset = 'task';
+load_dataset = 'passive';
 Marica_2025.figures.load_data;
 %%%
 
+
 % Get PSTH by recording
 rxn_cutoff = 0.3;
-ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
+% ld_unique = unique((bhv.days_from_learning(~isnan(bhv.days_from_learning))));
 
-plot_day_bins = [-Inf,-2:2,Inf];
+plot_day_bins = [-Inf,-2,-1,0,1,Inf];
+% plot_day_bins = [-Inf,-2,0,Inf];
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
-striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
+% striatum_use_trials = striatum_mua_grp.rxn > rxn_cutoff;
+striatum_use_trials = striatum_mua_grp.stim == 90;
 [striatum_rec,striatum_rec_grp] = ap.groupfun(@nanmean,striatum_mua(:,:,1), ...
     [striatum_mua_grp.animal,striatum_plot_day_grp,striatum_mua_grp.domain_idx].* ...
     ap.nanout(~(striatum_use_trials)));
 
-wf_use_trials = wf_grp.rxn > rxn_cutoff;
+% wf_use_trials = wf_grp.rxn > rxn_cutoff;
+wf_use_trials = wf_grp.stim == 90;
 [wf_roi_rec,wf_roi_rec_grp] = ap.groupfun(@nanmean,wf_striatum_roi(:,:,:,1), ...
     [wf_grp.animal,cortex_plot_day_grp].*ap.nanout(~(wf_use_trials)));
 
@@ -2051,150 +2060,84 @@ str_present_grid = accumarray(striatum_rec_grp,1,grid_size,@sum,0);
 ap.imscroll(str_present_grid);
 axis on;
 
-plot_animal = 12; %9
-idx = striatum_rec_grp(:,1) == plot_animal & striatum_rec_grp(:,3) == 1;
-figure;imagesc(striatum_rec(idx,:));
-figure;plot(psth_t,striatum_rec(idx,:)');
+figure;tiledlayout(4,14,'TileSpacing','none','TileIndexing','ColumnMajor');
+for plot_animal = 1:14
 
-idx = wf_roi_rec_grp(:,1) == plot_animal;
-figure;imagesc(wf_roi_rec(idx,:,2));
-figure;plot(wf_t,wf_roi_rec(idx,:,2)');
+    plot_t = [0,0.5];
+    cortex_plot_t = isbetween(wf_t,plot_t(1),plot_t(2));
+    striatum_plot_t = isbetween(psth_t,plot_t(1),plot_t(2));
 
+    plot_domain = 1;
+    nexttile;
+    plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+        cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+    title(sprintf('Cortex %d',plot_domain)); axis off;
+    nexttile;
+    plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+        striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+    title(sprintf('Striatum %d',plot_domain)); axis off;
 
-%% R2: histological alignment
+    plot_domain = 2;
+    nexttile;
+    plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+        cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+    title(sprintf('Cortex %d',plot_domain)); axis off;
+    nexttile; 
+    plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+        striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+    title(sprintf('Striatum %d',plot_domain)); axis off;
 
-[av,tv,st] = ap_histology.load_ccf;
-
-animals = { ...
-    'AM011','AM012','AM014','AM015','AM016','AM017', ...
-    'AM018','AM019','AM021','AM022','AM026','AM029', ...
-    'AP023','AP025'};
-
-% Set atlas bins to plot through striatum
-striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
-striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
-
-n_atlas_bins = 6;
-atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_bins+1));
-
-histology_atlas_bin_max = cell(length(animals),n_atlas_bins);
-
-for curr_animal_idx = 1:length(animals)
-
-    histology_path = plab.locations.filename('server',animals{curr_animal_idx},[],[],'histology');
-    load(fullfile(histology_path,'AP_histology_processing.mat'));
-
-    % Load images
-    image_path = histology_path;
-    image_dir = dir(fullfile(image_path,'*.tif'));
-    image_filenames = cellfun(@(path,name) fullfile(path,name), ...
-        {image_dir.folder},{image_dir.name},'uni',false);
-    [~,sort_idx] = ap_histology.natsortfiles(image_filenames);
-
-    images = cell(size(image_dir));
-    for curr_im = 1:length(sort_idx)
-        images{curr_im} = tiffreadVolume( ...
-            image_filenames{sort_idx(curr_im)});
-    end
-
-    % Grab atlas images
-    n_slices = length(images);
-    slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
-    slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
-    for curr_slice = 1:length(images)
-        [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
-            ap_histology.grab_atlas_slice(av,tv, ...
-            AP_histology_processing.histology_ccf.slice_vector, ...
-            AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
-    end
-
-    % Build volume of histology images
-    histology_volume = zeros(size(tv),'single');
-    probe_channel = 2;
-    for curr_im_idx = 1:length(images)
-
-        % Rigid transform
-        im_rigid_transformed = ap_histology.rigid_transform( ...
-            images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
-
-        % Affine/nonlin transform
-        if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
-                (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
-                size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
-                size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
-            % Manual alignment (if >3 matched points)
-            histology2atlas_tform = fitgeotform2d( ...
-                AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
-                AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
-        elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
-            % Automatic alignment
-            histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
-        end
-
-        atlas_slice_aligned = imwarp(im_rigid_transformed, ...
-            histology2atlas_tform,'nearest','OutputView', ...
-            imref2d(size(slice_atlas(curr_im_idx).av)));
-
-        % % Check match
-        % figure; imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
-
-        % Add points to volume in CCF space
-        curr_ccf_idx = sub2ind(size(tv), ...
-            round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
-            round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
-            round(slice_atlas_ccf(curr_im_idx).ml(:)));
-
-        histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
-            single(atlas_slice_aligned(:));
-
-    end
-
-    % Get max of histology volume in atlas bins
-    for curr_atlas_bin = 1:n_atlas_bins
-        plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
-        histology_atlas_bin_max{curr_animal_idx,curr_atlas_bin} = ...
-            permute(max(histology_volume(atlas_bins(curr_atlas_bin): ...
-            atlas_bins(curr_atlas_bin+1),:,:),[],1),[2,3,1]);
-    end
-    
-    ap.print_progress_fraction(curr_animal_idx,length(animals));
 end
 
+figure; tiledlayout(4,1);
+plot_animal = 12;
 
-% Plot probe channel overlay by colored an
-animal_colors = ap.colormap('tube',14);
+plot_t = [-0.5,0.5];
+cortex_plot_t = isbetween(wf_t,plot_t(1),plot_t(2));
+striatum_plot_t = isbetween(psth_t,plot_t(1),plot_t(2));
+
+plot_domain = 1;
+nexttile;
+plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+    cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+title(sprintf('Cortex %d',plot_domain)); axis off;
+nexttile;
+plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+    striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+title(sprintf('Striatum %d',plot_domain)); axis off;
+
+plot_domain = 2;
+nexttile;
+plot(reshape(padarray(wf_roi_rec(wf_roi_rec_grp(:,1) == plot_animal, ...
+    cortex_plot_t,plot_domain),[0,5],NaN,'post')',[],1));
+title(sprintf('Cortex %d',plot_domain)); axis off;
+nexttile;
+plot(reshape(padarray(striatum_rec(striatum_rec_grp(:,1) == plot_animal & ...
+    striatum_rec_grp(:,3) == plot_domain,striatum_plot_t),[0,5],NaN,'post')',[],1));
+title(sprintf('Striatum %d',plot_domain)); axis off;
 
 
-overlay_dilation = 1;
-
-histology_clim = arrayfun(@(x) ...
-    double([0,max(cat(3,histology_atlas_bin_max{x,:}),[],'all')/4]), ...
-    (1:length(animals))','uni',false);
 
 
-figure; tiledlayout('TileSpacing','none');
-for curr_atlas_bin = 1:n_atlas_bins
 
-    plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
-    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
+%% (testing) plot domain map for animal/day
 
-    curr_histology_volume_max_gray = cellfun(@(x,c) ...
-        mat2gray(x,c),histology_atlas_bin_max(:,curr_atlas_bin),histology_clim,'uni',false);
-        
-    curr_histology_volume_max_colored = ...
-        cat(4,curr_histology_volume_max_gray{:}).*permute(animal_colors,[3,4,2,1]);
-    
-    % (make this colored on white - not sure how to combined though)
-    % curr_histology_volume_max_colored_white = ...
-    %     curr_histology_volume_max_colored+(1-cat(4,curr_histology_volume_max_gray{:}));
+x = cat(3,ctx_str_maps.cortex_striatum_map{:});
 
-    curr_histology_combined = max(curr_histology_volume_max_colored,[],4);
+idx = strcmp(bhv.animal,'AM029') & bhv.days_from_learning == 0;
 
-    curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'w');
+idx2 = cellfun(@(x) false(size(x)),domain_idx_rec,'uni',false);
+idx2{idx}(domain_idx_rec{idx} == 2) = true;
 
-    nexttile;imagesc(curr_overlay);axis image off;
-    drawnow;
-end
+k2 = x(:,:,cell2mat(idx2));
+
+disp(sum(cell2mat(idx2)));
+
+ap.imscroll(k2);
+axis image off
+clim(max(abs(clim)).*[-1,1]);
+colormap(gca,ap.colormap('PWG'));
+
 
 
 
