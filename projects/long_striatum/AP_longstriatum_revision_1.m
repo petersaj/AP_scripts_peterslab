@@ -1879,6 +1879,7 @@ Marica_2025.figures.load_data;
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'wf_kernels'));
 
+% Plot grand average
 n_vs = 200;
 task_kernel_avg = plab.wf.svd2px(U_master(:,:,1:n_vs),nanmean(cat(4,wf_kernels.task_kernels{:}),4));
 passive_kernel_avg = plab.wf.svd2px(U_master(:,:,1:n_vs),nanmean(cat(4,wf_kernels.passive_kernels{:}),4));
@@ -1892,7 +1893,7 @@ colormap(gca,ap.colormap('PWG'));
 clim(max(abs(clim)).*[-1,1]);
 
 
-
+% Plot pre/post learning
 x = plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.task_kernels{:}),[],[],[],bhv.days_from_learning>=0));
 ap.imscroll(squeeze(x));
 axis image
@@ -1905,6 +1906,7 @@ axis image
 colormap(gca,ap.colormap('PWG'));
 clim(max(abs(clim)).*[-1,1]);
 
+% Plot by LD
 ld_x = unique(bhv.days_from_learning(~isnan(bhv.days_from_learning)));
 % r = squeeze(max(plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.task_kernels{:}),[],[],[],bhv.days_from_learning)),[],3));
 % r = squeeze(max(plab.wf.svd2px(U_master(:,:,1:n_vs),ap.groupfun(@nanmean,cat(4,wf_kernels.passive_kernels{:}),[],[],[],bhv.days_from_learning)),[],3));
