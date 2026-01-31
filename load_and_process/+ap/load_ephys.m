@@ -18,7 +18,6 @@ end
 
 % Get path for raw data and kilosort for given recording
 kilosort_top_path = fullfile(ephys_path,kilosort_folder);
-kilosort_dir = dir(kilosort_top_path);
 
 if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
 
@@ -29,24 +28,30 @@ if ~exist('load_probe','var')
     load_probe = 1;
 end
 
-% NOTE: this doesn't allow for concatenated recordings at the moment. I
-% think this was multiple 'recording' folders in one experiment? But I
-% don't totally remember - allow for this when this next happens.
-
+% Get OE folders
 open_ephys_dir = dir(fullfile(ephys_path,'experiment*','recording*','continuous','*Probe*-AP'));
-open_ephys_path = fullfile(open_ephys_dir(load_probe).folder, ...
-    open_ephys_dir(load_probe).name);
+oe_recordings = extract({open_ephys_dir.folder},'recording'+digitsPattern);
 
-if isscalar(open_ephys_dir)
-    % Single probe = no nested folders
-    kilosort_path = kilosort_top_path;
+if ~isscalar(open_ephys_dir) && length(open_ephys_dir) == length(oe_recordings)
+    % Multiple recordings: assume concatenated
+    open_ephys_path = fullfile({open_ephys_dir.folder},{open_ephys_dir.name});
 else
-    % Multi probe/site = nested folders
-    % (currently assuming probe paths in numbered order)
-    kilosort_path = fullfile(kilosort_top_path,sprintf('probe_%d',load_probe));
+    % Single recording or muliple non-recording folders: separate probes
+    open_ephys_path = {fullfile(open_ephys_dir(load_probe).folder, ...
+        open_ephys_dir(load_probe).name)};
 end
 
-% (old, not currently used: multi-site with same probe = /site_n)
+% Get kilosort output folder
+kilosort_dir = dir(kilosort_top_path);
+if contains({kilosort_dir([kilosort_dir.isdir]).name},'probe')
+    % Multi-probe: nested folder kilosort/probe_n
+    kilosort_path = fullfile(kilosort_top_path,sprintf('probe_%d',load_probe));
+else
+    % Single probe: data in kilosort top path
+    kilosort_path = kilosort_top_path;
+end
+
+% % (old, not currently used: multi-site with same probe = /site_n)
 % if any(contains({kilosort_dir.name},'site'))
 %     % If 'site' folders (recordings in serial), choose last before recording
 %     ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
@@ -80,7 +85,7 @@ end
 %     'InputFormat','dd MMM yyyy HH:mm:ss');
 
 % Load Open Ephys metadata (for sample rate)
-oe_metadata_fn = fullfile(fileparts(fileparts(open_ephys_path)),'structure.oebin');
+oe_metadata_fn = fullfile(fileparts(fileparts(open_ephys_path{1})),'structure.oebin');
 oe_metadata = jsondecode(fileread(oe_metadata_fn));
 oe_ap_samplerate = oe_metadata(1).continuous(1).sample_rate;
 

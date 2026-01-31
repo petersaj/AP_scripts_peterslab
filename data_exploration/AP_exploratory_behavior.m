@@ -136,10 +136,10 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 % align_times = stimOn_times(align_category_all == 90);
 % align_times = stimOn_times(stim_x == 90);
 % align_times = stim_move_time;
-% align_times = iti_fastmove_times;
+align_times = iti_fastmove_times;
 
-stim_x = vertcat(trial_events.values.TrialX);
-align_times = stimOn_times(stim_x(1:n_trials) == -90);
+% stim_x = vertcat(trial_events.values.TrialX);
+% align_times = stimOn_times(stim_x(1:n_trials) == -90);
 
 surround_time = [-10,10];
 surround_sample_rate = 100;
