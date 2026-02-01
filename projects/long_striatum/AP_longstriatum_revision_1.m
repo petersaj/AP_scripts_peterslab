@@ -2880,6 +2880,12 @@ axis image
 colormap(gca,ap.colormap('PWG'));
 clim(max(abs(clim)).*[-1,1]);
 
+% Get widefield ROIs for no stim moves
+wf_nostim_move_striatum_roi = cell2mat(cellfun(@(x) ...
+    permute(ap.wf_roi(U_master,x,[],[],striatum_wf_roi), ...
+    [3,2,1]),nonstim_move.V_move_nostim_align(use_nostim_move_recordings), ...
+    'uni',false));
+
 % Get nonstim move ephys
 % (sum into domain multiunit)
 striatum_nostim_move_mua_sum = cellfun(@(mua,domain_idx) ...
@@ -2920,19 +2926,77 @@ for curr_domain = 1:n_domains
 end
 linkaxes(h.Children,'xy');
 
+% Plot striatum overlaid
+ld_color = ap.colormap('BKR',5);
+figure;h = tiledlayout(n_domains,2);
+for curr_domain = 1:n_domains
+
+    h1 = nexttile; hold on
+    set(h1,'ColorOrder',ld_color);
+
+    h2 = nexttile; hold on
+    set(h2,'ColorOrder',ld_color);
+
+    for curr_ld = -2:2
+        curr_domain_nonstim_move_act = ...
+            nanmean(cell2mat(cellfun(@(mua,domain) mua(domain==curr_domain,:), ...
+            striatum_nostim_move_mua(use_nostim_move_recordings & bhv.days_from_learning==curr_ld), ...
+            striatum_domain_idx(use_nostim_move_recordings & bhv.days_from_learning==curr_ld),'uni',false)),1);
+
+        curr_stim_move_act_idx = ismember(striatum_mua_moveavg_grp(:,1:2), ...
+            [curr_domain,curr_ld],'rows');
+
+        plot(h1,curr_domain_nonstim_move_act,'linewidth',2);
+        plot(h2,striatum_mua_moveavg(curr_stim_move_act_idx,:)','linewidth',2);
+    end
+end
+linkaxes(h.Children,'xy');
+
+% Plot widefield overlaid
+[wf_moveavg,wf_moveavg_grp] = ...
+    ap.nestgroupfun({@nanmean,@nanmean},wf_striatum_roi(:,:,:,2), ...
+    wf_grp.animal,wf_grp.ld);
+
+ld_color = ap.colormap('BKR',5);
+figure;h = tiledlayout(n_domains,2);
+for curr_domain = 1:n_domains
+
+    h1 = nexttile; hold on
+    set(h1,'ColorOrder',ld_color);
+
+    h2 = nexttile; hold on
+    set(h2,'ColorOrder',ld_color);
+
+    for curr_ld = -2:2
+        curr_roi_nostim_move_act = nanmean(wf_nostim_move_striatum_roi( ...
+            bhv.days_from_learning(use_nostim_move_recordings)==curr_ld,:,curr_domain),1);
+
+        curr_roi_stim_move_act = wf_moveavg(wf_moveavg_grp==curr_ld,:,curr_domain);
+
+        plot(h1,curr_roi_nostim_move_act,'linewidth',2);
+        plot(h2,curr_roi_stim_move_act,'linewidth',2);
+    end
+end
+linkaxes(h.Children,'xy');
+
+
 % Plot wheel velocity for stim/nostim
 move_stim_wheel_avg = cell2mat(cellfun(@nanmean,nonstim_move.move_stim_wheel(use_nostim_move_recordings),'uni',false));
 move_nostim_wheel_avg = cell2mat(cellfun(@nanmean,nonstim_move.move_nostim_wheel(use_nostim_move_recordings),'uni',false));
 
-figure;h = tiledlayout(1,5);
+figure;h = tiledlayout(1,2);
+h1 = nexttile; hold on
+set(h1,'ColorOrder',ld_color);
+h2 = nexttile; hold on
+set(h2,'ColorOrder',ld_color);
 for curr_ld = -2:2
     plot_idx = bhv.days_from_learning(use_nostim_move_recordings) == curr_ld;
-
-    nexttile; hold on;
-    plot(nanmean(move_stim_wheel_avg(plot_idx,:),1),'k','linewidth',2);
-    plot(nanmean(move_nostim_wheel_avg(plot_idx,:),1),'r','linewidth',2);
+    plot(h1,nanmean(move_stim_wheel_avg(plot_idx,:),1),'linewidth',2);
+    plot(h2,nanmean(move_nostim_wheel_avg(plot_idx,:),1),'linewidth',2);
 end
 linkaxes(h.Children,'xy');
+
+
 
 %% Fraction of quiescent passive trials
 
