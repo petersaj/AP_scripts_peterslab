@@ -2928,7 +2928,7 @@ linkaxes(h.Children,'xy');
 
 % Plot striatum overlaid
 ld_color = ap.colormap('BKR',5);
-figure;h = tiledlayout(n_domains,2);
+figure;h = tiledlayout(n_domains,3);
 for curr_domain = 1:n_domains
 
     h1 = nexttile; hold on
@@ -2936,6 +2936,9 @@ for curr_domain = 1:n_domains
 
     h2 = nexttile; hold on
     set(h2,'ColorOrder',ld_color);
+
+    h3 = nexttile; hold on
+    set(h3,'ColorOrder',ld_color);
 
     for curr_ld = -2:2
         curr_domain_nonstim_move_act = ...
@@ -2948,6 +2951,8 @@ for curr_domain = 1:n_domains
 
         plot(h1,curr_domain_nonstim_move_act,'linewidth',2);
         plot(h2,striatum_mua_moveavg(curr_stim_move_act_idx,:)','linewidth',2);
+        plot(h3,striatum_mua_moveavg(curr_stim_move_act_idx,:)' - ...
+            curr_domain_nonstim_move_act,'linewidth',2);
     end
 end
 linkaxes(h.Children,'xy');
