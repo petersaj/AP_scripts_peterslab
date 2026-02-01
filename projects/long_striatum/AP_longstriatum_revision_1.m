@@ -2988,53 +2988,34 @@ for animal_idx=1:length(animals)
 end
 
 
+% Plot quiescent trials pre/post learning
 passive_quiescent_stim = cell2mat(cellfun(@(stim,quiescent) ...
     ap.groupfun(@mean,+quiescent,stim)', ...
     cat(1,passive_quiescent_trials.stim_x), ...
     cat(1,passive_quiescent_trials.quiescent),'uni',false));
 
 [passive_quiescent_stim_ld,passive_quiescent_stim_ld_grp] = ...
-    ap.groupfun(@mean,passive_quiescent_stim,bhv.days_from_learning);
+    ap.groupfun(@mean,passive_quiescent_stim,bhv.days_from_learning >= 0);
+passive_quiescent_stim_ld_sem = ...
+    ap.groupfun(@ap.sem,passive_quiescent_stim,bhv.days_from_learning >= 0);
 
 figure;
-plot(passive_quiescent_stim_ld_grp,passive_quiescent_stim_ld)
+x_labels = ["Pre-learn","Post-learn"];
+errorbar(reordercats(categorical(x_labels),x_labels), ...
+    passive_quiescent_stim_ld,passive_quiescent_stim_ld_sem,'linewidth',2)
+axis padded;
+ylabel('Frac. quiescent trials')
+ap.prettyfig;
 
 
-
-
-
-
-n_daysplit = 10;
-passive_quiescent_stim_daysplit = cell2mat(cellfun(@(stim,quiescent) ...
-    ap.groupfun(@mean,+quiescent,[ap.quantile_bin(length(stim),n_daysplit),stim])', ...
-    cat(1,passive_quiescent_trials.stim_x), ...
-    cat(1,passive_quiescent_trials.quiescent),'uni',false));
-
-[passive_quiescent_stim_daysplit_ld,passive_quiescent_stim_daysplit_ld_grp] = ...
-    ap.groupfun(@mean,passive_quiescent_stim_daysplit,bhv.days_from_learning);
-
-passive_quiescent_stim_daysplit_ld_reshape = ...
-    reshape(passive_quiescent_stim_daysplit_ld',n_daysplit,3, ...
-    length(passive_quiescent_stim_daysplit_ld_grp));
-
-figure;
-passive_quiescent_stim_daysplit_x = passive_quiescent_stim_daysplit_ld_grp+(0:n_daysplit)./n_daysplit;
-
-plot(reshape(passive_quiescent_stim_daysplit_x',[],1), ...
-    reshape(permute(padarray(passive_quiescent_stim_daysplit_ld_reshape,[1,0],nan,'post'),[1,3,2]),[],3))
-
-
-
-
-
-
-passive_ld_idx = cell2mat(cellfun(@(rec,stim) repelem(rec,length(stim))', ...
-    num2cell(bhv.days_from_learning), ...
-    cat(1,passive_quiescent_trials.stim_x),'uni',false));
-
+% Plot quiescent trials binned by trial number
 n_trialsplit = 10;
 passive_trialsplit_idx = cell2mat(cellfun(@(stim) ...
     (floor((0:length(stim)-1)/n_trialsplit)+1)', ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+passive_ld_idx = cell2mat(cellfun(@(rec,stim) repelem(rec,length(stim))', ...
+    num2cell(bhv.days_from_learning), ...
     cat(1,passive_quiescent_trials.stim_x),'uni',false));
 
 [passive_quiescent_stim_trialsplit,passive_quiescent_stim_trialsplit_grp] = ...
@@ -3053,6 +3034,8 @@ passive_quiescent_stim_daysplit_x = reshape((unique(passive_quiescent_stim_trial
 figure;
 plot(passive_quiescent_stim_daysplit_x, ...
     reshape(permute(padarray(passive_quiescent_stim_trialsplit_grid,[0,1],nan,'post'),[2,1,3]),[],3))
+xlabel('Days from learning');
+ylabel('Frac. quiescent trials');
 
 
 
