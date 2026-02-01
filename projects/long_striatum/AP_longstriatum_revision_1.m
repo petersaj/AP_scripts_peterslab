@@ -2934,7 +2934,7 @@ for curr_ld = -2:2
 end
 linkaxes(h.Children,'xy');
 
-%% Number of passive trials with movement
+%% Fraction of quiescent passive trials
 
 %%% Load non-activity data
 load_dataset = 'noact';
@@ -3009,7 +3009,7 @@ ap.prettyfig;
 
 
 % Plot quiescent trials binned by trial number
-n_trialsplit = 10;
+n_trialsplit = 9;
 passive_trialsplit_idx = cell2mat(cellfun(@(stim) ...
     (floor((0:length(stim)-1)/n_trialsplit)+1)', ...
     cat(1,passive_quiescent_trials.stim_x),'uni',false));

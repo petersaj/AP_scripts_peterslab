@@ -161,6 +161,113 @@ for curr_atlas_bin = 1:n_atlas_bins
     drawnow;
 end
 
+%% R3 M3: Fraction of quiescent passive trials
 
+%%% Load non-activity data
+load_dataset = 'noact';
+Marica_2025.figures.load_data;
+%%%
+
+% Get which trials in passive were quiescent
+animals = unique(bhv.animal,'stable');
+
+passive_quiescent_trials = struct( ...
+    'stim_x',cell(length(animals),1), ...
+    'quiescent',cell(length(animals),1));
+
+for animal_idx=1:length(animals)
+   
+    animal = animals{animal_idx};
+
+    % Find passive recording days that also have task
+    workflow_passive = {'lcr_passive'};
+    recordings_passive = plab.find_recordings(animal, [], workflow_passive);
+    workflow_task = {'stim_wheel_right*'};
+    recordings_task = plab.find_recordings(animal, [], workflow_task);
+    training_days = ismember({recordings_passive.day}, {recordings_task.day});
+    train_rec_passive = recordings_passive(training_days);
+    bhv_days = {train_rec_passive.day};
+    ephys_days =  bhv_days([train_rec_passive.ephys]);    
+
+    for use_rec = 1:length(ephys_days)
+
+        rec_day = train_rec_passive(use_rec).day;
+        rec_time = train_rec_passive(use_rec).recording{end};
+        load_parts.behavior = true;
+        ap.load_recording
+   
+        % Trial stim values
+        trial_stim_values = vertcat(trial_events.values.TrialStimX);
+        trial_stim_values = trial_stim_values(1:length(stimOn_times));
+
+        % Quiescent trials
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            (1:length(stimOn_times))');
+
+        passive_quiescent_trials(animal_idx).stim_x{use_rec,1} = trial_stim_values;
+        passive_quiescent_trials(animal_idx).quiescent{use_rec,1} = quiescent_trials;
+
+    end
+    ap.print_progress_fraction(animal_idx,length(animals));
+end
+
+
+% Plot quiescent trials pre/post learning
+passive_quiescent_stim = cell2mat(cellfun(@(stim,quiescent) ...
+    ap.groupfun(@mean,+quiescent,stim)', ...
+    cat(1,passive_quiescent_trials.stim_x), ...
+    cat(1,passive_quiescent_trials.quiescent),'uni',false));
+
+[passive_quiescent_stim_ld,passive_quiescent_stim_ld_grp] = ...
+    ap.groupfun(@mean,passive_quiescent_stim,bhv.days_from_learning >= 0);
+passive_quiescent_stim_ld_sem = ...
+    ap.groupfun(@ap.sem,passive_quiescent_stim,bhv.days_from_learning >= 0);
+
+figure;
+x_labels = ["Pre-learn","Post-learn"];
+errorbar(reordercats(categorical(x_labels),x_labels), ...
+    passive_quiescent_stim_ld,passive_quiescent_stim_ld_sem,'linewidth',2)
+axis padded;
+ylabel('Frac. quiescent trials')
+ap.prettyfig;
+
+
+% Plot quiescent trials binned by trial number
+n_trialsplit = 9;
+passive_trialsplit_idx = cell2mat(cellfun(@(stim) ...
+    (floor((0:length(stim)-1)/n_trialsplit)+1)', ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+passive_ld_idx = cell2mat(cellfun(@(rec,stim) repelem(rec,length(stim))', ...
+    num2cell(bhv.days_from_learning), ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+[passive_quiescent_stim_trialsplit,passive_quiescent_stim_trialsplit_grp] = ...
+    ap.groupfun(@mean,+cell2mat(cat(1,passive_quiescent_trials.quiescent)), ...
+    [passive_ld_idx,passive_trialsplit_idx,cell2mat(cat(1,passive_quiescent_trials.stim_x))]);
+
+passive_quiescent_stim_trialsplit_grid = ...
+    accumarray([grp2idx(passive_quiescent_stim_trialsplit_grp(:,1)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,2)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,3))], ...
+    passive_quiescent_stim_trialsplit,[],[],nan);
+
+passive_quiescent_stim_daysplit_x = reshape((unique(passive_quiescent_stim_trialsplit_grp(:,1)) + ...
+    linspace(0,1,max(passive_quiescent_stim_trialsplit_grp(:,2)+1)))',[],1);
+
+figure;
+plot_x_idx = isbetween(passive_quiescent_stim_daysplit_x,-3,3);
+passive_quiescent_stim_trialsplit_grid_reshape = ...
+    reshape(permute(padarray(passive_quiescent_stim_trialsplit_grid,[0,1],nan,'post'),[2,1,3]),[],3);
+plot(passive_quiescent_stim_daysplit_x(plot_x_idx), ...
+    passive_quiescent_stim_trialsplit_grid_reshape(plot_x_idx,:),'linewidth',2)
+xline(0,'k');
+xlabel('Days from learning');
+ylabel('Frac. quiescent trials');
+axis padded;
+ap.prettyfig;
 
 
