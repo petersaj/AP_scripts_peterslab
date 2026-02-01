@@ -2851,6 +2851,7 @@ ap.prettyfig;
 
 
 %% Non-stim move activity
+% (in progress)
 
 %%% Load non-activity data
 load_dataset = 'task';
@@ -2861,52 +2862,200 @@ Marica_2025.figures.load_data;
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'nonstim_move'));
 
-% TEMP: remove data with wrong orientation (1 trial)
-x = cellfun(@(x) size(x,1),nonstim_move.V_move_nostim_align);
-
 % (quick test: pre/post wf nonstim move)
+use_nostim_move_recordings = ~cellfun(@isempty,nonstim_move.V_move_nostim_align);
+
 n_vs = 2000;
-nonstim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
-    ap.groupfun(@nanmean,cat(3,nonstim_move.V_move_nostim_align{x==n_vs}),[],[], ...
-    bhv.days_from_learning(x==n_vs)>=0));
+nostim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    ap.groupfun(@nanmean,cat(3,nonstim_move.V_move_nostim_align{:}),[],[], ...
+    bhv.days_from_learning(use_nostim_move_recordings)>=0));
 
 stim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
-    ap.groupfun(@nanmean,cell2mat(permute(cellfun(@(x) permute(nanmean(x(:,:,:,2),1),[3,2,1,4]),wf.V_event_align(x==n_vs),'uni',false),[2,3,1])),[],[], ...
-    bhv.days_from_learning(x==n_vs)>=0));
+    ap.groupfun(@nanmean,cell2mat(permute(cellfun(@(x) ...
+    permute(nanmean(x(:,:,:,2),1),[3,2,1,4]),wf.V_event_align(use_nostim_move_recordings),'uni',false),[2,3,1])),[],[], ...
+    bhv.days_from_learning(use_nostim_move_recordings)>=0));
 
-ap.imscroll(cat(4,stim_move_prepost,nonstim_move_prepost));
+ap.imscroll(cat(4,stim_move_prepost,nostim_move_prepost));
 axis image
 colormap(gca,ap.colormap('PWG'));
 clim(max(abs(clim)).*[-1,1]);
 
 % Get nonstim move ephys
 % (sum into domain multiunit)
-striatum_nonstim_move_mua_sum = cellfun(@(mua,domain_idx) ...
+striatum_nostim_move_mua_sum = cellfun(@(mua,domain_idx) ...
     permute(ap.groupfun(@sum,mua,domain_idx,[]),[3,2,1]), ...
     nonstim_move.binned_msn_spikes_move_nostim_align,domain_idx_rec,'uni',false);
 
-striatum_nonstim_move_mua = cellfun(spikes_norm_smooth_reshape_fcn, ...
-    striatum_nonstim_move_mua_sum,cellfun(@(x) nanmean(x,1),mua_sub_baseline,'uni',false),mua_div_baseline,'uni',false, ...
-    'ErrorHandler',@(varargin) []);
+striatum_nostim_move_mua = cellfun(mua_norm_smooth_reshape_fcn, ...
+    striatum_nostim_move_mua_sum,cellfun(@(x) nanmean(x,1),mua_sub_baseline,'uni',false),mua_div_baseline,'uni',false, ...
+    'ErrorHandler',@(varargin) []); %#ok<FUNFUN>
 
-figure;h = tiledlayout(1,5);
-curr_domain = 2;
-for curr_ld = -2:2
+% Plot average stim/non-stim move for domain across learning day
+rxn_bin = [-Inf,Inf];
+striatum_mua_rxngrp = discretize(striatum_mua_grp.rxn,rxn_bin);
 
-    curr_domain_nonstim_act = ...
-        cell2mat(cellfun(@(mua,domain) mua(domain==curr_domain,:), ...
-        striatum_nonstim_move_mua(bhv.days_from_learning==curr_ld), ...
-        striatum_domain_idx(bhv.days_from_learning==curr_ld),'uni',false));
+[striatum_mua_moveavg,striatum_mua_moveavg_grp] = ...
+    ap.nestgroupfun({@nanmean,@nanmean},striatum_mua(:,:,2), ...
+    striatum_mua_grp.animal, ...
+    [striatum_mua_grp.domain_idx, striatum_mua_grp.ld,striatum_mua_rxngrp]);
 
-    nexttile; hold on
-    d1 = nanmean(curr_domain_nonstim_act);
-    d2 = nanmean(striatum_mua(striatum_mua_grp.domain_idx==curr_domain &  ...
-        striatum_mua_grp.ld == curr_ld,:,2));
+figure;h = tiledlayout(n_domains,5);
+for curr_domain = 1:n_domains
+    for curr_ld = -2:2
 
-    plot();
-    plot();
+        curr_domain_nonstim_move_act = ...
+            nanmean(cell2mat(cellfun(@(mua,domain) mua(domain==curr_domain,:), ...
+            striatum_nostim_move_mua(use_nostim_move_recordings & bhv.days_from_learning==curr_ld), ...
+            striatum_domain_idx(use_nostim_move_recordings & bhv.days_from_learning==curr_ld),'uni',false)),1);
+
+        curr_stim_move_act_idx = ismember(striatum_mua_moveavg_grp(:,1:2), ...
+            [curr_domain,curr_ld],'rows');
+
+        nexttile; hold on
+        plot(curr_domain_nonstim_move_act,'k');
+        plot(striatum_mua_moveavg(curr_stim_move_act_idx,:)');
+        plot((striatum_mua_moveavg(curr_stim_move_act_idx,:)-curr_domain_nonstim_move_act)');
+
+    end
 end
 linkaxes(h.Children,'xy');
+
+% Plot wheel velocity for stim/nostim
+move_stim_wheel_avg = cell2mat(cellfun(@nanmean,nonstim_move.move_stim_wheel(use_nostim_move_recordings),'uni',false));
+move_nostim_wheel_avg = cell2mat(cellfun(@nanmean,nonstim_move.move_nostim_wheel(use_nostim_move_recordings),'uni',false));
+
+figure;h = tiledlayout(1,5);
+for curr_ld = -2:2
+    plot_idx = bhv.days_from_learning(use_nostim_move_recordings) == curr_ld;
+
+    nexttile; hold on;
+    plot(nanmean(move_stim_wheel_avg(plot_idx,:),1),'k','linewidth',2);
+    plot(nanmean(move_nostim_wheel_avg(plot_idx,:),1),'r','linewidth',2);
+end
+linkaxes(h.Children,'xy');
+
+%% Number of passive trials with movement
+
+%%% Load non-activity data
+load_dataset = 'noact';
+Marica_2025.figures.load_data;
+%%%
+
+% Get which trials in passive were quiescent
+animals = unique(bhv.animal,'stable');
+
+passive_quiescent_trials = struct( ...
+    'stim_x',cell(length(animals),1), ...
+    'quiescent',cell(length(animals),1));
+
+for animal_idx=1:length(animals)
+   
+    animal = animals{animal_idx};
+
+    % Find passive recording days that also have task
+    workflow_passive = {'lcr_passive'};
+    recordings_passive = plab.find_recordings(animal, [], workflow_passive);
+    workflow_task = {'stim_wheel_right*'};
+    recordings_task = plab.find_recordings(animal, [], workflow_task);
+    training_days = ismember({recordings_passive.day}, {recordings_task.day});
+    train_rec_passive = recordings_passive(training_days);
+    bhv_days = {train_rec_passive.day};
+    ephys_days =  bhv_days([train_rec_passive.ephys]);    
+
+    for use_rec = 1:length(ephys_days)
+
+        rec_day = train_rec_passive(use_rec).day;
+        rec_time = train_rec_passive(use_rec).recording{end};
+        load_parts.behavior = true;
+        ap.load_recording
+   
+        % Trial stim values
+        trial_stim_values = vertcat(trial_events.values.TrialStimX);
+        trial_stim_values = trial_stim_values(1:length(stimOn_times));
+
+        % Quiescent trials
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            (1:length(stimOn_times))');
+
+        passive_quiescent_trials(animal_idx).stim_x{use_rec,1} = trial_stim_values;
+        passive_quiescent_trials(animal_idx).quiescent{use_rec,1} = quiescent_trials;
+
+    end
+    ap.print_progress_fraction(animal_idx,length(animals));
+end
+
+
+passive_quiescent_stim = cell2mat(cellfun(@(stim,quiescent) ...
+    ap.groupfun(@mean,+quiescent,stim)', ...
+    cat(1,passive_quiescent_trials.stim_x), ...
+    cat(1,passive_quiescent_trials.quiescent),'uni',false));
+
+[passive_quiescent_stim_ld,passive_quiescent_stim_ld_grp] = ...
+    ap.groupfun(@mean,passive_quiescent_stim,bhv.days_from_learning);
+
+figure;
+plot(passive_quiescent_stim_ld_grp,passive_quiescent_stim_ld)
+
+
+
+
+
+
+n_daysplit = 10;
+passive_quiescent_stim_daysplit = cell2mat(cellfun(@(stim,quiescent) ...
+    ap.groupfun(@mean,+quiescent,[ap.quantile_bin(length(stim),n_daysplit),stim])', ...
+    cat(1,passive_quiescent_trials.stim_x), ...
+    cat(1,passive_quiescent_trials.quiescent),'uni',false));
+
+[passive_quiescent_stim_daysplit_ld,passive_quiescent_stim_daysplit_ld_grp] = ...
+    ap.groupfun(@mean,passive_quiescent_stim_daysplit,bhv.days_from_learning);
+
+passive_quiescent_stim_daysplit_ld_reshape = ...
+    reshape(passive_quiescent_stim_daysplit_ld',n_daysplit,3, ...
+    length(passive_quiescent_stim_daysplit_ld_grp));
+
+figure;
+passive_quiescent_stim_daysplit_x = passive_quiescent_stim_daysplit_ld_grp+(0:n_daysplit)./n_daysplit;
+
+plot(reshape(passive_quiescent_stim_daysplit_x',[],1), ...
+    reshape(permute(padarray(passive_quiescent_stim_daysplit_ld_reshape,[1,0],nan,'post'),[1,3,2]),[],3))
+
+
+
+
+
+
+passive_ld_idx = cell2mat(cellfun(@(rec,stim) repelem(rec,length(stim))', ...
+    num2cell(bhv.days_from_learning), ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+n_trialsplit = 10;
+passive_trialsplit_idx = cell2mat(cellfun(@(stim) ...
+    (floor((0:length(stim)-1)/n_trialsplit)+1)', ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+[passive_quiescent_stim_trialsplit,passive_quiescent_stim_trialsplit_grp] = ...
+    ap.groupfun(@mean,+cell2mat(cat(1,passive_quiescent_trials.quiescent)), ...
+    [passive_ld_idx,passive_trialsplit_idx,cell2mat(cat(1,passive_quiescent_trials.stim_x))]);
+
+passive_quiescent_stim_trialsplit_grid = ...
+    accumarray([grp2idx(passive_quiescent_stim_trialsplit_grp(:,1)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,2)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,3))], ...
+    passive_quiescent_stim_trialsplit,[],[],nan);
+
+
+passive_quiescent_stim_daysplit_x = unique(passive_quiescent_stim_trialsplit_grp(:,1)) + 
+1/max(passive_quiescent_stim_trialsplit_grp(:,2));
+
+plot(reshape(passive_quiescent_stim_daysplit_x',[],1), ...
+    reshape(permute(padarray(passive_quiescent_stim_daysplit_ld_reshape,[1,0],nan,'post'),[1,3,2]),[],3))
+
+
+
 
 
 
