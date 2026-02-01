@@ -2849,45 +2849,65 @@ xline(0,'r');
 linkaxes([ax1,ax2],'x');
 ap.prettyfig;
 
-%% IN PROGRESS: get ITI movements
 
-animal = 'AP025';
-use_workflow = 'stim_wheel_right_stage\d';
-recordings = plab.find_recordings(animal,[],use_workflow);
+%% Non-stim move activity
 
-% Load recor
-load_parts.behavior = true;
-rec_day = recordings(end).day;
-rec_time = recordings(end).recording{end};
-ap.load_recording;
+%%% Load non-activity data
+load_dataset = 'task';
+Marica_2025.figures.load_data;
+%%%
 
+% Load nonstim move activity
+U_master = plab.wf.load_master_U;
+load(fullfile(data_path,'nonstim_move'));
 
+% TEMP: remove data with wrong orientation (1 trial)
+x = cellfun(@(x) size(x,1),nonstim_move.V_move_nostim_align);
 
-wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
-wheel_stops = timelite.timestamps(diff([0;wheel_move]) == -1);
+% (quick test: pre/post wf nonstim move)
+n_vs = 2000;
+nonstim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    ap.groupfun(@nanmean,cat(3,nonstim_move.V_move_nostim_align{x==n_vs}),[],[], ...
+    bhv.days_from_learning(x==n_vs)>=0));
 
-iti_move_idx = interp1(photodiode_times, ...
-    photodiode_values,wheel_starts,'previous') == 0;
+stim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    ap.groupfun(@nanmean,cell2mat(permute(cellfun(@(x) permute(nanmean(x(:,:,:,2),1),[3,2,1,4]),wf.V_event_align(x==n_vs),'uni',false),[2,3,1])),[],[], ...
+    bhv.days_from_learning(x==n_vs)>=0));
 
-% Threshold for would-be-rewarded movement
-wheel_thresh = -round((1024/360)/3*90); % based on wheel encoder
+ap.imscroll(cat(4,stim_move_prepost,nonstim_move_prepost));
+axis image
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
 
-% (get time to cross threshold, if any)
-wheel_thresh_t = nan(length(wheel_starts),1);
-for curr_move = 1:length(wheel_starts)
-    curr_position_abs = ...
-        wheel_position(timelite.timestamps >= wheel_starts(curr_move) & ...
-        timelite.timestamps <= wheel_stops(curr_move));
-    curr_position_rel = curr_position_abs-curr_position_abs(1);
-    curr_thresh_cross_t = find(curr_position_rel < ...
-        wheel_thresh,1)./timelite.daq_info(1).rate;
-    if ~isempty(curr_thresh_cross_t)
-        wheel_thresh_t(curr_move) = curr_thresh_cross_t;
-    end
+% Get nonstim move ephys
+% (sum into domain multiunit)
+striatum_nonstim_move_mua_sum = cellfun(@(mua,domain_idx) ...
+    permute(ap.groupfun(@sum,mua,domain_idx,[]),[3,2,1]), ...
+    nonstim_move.binned_msn_spikes_move_nostim_align,domain_idx_rec,'uni',false);
+
+striatum_nonstim_move_mua = cellfun(spikes_norm_smooth_reshape_fcn, ...
+    striatum_nonstim_move_mua_sum,cellfun(@(x) nanmean(x,1),mua_sub_baseline,'uni',false),mua_div_baseline,'uni',false, ...
+    'ErrorHandler',@(varargin) []);
+
+figure;h = tiledlayout(1,5);
+curr_domain = 2;
+for curr_ld = -2:2
+
+    curr_domain_nonstim_act = ...
+        cell2mat(cellfun(@(mua,domain) mua(domain==curr_domain,:), ...
+        striatum_nonstim_move_mua(bhv.days_from_learning==curr_ld), ...
+        striatum_domain_idx(bhv.days_from_learning==curr_ld),'uni',false));
+
+    nexttile; hold on
+    d1 = nanmean(curr_domain_nonstim_act);
+    d2 = nanmean(striatum_mua(striatum_mua_grp.domain_idx==curr_domain &  ...
+        striatum_mua_grp.ld == curr_ld,:,2));
+
+    plot();
+    plot();
 end
+linkaxes(h.Children,'xy');
 
-iti_fastmove_idx = iti_move_idx & wheel_thresh_t <= 0.3;
-iti_fastmove_times = wheel_starts(iti_fastmove_idx);
 
 
 

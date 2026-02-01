@@ -2850,11 +2850,66 @@ linkaxes([ax1,ax2],'x');
 ap.prettyfig;
 
 
+%% Non-stim move activity
+% (in progress)
 
+%%% Load non-activity data
+load_dataset = 'task';
+Marica_2025.figures.load_data;
+%%%
 
+% Load nonstim move activity
+U_master = plab.wf.load_master_U;
+load(fullfile(data_path,'nonstim_move'));
 
+% TEMP: remove data with wrong orientation (1 trial)
+x = cellfun(@(x) size(x,1),nonstim_move.V_move_nostim_align);
 
+% (quick test: pre/post wf nonstim move)
+n_vs = 2000;
+nonstim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    ap.groupfun(@nanmean,cat(3,nonstim_move.V_move_nostim_align{x==n_vs}),[],[], ...
+    bhv.days_from_learning(x==n_vs)>=0));
 
+stim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
+    ap.groupfun(@nanmean,cell2mat(permute(cellfun(@(x) permute(nanmean(x(:,:,:,2),1),[3,2,1,4]),wf.V_event_align(x==n_vs),'uni',false),[2,3,1])),[],[], ...
+    bhv.days_from_learning(x==n_vs)>=0));
+
+ap.imscroll(cat(4,stim_move_prepost,nonstim_move_prepost));
+axis image
+colormap(gca,ap.colormap('PWG'));
+clim(max(abs(clim)).*[-1,1]);
+
+% Get nonstim move ephys
+% (sum into domain multiunit)
+striatum_nonstim_move_mua_sum = cellfun(@(mua,domain_idx) ...
+    permute(ap.groupfun(@sum,mua,domain_idx,[]),[3,2,1]), ...
+    nonstim_move.binned_msn_spikes_move_nostim_align,domain_idx_rec,'uni',false);
+
+striatum_nonstim_move_mua = cellfun(spikes_norm_smooth_reshape_fcn, ...
+    striatum_nonstim_move_mua_sum,cellfun(@(x) nanmean(x,1),mua_sub_baseline,'uni',false),mua_div_baseline,'uni',false, ...
+    'ErrorHandler',@(varargin) []); %#ok<FUNFUN>
+
+% Plot average stim/non-stim move for domain across learning day
+figure;h = tiledlayout(1,5);
+curr_domain = 1;
+for curr_ld = -2:2
+
+    curr_domain_nonstim_act = ...
+        cell2mat(cellfun(@(mua,domain) mua(domain==curr_domain,:), ...
+        striatum_nonstim_move_mua(bhv.days_from_learning==curr_ld), ...
+        striatum_domain_idx(bhv.days_from_learning==curr_ld),'uni',false));
+
+    nexttile; hold on
+    d1 = nanmean(curr_domain_nonstim_act);
+    d2 = nanmean(striatum_mua(striatum_mua_grp.domain_idx==curr_domain &  ...
+        striatum_mua_grp.ld == curr_ld,:,2));
+
+    plot(d1);
+    plot(d2);
+    plot(d2-d1);
+end
+linkaxes(h.Children,'xy');
 
 
 
