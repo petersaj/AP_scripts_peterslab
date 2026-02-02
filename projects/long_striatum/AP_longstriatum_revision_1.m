@@ -2862,8 +2862,10 @@ Marica_2025.figures.load_data;
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'nonstim_move'));
 
-% (quick test: pre/post wf nonstim move)
 use_nostim_move_recordings = ~cellfun(@isempty,nonstim_move.V_move_nostim_align);
+nostim_move_wheel_t = nonstim_move.wheel_align_time{find(use_nostim_move_recordings,1)};
+
+% (quick test: pre/post wf nonstim move)
 
 n_vs = 2000;
 nostim_move_prepost = plab.wf.svd2px(U_master(:,:,1:n_vs), ...
@@ -2949,10 +2951,10 @@ for curr_domain = 1:n_domains
         curr_stim_move_act_idx = ismember(striatum_mua_moveavg_grp(:,1:2), ...
             [curr_domain,curr_ld],'rows');
 
-        plot(h1,curr_domain_nonstim_move_act,'linewidth',2);
-        plot(h2,striatum_mua_moveavg(curr_stim_move_act_idx,:)','linewidth',2);
-        plot(h3,striatum_mua_moveavg(curr_stim_move_act_idx,:)' - ...
-            curr_domain_nonstim_move_act,'linewidth',2);
+        plot(h1,psth_t,curr_domain_nonstim_move_act','linewidth',2);
+        plot(h2,psth_t,striatum_mua_moveavg(curr_stim_move_act_idx,:)','linewidth',2);
+        plot(h3,psth_t,striatum_mua_moveavg(curr_stim_move_act_idx,:)' - ...
+            curr_domain_nonstim_move_act','linewidth',2);
     end
 end
 linkaxes(h.Children,'xy');
@@ -2963,7 +2965,7 @@ linkaxes(h.Children,'xy');
     wf_grp.animal,wf_grp.ld);
 
 ld_color = ap.colormap('BKR',5);
-figure;h = tiledlayout(n_domains,2);
+figure;h = tiledlayout(n_domains,3);
 for curr_domain = 1:n_domains
 
     h1 = nexttile; hold on
@@ -2971,6 +2973,9 @@ for curr_domain = 1:n_domains
 
     h2 = nexttile; hold on
     set(h2,'ColorOrder',ld_color);
+
+    h3 = nexttile; hold on
+    set(h3,'ColorOrder',ld_color);
 
     for curr_ld = -2:2
         curr_roi_nostim_move_act = nanmean(wf_nostim_move_striatum_roi( ...
@@ -2980,6 +2985,7 @@ for curr_domain = 1:n_domains
 
         plot(h1,curr_roi_nostim_move_act,'linewidth',2);
         plot(h2,curr_roi_stim_move_act,'linewidth',2);
+        plot(h3,curr_roi_stim_move_act - curr_roi_nostim_move_act,'linewidth',2);
     end
 end
 linkaxes(h.Children,'xy');
@@ -3001,6 +3007,115 @@ for curr_ld = -2:2
 end
 linkaxes(h.Children,'xy');
 
+
+% NaN-out activity after movement onset (minus leeway time)
+move_leeway = 0; % time pre-movement to exclude
+striatum_mua_nomove = striatum_mua(:,:,1).*ap.nanout(psth_t > striatum_mua_grp.rxn-move_leeway);
+
+stim_leeway = 0;
+% striatum_mua_nostim = striatum_mua(:,:,2).*ap.nanout(psth_t < striatum_mua_grp.rxn+move_leeway);
+striatum_mua_nostim = striatum_mua(:,:,2);
+
+curr_domain = 1;
+figure; h = tiledlayout(1,3);
+for curr_ld = -1:1
+
+    curr_data_idx = striatum_mua_grp.domain_idx == curr_domain & ...
+        striatum_mua_grp.ld == curr_ld;
+    
+    curr_stim_act = nanmean(ap.groupfun(@nanmean, ...
+        striatum_mua_nomove(curr_data_idx,:),striatum_mua_grp.animal(curr_data_idx)),1);
+
+    curr_move_act = nanmean(ap.groupfun(@nanmean, ...
+        striatum_mua_nostim(curr_data_idx,:),striatum_mua_grp.animal(curr_data_idx)),1);
+
+    curr_nonstim_move_act = ...
+        nanmean(cell2mat(cellfun(@(mua,domain) mua(domain==curr_domain,:), ...
+        striatum_nostim_move_mua(use_nostim_move_recordings & bhv.days_from_learning==curr_ld), ...
+        striatum_domain_idx(use_nostim_move_recordings & bhv.days_from_learning==curr_ld),'uni',false)),1);
+
+    nexttile; hold on;
+    plot(psth_t,curr_stim_act);
+    plot(psth_t+median(striatum_mua_grp.rxn(curr_data_idx)),curr_move_act);
+    plot(psth_t+median(striatum_mua_grp.rxn(curr_data_idx)),curr_nonstim_move_act);
+
+end
+linkaxes(h.Children,'xy');
+
+
+% Weighted sum of no-stim move (equivalent to combining trials)
+%%%%% WORKING HERE
+plot_day_bins = [-1,0,1,Inf];
+day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
+striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+
+figure; h = tiledlayout(n_domains,3);
+figure; h_rxn = axes; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
+for curr_domain = 1:n_domains
+
+    h1 = nexttile(h); hold on;
+    set(gca,'ColorOrder',ap.colormap('BKR',3));
+
+    h2 = nexttile(h); hold on;
+    set(gca,'ColorOrder',ap.colormap('BKR',3));
+
+    h3 = nexttile(h); hold on;
+    set(gca,'ColorOrder',ap.colormap('BKR',3));    
+
+    for curr_day_grp = 1:length(plot_day_bins)-1
+
+        % Get no-stim move activity
+        curr_nomove_idx = use_nostim_move_recordings & day_grp==curr_day_grp;
+
+        curr_nostim_move_act = cellfun(@(x,domain) x(domain==curr_domain,:), ...
+            striatum_nostim_move_mua(curr_nomove_idx), ...
+            striatum_domain_idx(curr_nomove_idx),'uni',false);
+
+        n_moves = cellfun(@(x) size(x,1),nonstim_move.move_nostim_wheel(curr_nomove_idx));
+        curr_nostim_move_act_weighted = cellfun(@(act,n) act.*n,curr_nostim_move_act,num2cell(n_moves),'uni',false);
+        curr_nostim_move_animal_idx = grp2idx(nonstim_move.animal(curr_nomove_idx));
+
+        curr_nostim_move_act_daywavg = ap.groupfun(@sum,cell2mat(curr_nostim_move_act_weighted), ...
+            curr_nostim_move_animal_idx(~cellfun(@isempty,curr_nostim_move_act_weighted)))./ ...
+            ap.groupfun(@sum,n_moves(~cellfun(@isempty,curr_nostim_move_act_weighted)), ...
+             curr_nostim_move_animal_idx(~cellfun(@isempty,curr_nostim_move_act_weighted)));
+
+        % Get stim move activity
+         curr_trials_idx = striatum_mua_grp.domain_idx == curr_domain & ...
+            striatum_plot_day_grp == curr_day_grp;
+       
+        curr_stimmove_act = ap.groupfun(@mean, ...
+            striatum_mua(curr_trials_idx,:,2), ...
+            striatum_mua_grp.animal(curr_trials_idx));
+
+        % Plot
+        plot(h1,psth_t,nanmean(curr_stimmove_act,1));
+        plot(h2,psth_t,nanmean(curr_nostim_move_act_daywavg,1));
+        plot(h3,psth_t,nanmean(curr_stimmove_act,1)-nanmean(curr_nostim_move_act_daywavg,1));
+
+        % Plot histogram of stim relative to move onset (on first domain)
+        if curr_domain == 1
+            rxn_bins = [-Inf,-0.5:0.05:1,Inf];
+            rxn_bin_x = [rxn_bins(2),rxn_bins(2:end-2)+diff(rxn_bins(2:end-1))/2,rxn_bins(end-1)];
+            rxn_histogram = cell2mat(arrayfun(@(x) histcounts(-striatum_mua_grp.rxn(curr_trials_idx & ...
+                striatum_mua_grp.animal == x),rxn_bins,'Normalization','probability'), ...
+                (1:length(unique(striatum_mua_grp.animal)))','uni',false));
+            plot(h_rxn,rxn_bin_x,nanmean(rxn_histogram,1));
+        end
+
+    end
+end
+linkaxes(h.Children,'xy');
+
+
+% Plot number of no-stim moves over threshold by day
+n_moves = cellfun(@(x) size(x,1),nonstim_move.move_nostim_wheel);
+[n_moves_avg,n_moves_avg_grp] = ap.groupfun(@mean,n_moves,bhv.days_from_learning);
+n_moves_sem = ap.groupfun(@ap.sem,n_moves,bhv.days_from_learning);
+figure;errorbar(n_moves_avg_grp,n_moves_avg,n_moves_sem,'k','linewidth',2);
+xlabel('Learned day');
+ylabel('# rewardable no-stim moves');
+ap.prettyfig;
 
 
 %% Fraction of quiescent passive trials
