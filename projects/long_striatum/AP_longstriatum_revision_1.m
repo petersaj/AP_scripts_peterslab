@@ -2995,12 +2995,14 @@ linkaxes(h.Children,'xy');
 move_stim_wheel_avg = cell2mat(cellfun(@nanmean,nonstim_move.move_stim_wheel(use_nostim_move_recordings),'uni',false));
 move_nostim_wheel_avg = cell2mat(cellfun(@nanmean,nonstim_move.move_nostim_wheel(use_nostim_move_recordings),'uni',false));
 
+ld_color = ap.colormap('BKR',3);
+
 figure;h = tiledlayout(1,2);
 h1 = nexttile; hold on
 set(h1,'ColorOrder',ld_color);
 h2 = nexttile; hold on
 set(h2,'ColorOrder',ld_color);
-for curr_ld = -2:2
+for curr_ld = -1:1
     plot_idx = bhv.days_from_learning(use_nostim_move_recordings) == curr_ld;
     plot(h1,nanmean(move_stim_wheel_avg(plot_idx,:),1),'linewidth',2);
     plot(h2,nanmean(move_nostim_wheel_avg(plot_idx,:),1),'linewidth',2);
@@ -3044,8 +3046,7 @@ linkaxes(h.Children,'xy');
 
 
 % Weighted sum of no-stim move (equivalent to combining trials)
-%%%%% WORKING HERE
-plot_day_bins = [-1,0,1,Inf];
+plot_day_bins = [-1,0,1,1];
 day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
