@@ -255,9 +255,9 @@ if ~isfield(trial_events.values,'TaskType')
     stim_regressors = histcounts(stimOn_times,time_bins);
 else
     trial_type = vertcat(trial_events.values.TaskType);
+    trial_type
     stim_regressors = cell2mat(arrayfun(@(x) ...
-        histcounts(stimOn_times(trial_type(1:length(stimOn_times))==x), ...
-        time_bins),unique(trial_type),'uni',false));
+        histcounts(stimOn_times(trial_type==x),time_bins),unique(trial_type),'uni',false));
 end
 
 n_components = 200;
@@ -323,7 +323,7 @@ plab.wf.wf_align([],animal,[],'new_animal');
 
 %% View aligned days
 
-animal = 'HA020';
+animal = 'AP032';
 
 recordings = plab.find_recordings(animal);
 wf_days_idx = cellfun(@(x) any(x),{recordings.widefield});

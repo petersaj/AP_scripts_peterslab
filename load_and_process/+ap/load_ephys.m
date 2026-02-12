@@ -29,8 +29,8 @@ if ~exist('load_probe','var')
 end
 
 % Get OE folders
-open_ephys_dir = dir(fullfile(ephys_path,'experiment*','recording*','continuous','*Probe*-AP'));
-oe_recordings = extract({open_ephys_dir.folder},'recording'+digitsPattern);
+open_ephys_dir = dir(fullfile(ephys_path,'experiment*','recording*','continuous','*-AP'));
+oe_recordings = unique(extract({open_ephys_dir.folder},'recording'+digitsPattern));
 
 if ~isscalar(open_ephys_dir) && length(open_ephys_dir) == length(oe_recordings)
     % Multiple recordings: assume concatenated
@@ -43,7 +43,7 @@ end
 
 % Get kilosort output folder
 kilosort_dir = dir(kilosort_top_path);
-if contains({kilosort_dir([kilosort_dir.isdir]).name},'probe')
+if any(contains({kilosort_dir([kilosort_dir.isdir]).name},'probe'))
     % Multi-probe: nested folder kilosort/probe_n
     kilosort_path = fullfile(kilosort_top_path,sprintf('probe_%d',load_probe));
 else
@@ -96,7 +96,7 @@ if ~exist(spike_times_openephys_filename,'file')
     ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
 
     oe_samples_dir = cellfun(@(data_path) ...
-        dir(fullfile(data_path,'continuous','*-AP','sample_numbers.npy')), ...
+        dir(fullfile(data_path,'sample_numbers.npy')), ...
         open_ephys_path,'uni',false);
     oe_samples_fn = cellfun(@(data_dir) ...
         fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);

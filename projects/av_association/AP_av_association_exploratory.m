@@ -28,12 +28,12 @@ event_aligned_wheel_move = interp1(timelite.timestamps, ...
     +wheel_move,pull_times,'previous');
 
 % Plot wheel move average by modality
-stim_wheel_vel_med = ap.groupfun(@median,event_aligned_wheel_vel,trial_modality,[]);
+stim_wheel_vel_mean = ap.groupfun(@mean,event_aligned_wheel_vel,trial_modality,[]);
 stim_wheel_move_avg = ap.groupfun(@mean,event_aligned_wheel_move,trial_modality,[]);
 
 figure; tiledlayout(1,3); 
 nexttile; hold on
-plot(surround_time_points,stim_wheel_vel_med','linewidth',2);
+plot(surround_time_points,stim_wheel_vel_mean','linewidth',2);
 ylabel('Median velocity');
 
 nexttile; hold on
