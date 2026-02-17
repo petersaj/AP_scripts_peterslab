@@ -119,7 +119,8 @@ load_dataset = 'passive';
 Marica_2025.figures.load_data;
 %%%
 
-plot_day_bins = [-10,-1,0,Inf];
+% plot_day_bins = [-10,-1,0,Inf];
+plot_day_bins = [-3:2,2];
 striatum_plot_days_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 

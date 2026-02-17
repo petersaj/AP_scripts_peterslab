@@ -938,7 +938,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP019';
+animal = 'AP033';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');
@@ -989,9 +989,9 @@ im_montage_rgb = min(sum(cell2mat(arrayfun(@(chan) ...
 figure;image(im_montage_rgb);axis image off;
 title(animal);
 
-%% Histology scroller (NEW)
+%% Histology scroller (ODESN'T WORK - OLD?)
 
-animal = 'AM010';
+animal = 'AP033';
 
 
 % (pre-SMZ)

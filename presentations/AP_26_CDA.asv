@@ -1,0 +1,185 @@
+%% Fig 1B: task wheel velocity
+
+% Average wheel velocity aligned to learning 
+animals = { ...
+    'AM011','AM012','AM014','AM015','AM016','AM017', ...
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
+
+wheel_all = cell(length(animals), 1);
+
+warning off;
+for curr_animal = 1:length(animals)
+    
+    animal = animals{curr_animal};
+
+    % Find all task recordings
+    workflow = {'stim_wheel_right*'};
+    recordings = plab.find_recordings(animal, [], workflow);
+    
+    for curr_rec = 1:length(recordings)
+
+        rec_day = recordings(curr_rec).day;
+        rec_time = recordings(curr_rec).recording{end};
+        verbose = false;
+        load_parts.behavior = true;
+        ap.load_recording
+
+        % Align wheel velocity to stim onset
+        align_times = stimOn_times;
+
+        surround_time = [-1,2];
+        surround_sample_rate = 100;
+        surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+        pull_times = align_times + surround_time_points;
+
+        [wheel_velocity,wheel_move] = ...
+            AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+
+        wheel_all{curr_animal}{curr_rec,1} = interp1(timelite.timestamps, ...
+            wheel_velocity,pull_times);    
+    end
+    ap.print_progress_fraction(curr_animal,length(animals));
+end
+
+% Load behavior and get learned day
+data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
+
+% Set stat and p-value to define learning day
+use_stat = 'firstmove_mean';
+learn_stat_p = 0.05;
+
+% Load behavior
+load(fullfile(data_path,'bhv'));
+
+% Set "learned_days" and "days_from_learning"
+bhv.learned_days = cellfun(@(x) x < learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
+for curr_animal = unique(bhv.animal)'
+    curr_rows = strcmp(bhv.animal,curr_animal);
+    bhv.days_from_learning(curr_rows) = ...
+        (1:sum(curr_rows))' - ...
+        max([NaN,find(bhv.learned_days(curr_rows),1)]);
+end
+
+% Plot wheel velocity aligned to stim onset by learned day
+wheel_rec = cell2mat(cellfun(@(x) nanmedian(x,1),vertcat(wheel_all{:}),'uni',false));
+[wheel_ld,wheel_ld_grp] = ap.groupfun(@nanmean,wheel_rec,bhv.days_from_learning);
+wheel_ld_sem = ap.groupfun(@AP_sem,wheel_rec,bhv.days_from_learning);
+
+plot_days = -3:2;
+max_ld = max(abs(plot_days));
+ld_colors = ap.colormap('BKR',max_ld*2+1);
+plot_ld_colors = ld_colors(ismember(-max_ld:max_ld,plot_days),:);
+
+plot_idx = ismember(wheel_ld_grp,plot_days);
+figure; set(gca,'ColorOrder',plot_ld_colors); 
+ap.errorfill(surround_time_points,wheel_ld(plot_idx,:)', ...
+    wheel_ld_sem(plot_idx,:)');
+xline(0);
+set(gca,'XTick',0:0.5:1);
+set(gca,'YTick',[]);
+xlabel('Time from stimulus onset');
+ap.prettyfig;
+
+
+
+%% Fig 2B: Example classical condition lick raster
+
+% Classical conditioned animal example: HA020
+
+animal = 'HA020';
+
+rec = plab.find_recordings(animal,[], ...
+    'visual_operant_lick_two_stim_static_big_stim');
+
+rec_day = rec(end).day;
+rec_time = rec(end).recording{end};
+verbose = true;
+load_parts.behavior = true;
+ap.load_recording;
+
+% Trial times and params
+rewarded_x = trial_events.parameters.RewardedX;
+
+n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
+
+stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
+stimOn_times = photodiode_on_times(1:n_trials);
+stimOff_times = photodiode_off_times(1:n_trials);
+
+trial_static_stim_time = vertcat(trial_events.values(1:n_trials).TrialStimStaticTime);
+trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence);
+
+% Align licks to stim on times
+psth_window = [-0.5,3];
+
+[lick_psth_plus,~,lick_t] = ap.psth(lick_times, ...
+    stimOn_times(stim_x == rewarded_x),...
+    'window',psth_window,'bin_size',0.01,'smoothing',20);
+
+lick_psth_minus = ap.psth(lick_times, ...
+    stimOn_times(stim_x ~= rewarded_x),...
+        'window',psth_window,'bin_size',0.01,'smoothing',20);
+
+figure; hold on;
+plot(lick_t,lick_psth_plus,'linewidth',2);
+plot(lick_t,lick_psth_minus,'linewidth',2);
+xline([0,trial_events.parameters.StimStaticMin, ...
+    trial_events.parameters.StimStaticMax],'k');
+set(gca,'YTick',[0,8]); ylim([0,8]);
+set(gca,'XTick',[0:2]);xlim([-0.2,2]);
+ap.prettyfig;
+
+
+%% Fig 2C: Example classical condition lick raster
+
+for condition = ["naive','trained"]
+
+keyboard
+
+
+end
+
+animal = 'HA020';
+
+rec = plab.find_recordings(animal,[],'lcr_passive_corner*');
+use_rec = find([rec.ephys],1);
+
+rec_day = rec(use_rec).day;
+rec_time = rec(use_rec).recording{end};
+verbose = true;
+ap.load_recording;
+
+% Quiescent trials
+stim_window = [0,0.5];
+quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+    (1:length(stimOn_times))');
+
+% Stim-aligned PSTH
+stim_x = vertcat(trial_events.values.TrialStimX);
+
+use_depths = [750,1500];
+use_spikes = isbetween(spike_depths,use_depths(1),use_depths(2));
+
+[mua_psth,~,mua_psth_t] = ap.psth(spike_times_timelite(use_spikes), ...
+    stimOn_times(quiescent_trials & stim_x == 90), ...
+    'window',[-0.2,1],'smoothing',50);
+
+
+
+%%%% NAIVE ANIMAL EXAMPLE 
+
+animal = 'AP034';
+rec_day = '2025-12-09';
+rec_time = plab.find_recordings(animal,rec_day,'lcr_passive_corner*').recording{end};
+verbose = true;
+ap.load_recording;
+
+
+
+
+
+
+
