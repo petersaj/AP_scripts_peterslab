@@ -51,38 +51,43 @@ else
     kilosort_path = kilosort_top_path;
 end
 
-% % (old, not currently used: multi-site with same probe = /site_n)
-% if any(contains({kilosort_dir.name},'site'))
-%     % If 'site' folders (recordings in serial), choose last before recording
-%     ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
-%     if ~isempty(ephys_site_paths)
-%         ephys_site_datetime = NaT(size(ephys_site_paths));
-%         for curr_site = 1:length(ephys_site_paths)
-%             curr_ephys_settings_file = fullfile( ...
-%                 ephys_path,ephys_site_paths(curr_site).name, ...
-%                 'settings.xml');
-%             curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
-%             ephys_site_datetime(curr_site) = ...
-%                 datetime(curr_ephys_settings.INFO.DATE, ...
-%                 'InputFormat','dd MMM yyyy HH:mm:ss');
-%         end
-% 
-%         % (add 1 minute leeway to recording time since no seconds)
-%         ephys_use_site = find(ephys_site_datetime - ...
-%             (rec_datetime + minutes(1)) < 0,1,'last');
-% 
-%         kilosort_path = fullfile(kilosort_top_path, ...
-%             ephys_site_paths(ephys_use_site).name);
-%         open_ephys_path_dir = dir(fullfile(ephys_path, ...
-%             ephys_site_paths(ephys_use_site).name,'experiment*','recording*'));
-%     end
-% end
+%%%%% OLD - for serial multi-site
+% (not currently used: multi-site with same probe = /site_n)
+if any(contains({kilosort_dir.name},'site'))
+    % If 'site' folders (recordings in serial), choose last before recording
+    ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
+    if ~isempty(ephys_site_paths)
+        ephys_site_datetime = NaT(size(ephys_site_paths));
+        for curr_site = 1:length(ephys_site_paths)
+            curr_ephys_settings_file = fullfile( ...
+                ephys_path,ephys_site_paths(curr_site).name, ...
+                'settings.xml');
+            curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
+            ephys_site_datetime(curr_site) = ...
+                datetime(curr_ephys_settings.INFO.DATE, ...
+                'InputFormat','dd MMM yyyy HH:mm:ss');
+        end
 
-% Get start time of ephys recording (unused currently)
-% ephys_settings_filename = fullfile(fileparts(open_ephys_path_dir(1).folder),'settings.xml');
+        % (add 1 minute leeway to recording time since no seconds)
+        ephys_use_site = find(ephys_site_datetime - ...
+            (rec_datetime + minutes(1)) < 0,1,'last');
+
+        kilosort_path = fullfile(kilosort_top_path, ...
+            ephys_site_paths(ephys_use_site).name);
+
+        open_ephys_dir = dir(fullfile(ephys_path, ...
+            ephys_site_paths(ephys_use_site).name,'experiment*', ...
+            'recording*','continuous','*-AP'));
+        open_ephys_path = fullfile({open_ephys_dir.folder},{open_ephys_dir.name});
+    end
+end
+
+% % Get start time of ephys recording (unused currently)
+% ephys_settings_filename = fullfile(fileparts(open_ephys_dir(1).folder),'settings.xml');
 % ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 % ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
 %     'InputFormat','dd MMM yyyy HH:mm:ss');
+%%%%%%
 
 % Load Open Ephys metadata (for sample rate)
 oe_metadata_fn = fullfile(fileparts(fileparts(open_ephys_path{1})),'structure.oebin');

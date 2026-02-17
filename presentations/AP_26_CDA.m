@@ -183,6 +183,126 @@ ap.scalebar(0.2,1);
 axis off;
 xline([0,0.5]);
 
+%% Fig 2X: Faster learning with classical conditioning
+
+animals = {'HA008','HA009','HA010','HA011','HA012','HA013','HA014','HA015'};
+
+data_all = cell(length(animals), 1);
+
+warning off;
+for animal_idx=1:length(animals)
+    
+    animal = animals{animal_idx};
+    disp(animal);
+
+    % Find all task recordings
+    workflow = 'stim_wheel_right_stage\d';
+    recordings = plab.find_recordings(animal, [], workflow);
+    
+    data_animal = table;
+    for use_rec=1:length(recordings)
+
+        rec_day = recordings(use_rec).day;
+        rec_time = recordings(use_rec).recording{end};
+        verbose = false;
+        load_parts.behavior = true;
+        ap.load_recording
+    
+        % Align wheel velocity to stim onset
+        align_times = stimOn_times;
+
+        surround_time = [-1,2];
+        surround_sample_rate = 100;
+        surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+        pull_times = align_times + surround_time_points;
+
+        [wheel_velocity,wheel_move] = ...
+            AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+
+        wheel_aligned = interp1(timelite.timestamps,wheel_velocity,pull_times);    
+
+        % Get association p-value in a few ways
+        % (first just grab mean null reaction times for each trial)
+        [~,~,~,stim_to_move_nullmean] = ...
+            AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move, 'mean');
+
+        % (mean to firstmove)
+        [stimwheel_pval_firstmove_mean,stimwheel_rxn_firstmove_mean,stimwheel_rxn_null_firstmove_mean] = ...
+            AP_stimwheel_association_pvalue(stimOn_times,trial_events,stim_to_move, 'mean');
+
+        % Save data in table
+        data_animal.animal(use_rec) = {animal};
+        data_animal.rec_day(use_rec) = {rec_day};
+
+        % (firstmove mean stats)
+        data_animal.stimwheel_pval_firstmove_mean(use_rec) = {stimwheel_pval_firstmove_mean};
+        data_animal.stimwheel_rxn_firstmove_mean(use_rec) = {stimwheel_rxn_firstmove_mean};
+        data_animal.stimwheel_rxn_null_firstmove_mean(use_rec) = {stimwheel_rxn_null_firstmove_mean};
+
+        % (reaction times)
+        data_animal.stim_to_move(use_rec) = {stim_to_move(1:n_trials)};
+        data_animal.stim_to_outcome(use_rec) = {stim_to_outcome(1:n_trials)};
+        data_animal.trial_outcome(use_rec) = {logical(trial_outcome(1:n_trials))};
+
+        % (wheel velocity)
+        data_animal.wheel_aligned(use_rec) = {wheel_aligned};
+  
+        % Print progress
+        ap.print_progress_fraction(use_rec,length(recordings))
+    end
+
+    data_all{animal_idx} = data_animal;
+
+end
+warning on;
+
+cc_ld = cellfun(@(x) find(cell2mat(x.stimwheel_pval_firstmove_mean)<0.05,1),data_all);
+
+% Get learend day for operant-only behavior
+data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2025','data');
+
+% Set stat and p-value to define learning day
+use_stat = 'firstmove_mean';
+learn_stat_p = 0.05;
+
+% Load behavior
+load(fullfile(data_path,'bhv'));
+
+% Set "learned_days" and "days_from_learning"
+bhv.learned_days = cellfun(@(x) x < learn_stat_p,bhv.(['stimwheel_pval_',use_stat]));
+for curr_animal = unique(bhv.animal)'
+    curr_rows = strcmp(bhv.animal,curr_animal);
+    bhv.days_from_learning(curr_rows) = ...
+        (1:sum(curr_rows))' - ...
+        max([NaN,find(bhv.learned_days(curr_rows),1)]);
+end
+
+oc_ld = cell2mat(cellfun(@(x) find(bhv.learned_days(strcmp(bhv.animal,x)),1), ...
+    unique(bhv.animal,'stable'),'uni',false));
+
+% Plot learning days OC vs CC
+figure; hold on;
+swarmchart([ones(size(oc_ld));2*ones(size(cc_ld))],[oc_ld;cc_ld],'filled');
+errorbar([nanmean(oc_ld),nanmean(cc_ld)],[AP_sem(oc_ld),AP_sem(cc_ld)], ...
+    'capsize',0,'linewidth',2,'color','k');
+ap.prettyfig;
+set(gca,'XTick',1:2,'XTickLabel',["Naive","Post-conditioning"]);
+set(gca,'YTick',[1:2:8]);ylim([1,8]);
+
+
+%% Fig X: VM stim responses
+
+animal = 'AP009';
+rec_day = '2023-07-12';
+rec_time = '1458';
+load_probe = 1;
+ap.load_recording;
+
+
+
+
+
+
 
 
 

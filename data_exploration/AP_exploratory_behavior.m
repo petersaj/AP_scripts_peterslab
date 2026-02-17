@@ -195,7 +195,7 @@ xlabel('Time from event');
 %     'AP023','AP025'};
 
 % animals = {'DS000','DS004','DS014','DS015','DS016'};
-animals = {'AP031'};
+animals = {'HA010'};
 % animals = {'PG001'};
 % Set reaction statistic to use
 use_stat = 'mean';
