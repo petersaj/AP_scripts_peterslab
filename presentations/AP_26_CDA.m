@@ -292,42 +292,6 @@ set(gca,'YTick',[1:2:8]);ylim([1,8]);
 
 %% Fig X: VM stim responses
 
-% Trained
-animal = 'AP009';
-rec_day = '2023-07-12';
-rec_time = '1458';
-load_probe = 1;
-ap.load_recording;
-
-use_depths = [2700,3200];
-
-% Quiescent trials
-stim_window = [0,0.5];
-quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-    timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-    timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-    (1:length(stimOn_times))');
-
-% Stim-aligned PSTH
-stim_x = vertcat(trial_events.values.TrialStimX);
-
-use_spikes = isbetween(spike_depths,use_depths(1),use_depths(2));
-
-[mua_psth,~,mua_psth_t] = ap.psth(spike_times_timelite(use_spikes), ...
-    stimOn_times(quiescent_trials & stim_x == 90), ...
-    'window',[-0.2,1],'smoothing',50);
-
-% Naive
-animal = 'AM010';
-rec_day = '2023-12-08';
-rec_time = '1517';
-ap.load_recording;
-
-use_depths = [3100,3500];
-
-
-
-
 conditions = ["naive","trained"];
 
 mua = cell(size(conditions));
@@ -377,4 +341,21 @@ ap.prettyfig;
 ap.scalebar(0.2,1);
 axis off;
 xline([0,0.5]);
+
+
+%% Fig X: VM-cortex
+
+animal = 'AM010';
+rec_day = '2023-12-08';
+
+ap.load_recording;
+
+
+
+
+
+
+
+
+
 
