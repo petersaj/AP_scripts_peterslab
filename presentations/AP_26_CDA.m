@@ -83,7 +83,7 @@ ap.prettyfig;
 
 
 
-%% Fig 2B: Example classical condition lick raster
+%% Fig 3B: Classical condition lick raster
 
 % Classical conditioned animal example: HA020
 
@@ -131,7 +131,7 @@ set(gca,'XTick',[0:2]);xlim([-0.2,2]);
 ap.prettyfig;
 
 
-%% Fig 2C: Example classical condition lick raster
+%% Fig 3C: Naive/classical conditioned striatum
 
 conditions = ["naive","trained"];
 
@@ -183,7 +183,7 @@ ap.scalebar(0.2,1);
 axis off;
 xline([0,0.5]);
 
-%% Fig 2X: Faster learning with classical conditioning
+%% Fig 3D: Faster learning with classical conditioning
 
 animals = {'HA008','HA009','HA010','HA011','HA012','HA013','HA014','HA015'};
 
@@ -290,7 +290,102 @@ set(gca,'XTick',1:2,'XTickLabel',["Naive","Post-conditioning"]);
 set(gca,'YTick',[1:2:8]);ylim([1,8]);
 
 
-%% Fig X: VM stim responses
+%% Fig 3B: example 2-stim performance
+
+animal = 'DS022';
+
+recordings = plab.find_recordings(animal,[],'*error_repeat');
+
+curr_rec = 8;
+
+rec_day = recordings(curr_rec).day;
+rec_time = recordings(curr_rec).recording{end};
+load_parts.bhv = true;
+ap.load_recording;
+
+trial_stim = vertcat(trial_events.values(1:n_trials).TaskType);
+
+% Align wheel velocity to stim onset
+align_times = stimOn_times(1:n_trials);
+
+surround_time = [-1,2];
+surround_sample_rate = 100;
+surround_time_points = surround_time(1):1/surround_sample_rate:surround_time(2);
+pull_times = align_times + surround_time_points;
+
+[wheel_velocity,wheel_move] = ...
+    AP_parse_wheel(wheel_position,timelite.daq_info(timelite_wheel_idx).rate);
+wheel_aligned = interp1(timelite.timestamps,wheel_velocity,pull_times);
+
+wheel_aligned_avg = ap.groupfun(@nanmean,wheel_aligned,trial_stim);
+
+figure('Name',rec_day);
+plot(surround_time_points,wheel_aligned_avg'); drawnow;
+
+xlim([-0.2,1]);
+ap.scalebar(0.2,200);
+axis off
+ap.prettyfig;
+
+
+%% Fig 3D: SNr example neurons
+
+animal = 'DS023';
+rec_day = '2025-12-22';
+
+plot_units = [38,25];
+stim_colors = {[0.7,0,0],lines(1)};
+figure;
+h = tiledlayout(3,length(plot_units),'TileSpacing','tight');
+
+for curr_stim = 1:2
+    switch curr_stim
+        case 1
+            rec_time = '1507'; % checkerboard > R
+        case 2
+            rec_time = '1514'; % grating > L
+    end
+    ap.load_recording;
+
+    % Quiescent trials
+    stim_window = [0,0.5];
+    quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+        timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+        timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+        (1:length(stimOn_times))');
+
+    % Stim-aligned PSTH
+    stim_x = vertcat(trial_events.values.TrialStimX);
+    stim_x = stim_x(1:length(stimOn_times));
+
+    [~,spike_group] = ismember(spike_templates,plot_units);
+
+    [psth,raster,psth_t] = ap.psth(spike_times_timelite, ...
+        stimOn_times(quiescent_trials & stim_x == 0),spike_group,...
+        'window',[-0.3,1],'smoothing',100);
+
+    % Plot
+    for curr_unit = 1:length(plot_units)
+        % (psth)
+        nexttile(h,tilenum(h,1,curr_unit)); hold on;
+        plot(psth_t,psth(curr_unit,:),'linewidth',2,'color',stim_colors{curr_stim});
+
+        % (raster)
+        nexttile(h,tilenum(h,1+curr_stim,curr_unit));
+        [raster_y,raster_x] = find(raster(:,:,curr_unit));
+        scatter(psth_t(raster_x),raster_y,10,stim_colors{curr_stim}, ...
+            '|','linewidth',1);
+        axis off
+        set(gca,'YDir','reverse');
+    end
+end
+linkaxes(h.Children,'x');
+
+ap.prettyfig;
+xlim([-0.2,1]);
+
+
+%% Fig 4B: VM stim responses
 
 conditions = ["naive","trained"];
 
@@ -343,19 +438,140 @@ axis off;
 xline([0,0.5]);
 
 
-%% Fig X: VM-cortex
+%% Fig 5A-B: Cortex-striatum regression
 
-animal = 'AM010';
-rec_day = '2023-12-08';
+animal = 'AP025';
+rec_day = '2024-09-10';
+rec_time = '1802';
 
 ap.load_recording;
 
+% Set timing/sampling
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+% Bin spikes
+depth_group_edges = [1100,1600];
+
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+binned_spikes = zeros(n_depths,length(time_bins)-1);
+for curr_depth = 1:n_depths
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+end
+
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+% Regress cortex to spikes
+use_svs = 1:200;
+kernel_t = [-0.5,0.5];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 20;
+zs = [false,false];
+cvfold = 1;
+return_constant = false;
+use_constant = true;
+
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+
+[k,predicted_spikes,explained_var] = ...
+    ap.regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+
+% Convert kernel to pixel space
+k_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
+
+figure;imagesc(nanmean(k_px(:,:,15:21),3))
+clim([0,0.002])
+colormap(AP_colormap('WG',[],1));
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
+axis image off;
+ap.prettyfig;
+
+% Hand-draw ROIs to plot timecourse
+ap.imscroll(k_px); axis image;
+figure; hold on
+
+% (run this line for mPFC and PPC ROIs)
+plot(-kernel_frames/sample_rate,roi.trace,'linewidth',2);
+
+xline(0);
+ap.prettyfig;
 
 
+%% Fig 5C-D: Cortex-VM regression
 
+animal = 'AM025';
+rec_day = '2024-04-25';
+rec_time = '1322';
 
+ap.load_recording;
 
+% Set timing/sampling
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
+% Bin spikes
+depth_group_edges = [2800,3100];
+
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_depths,depth_group_edges);
+
+binned_spikes = zeros(n_depths,length(time_bins)-1);
+for curr_depth = 1:n_depths
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+end
+
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+% Regress cortex to spikes
+use_svs = 1:200;
+kernel_t = [-0.5,0.5];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 20;
+zs = [false,false];
+cvfold = 1;
+return_constant = false;
+use_constant = true;
+
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+
+[k,predicted_spikes,explained_var] = ...
+    ap.regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+
+% Convert kernel to pixel space
+k_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
+
+figure;imagesc(nanmean(k_px(:,:,15:21),3))
+clim([0,0.002])
+colormap(AP_colormap('WG',[],1));
+ap.wf_draw('ccf',[0.5,0.5,0.5]);
+axis image off;
+ap.prettyfig;
+
+% Hand-draw ROIs to plot timecourse
+ap.imscroll(k_px); axis image;
+
+figure; hold on
+% (run this line for mPFC and PPC ROIs)
+plot(-kernel_frames/sample_rate,roi.trace,'linewidth',2);
+
+xline(0);
+ap.prettyfig;
 
 
 
