@@ -318,7 +318,7 @@ if ~isempty(histology_probe_filename)
 end
 
 % (load NTE positions if available)
-nte_positions_filename = dir(fullfile(ephys_path,'*probe_positions*.mat'));
+nte_positions_filename = dir(fullfile(ephys_path,'**','*probe_positions*.mat'));
 if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end
