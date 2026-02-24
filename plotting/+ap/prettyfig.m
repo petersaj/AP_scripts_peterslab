@@ -1,15 +1,19 @@
-function prettyfig(format_type)
-% ap.prettyfig(format_type)
+function prettyfig(format_type,fig_handle)
+% ap.prettyfig(format_type,fig_handle)
 % 
 % Set figure properties for presentations and documents
 % format_type - ppt/eps (ppt default)
 
-if ~exist('format_type') || isempty(format_type)
+if ~exist('format_type','var') || isempty(format_type)
     format_type = 'ppt';
 end
 
 % Grab current figure
-curr_fig = gcf;
+if ~exist('fig_handle','var') || isempty(fig_handle)
+    curr_fig = gcf;
+else
+    curr_fig = fig_handle;
+end
 
 % Set renderer as painters
 % (default is OpenGL, which can copy as image to PPT, or weird artifacts as EPS)
