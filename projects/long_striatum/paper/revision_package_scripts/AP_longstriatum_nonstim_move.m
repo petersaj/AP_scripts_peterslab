@@ -60,8 +60,8 @@ for animal_idx=1:length(animals)
         nonstim_fastmove_idx = nonstim_move_idx & wheel_thresh_t <= 0.3;
         wheel_starts_nonstim = wheel_starts(nonstim_fastmove_idx);
 
-        % Only save data from days with at least 10 nonstim movements
-        if length(wheel_starts_nonstim) < 10
+        % If no qualifying movements: skip day
+        if isempty(wheel_starts_nonstim)
             continue
         end
 

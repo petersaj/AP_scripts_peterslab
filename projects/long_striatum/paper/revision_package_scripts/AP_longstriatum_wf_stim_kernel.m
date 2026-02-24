@@ -1,4 +1,4 @@
-%% Load and package task/passive widefield kernels
+%% Load and package task/passive widefield stim kernels
 
 save_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Lab\Papers\Marica_2025\data';
 

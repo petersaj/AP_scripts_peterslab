@@ -3244,8 +3244,8 @@ for curr_domain = 1:n_domains
         plot(h_striatum_sub(3),psth_t,nanmean(curr_striatum_stimmove,1)-nanmean(curr_striatum_nostim_wavg,1));
 
         plot(h_cortex_sub(1),wf_t,nanmean(curr_cortex_stimmove,1));
-        plot(h_cortex_sub(2),wf_t,nanmean(curr_nostim_cortex_wavg,1));
-        plot(h_cortex_sub(3),wf_t,nanmean(curr_cortex_stimmove,1)-nanmean(curr_nostim_cortex_wavg,1));
+        plot(h_cortex_sub(2),psth_t,nanmean(curr_nostim_cortex_wavg,1));
+        plot(h_cortex_sub(3),psth_t,nanmean(curr_cortex_stimmove,1)-nanmean(curr_nostim_cortex_wavg,1));
 
         if curr_domain == 1
             % Plot histogram of stim relative to move onset (on first domain)
