@@ -3165,7 +3165,6 @@ striatum_nostim_move_mua = cellfun(mua_norm_smooth_reshape_fcn, ...
     striatum_nostim_sub_baseline,'uni',false),mua_div_baseline,'uni',false, ...
     'ErrorHandler',@(varargin) []); %#ok<FUNFUN>
 
-
 % Plot move-aligned (stim, no-stim) binned by day
 % (no-stim not saved by trial, so day bins by weighted average)
 plot_day_bins = [-Inf,0,Inf];
@@ -3178,8 +3177,8 @@ day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
-figure; h_striatum = tiledlayout(n_domains,3);
-figure; h_cortex = tiledlayout(n_domains,3);
+figure; h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
+figure; h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
 figure; h_rxn = axes; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
 figure; h_wheel = axes; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
 

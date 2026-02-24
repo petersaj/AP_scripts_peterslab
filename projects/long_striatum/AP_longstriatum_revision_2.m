@@ -306,3 +306,137 @@ for curr_stim = 1:length(stim_unique)
         stim_unique(curr_stim),stat_p,sig_flag(stat_p));
 end
 
+%% R3m3: No-stim move activity
+
+%%% Load non-activity data
+load_dataset = 'task';
+Marica_2025.figures.load_data;
+%%%
+
+% Load nonstim move activity
+U_master = plab.wf.load_master_U;
+load(fullfile(data_path,'nonstim_move'));
+
+use_nostim_move_recordings = ~cellfun(@isempty,nonstim_move.V_move_nostim_align);
+nostim_move_wheel_t = nonstim_move.wheel_align_time{find(use_nostim_move_recordings,1)};
+
+% Get widefield ROIs for no stim moves
+wf_nostim_move_striatum_roi = cell2mat(cellfun(@(x) ...
+    permute(ap.wf_roi(U_master,x,[],[],striatum_wf_roi), ...
+    [3,2,1]),nonstim_move.V_move_nostim_align(use_nostim_move_recordings), ...
+    'uni',false));
+
+% Get nonstim move ephys
+% (sum into domain multiunit)
+striatum_nostim_move_mua_sum = cellfun(@(mua,domain_idx) ...
+    permute(ap.groupfun(@sum,mua,domain_idx,[]),[3,2,1]), ...
+    nonstim_move.binned_msn_spikes_move_nostim_align,domain_idx_rec,'uni',false);
+% (smooth and normalize - sub baseline = trial, div baseline = day) 
+striatum_nostim_sub_baseline = cellfun(@(mua) ...
+        mean(mua(:,baseline_t,:,1),[2]), ...
+        striatum_nostim_move_mua_sum,'uni',false,'ErrorHandler',@(varargin) NaN);
+striatum_nostim_move_mua = cellfun(mua_norm_smooth_reshape_fcn, ...
+    striatum_nostim_move_mua_sum,cellfun(@(x) nanmean(x,1), ...
+    striatum_nostim_sub_baseline,'uni',false),mua_div_baseline,'uni',false, ...
+    'ErrorHandler',@(varargin) []); %#ok<FUNFUN>
+
+% Plot move-aligned (stim, no-stim) binned by day
+% (no-stim not saved by trial, so day bins by weighted average)
+plot_day_bins = [-Inf,0,Inf];
+
+ld_colors = ap.colormap('BKR',3);
+plot_day_colors = ld_colors([1,end],:);
+
+day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
+
+cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+
+figure; h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
+figure; h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
+figure; h_rxn = axes; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
+figure; h_wheel = axes; hold on; set(gca,'ColorOrder',ap.colormap('BKR',3));
+
+for curr_domain = 1:n_domains
+
+    h_striatum_sub = gobjects(3,1);
+    h_cortex_sub = gobjects(3,1);
+    for sub = 1:3
+        h_striatum_sub(sub) = nexttile(h_striatum); hold on;
+        set(gca,'ColorOrder',ap.colormap('BKR',3));
+
+        h_cortex_sub(sub) = nexttile(h_cortex); hold on;
+        set(gca,'ColorOrder',ap.colormap('BKR',3));
+    end
+
+    for curr_day_grp = 1:length(plot_day_bins)-1
+
+        % Get day-binned (weighted average) activity
+        curr_nomove_idx = use_nostim_move_recordings & day_grp==curr_day_grp;
+        n_moves = cellfun(@(x) size(x,1),nonstim_move.move_nostim_wheel(curr_nomove_idx));
+        curr_nostim_move_animal_idx = grp2idx(nonstim_move.animal(curr_nomove_idx));
+
+        % (striatum)
+        curr_nostim_striatum = cellfun(@(x,domain) x(domain==curr_domain,:), ...
+            striatum_nostim_move_mua(curr_nomove_idx), ...
+            striatum_domain_idx(curr_nomove_idx),'uni',false);
+        
+        curr_striatum_nostim_weighted = cellfun(@(act,n) act.*n,curr_nostim_striatum,num2cell(n_moves),'uni',false);
+        
+        curr_striatum_nostim_wavg = ap.groupfun(@sum,cell2mat(curr_striatum_nostim_weighted), ...
+            curr_nostim_move_animal_idx(~cellfun(@isempty,curr_striatum_nostim_weighted)))./ ...
+            ap.groupfun(@sum,n_moves(~cellfun(@isempty,curr_striatum_nostim_weighted)), ...
+             curr_nostim_move_animal_idx(~cellfun(@isempty,curr_striatum_nostim_weighted)));
+
+        % (cortex)
+        curr_nostim_cortex = wf_nostim_move_striatum_roi( ...
+            day_grp(use_nostim_move_recordings)==curr_day_grp,:,curr_domain);
+
+        curr_nostim_cortex_wavg = ...
+            ap.groupfun(@sum,curr_nostim_cortex.*n_moves,curr_nostim_move_animal_idx)./ ...
+            ap.groupfun(@sum,n_moves,curr_nostim_move_animal_idx);
+        
+        % Get stim move activity
+        % (striatum)
+         curr_striatum_trials_idx = striatum_mua_grp.domain_idx == curr_domain & ...
+            striatum_plot_day_grp == curr_day_grp;
+       
+        curr_striatum_stimmove = ap.groupfun(@mean, ...
+            striatum_mua(curr_striatum_trials_idx,:,2), ...
+            striatum_mua_grp.animal(curr_striatum_trials_idx));
+
+        % (cortex) 
+        curr_cortex_trials_idx = cortex_plot_day_grp == curr_day_grp;
+       
+        curr_cortex_stimmove = ap.groupfun(@mean, ...
+            wf_striatum_roi(curr_cortex_trials_idx,:,curr_domain,2), ...
+            wf_grp.animal(curr_cortex_trials_idx));
+
+        % Plot
+        plot(h_striatum_sub(1),psth_t,nanmean(curr_striatum_stimmove,1));
+        plot(h_striatum_sub(2),psth_t,nanmean(curr_striatum_nostim_wavg,1));
+        plot(h_striatum_sub(3),psth_t,nanmean(curr_striatum_stimmove,1)-nanmean(curr_striatum_nostim_wavg,1));
+
+        plot(h_cortex_sub(1),wf_t,nanmean(curr_cortex_stimmove,1));
+        plot(h_cortex_sub(2),wf_t,nanmean(curr_nostim_cortex_wavg,1));
+        plot(h_cortex_sub(3),wf_t,nanmean(curr_cortex_stimmove,1)-nanmean(curr_nostim_cortex_wavg,1));
+
+        if curr_domain == 1
+            % Plot histogram of stim relative to move onset (on first domain)
+            rxn_bins = [-Inf,-0.5:0.05:1,Inf];
+            rxn_bin_x = [rxn_bins(2),rxn_bins(2:end-2)+diff(rxn_bins(2:end-1))/2,rxn_bins(end-1)];
+            rxn_histogram = cell2mat(arrayfun(@(x) histcounts(-striatum_mua_grp.rxn(curr_trials_idx & ...
+                striatum_mua_grp.animal == x),rxn_bins,'Normalization','probability'), ...
+                (1:length(unique(striatum_mua_grp.animal)))','uni',false));
+            plot(h_rxn,rxn_bin_x,nanmean(rxn_histogram,1));
+
+            % Plot wheel
+            wheel_avg_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_nostim_wheel( ...
+                (grp2idx(bhv.animal) == x) & (day_grp == curr_day_grp))),1), ...
+                unique(grp2idx(bhv.animal)),'uni',false);           
+            plot(h_wheel,nonstim_move.wheel_align_time{end},nanmean(vertcat(wheel_avg_animal{:}),1));        
+        end
+
+    end
+end
+linkaxes(h_striatum.Children,'xy');
