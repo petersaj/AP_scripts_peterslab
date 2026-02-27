@@ -2299,7 +2299,7 @@ h = plot_task(2,1,'k'); outline_ld(h);
 h = plot_task(2,2,'r'); outline_ld(h);
 
 
-%% --> ALT VERSION: LD bins
+%% --> v2: LD bins
 
 load_dataset_retain = true;
 
@@ -2598,7 +2598,7 @@ for curr_stat = 1:size(pre_data,2)
         stat_label{curr_stat},stat_signrank,sig_flag(stat_signrank));
 end
 
-%% --> ALT VERSION: re-formatted
+%% --> v3: re-formatted
 
 load_dataset_retain = true;
 
@@ -2614,7 +2614,10 @@ data_grid_params.cortex_stim_t = isbetween(wf_t,data_grid_params.stim_t(1),data_
 data_grid_params.striatum_stim_t = isbetween(psth_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
 data_grid_params.rxn_cutoff = 0.3;
 
-data_grid_params.ld_bins = [-Inf,-2:0,1,1];
+% data_grid_params.ld_bins = [-Inf,-2:0,1,1];
+% data_grid_params.ld_bins = [-Inf,-2:0,Inf];
+% data_grid_params.ld_bins = [-Inf,-2,0,2,Inf];
+data_grid_params.ld_bins = [-Inf,-2:2];
 data_grid_params.ld_unique = 1:(length(data_grid_params.ld_bins)-1);
 data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
 
@@ -2726,6 +2729,11 @@ clearvars -except load_dataset_retain data_grid_params data_grids
 str_normval = data_grids.striatum_task(:,find(data_grid_params.ld_bins>=0,1),:);
 wf_normval = data_grids.wf_roi_task(:,find(data_grid_params.ld_bins>=0,1),:);
 wf_kernel_normval = data_grids.wf_kernel_roi_task(:,find(data_grid_params.ld_bins>=0,1),:);
+
+% % (TESTING: normalize to passive LD0)
+% str_normval = data_grids.striatum_passive(:,find(data_grid_params.ld_bins>=0,1),:,3);
+% wf_normval = data_grids.wf_roi_passive(:,find(data_grid_params.ld_bins>=0,1),:,3);
+% wf_kernel_normval = data_grids.wf_kernel_roi_passive(:,find(data_grid_params.ld_bins>=0,1),:,3);
 
 % Set days to plot (n>3)
 % plot_ld_idx = sum(~isnan(data_grids.striatum_task(:,:,1))) > 3;
@@ -2840,15 +2848,33 @@ outline_ld = @(h) scatter(h.XData(find(data_grid_params.ld_bins==0)+[-1,0]), ...
 %     nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim),1), ...
 %     '.-','color',col,'linewidth',2,'MarkerSize',30);
 
-% (wf dff, norm)
+% % (wf dff, norm)
+% plot_task = @(roi,str,col) ...
+%     plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
+%     nanmean(data_grids.wf_roi_task(:,plot_ld_idx,roi)./wf_normval(:,:,roi),1), ...
+%     '.-','color',col,'linewidth',2,'MarkerSize',30);
+% plot_passive = @(roi,str,plot_stim,col) ...
+%     plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
+%     nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_normval(:,:,roi),1), ...
+%     '.-','color',col,'linewidth',2,'MarkerSize',30);
+
+% (wf dff, norm, errorbar)
 plot_task = @(roi,str,col) ...
-    plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
+    errorbar(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
     nanmean(data_grids.wf_roi_task(:,plot_ld_idx,roi)./wf_normval(:,:,roi),1), ...
-    '.-','color',col,'linewidth',2,'MarkerSize',30);
+    ap.sem(data_grids.wf_roi_task(:,plot_ld_idx,roi)./wf_normval(:,:,roi),1), ...
+    ap.sem(data_grids.wf_roi_task(:,plot_ld_idx,roi)./wf_normval(:,:,roi),1), ...
+    ap.sem(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
+    ap.sem(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
 plot_passive = @(roi,str,plot_stim,col) ...
-    plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
+    errorbar(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
     nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_normval(:,:,roi),1), ...
-    '.-','color',col,'linewidth',2,'MarkerSize',30);
+    ap.sem(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_normval(:,:,roi),1), ...
+    ap.sem(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_normval(:,:,roi),1), ...
+    ap.sem(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
+    ap.sem(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
 
 plot_str = 1;
 plot_wf_roi = 2;
@@ -2877,9 +2903,6 @@ ylabel(sprintf('Cortex %d (LD0-norm)',plot_wf_roi));
 xlabel('Striatum (LD0-norm)')
 ap.prettyfig;
 
-
-%%%%%%%%%%%%% TESTING
-
 % task/passive mpfc vs str 1/2
 figure; 
 tiledlayout(1,2); 
@@ -2893,6 +2916,7 @@ axis equal square
 ylabel(sprintf('Cortex (LD0-norm)'));
 xlabel('Striatum (LD0-norm)')
 ap.prettyfig;
+title('Task');
 
 nexttile;hold on;
 h1 = plot_passive(2,1,3,'r');
@@ -2903,6 +2927,7 @@ axis equal square
 ylabel(sprintf('Cortex (LD0-norm)'));
 xlabel('Striatum (LD0-norm)')
 ap.prettyfig;
+title('Passive');
 
 % passive str1/2 vs mpfc
 figure;tiledlayout(1,2);
@@ -2917,7 +2942,20 @@ h1 = plot_passive(2,2,1,'b');
 h2 = plot_passive(2,2,2,'k');
 h3 = plot_passive(2,2,3,'r');
 outline_ld(h1);outline_ld(h2);outline_ld(h3);
+ap.prettyfig; 
 
+% Task + passive str1/2 vs mpfc
+figure;tiledlayout(1,2);
+nexttile; hold on;
+h1 = plot_task(2,1,'r');
+h2 = plot_passive(2,1,3,'k');
+outline_ld(h1);outline_ld(h2);
+title('Str 1');
+nexttile; hold on;
+h1 = plot_task(2,2,'r');
+h2 = plot_passive(2,2,3,'k');
+outline_ld(h1);outline_ld(h2);
+title('Str 2');
 ap.prettyfig; 
 
 % 3D passive str1,2,mpfc
@@ -2933,7 +2971,48 @@ xlabel('Str1');ylabel('Str2');zlabel('mPFC');
 view([45,45]);axis vis3d;
 
 
-%%%%%%%%%%
+% normalizing differently
+% (div separately in task/passive)
+norm_bin = find(data_grid_params.ld_bins>=0,1);
+
+str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
+ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
+
+use_stim = 3;
+
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+3*nanmedian(data_grids.striatum_passive,[1,2,4]));
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+3*nanmedian(data_grids.wf_roi_passive,[1,2,4]));
+
+% % (sub = bin 1)
+% str_task_norm = (data_grids.striatum_task-data_grids.striatum_task(:,1,:))./data_grids.striatum_task(:,3,:);
+% ctx_task_norm = (data_grids.wf_roi_task-data_grids.wf_roi_task(:,1,:))./data_grids.wf_roi_task(:,3,:);
+% 
+% use_stim = 3;
+% str_passive_norm = (data_grids.striatum_passive(:,:,:,use_stim)-data_grids.striatum_passive(:,1,:,use_stim))./data_grids.striatum_task(:,3,:);
+% ctx_passive_norm = (data_grids.wf_roi_passive(:,:,:,use_stim)-data_grids.wf_roi_passive(:,1,:,use_stim))./data_grids.wf_roi_task(:,3,:);
+
+% % (sub = min)
+% str_task_norm = (data_grids.striatum_task-min(data_grids.striatum_task,[],2))./data_grids.striatum_task(:,3,:);
+% ctx_task_norm = (data_grids.wf_roi_task-min(data_grids.wf_roi_task,[],2))./data_grids.wf_roi_task(:,3,:);
+% 
+% use_stim = 3;
+% str_passive_norm = (data_grids.striatum_passive(:,:,:,use_stim)-min(data_grids.striatum_passive(:,:,:,use_stim),[],2))./data_grids.striatum_task(:,3,:);
+% ctx_passive_norm = (data_grids.wf_roi_passive(:,:,:,use_stim)-min(data_grids.wf_roi_passive(:,:,:,use_stim),[],2))./data_grids.wf_roi_task(:,3,:);
+
+figure; tiledlayout(1,2);
+nexttile; hold on;
+plot(nanmean(str_task_norm(:,:,1),1),nanmean(ctx_task_norm(:,:,2),1),'.-','linewidth',2,'MarkerSize',30)
+plot(nanmean(str_task_norm(:,:,2),1),nanmean(ctx_task_norm(:,:,2),1),'.-','linewidth',2,'MarkerSize',30)
+title('Task');
+line(ylim,ylim)
+
+nexttile; hold on;
+plot(nanmean(str_passive_norm(:,:,1),1),nanmean(ctx_passive_norm(:,:,2),1),'.-','linewidth',2,'MarkerSize',30)
+plot(nanmean(str_passive_norm(:,:,2),1),nanmean(ctx_passive_norm(:,:,2),1),'.-','linewidth',2,'MarkerSize',30)
+title('Passive');
+line(ylim,ylim)
+
+ap.prettyfig;
 
 
 % ~~~ STATS ~~~
@@ -2980,6 +3059,164 @@ for curr_stat = 1:size(pre_data,2)
     fprintf('Ranksum: %s p = %.2g%s\n', ...
         stat_label{curr_stat},stat_signrank,sig_flag(stat_signrank));
 end
+
+%% --> stats from above task/passive
+
+% stats on this fig:
+% task/passive mpfc vs str 1/2
+figure; 
+tiledlayout(1,2); 
+
+nexttile;hold on;
+h1 = plot_task(2,1,'r');
+h2 = plot_task(2,2,'k');
+outline_ld(h1); outline_ld(h2);
+axis equal square
+% line(xlim,xlim,'color',[0.5,0.5,0.5]);
+ylabel(sprintf('Cortex (LD0-norm)'));
+xlabel('Striatum (LD0-norm)')
+ap.prettyfig;
+title('Task');
+
+nexttile;hold on;
+h1 = plot_passive(2,1,3,'r');
+h2 = plot_passive(2,2,3,'k');
+outline_ld(h1); outline_ld(h2);
+axis equal square
+% line(xlim,xlim,'color',[0.5,0.5,0.5]);
+ylabel(sprintf('Cortex (LD0-norm)'));
+xlabel('Striatum (LD0-norm)')
+ap.prettyfig;
+title('Passive');
+
+
+% difference from unity ctx=str
+% (norm = div)
+str_task_norm = data_grids.striatum_task./str_normval;
+ctx_task_norm = data_grids.wf_roi_task./wf_normval;
+
+str_passive_norm = data_grids.striatum_passive(:,:,:,3)./str_normval;
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,3)./wf_normval;
+
+% % (norm = bin1 sub and div)
+% str_task_norm = (data_grids.striatum_task-data_grids.striatum_task(:,1,:))./data_grids.striatum_task(:,3,:);
+% ctx_task_norm = (data_grids.wf_roi_task-data_grids.wf_roi_task(:,1,:))./data_grids.wf_roi_task(:,3,:);
+% 
+% use_stim = 3;
+% str_passive_norm = (data_grids.striatum_passive(:,:,:,use_stim)-data_grids.striatum_passive(:,1,:,use_stim))./data_grids.striatum_task(:,3,:);
+% ctx_passive_norm = (data_grids.wf_roi_passive(:,:,:,use_stim)-data_grids.wf_roi_passive(:,1,:,use_stim))./data_grids.wf_roi_task(:,3,:);
+
+% % (norm = min sub and div)
+% str_task_norm = (data_grids.striatum_task-min(data_grids.striatum_task,[],2))./data_grids.striatum_task(:,3,:);
+% ctx_task_norm = (data_grids.wf_roi_task-min(data_grids.wf_roi_task,[],2))./data_grids.wf_roi_task(:,3,:);
+% 
+% use_stim = 3;
+% str_passive_norm = (data_grids.striatum_passive(:,:,:,use_stim)-min(data_grids.striatum_passive(:,:,:,use_stim),[],2))./data_grids.striatum_task(:,3,:);
+% ctx_passive_norm = (data_grids.wf_roi_passive(:,:,:,use_stim)-min(data_grids.wf_roi_passive(:,:,:,use_stim),[],2))./data_grids.wf_roi_task(:,3,:);
+
+
+use_str = 1;
+use_ctx = 2;
+
+stat_meas = nanmean(str_task_norm(:,:,use_str) - ctx_task_norm(:,:,use_ctx),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(cat(3,str_task_norm(:,:,use_str),ctx_task_norm(:,:,use_ctx)),3);
+    stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+end
+
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1)
+
+
+use_str = 1;
+use_ctx = 2;
+
+stat_meas = nanmean(str_passive_norm(:,:,use_str) - ctx_passive_norm(:,:,use_ctx),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(cat(3,str_passive_norm(:,:,use_str),ctx_passive_norm(:,:,use_ctx)),3);
+    stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+end
+
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1)
+
+
+% ctx-str difference from bin 1
+
+use_str = 1;
+use_ctx = 2;
+str_ctx_diff = str_task_norm(:,:,use_str)-ctx_task_norm(:,:,use_ctx);
+
+stat_meas = nanmean(diff(str_ctx_diff(:,1:2),[],2),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(str_ctx_diff(:,1:2),2);
+    stat_shuff(curr_shuff,:) = nanmean(diff(curr_shuff_data,[],2),1);
+end
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1)
+
+
+
+use_str = 1;
+use_ctx = 2;
+str_ctx_diff = str_passive_norm(:,:,use_str)-ctx_passive_norm(:,:,use_ctx);
+
+stat_meas = nanmean(diff(str_ctx_diff(:,1:2),[],2),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(str_ctx_diff(:,1:2),2);
+    stat_shuff(curr_shuff,:) = nanmean(diff(curr_shuff_data,[],2),1);
+end
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1)
+
+
+% cortex vs striatum difference from bin 1
+
+use_str = 1;
+use_ctx = 2;
+
+stat_meas = nanmean((str_task_norm(:,2,use_str) - str_task_norm(:,1,use_str)) - ...
+    (ctx_task_norm(:,2,use_ctx) - ctx_task_norm(:,1,use_ctx)),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(str_ctx_diff(:,1:2),2);
+
+    stat_shuff(curr_shuff,:) = nanmean(diff(ap.shake(str_task_norm(:,1:2,use_str),2),[],2) - ...
+        diff(ap.shake(ctx_task_norm(:,1:2,use_ctx),2),[],2));
+end
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1)
+
+
+stat_meas = nanmean((str_passive_norm(:,2,use_str) - str_passive_norm(:,1,use_str)) - ...
+    (ctx_passive_norm(:,2,use_ctx) - ctx_passive_norm(:,1,use_ctx)),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(str_ctx_diff(:,1:2),2);
+
+    stat_shuff(curr_shuff,:) = nanmean(diff(ap.shake(str_passive_norm(:,1:2,use_str),2),[],2) - ...
+        diff(ap.shake(ctx_passive_norm(:,1:2,use_ctx),2),[],2));
+end
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1)
+
+
 
 
 

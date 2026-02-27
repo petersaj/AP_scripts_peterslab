@@ -1,4 +1,4 @@
-%% Analyses for reviewers (cleaned up from _1 scratch)
+%% Analyses for reviewers (selecting from _1)
 
 %% R1 p1: Correct performance rate by day
 
