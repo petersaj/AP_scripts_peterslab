@@ -2617,7 +2617,7 @@ data_grid_params.rxn_cutoff = 0.3;
 % data_grid_params.ld_bins = [-Inf,-2:0,1,1];
 % data_grid_params.ld_bins = [-Inf,-2:0,Inf];
 % data_grid_params.ld_bins = [-Inf,-2,0,2,Inf];
-data_grid_params.ld_bins = [-Inf,-2:2];
+data_grid_params.ld_bins = [-Inf,-2:2,2];
 data_grid_params.ld_unique = 1:(length(data_grid_params.ld_bins)-1);
 data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
 
@@ -2980,8 +2980,8 @@ ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
 
 use_stim = 3;
 
-str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+3*nanmedian(data_grids.striatum_passive,[1,2,4]));
-ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+3*nanmedian(data_grids.wf_roi_passive,[1,2,4]));
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+nanmedian(data_grids.striatum_passive,[1,2,4]));
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+nanmedian(data_grids.wf_roi_passive,[1,2,4]));
 
 % % (sub = bin 1)
 % str_task_norm = (data_grids.striatum_task-data_grids.striatum_task(:,1,:))./data_grids.striatum_task(:,3,:);
@@ -3217,8 +3217,73 @@ stat_rank = tiedrank([stat_meas;stat_shuff]);
 stat_p = 1-stat_rank(1,:)/(n_shuff+1)
 
 
+%% --> context slope by day
+
+% This doesn't work because the no mpfc response = not context sensitive
+
+norm_bin = find(data_grid_params.ld_bins>=0,1);
+
+str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
+ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
+
+use_stim = 3;
+
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
+
+curr_str = 2;
+x = nan(length(data_grid_params.ld_unique),1);
+for i = 1:length(data_grid_params.ld_unique)
+
+    % curr_task_data = str_task_norm(:,i,curr_str);
+    % curr_passive_data = str_passive_norm(:,i,curr_str);
+
+    curr_task_data = ctx_task_norm(:,i,curr_str);
+    curr_passive_data = ctx_passive_norm(:,i,curr_str);
+
+    use_data_idx = ~isnan(curr_task_data) & ~isnan(curr_passive_data);
+    x(i) = curr_passive_data(use_data_idx)\curr_task_data(use_data_idx);
+end
 
 
+
+% Plot task vs passive (range-normalized, cortex and striatum overlaid)
+figure; 
+% hold on;
+tiledlayout(2,2);
+for curr_domain = 1:2
+    for curr_region = ["Cortex","Striatum"]
+        nexttile;hold on;
+        switch curr_region
+            case "Cortex"
+                curr_passive = reshape(data_grids.wf_roi_passive(:,:,curr_domain,3),[],1);
+                curr_task = reshape(data_grids.wf_roi_task(:,:,curr_domain),[],1);
+            case "Striatum"
+                curr_passive = reshape(data_grids.striatum_passive(:,:,curr_domain,3),[],1);
+                curr_task = reshape(data_grids.striatum_task(:,:,curr_domain),[],1);
+        end
+
+        % Max-normalize
+        curr_act_norm = rescale([curr_passive,curr_task]);
+
+        % Fit scale passive to task
+        nonan_idx = ~any(isnan(curr_act_norm),2);
+        curr_scale = curr_act_norm(nonan_idx,1)\curr_act_norm(nonan_idx,2);
+
+        % Scatter with scaling ref line
+        h_dot = scatter(curr_act_norm(:,1),curr_act_norm(:,2),20,'filled');
+        h_line = refline(curr_scale);
+        h_line.Color = h_dot.CData;
+        h_line.LineWidth = 2;
+
+        line([0,1],[0,1],'color',[0.5,0.5,0.5]);
+        xlim(ylim);
+        axis square;
+        xlabel('Passive');ylabel('Task');
+    end
+end
+
+ap.prettyfig;
 
 
 %% R1: Example animal
