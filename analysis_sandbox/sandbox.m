@@ -306,15 +306,6 @@ nexttile;imagesc(striatum_sua_task_stim(plot_units,:,3));clim([-3,3]);colormap(a
 nexttile;imagesc(striatum_sua_task_nostim(plot_units,:,3));clim([-3,3]);colormap(ap.colormap('BWR'))
 
 
-%%
-
-q2s = nan(n_trials,1);
-for curr_trial = 1:n_trials
-    if ~isempty(trial_events.timestamps(curr_trial).QuiescenceReset)
-        q2s(curr_trial) = seconds(trial_events.timestamps(curr_trial).StimOn(1) - ...
-            trial_events.timestamps(curr_trial).QuiescenceReset(end));
-    end
-end
 
 
 

@@ -9,7 +9,7 @@ if ~exist('plot_axes','var') || isempty(plot_axes)
 else
     area_axes = plot_axes;
 end
-unit_axes = axes('Color','none','YAxisLocation','right');
+unit_axes = axes('Position',area_axes.Position,'Color','none');
 
 hold(area_axes,'on');
 hold(unit_axes,'on');
@@ -52,11 +52,14 @@ ylabel('Depth (\mum)')
 xlabel('Spike rate')
 set(unit_axes,'XScale','log');
 
-% Link axes and set ylim to probe length
-linkaxes([area_axes,unit_axes],'y');
-area_axes.YLim = [0,3840];
-unit_axes.YLim = [0,3840];
+linkaxes([area_axes,unit_axes]
 
-% Ensure overlaid axes
-unit_axes.Position = area_axes.Position;
+% [plot_axes.YAxis.Color] = deal('k');
+
+yyaxis left; 
+ylim([0, 3840]);
+
+yyaxis right;
+ylim([0, 3840]);
+
 
