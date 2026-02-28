@@ -2603,7 +2603,7 @@ end
 load_dataset_retain = true;
 
 % ~~ Set up data structure params
-load_dataset = 'passive';
+load_dataset = 'task';
 Marica_2025.figures.load_data;
 
 % Set up parameters for activity grids [animal x day x domain x stim]
@@ -2616,19 +2616,15 @@ data_grid_params.rxn_cutoff = 0.3;
 
 % data_grid_params.ld_bins = [-Inf,-2:0,1,1];
 % data_grid_params.ld_bins = [-Inf,-2:0,Inf];
-% data_grid_params.ld_bins = [-Inf,-2,0,2,Inf];
-data_grid_params.ld_bins = [-Inf,-2:2,2];
+data_grid_params.ld_bins = [-Inf,-2,0,2,Inf]; % same as paper - best
+% data_grid_params.ld_bins = [-Inf,-2:2,2];
 data_grid_params.ld_unique = 1:(length(data_grid_params.ld_bins)-1);
 data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
 
 % Set up data structure
 data_grids = struct;
 
-clearvars -except load_dataset_retain data_grid_params data_grids
-
 % ~~ Get task activity
-load_dataset = 'task';
-Marica_2025.figures.load_data;
 
 % (striatum)
 striatum_use_trials = striatum_mua_grp.rxn > data_grid_params.rxn_cutoff;
@@ -2683,12 +2679,7 @@ data_grids.wf_roi_passive = permute(cell2mat(permute(arrayfun(@(domain) accumarr
     wf_roi_rec_tmax(:,domain),[data_grid_params.grid_size(1:2),length(unique(wf_grp.stim))], ...
     [],NaN('single')),1:n_domains,'uni',false),[1,3,4,2])),[1,2,4,3]);
 
-clearvars -except load_dataset_retain data_grid_params data_grids
-
 % ~~ Get widefield stim kernels
-load_dataset = 'noact';
-Marica_2025.figures.load_data;
-
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'wf_kernels'));
 
@@ -2720,6 +2711,7 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     wf_kernel_roi_passive_tmax(wf_grid_idx_use,domain,stim),data_grid_params.grid_size(1:2),@nanmean,NaN('single')), ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
 
+% Clear anything extra
 clearvars -except load_dataset_retain data_grid_params data_grids
 
 
@@ -3248,32 +3240,56 @@ end
 
 
 % Plot task vs passive (range-normalized, cortex and striatum overlaid)
+ld_color = ap.colormap('BKR',5);
+ld_color(4,:) = [];
+
 figure; 
 % hold on;
+regions = ["Cortex","Striatum"];
+task_passive_scale = cell(2,2);
 tiledlayout(2,2);
 for curr_domain = 1:2
-    for curr_region = ["Cortex","Striatum"]
+    for curr_region = 1:length(regions)
         nexttile;hold on;
-        switch curr_region
+        switch regions(curr_region)
             case "Cortex"
-                curr_passive = reshape(data_grids.wf_roi_passive(:,:,curr_domain,3),[],1);
-                curr_task = reshape(data_grids.wf_roi_task(:,:,curr_domain),[],1);
+                curr_passive = data_grids.wf_roi_passive(:,:,curr_domain,3);
+                curr_task = data_grids.wf_roi_task(:,:,curr_domain);
             case "Striatum"
-                curr_passive = reshape(data_grids.striatum_passive(:,:,curr_domain,3),[],1);
-                curr_task = reshape(data_grids.striatum_task(:,:,curr_domain),[],1);
+                curr_passive = data_grids.striatum_passive(:,:,curr_domain,3);
+                curr_task = data_grids.striatum_task(:,:,curr_domain);
         end
 
         % Max-normalize
-        curr_act_norm = rescale([curr_passive,curr_task]);
+        curr_act_norm = rescale(cat(3,curr_passive,curr_task));
 
         % Fit scale passive to task
-        nonan_idx = ~any(isnan(curr_act_norm),2);
-        curr_scale = curr_act_norm(nonan_idx,1)\curr_act_norm(nonan_idx,2);
+        %  (all data)
+        nonan_idx = ~any(isnan(curr_act_norm),3);
+        curr_act_norm_vec = reshape(curr_act_norm(repmat(nonan_idx,1,1,2)),[],2);
+        curr_scale = curr_act_norm_vec(:,1)\curr_act_norm_vec(:,2);
 
+        % (by animal)
+        curr_scale_animal = nan(size(curr_act_norm,1),1);
+        for curr_animal = 1:size(curr_act_norm,1)
+            nonan_idx = ~any(isnan(curr_act_norm(curr_animal,:,:)),3);
+            if sum(nonan_idx) < 2
+                continue
+            end
+            curr_scale_animal(curr_animal) = ...
+                curr_act_norm(curr_animal,nonan_idx,1)'\ ...
+                curr_act_norm(curr_animal,nonan_idx,2)';
+        end
+        task_passive_scale{curr_region,curr_domain} = curr_scale_animal;
+        
         % Scatter with scaling ref line
-        h_dot = scatter(curr_act_norm(:,1),curr_act_norm(:,2),20,'filled');
+        scatter_color = repelem(ld_color, ...
+            size(data_grids.striatum_passive,1),1);
+
+        h_dot = scatter(reshape(curr_act_norm(:,:,1),[],1), ...
+            reshape(curr_act_norm(:,:,2),[],1),50,scatter_color,'filled');
         h_line = refline(curr_scale);
-        h_line.Color = h_dot.CData;
+        h_line.Color = 'k';
         h_line.LineWidth = 2;
 
         line([0,1],[0,1],'color',[0.5,0.5,0.5]);
@@ -3284,6 +3300,16 @@ for curr_domain = 1:2
 end
 
 ap.prettyfig;
+
+figure; hold on;
+swarmchart(1:4,cell2mat(task_passive_scale(:)'))
+errorbar(cellfun(@nanmean,task_passive_scale(:)), ...
+    cellfun(@ap.sem,task_passive_scale(:)),'k','linewidth',2);
+yline(1)
+
+% TO DO:
+% make the plotted slope have an error shading? 
+% str1 > 1, so can only claim it's less, not non-existant
 
 
 %% R1: Example animal
