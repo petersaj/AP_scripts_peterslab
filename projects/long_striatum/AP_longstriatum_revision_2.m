@@ -31,13 +31,14 @@ ylabel('Fraction correct');
 xlabel('Day from learning');
 ap.prettyfig;
 
-%% R1 p3 / R3 M1: mPFC-striatum timing
-% CLEAN UP
+%% R1 p3 / R3 M1: mPFC-striatum timing (PREP)
+
+% Grab day-binned task/passive stim responses
 
 load_dataset_retain = true;
 
 % ~~ Set up data structure params
-load_dataset = 'passive';
+load_dataset = 'task';
 Marica_2025.figures.load_data;
 
 % Set up parameters for activity grids [animal x day x domain x stim]
@@ -48,18 +49,17 @@ data_grid_params.cortex_stim_t = isbetween(wf_t,data_grid_params.stim_t(1),data_
 data_grid_params.striatum_stim_t = isbetween(psth_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
 data_grid_params.rxn_cutoff = 0.3;
 
-data_grid_params.ld_bins = [-Inf,-2:0,1,Inf];
+% data_grid_params.ld_bins = [-Inf,-2:0,1,1];
+% data_grid_params.ld_bins = [-Inf,-2:0,Inf];
+data_grid_params.ld_bins = [-Inf,-2,0,2,Inf]; % same as paper - best
+% data_grid_params.ld_bins = [-Inf,-2:2,2];
 data_grid_params.ld_unique = 1:(length(data_grid_params.ld_bins)-1);
 data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
 
 % Set up data structure
 data_grids = struct;
 
-clearvars -except load_dataset_retain data_grid_params data_grids
-
 % ~~ Get task activity
-load_dataset = 'task';
-Marica_2025.figures.load_data;
 
 % (striatum)
 striatum_use_trials = striatum_mua_grp.rxn > data_grid_params.rxn_cutoff;
@@ -114,12 +114,7 @@ data_grids.wf_roi_passive = permute(cell2mat(permute(arrayfun(@(domain) accumarr
     wf_roi_rec_tmax(:,domain),[data_grid_params.grid_size(1:2),length(unique(wf_grp.stim))], ...
     [],NaN('single')),1:n_domains,'uni',false),[1,3,4,2])),[1,2,4,3]);
 
-clearvars -except load_dataset_retain data_grid_params data_grids
-
 % ~~ Get widefield stim kernels
-load_dataset = 'noact';
-Marica_2025.figures.load_data;
-
 U_master = plab.wf.load_master_U;
 load(fullfile(data_path,'wf_kernels'));
 
@@ -151,186 +146,171 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     wf_kernel_roi_passive_tmax(wf_grid_idx_use,domain,stim),data_grid_params.grid_size(1:2),@nanmean,NaN('single')), ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
 
+% Clear anything extra
 clearvars -except load_dataset_retain data_grid_params data_grids
 
 
-% ~~ Plot
+%% --> task vs passive context difference 
 
-% Normalize to task LD0
-str_normval = data_grids.striatum_task(:,find(data_grid_params.ld_bins>=0,1),:);
-wf_normval = data_grids.wf_roi_task(:,find(data_grid_params.ld_bins>=0,1),:);
-wf_kernel_normval = data_grids.wf_kernel_roi_task(:,find(data_grid_params.ld_bins>=0,1),:);
+% Normalize task/passive separately
+norm_bin = find(data_grid_params.ld_bins>=0,1);
 
-% Set days to plot (n>3)
-% plot_ld_idx = sum(~isnan(data_grids.striatum_task(:,:,1))) > 3;
-plot_ld_idx = 1:size(data_grids.striatum_task,2);
+str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
+ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
 
-% Plot task vs passive for mPFC and striatum
-max_ld = max(abs(data_grid_params.ld_unique(plot_ld_idx)));
-ld_colors = ap.colormap('BKR',max_ld+(1-mod(max_ld,2)));
-% plot_ld_colors = ld_colors(ismember(-max_ld:max_ld, ...
-%     data_grid_params.ld_unique(plot_ld_idx)),:);
-plot_ld_colors = ld_colors(1:max_ld,:);
+% (passive needs softnorm for near-zero values)
+use_stim = 3;
+str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
+ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
 
-plot_str = 1;
-plot_wf_roi = 2;
-plot_stim = 3;
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
 
 figure; tiledlayout(1,2);
-nexttile; hold on;
-scatter(reshape(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),[],1), ...
-    reshape(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),[],1), ...
-    20,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
-plot(nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
-    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),1),'color',[0.5,0.5,0.5],'linewidth',2);
-scatter(nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,plot_wf_roi,plot_stim),1), ...
-    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,plot_wf_roi),1),80,plot_ld_colors,'linewidth',4);
-xlim(prctile([xlim,ylim],[0,100]));ylim(xlim)
-axis square
-line(ylim,ylim,'linestyle','--','color',[0.5,0.5,0.5]);
-xlabel('Passive');ylabel('Task');
-title(sprintf('Cortex kernel %d',plot_wf_roi));
-
-nexttile; hold on;
-scatter(reshape(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),[],1), ...
-    reshape(data_grids.striatum_task(:,plot_ld_idx,plot_str),[],1), ...
-    20,repelem(plot_ld_colors,size(data_grids.striatum_task,1),1),'filled');
-plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),1), ...
-    nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str),1),'color',[0.5,0.5,0.5],'linewidth',2);
-scatter(nanmean(data_grids.striatum_passive(:,plot_ld_idx,plot_str,plot_stim),1), ...
-    nanmean(data_grids.striatum_task(:,plot_ld_idx,plot_str),1),80,plot_ld_colors,'linewidth',4);
-xlim(prctile([xlim,ylim],[0,100]));ylim(xlim)
-axis square
-line(ylim,ylim,'linestyle','--','color',[0.5,0.5,0.5]);
-xlabel('Passive');ylabel('Task');
-title(sprintf('Striatum %d',plot_str));
-ap.prettyfig;
-
-% Plot striatum vs mPFC for task and passive
-outline_ld_cols = [0.5,0.5,0.5;0,0,0];
-outline_ld = @(h) scatter(h.XData(find(data_grid_params.ld_bins==0)+[-1,0]), ...
-    h.YData(find(data_grid_params.ld_bins==0)+[-1,0]), ...
-    100,outline_ld_cols,'linewidth',3);
-
-% (wf kernel, LD-0 norm)
-plot_task = @(roi,str,col) ...
-    plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
-    nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,roi)./wf_kernel_normval(:,:,roi),1), ...
-    '.-','color',col,'linewidth',2,'MarkerSize',30);
-plot_passive = @(roi,str,plot_stim,col) ...
-    plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
-    nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_kernel_normval(:,:,roi),1), ...
-    '.-','color',col,'linewidth',2,'MarkerSize',30);
-
-% % (wf kernel, LD-0 norm,errorbar)
-% plot_task = @(roi,str,col) ...
-%     errorbar(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
-%     nanmean(data_grids.wf_kernel_roi_task(:,plot_ld_idx,roi)./wf_kernel_normval(:,:,roi),1), ...
-%     ap.sem(data_grids.wf_kernel_roi_task(:,plot_ld_idx,roi)./wf_kernel_normval(:,:,roi),1), ...
-%     ap.sem(data_grids.wf_kernel_roi_task(:,plot_ld_idx,roi)./wf_kernel_normval(:,:,roi),1), ...
-%     ap.sem(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
-%     ap.sem(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
-%     '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
-% plot_passive = @(roi,str,plot_stim,col) ...
-%     errorbar(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
-%     nanmean(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_kernel_normval(:,:,roi),1), ...
-%     ap.sem(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_kernel_normval(:,:,roi),1), ...
-%     ap.sem(data_grids.wf_kernel_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_kernel_normval(:,:,roi),1), ...
-%     ap.sem(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
-%     ap.sem(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
-%     '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
-
-% % (wf dff, non-norm)
-% plot_task = @(roi,str,col) ...
-%     plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,str),1), ...
-%     nanmean(data_grids.wf_roi_task(:,plot_ld_idx,roi),1), ...
-%     '.-','color',col,'linewidth',2,'MarkerSize',30);
-% plot_passive = @(roi,str,plot_stim,col) ...
-%     plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim),1), ...
-%     nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim),1), ...
-%     '.-','color',col,'linewidth',2,'MarkerSize',30);
-
-% % (wf dff, norm)
-% plot_task = @(roi,str,col) ...
-%     plot(nanmean(data_grids.striatum_task(:,plot_ld_idx,str)./str_normval(:,:,str),1), ...
-%     nanmean(data_grids.wf_roi_task(:,plot_ld_idx,roi)./wf_normval(:,:,roi),1), ...
-%     '.-','color',col,'linewidth',2,'MarkerSize',30);
-% plot_passive = @(roi,str,plot_stim,col) ...
-%     plot(nanmean(data_grids.striatum_passive(:,plot_ld_idx,str,plot_stim)./str_normval(:,:,str),1), ...
-%     nanmean(data_grids.wf_roi_passive(:,plot_ld_idx,roi,plot_stim)./wf_normval(:,:,roi),1), ...
-%     '.-','color',col,'linewidth',2,'MarkerSize',30);
-
-plot_str = 1;
-plot_wf_roi = 2;
-
-figure; hold on;
-h = plot_task(plot_wf_roi,plot_str,[0.5,0,0]); outline_ld(h);
-stim_col = [0.8,0.8,0.3;0.3,0.3,0.8;0.8,0.3,0.3];
-for curr_stim = 1:3
-    h = plot_passive(plot_wf_roi,plot_str,curr_stim,stim_col(curr_stim,:)); outline_ld(h);
+plot_wf_v_str = @(wf_data,str_data,col) ...
+    errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
+    ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
+plot_wf = 2;
+str_col = {'k','r'};
+for curr_str = 1:2
+    nexttile(1); hold on;
+    plot_wf_v_str(ctx_task_norm(:,:,plot_wf),str_task_norm(:,:,curr_str),str_col{curr_str});
+    title('Task');
+    nexttile(2); hold on;
+    plot_wf_v_str(ctx_passive_norm(:,:,plot_wf),str_passive_norm(:,:,curr_str),str_col{curr_str});
+    title('Passive');
 end
-xlabel(sprintf('Striatum %d (LD0-norm)',plot_str));
-ylabel(sprintf('Cortex kernel %d (LD0-norm)',plot_wf_roi));
-ap.prettyfig;
-
-
-figure; hold on;
-plot_str = [1,2];
-plot_wf_roi = 2;
-h1 = plot_task(plot_wf_roi,plot_str(1),[0.5,0,0]);
-h2 = plot_task(plot_wf_roi,plot_str(2),'k');
-outline_ld(h1); outline_ld(h2);
-axis equal square
-line(xlim,xlim,'color',[0.5,0.5,0.5]);
-legend(arrayfun(@(x) sprintf('Str %d',x),plot_str,'uni',false));
-ylabel(sprintf('Cortex kernel %d (LD0-norm)',plot_wf_roi));
-xlabel('Striatum (LD0-norm)')
+for curr_tile = 1:2
+    nexttile(curr_tile); axis square; line(xlim,xlim,'color',[0.5,0.5,0.5])
+    xlabel('Striatum');ylabel('Cortex');
+    legend("Striatum "+string(num2cell(1:2)));
+end
 ap.prettyfig;
 
 
 % ~~~ STATS ~~~
-n_shuff = 10000;
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
-plot_str = 1;
-plot_wf_roi = 2;
-plot_stim = 3;
+% Compare against unity (cortex = striatum)
+use_ctx = 2;
 
-pre_days =  data_grid_params.ld_unique == 1;
-post_days = ismember(data_grid_params.ld_unique,3);
-
-stat_label = {...
-    sprintf('striatum %d task',plot_str), ...
-    sprintf('striatum %d passive',plot_str), ...
-    sprintf('cortex kernel %d task',plot_wf_roi), ...
-    sprintf('cortex_kernel %d passive',plot_wf_roi)};
-pre_data = [...
-    nanmean(data_grids.striatum_task(:,pre_days,plot_str)./str_normval(:,:,plot_str),2), ...
-    nanmean(data_grids.striatum_passive(:,pre_days,plot_str,plot_stim)./str_normval(:,:,plot_str),2), ...
-    nanmean(data_grids.wf_kernel_roi_task(:,pre_days,plot_wf_roi)./wf_kernel_normval(:,:,plot_wf_roi),2), ...
-    nanmean(data_grids.wf_kernel_roi_passive(:,pre_days,plot_wf_roi,plot_stim)./wf_kernel_normval(:,:,plot_wf_roi),2)];
-post_data = [...
-    nanmean(data_grids.striatum_task(:,post_days,plot_str)./str_normval(:,:,plot_str),2), ...
-    nanmean(data_grids.striatum_passive(:,post_days,plot_str,plot_stim)./str_normval(:,:,plot_str),2), ...
-    nanmean(data_grids.wf_kernel_roi_task(:,post_days,plot_wf_roi)./wf_kernel_normval(:,:,plot_wf_roi),2), ...
-    nanmean(data_grids.wf_kernel_roi_passive(:,post_days,plot_wf_roi,plot_stim)./wf_kernel_normval(:,:,plot_wf_roi),2)];
-
-data_meas = nanmean(diff(cat(3,pre_data,post_data),[],3),1);
-data_shuff = nan(n_shuff,size(data_meas,2));
-for curr_shuff = 1:n_shuff
-    data_shuff(curr_shuff,:) = nanmean(diff(ap.shake(cat(3,pre_data,post_data),3),[],3),1);
-end
-stat_rank = tiedrank([data_meas;data_shuff]);
-stat_p = 1-stat_rank(1,:)/(n_shuff+1);
-for curr_stat = 1:length(stat_p)
-    fprintf('Shuffle: %s p = %.2g%s\n', ...
-        stat_label{curr_stat},stat_p(curr_stat),sig_flag(stat_p(curr_stat)));
+% (task)
+for use_str = 1:2
+    stat_meas = nanmean(str_task_norm(:,:,use_str) - ctx_task_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_task_norm(:,:,use_str),ctx_task_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Task, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
 end
 
-for curr_stat = 1:size(pre_data,2)
-    stat_signrank = ranksum(pre_data(:,curr_stat),post_data(:,curr_stat));
-    fprintf('Ranksum: %s p = %.2g%s\n', ...
-        stat_label{curr_stat},stat_signrank,sig_flag(stat_signrank));
+% (passive)
+for use_str = 1:2
+    stat_meas = nanmean(str_passive_norm(:,:,use_str) - ctx_passive_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_passive_norm(:,:,use_str),ctx_passive_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Passive, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
+end
+
+
+%% --> mPFC vs vis/mPFC-striatum by day
+
+% Normalize task/passive separately
+norm_bin = find(data_grid_params.ld_bins>=0,1);
+
+str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
+ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
+
+% (passive needs softnorm for near-zero values)
+use_stim = 3;
+str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
+ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
+
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
+
+figure; tiledlayout(1,2);
+plot_wf_v_str = @(wf_data,str_data,col) ...
+    errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
+    ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
+plot_wf = 2;
+str_col = {'k','r'};
+for curr_str = 1:2
+    nexttile(1); hold on;
+    plot_wf_v_str(ctx_task_norm(:,:,plot_wf),str_task_norm(:,:,curr_str),str_col{curr_str});
+    title('Task');
+    nexttile(2); hold on;
+    plot_wf_v_str(ctx_passive_norm(:,:,plot_wf),str_passive_norm(:,:,curr_str),str_col{curr_str});
+    title('Passive');
+end
+for curr_tile = 1:2
+    nexttile(curr_tile); axis square; line(xlim,xlim,'color',[0.5,0.5,0.5])
+    xlabel('Striatum');ylabel('Cortex');
+    legend("Striatum "+string(num2cell(1:2)));
+end
+ap.prettyfig;
+
+
+% ~~~ STATS ~~~
+sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
+
+% Compare against unity (cortex = striatum)
+use_ctx = 2;
+
+% (task)
+for use_str = 1:2
+    stat_meas = nanmean(str_task_norm(:,:,use_str) - ctx_task_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_task_norm(:,:,use_str),ctx_task_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Task, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
+end
+
+% (passive)
+for use_str = 1:2
+    stat_meas = nanmean(str_passive_norm(:,:,use_str) - ctx_passive_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_passive_norm(:,:,use_str),ctx_passive_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Passive, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
 end
 
 

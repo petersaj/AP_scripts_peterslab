@@ -3208,36 +3208,89 @@ end
 stat_rank = tiedrank([stat_meas;stat_shuff]);
 stat_p = 1-stat_rank(1,:)/(n_shuff+1)
 
+%% --> USE: task and passive mpfc vs str1/2
 
-%% --> context slope by day
-
-% This doesn't work because the no mpfc response = not context sensitive
-
+% Normalize task/passive separately
 norm_bin = find(data_grid_params.ld_bins>=0,1);
 
 str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
 ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
 
+% (passive needs softnorm for near-zero values)
 use_stim = 3;
+str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
+ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
 
-str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
-ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
 
-curr_str = 2;
-x = nan(length(data_grid_params.ld_unique),1);
-for i = 1:length(data_grid_params.ld_unique)
+figure; tiledlayout(1,2);
+plot_wf_v_str = @(wf_data,str_data,col) ...
+    errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
+    ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
+    '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
+plot_wf = 2;
+str_col = {'k','r'};
+for curr_str = 1:2
+    nexttile(1); hold on;
+    plot_wf_v_str(ctx_task_norm(:,:,plot_wf),str_task_norm(:,:,curr_str),str_col{curr_str});
+    title('Task');
+    nexttile(2); hold on;
+    plot_wf_v_str(ctx_passive_norm(:,:,plot_wf),str_passive_norm(:,:,curr_str),str_col{curr_str});
+    title('Passive');
+end
+for curr_tile = 1:2
+    nexttile(curr_tile); axis square; line(xlim,xlim,'color',[0.5,0.5,0.5])
+    xlabel('Striatum');ylabel('Cortex');
+    legend("Striatum "+string(num2cell(1:2)));
+end
+ap.prettyfig;
 
-    % curr_task_data = str_task_norm(:,i,curr_str);
-    % curr_passive_data = str_passive_norm(:,i,curr_str);
 
-    curr_task_data = ctx_task_norm(:,i,curr_str);
-    curr_passive_data = ctx_passive_norm(:,i,curr_str);
+% ~~~ STATS ~~~
+sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
-    use_data_idx = ~isnan(curr_task_data) & ~isnan(curr_passive_data);
-    x(i) = curr_passive_data(use_data_idx)\curr_task_data(use_data_idx);
+% Compare against unity (cortex = striatum)
+use_ctx = 2;
+
+% (task)
+for use_str = 1:2
+    stat_meas = nanmean(str_task_norm(:,:,use_str) - ctx_task_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_task_norm(:,:,use_str),ctx_task_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Task, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
+end
+
+% (passive)
+for use_str = 1:2
+    stat_meas = nanmean(str_passive_norm(:,:,use_str) - ctx_passive_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_passive_norm(:,:,use_str),ctx_passive_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Passive, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
 end
 
 
+%% --> context slope v2
 
 % Plot task vs passive (range-normalized, cortex and striatum overlaid)
 ld_color = ap.colormap('BKR',5);
@@ -3282,15 +3335,16 @@ for curr_domain = 1:2
         end
         task_passive_scale{curr_region,curr_domain} = curr_scale_animal;
         
-        % Scatter with scaling ref line
+        % Scatter
         scatter_color = repelem(ld_color, ...
             size(data_grids.striatum_passive,1),1);
-
         h_dot = scatter(reshape(curr_act_norm(:,:,1),[],1), ...
             reshape(curr_act_norm(:,:,2),[],1),50,scatter_color,'filled');
-        h_line = refline(curr_scale);
-        h_line.Color = 'k';
-        h_line.LineWidth = 2;
+
+        % Plot slope fit with errorbars
+        slope_mean = nanmean(task_passive_scale{curr_region,curr_domain});
+        slope_sem = ap.sem(task_passive_scale{curr_region,curr_domain});
+        ap.errorfill([0,1],[0,slope_mean],[0,slope_sem],[0.5,0.5,0.5]);
 
         line([0,1],[0,1],'color',[0.5,0.5,0.5]);
         xlim(ylim);
@@ -3302,14 +3356,111 @@ end
 ap.prettyfig;
 
 figure; hold on;
-swarmchart(1:4,cell2mat(task_passive_scale(:)'))
-errorbar(cellfun(@nanmean,task_passive_scale(:)), ...
-    cellfun(@ap.sem,task_passive_scale(:)),'k','linewidth',2);
-yline(1)
+plot_area_labels = reshape(append(regions'," ",string(num2cell(1:2))),[],1);
+xlabels = cellfun(@(label,x) repelem(label,length(x),1),num2cell(plot_area_labels),task_passive_scale(:),'uni',false);
+xcats = reordercats(categorical(vertcat(xlabels{:})),plot_area_labels);
 
-% TO DO:
-% make the plotted slope have an error shading? 
-% str1 > 1, so can only claim it's less, not non-existant
+swarmchart(xcats,cell2mat(task_passive_scale(:)),'filled','MarkerFaceColor',[0.5,0.5,0.5]);
+errorbar(cellfun(@nanmean,task_passive_scale(:)), ...
+    cellfun(@ap.sem,task_passive_scale(:)),'k','linewidth',2,'CapSize',0);
+yline(1);
+ylabel('Task/passive scale');
+xlabel('Area')
+ap.prettyfig;
+
+% ~~~ STATS ~~~
+sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
+
+for curr_domain = 1:2
+    stat_p = signrank(task_passive_scale{1,2},task_passive_scale{2,curr_domain});
+    print_stat('Signrank context mPFC vs Striatum %d: p = %.2g%s\n', ...
+        curr_domain,stat_p,sig_flag(stat_p));
+end
+
+%% --> USE: context slope v3 (no vis ctx)
+
+plot_str = [1,2];
+plot_ctx = 2;
+
+area_labels= ["Striatum " + string(num2cell(plot_str)), ...
+    "Cortex " + string(num2cell(plot_ctx))];
+
+use_stim = 3;
+plot_passive_data = cat(3,data_grids.striatum_passive(:,:,plot_str,use_stim), ...
+    data_grids.wf_roi_passive(:,:,plot_ctx,use_stim));
+plot_task_data = cat(3,data_grids.striatum_task(:,:,plot_str), ...
+    data_grids.wf_roi_task(:,:,plot_ctx));
+
+figure; hold on;
+n_areas = length([plot_str,plot_ctx]);
+area_colors = ap.colormap('tube',n_areas);
+task_passive_scale = cell(n_areas,1);
+h_dot = gobjects(n_areas,1);
+for curr_area = 1:n_areas
+        % Max-normalize
+        curr_act_norm = rescale(cat(3, ...
+            plot_passive_data(:,:,curr_area),plot_task_data(:,:,curr_area)));
+        
+        % Fit scale passive to task
+        %  (all data)
+        nonan_idx = ~any(isnan(curr_act_norm),3);
+        curr_act_norm_vec = reshape(curr_act_norm(repmat(nonan_idx,1,1,2)),[],2);
+        curr_scale = curr_act_norm_vec(:,1)\curr_act_norm_vec(:,2);
+
+        % (by animal)
+        curr_scale_animal = nan(size(curr_act_norm,1),1);
+        for curr_animal = 1:size(curr_act_norm,1)
+            nonan_idx = ~any(isnan(curr_act_norm(curr_animal,:,:)),3);
+            if sum(nonan_idx) < 2
+                continue
+            end
+            curr_scale_animal(curr_animal) = ...
+                curr_act_norm(curr_animal,nonan_idx,1)'\ ...
+                curr_act_norm(curr_animal,nonan_idx,2)';
+        end
+        task_passive_scale{curr_area} = curr_scale_animal;
+        
+        % Scatter and plot slope fit with error shading
+        scatter_color = repelem(ld_color, ...
+            size(data_grids.striatum_passive,1),1);
+        h_dot(curr_area) = scatter(reshape(curr_act_norm(:,:,1),[],1), ...
+            reshape(curr_act_norm(:,:,2),[],1),30, ...
+            area_colors(curr_area,:),'filled');
+
+        slope_mean = nanmean(task_passive_scale{curr_area});
+        slope_sem = ap.sem(task_passive_scale{curr_area});
+        ap.errorfill([0,1],[0,slope_mean],[0,slope_sem],area_colors(curr_area,:));
+
+        line([0,1],[0,1],'color',[0.5,0.5,0.5]);
+        xlim(ylim);
+        axis square; xlim([0,1]);ylim([0,1]);
+        xlabel('Passive');ylabel('Task');
+end
+legend(h_dot,area_labels,'location','se');
+ap.prettyfig;
+
+% Plot slopes by region
+figure; hold on;
+
+swarmchart(cell2mat(cellfun(@(x,y) repelem(x,length(y),1),num2cell(1:3)',task_passive_scale,'uni',false)), ...
+    cell2mat(task_passive_scale),'filled','MarkerFaceColor',[0.5,0.5,0.5]);
+errorbar(cellfun(@nanmean,task_passive_scale(:)), ...
+    cellfun(@ap.sem,task_passive_scale(:)),'k','linewidth',2,'CapSize',0);
+
+set(gca,'XTick',1:n_areas,'XTickLabels',area_labels);
+
+yline(1);
+ylabel('Task/passive scale');
+ap.prettyfig;
+
+% ~~~ STATS ~~~
+sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
+
+for curr_domain = 1:n_areas-1
+    stat_p = signrank(task_passive_scale{end},task_passive_scale{curr_domain});
+    print_stat('Signrank context mPFC vs Striatum %d: p = %.2g%s\n', ...
+        curr_domain,stat_p,sig_flag(stat_p));
+end
 
 
 %% R1: Example animal
