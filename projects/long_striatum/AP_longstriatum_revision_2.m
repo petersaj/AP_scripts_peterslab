@@ -1,5 +1,46 @@
 %% Analyses for reviewers (selecting from _1)
 
+%% Set path to save figures and print stats (if script thru-run)
+
+%%%% TEMPORARY PATHS WHILE PREPPING CODE
+
+local_save_path = 'C:\Users\petersa\Documents\PetersLab\papers\2025_Marica\revisions';
+
+% Path to save figures
+fig_savepath = fullfile(local_save_path,'figures','matlab_figs');
+
+% Filename to print stats
+stat_savefn = fullfile(local_save_path,'figures','stats.txt');
+
+%%%%%%%%
+
+% Set flag to overwrite save
+if strcmp(getenv('USERNAME'),'petersa')
+
+    % (safety catch: save only on AP's computer)
+    fig_overwrite_confirm = strcmp(questdlg('Overwite saved figures?', ...
+        'Confirm save','No','Yes','No'),'Yes');
+    if fig_overwrite_confirm
+        % (turn on flag to save figs)
+        fig_save_flag = true;
+        % (set function to save figures)
+        save_figs = @() arrayfun(@(curr_fig) saveas(curr_fig, ...
+            fullfile(fig_savepath,strrep(curr_fig.Name,' ','_')),'fig'), ...
+            findall(0,'Type','figure'));
+    end
+
+    stat_overwrite_confirm = strcmp(questdlg('Overwrite stats?', ...
+        'Confirm save','No','Yes','No'),'Yes');
+    if stat_overwrite_confirm
+        % (create stat file for writing)
+        stat_fid = fopen(stat_savefn,'w');
+        % (set stats to print to stat file)
+        print_stat = @(varargin) fprintf(stat_fid,varargin{:});
+    end
+
+end
+
+
 %% R1 p1: Correct performance rate by day
 
 %%% Load non-activity data
@@ -21,7 +62,7 @@ outcome_daysplit_sem = ap.groupfun(@AP_sem,outcome_mean_daysplit, ...
 plot_days = -3:2;
 plot_day_idx = ismember(outcome_group_x,plot_days);
 
-figure;
+figure('Name','R1p1 performance');
 outcome_group_x_daysplit = outcome_group_x+(0:n_daysplit)./n_daysplit;
 errorbar(reshape(outcome_group_x_daysplit(plot_day_idx,:)',[],1), ...
     reshape(padarray(outcome_daysplit_mean(plot_day_idx,:),[0,1],nan,'post')',[],1), ...
@@ -31,7 +72,8 @@ ylabel('Fraction correct');
 xlabel('Day from learning');
 ap.prettyfig;
 
-%% R1 p3 / R3 M1: mPFC-striatum timing (PREP)
+
+%% R1 p3/R3 M1: mPFC-striatum timing (LOAD/PREP DATA)
 
 % Grab day-binned task/passive stim responses
 
@@ -147,88 +189,92 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
 
 % Clear anything extra
-clearvars -except load_dataset_retain data_grid_params data_grids
+clearvars -except load_dataset_retain data_grid_params data_grids print_stat
 
 
 %% --> task vs passive context difference 
 
-% Normalize task/passive separately
-norm_bin = find(data_grid_params.ld_bins>=0,1);
+plot_str = [1,2];
+plot_ctx = 2;
 
-str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
-ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
+area_labels= ["Striatum " + string(num2cell(plot_str)), ...
+    "Cortex " + string(num2cell(plot_ctx))];
 
-% (passive needs softnorm for near-zero values)
 use_stim = 3;
-str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
-ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
+plot_passive_data = cat(3,data_grids.striatum_passive(:,:,plot_str,use_stim), ...
+    data_grids.wf_roi_passive(:,:,plot_ctx,use_stim));
+plot_task_data = cat(3,data_grids.striatum_task(:,:,plot_str), ...
+    data_grids.wf_roi_task(:,:,plot_ctx));
 
-str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
-ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
+figure('Name','R1p3 R3M1 context activity'); hold on;
+n_areas = length([plot_str,plot_ctx]);
+area_colors = ap.colormap('tube',n_areas);
+task_passive_scale = cell(n_areas,1);
+h_dot = gobjects(n_areas,1);
+for curr_area = 1:n_areas
+        % Max-normalize
+        curr_act_norm = rescale(cat(3, ...
+            plot_passive_data(:,:,curr_area),plot_task_data(:,:,curr_area)));
+        
+        % Fit scale passive to task
+        %  (all data)
+        nonan_idx = ~any(isnan(curr_act_norm),3);
+        curr_act_norm_vec = reshape(curr_act_norm(repmat(nonan_idx,1,1,2)),[],2);
+        curr_scale = curr_act_norm_vec(:,1)\curr_act_norm_vec(:,2);
 
-figure; tiledlayout(1,2);
-plot_wf_v_str = @(wf_data,str_data,col) ...
-    errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
-    ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
-    '.-','color',col,'linewidth',2,'MarkerSize',30,'capsize',0);
-plot_wf = 2;
-str_col = {'k','r'};
-for curr_str = 1:2
-    nexttile(1); hold on;
-    plot_wf_v_str(ctx_task_norm(:,:,plot_wf),str_task_norm(:,:,curr_str),str_col{curr_str});
-    title('Task');
-    nexttile(2); hold on;
-    plot_wf_v_str(ctx_passive_norm(:,:,plot_wf),str_passive_norm(:,:,curr_str),str_col{curr_str});
-    title('Passive');
+        % (by animal)
+        curr_scale_animal = nan(size(curr_act_norm,1),1);
+        for curr_animal = 1:size(curr_act_norm,1)
+            nonan_idx = ~any(isnan(curr_act_norm(curr_animal,:,:)),3);
+            if sum(nonan_idx) < 2
+                continue
+            end
+            curr_scale_animal(curr_animal) = ...
+                curr_act_norm(curr_animal,nonan_idx,1)'\ ...
+                curr_act_norm(curr_animal,nonan_idx,2)';
+        end
+        task_passive_scale{curr_area} = curr_scale_animal;
+        
+        % Scatter and plot slope fit with error shading
+        h_dot(curr_area) = scatter(reshape(curr_act_norm(:,:,1),[],1), ...
+            reshape(curr_act_norm(:,:,2),[],1),30, ...
+            area_colors(curr_area,:),'filled');
+
+        slope_mean = nanmean(task_passive_scale{curr_area});
+        slope_sem = ap.sem(task_passive_scale{curr_area});
+        ap.errorfill([0,1],[0,slope_mean],[0,slope_sem],area_colors(curr_area,:));
+
+        line([0,1],[0,1],'color',[0.5,0.5,0.5]);
+        xlim(ylim);
+        axis square; xlim([0,1]);ylim([0,1]);
+        xlabel('Passive');ylabel('Task');
 end
-for curr_tile = 1:2
-    nexttile(curr_tile); axis square; line(xlim,xlim,'color',[0.5,0.5,0.5])
-    xlabel('Striatum');ylabel('Cortex');
-    legend("Striatum "+string(num2cell(1:2)));
-end
+legend(h_dot,area_labels,'location','se');
 ap.prettyfig;
 
+% Plot slopes by region
+figure('Name','R1p3 R3M3 context slope'); hold on;
+
+swarmchart(cell2mat(cellfun(@(x,y) repelem(x,length(y),1),num2cell(1:3)',task_passive_scale,'uni',false)), ...
+    cell2mat(task_passive_scale),'filled','MarkerFaceColor',[0.5,0.5,0.5]);
+errorbar(cellfun(@nanmean,task_passive_scale(:)), ...
+    cellfun(@ap.sem,task_passive_scale(:)),'k','linewidth',2,'CapSize',0);
+
+set(gca,'XTick',1:n_areas,'XTickLabels',area_labels);
+
+yline(1);
+ylabel('Task/passive scale');
+ap.prettyfig;
 
 % ~~~ STATS ~~~
+print_stat('\n--FIG R1 p3/R3 M1--\n');
+
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
-% Compare against unity (cortex = striatum)
-use_ctx = 2;
-
-% (task)
-for use_str = 1:2
-    stat_meas = nanmean(str_task_norm(:,:,use_str) - ctx_task_norm(:,:,use_ctx),1);
-    n_shuff = 10000;
-    stat_shuff = nan(n_shuff,size(stat_meas,2));
-    for curr_shuff = 1:n_shuff
-        curr_shuff_data = ap.shake(cat(3,str_task_norm(:,:,use_str),ctx_task_norm(:,:,use_ctx)),3);
-        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
-    end
-    stat_rank = tiedrank([stat_meas;stat_shuff]);
-    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
-    for curr_day = 1:length(stat_p)
-        print_stat('Task, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
-            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
-            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
-    end
-end
-
-% (passive)
-for use_str = 1:2
-    stat_meas = nanmean(str_passive_norm(:,:,use_str) - ctx_passive_norm(:,:,use_ctx),1);
-    n_shuff = 10000;
-    stat_shuff = nan(n_shuff,size(stat_meas,2));
-    for curr_shuff = 1:n_shuff
-        curr_shuff_data = ap.shake(cat(3,str_passive_norm(:,:,use_str),ctx_passive_norm(:,:,use_ctx)),3);
-        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
-    end
-    stat_rank = tiedrank([stat_meas;stat_shuff]);
-    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
-    for curr_day = 1:length(stat_p)
-        print_stat('Passive, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
-            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
-            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
-    end
+for curr_domain = 1:n_areas-1
+    stat_p = signrank(task_passive_scale{end},task_passive_scale{curr_domain});
+    print_stat('Signrank context mPFC vs Striatum %d: p = %.2g%s\n', ...
+        curr_domain,stat_p,sig_flag(stat_p));
 end
 
 
@@ -248,7 +294,7 @@ ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
 str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
 ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
 
-figure; tiledlayout(1,2);
+figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
 plot_wf_v_str = @(wf_data,str_data,col) ...
     errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
     ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
@@ -418,7 +464,7 @@ animal_colors = ap.colormap('tube',14);
 overlay_dilation = 1;
 histology_clim = repelem({[200,500]},length(animals),1);
 
-figure; tiledlayout('TileSpacing','none');
+figure('Name','R2p4 colored histology); tiledlayout('TileSpacing','none');
 for curr_atlas_bin = 1:n_atlas_bins
 
     % Plot CCF borders from the middle of the bin
@@ -442,6 +488,7 @@ for curr_atlas_bin = 1:n_atlas_bins
     nexttile;imagesc(curr_overlay);axis image off;
     drawnow;
 end
+
 
 %% R3 M3: Fraction of quiescent passive trials
 
@@ -512,7 +559,7 @@ passive_quiescent_stim_ld_sem = ...
     ap.nestgroupfun({@mean,@ap.sem},passive_quiescent_stim, ...
     grp2idx(bhv.animal),bhv.days_from_learning >= 0);
 
-figure;
+figure('Name','R3M3 frac q trials');
 x_labels = ["Pre-learn","Post-learn"];
 errorbar(reordercats(categorical(x_labels),x_labels), ...
     passive_quiescent_stim_ld,passive_quiescent_stim_ld_sem, ...
@@ -555,7 +602,7 @@ passive_quiescent_stim_trialsplit_sem_grid = ...
 passive_quiescent_stim_daysplit_x = reshape((unique(passive_quiescent_stim_trialsplit_grp(:,1)) + ...
     linspace(0,1,max(passive_quiescent_stim_trialsplit_grp(:,2)+1)))',[],1);
 
-figure;
+figure('Name','R3M3 daysplit q trials');
 plot_x_idx = isbetween(passive_quiescent_stim_daysplit_x,-3,3);
 
 passive_quiescent_stim_trialsplit_grid_reshape = ...
@@ -573,6 +620,8 @@ axis padded;
 ap.prettyfig;
 
 % ~~~ STATS ~~~
+print_stat('\n--FIG R1 M3--\n');
+
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
 [passive_quiescent_stim_ld_animal,passive_quiescent_stim_ld_animal_grp] = ...
@@ -769,11 +818,11 @@ day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
-figure; h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
-figure; h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
-figure; h_rxn = axes; hold on; set(gca,'ColorOrder',plot_day_colors);
+figure('Name','R3m3 nostim striatum'); h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
+figure('Name','R3m3 nostim cortex'); h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
+figure('Name','R3m3 nostim rxn'); h_rxn = axes; hold on; set(gca,'ColorOrder',plot_day_colors);
 
-figure; h_wheel = tiledlayout(1,2);
+figure('Name','R3m3 nostim wheel'); h_wheel = tiledlayout(1,2);
 nexttile(h_wheel); hold on; set(gca,'ColorOrder',plot_day_colors);
 nexttile(h_wheel); hold on; set(gca,'ColorOrder',plot_day_colors);
 
