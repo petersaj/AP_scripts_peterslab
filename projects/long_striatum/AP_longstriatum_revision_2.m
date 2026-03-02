@@ -851,6 +851,7 @@ striatum_nostim_move_mua = cellfun(mua_norm_smooth_reshape_fcn, ...
 plot_day_bins = [-Inf,0,Inf];
 
 plot_day_colors = [0,0,0;0.7,0,0];
+plot_day_color_letters = {'k','r'}; % for ap.colormap in rxn plot
 
 day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
@@ -858,7 +859,7 @@ striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
 figure('Name','R3m3 nostim striatum'); h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
 figure('Name','R3m3 nostim cortex'); h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
-figure('Name','R3m3 nostim rxn'); h_rxn = axes; hold on; set(gca,'ColorOrder',plot_day_colors);
+figure('Name','R3m3 nostim rxn'); h_rxn = tiledlayout(2,1);
 
 figure('Name','R3m3 nostim wheel'); h_wheel = tiledlayout(1,3);
 for curr_plot = 1:3
@@ -941,12 +942,18 @@ for curr_domain = 1:n_domains
 
         if curr_domain == 1
             % Plot histogram of stim relative to move onset (on first domain)
-            rxn_bins = [-Inf,-0.5:0.05:1,Inf];
+            rxn_bins = [-0.5:0.01:1];
             rxn_bin_x = [rxn_bins(2),rxn_bins(2:end-2)+diff(rxn_bins(2:end-1))/2,rxn_bins(end-1)];
             rxn_histogram = cell2mat(arrayfun(@(x) histcounts(-striatum_mua_grp.rxn(curr_striatum_trials_idx & ...
                 striatum_mua_grp.animal == x),rxn_bins,'Normalization','probability'), ...
                 (1:length(unique(striatum_mua_grp.animal)))','uni',false));
-            axes(h_rxn);ap.errorfill(rxn_bin_x,nanmean(rxn_histogram,1),ap.sem(rxn_histogram,1));
+            nexttile(h_rxn,curr_day_grp);
+            imagesc(rxn_bin_x,[],nanmean(rxn_histogram,1));
+            colormap(nexttile(h_rxn,curr_day_grp),ap.colormap(...
+                sprintf('W%s',upper(plot_day_color_letters{curr_day_grp}))));
+            set(nexttile(h_rxn,curr_day_grp),'XTick','','YTick','');
+            box on;
+            colorbar;
 
             % Plot wheel
             wheel_stim_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_stim_wheel( ...
@@ -981,13 +988,19 @@ linkaxes(h_wheel.Children,'xy');
 arrayfun(@(x) xline(x,0),[h_striatum.Children])
 arrayfun(@(x) xline(x,0),[h_cortex.Children])
 arrayfun(@(x) xline(x,0),[h_wheel.Children])
+arrayfun(@(x) xline(x,0),[h_rxn.Children(end:-2:1)])
+
+% (match color axes for stim histogram)
+clim(nexttile(h_rxn,1),clim(nexttile(h_rxn,2)));
 
 ap.prettyfig([],h_striatum.Parent);
 ap.prettyfig([],h_cortex.Parent);
 ap.prettyfig([],h_wheel.Parent);
+ap.prettyfig([],h_rxn.Parent);
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
     save_figs();
     close(findall(0,'Type','figure'));
 end
+

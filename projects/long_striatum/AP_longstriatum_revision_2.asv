@@ -941,7 +941,7 @@ for curr_domain = 1:n_domains
 
         if curr_domain == 1
             % Plot histogram of stim relative to move onset (on first domain)
-            rxn_bins = [-Inf,-0.5:0.05:1,Inf];
+            rxn_bins = [-0.5:0.05:1];
             rxn_bin_x = [rxn_bins(2),rxn_bins(2:end-2)+diff(rxn_bins(2:end-1))/2,rxn_bins(end-1)];
             rxn_histogram = cell2mat(arrayfun(@(x) histcounts(-striatum_mua_grp.rxn(curr_striatum_trials_idx & ...
                 striatum_mua_grp.animal == x),rxn_bins,'Normalization','probability'), ...
@@ -978,6 +978,9 @@ linkaxes(h_cortex.Children,'xy');
 linkaxes(h_wheel.Children,'xy');
 
 % (draw lines at t = 0)
+arrayfun(@(x) xline(x,0),[h_striatum.Children])
+arrayfun(@(x) xline(x,0),[h_cortex.Children])
+arrayfun(@(x) xline(x,0),[h_wheel.Children])
 
 ap.prettyfig([],h_striatum.Parent);
 ap.prettyfig([],h_cortex.Parent);
