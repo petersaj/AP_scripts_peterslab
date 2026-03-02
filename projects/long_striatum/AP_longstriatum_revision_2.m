@@ -860,9 +860,10 @@ figure('Name','R3m3 nostim striatum'); h_striatum = tiledlayout(n_domains,3); ti
 figure('Name','R3m3 nostim cortex'); h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
 figure('Name','R3m3 nostim rxn'); h_rxn = axes; hold on; set(gca,'ColorOrder',plot_day_colors);
 
-figure('Name','R3m3 nostim wheel'); h_wheel = tiledlayout(1,2);
-nexttile(h_wheel); hold on; set(gca,'ColorOrder',plot_day_colors);
-nexttile(h_wheel); hold on; set(gca,'ColorOrder',plot_day_colors);
+figure('Name','R3m3 nostim wheel'); h_wheel = tiledlayout(1,3);
+for curr_plot = 1:3
+    nexttile(h_wheel,curr_plot); hold on; set(gca,'ColorOrder',plot_day_colors);
+end
 
 for curr_domain = 1:n_domains
 
@@ -951,23 +952,35 @@ for curr_domain = 1:n_domains
             wheel_stim_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_stim_wheel( ...
                 (grp2idx(bhv.animal) == x) & (day_grp == curr_day_grp))),1), ...
                 unique(grp2idx(bhv.animal)),'uni',false);  
-            nexttile(h_wheel,1);
+            nexttile(h_wheel,1); title('Stim');
             ap.errorfill(nonstim_move.wheel_align_time{end}, ...
-                nanmean(vertcat(wheel_stim_animal{:}),1),ap.sem(vertcat(wheel_stim_animal{:}),1));      
+                nanmean(vertcat(wheel_stim_animal{:}),1),ap.sem(vertcat(wheel_stim_animal{:}),1));    
 
             wheel_nostim_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_nostim_wheel( ...
                 (grp2idx(bhv.animal) == x) & (day_grp == curr_day_grp))),1), ...
                 unique(grp2idx(bhv.animal)),'uni',false);        
-            nexttile(h_wheel,2);
+            nexttile(h_wheel,2); title('No stim');
             ap.errorfill(nonstim_move.wheel_align_time{end}, ...
-                nanmean(vertcat(wheel_nostim_animal{:}),1),ap.sem(vertcat(wheel_nostim_animal{:}),1));        
+                nanmean(vertcat(wheel_nostim_animal{:}),1),ap.sem(vertcat(wheel_nostim_animal{:}),1));  
+
+            nexttile(h_wheel,3); title('Difference');
+            wheel_diff_animal = cellfun(@(stim_wheel,nostim_wheel) stim_wheel-nostim_wheel, ...
+                wheel_stim_animal,wheel_nostim_animal,'uni',false);
+            ap.errorfill(nonstim_move.wheel_align_time{end}, ...
+                nanmean(vertcat(wheel_diff_animal{:}),1),ap.sem(vertcat(wheel_diff_animal{:}),1));    
         end
 
     end
 end
+% (link x/y axes for activity)
 linkaxes(h_striatum.Children,'xy');
 linkaxes(h_cortex.Children,'xy');
 linkaxes(h_wheel.Children,'xy');
+
+% (draw lines at t = 0)
+arrayfun(@(x) xline(x,0),[h_striatum.Children])
+arrayfun(@(x) xline(x,0),[h_cortex.Children])
+arrayfun(@(x) xline(x,0),[h_wheel.Children])
 
 ap.prettyfig([],h_striatum.Parent);
 ap.prettyfig([],h_cortex.Parent);

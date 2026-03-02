@@ -1,4 +1,5 @@
-%% Analyses for reviewers (selecting from _1)
+%% Analyses for reviewers (selected/cleaned from v1)
+% Run-through script
 
 %% Set path to save figures and print stats (if script thru-run)
 
@@ -62,7 +63,7 @@ outcome_daysplit_sem = ap.groupfun(@AP_sem,outcome_mean_daysplit, ...
 plot_days = -3:2;
 plot_day_idx = ismember(outcome_group_x,plot_days);
 
-figure('Name','R1p1');
+figure('Name','R1p1 performance');
 outcome_group_x_daysplit = outcome_group_x+(0:n_daysplit)./n_daysplit;
 errorbar(reshape(outcome_group_x_daysplit(plot_day_idx,:)',[],1), ...
     reshape(padarray(outcome_daysplit_mean(plot_day_idx,:),[0,1],nan,'post')',[],1), ...
@@ -72,12 +73,16 @@ ylabel('Fraction correct');
 xlabel('Day from learning');
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% R1 p3/R3 M1: mPFC-striatum timing (LOAD/PREP DATA)
 
 % Grab day-binned task/passive stim responses
-
-load_dataset_retain = true;
 
 % ~~ Set up data structure params
 load_dataset = 'task';
@@ -126,9 +131,14 @@ wf_roi_rec_tmax = permute(max(wf_roi_rec(:,data_grid_params.cortex_stim_t,:),[],
 data_grids.wf_roi_task = cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
     wf_roi_rec_tmax(:,domain),data_grid_params.grid_size(1:2),[],NaN('single')),1:n_domains,'uni',false),[1,3,2]));
 
-clearvars -except load_dataset_retain data_grid_params data_grids
 
 % Get passive activity
+% (manually clear workspace to keep previously loaded)
+clearvars -except  ...
+    load_dataset fig_save_flag stat_fid print_stat save_figs ... % (standard in load_data)
+    data_grid_params data_grids                                  % (task data from above)
+load_dataset_retain = true;
+
 load_dataset = 'passive';
 Marica_2025.figures.load_data;
 
@@ -188,9 +198,6 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     wf_kernel_roi_passive_tmax(wf_grid_idx_use,domain,stim),data_grid_params.grid_size(1:2),@nanmean,NaN('single')), ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
 
-% Clear anything extra
-clearvars -except load_dataset_retain data_grid_params data_grids print_stat
-
 
 %% --> task vs passive context difference 
 
@@ -206,7 +213,7 @@ plot_passive_data = cat(3,data_grids.striatum_passive(:,:,plot_str,use_stim), ..
 plot_task_data = cat(3,data_grids.striatum_task(:,:,plot_str), ...
     data_grids.wf_roi_task(:,:,plot_ctx));
 
-figure('Name','R1p3/R3M1'); hold on;
+figure('Name','R1p3 R3M1 context activity'); hold on;
 n_areas = length([plot_str,plot_ctx]);
 area_colors = ap.colormap('tube',n_areas);
 task_passive_scale = cell(n_areas,1);
@@ -253,7 +260,7 @@ legend(h_dot,area_labels,'location','se');
 ap.prettyfig;
 
 % Plot slopes by region
-figure('Name','R1p3/R3M3'); hold on;
+figure('Name','R1p3 R3M3 context slope'); hold on;
 
 swarmchart(cell2mat(cellfun(@(x,y) repelem(x,length(y),1),num2cell(1:3)',task_passive_scale,'uni',false)), ...
     cell2mat(task_passive_scale),'filled','MarkerFaceColor',[0.5,0.5,0.5]);
@@ -277,6 +284,12 @@ for curr_domain = 1:n_areas-1
         curr_domain,stat_p,sig_flag(stat_p));
 end
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% --> mPFC vs vis/mPFC-striatum by day
 
@@ -294,7 +307,7 @@ ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
 str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
 ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
 
-figure('Name','R1p3/R3M1'); tiledlayout(1,2);
+figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
 plot_wf_v_str = @(wf_data,str_data,col) ...
     errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
     ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
@@ -357,6 +370,12 @@ for use_str = 1:2
             use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
             data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
     end
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -464,7 +483,7 @@ animal_colors = ap.colormap('tube',14);
 overlay_dilation = 1;
 histology_clim = repelem({[200,500]},length(animals),1);
 
-figure('Name','R2p4'); tiledlayout('TileSpacing','none');
+figure('Name','R2p4 colored histology'); tiledlayout('TileSpacing','none');
 for curr_atlas_bin = 1:n_atlas_bins
 
     % Plot CCF borders from the middle of the bin
@@ -487,6 +506,12 @@ for curr_atlas_bin = 1:n_atlas_bins
     curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'k');
     nexttile;imagesc(curr_overlay);axis image off;
     drawnow;
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -637,6 +662,13 @@ for curr_stim = 1:length(stim_unique)
         stim_unique(curr_stim),stat_p,sig_flag(stat_p));
 end
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
+
 %% R3m1: Rate of non-stim movements
 
 animals = { ...
@@ -768,6 +800,12 @@ linkaxes([ax1,ax2],'x');
 ap.prettyfig;
 xlim([-3.1,2.9])
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% R3m3: Non-stim move activity
 
@@ -822,9 +860,10 @@ figure('Name','R3m3 nostim striatum'); h_striatum = tiledlayout(n_domains,3); ti
 figure('Name','R3m3 nostim cortex'); h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
 figure('Name','R3m3 nostim rxn'); h_rxn = axes; hold on; set(gca,'ColorOrder',plot_day_colors);
 
-figure('Name','R3m3 nostim rxn'); h_wheel = tiledlayout(1,2);
-nexttile(h_wheel); hold on; set(gca,'ColorOrder',plot_day_colors);
-nexttile(h_wheel); hold on; set(gca,'ColorOrder',plot_day_colors);
+figure('Name','R3m3 nostim wheel'); h_wheel = tiledlayout(1,3);
+for curr_plot = 1:3
+    nexttile(h_wheel,curr_plot); hold on; set(gca,'ColorOrder',plot_day_colors);
+end
 
 for curr_domain = 1:n_domains
 
@@ -913,25 +952,39 @@ for curr_domain = 1:n_domains
             wheel_stim_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_stim_wheel( ...
                 (grp2idx(bhv.animal) == x) & (day_grp == curr_day_grp))),1), ...
                 unique(grp2idx(bhv.animal)),'uni',false);  
-            nexttile(h_wheel,1);
+            nexttile(h_wheel,1); title('Stim');
             ap.errorfill(nonstim_move.wheel_align_time{end}, ...
-                nanmean(vertcat(wheel_stim_animal{:}),1),ap.sem(vertcat(wheel_stim_animal{:}),1));      
+                nanmean(vertcat(wheel_stim_animal{:}),1),ap.sem(vertcat(wheel_stim_animal{:}),1));    
 
             wheel_nostim_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_nostim_wheel( ...
                 (grp2idx(bhv.animal) == x) & (day_grp == curr_day_grp))),1), ...
                 unique(grp2idx(bhv.animal)),'uni',false);        
-            nexttile(h_wheel,2);
+            nexttile(h_wheel,2); title('No stim');
             ap.errorfill(nonstim_move.wheel_align_time{end}, ...
-                nanmean(vertcat(wheel_nostim_animal{:}),1),ap.sem(vertcat(wheel_nostim_animal{:}),1));        
+                nanmean(vertcat(wheel_nostim_animal{:}),1),ap.sem(vertcat(wheel_nostim_animal{:}),1));  
+
+            nexttile(h_wheel,3); title('Difference');
+            wheel_diff_animal = cellfun(@(stim_wheel,nostim_wheel) stim_wheel-nostim_wheel, ...
+                wheel_stim_animal,wheel_nostim_animal,'uni',false);
+            ap.errorfill(nonstim_move.wheel_align_time{end}, ...
+                nanmean(vertcat(wheel_diff_animal{:}),1),ap.sem(vertcat(wheel_diff_animal{:}),1));    
         end
 
     end
 end
+% (link x/y axes for activity)
 linkaxes(h_striatum.Children,'xy');
 linkaxes(h_cortex.Children,'xy');
 linkaxes(h_wheel.Children,'xy');
+
+% (draw lines at t = 0)
 
 ap.prettyfig([],h_striatum.Parent);
 ap.prettyfig([],h_cortex.Parent);
 ap.prettyfig([],h_wheel.Parent);
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
