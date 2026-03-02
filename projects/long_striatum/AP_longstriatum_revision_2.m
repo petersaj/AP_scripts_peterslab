@@ -1,4 +1,5 @@
-%% Analyses for reviewers (selecting from _1)
+%% Analyses for reviewers (selected/cleaned from v1)
+% Run-through script
 
 %% Set path to save figures and print stats (if script thru-run)
 
@@ -72,12 +73,16 @@ ylabel('Fraction correct');
 xlabel('Day from learning');
 ap.prettyfig;
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% R1 p3/R3 M1: mPFC-striatum timing (LOAD/PREP DATA)
 
 % Grab day-binned task/passive stim responses
-
-load_dataset_retain = true;
 
 % ~~ Set up data structure params
 load_dataset = 'task';
@@ -126,9 +131,14 @@ wf_roi_rec_tmax = permute(max(wf_roi_rec(:,data_grid_params.cortex_stim_t,:),[],
 data_grids.wf_roi_task = cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
     wf_roi_rec_tmax(:,domain),data_grid_params.grid_size(1:2),[],NaN('single')),1:n_domains,'uni',false),[1,3,2]));
 
-clearvars -except load_dataset_retain data_grid_params data_grids
 
 % Get passive activity
+% (manually clear workspace to keep previously loaded)
+clearvars -except  ...
+    load_dataset fig_save_flag stat_fid print_stat save_figs ... % (standard in load_data)
+    data_grid_params data_grids                                  % (task data from above)
+load_dataset_retain = true;
+
 load_dataset = 'passive';
 Marica_2025.figures.load_data;
 
@@ -187,9 +197,6 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     cell2mat(permute(arrayfun(@(domain) accumarray(wf_grid_idx(wf_grid_idx_use,:), ...
     wf_kernel_roi_passive_tmax(wf_grid_idx_use,domain,stim),data_grid_params.grid_size(1:2),@nanmean,NaN('single')), ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
-
-% Clear anything extra
-clearvars -except load_dataset_retain data_grid_params data_grids print_stat
 
 
 %% --> task vs passive context difference 
@@ -277,6 +284,12 @@ for curr_domain = 1:n_areas-1
         curr_domain,stat_p,sig_flag(stat_p));
 end
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
 
 %% --> mPFC vs vis/mPFC-striatum by day
 
@@ -357,6 +370,12 @@ for use_str = 1:2
             use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
             data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
     end
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -464,7 +483,7 @@ animal_colors = ap.colormap('tube',14);
 overlay_dilation = 1;
 histology_clim = repelem({[200,500]},length(animals),1);
 
-figure('Name','R2p4 colored histology); tiledlayout('TileSpacing','none');
+figure('Name','R2p4 colored histology'); tiledlayout('TileSpacing','none');
 for curr_atlas_bin = 1:n_atlas_bins
 
     % Plot CCF borders from the middle of the bin
@@ -487,6 +506,12 @@ for curr_atlas_bin = 1:n_atlas_bins
     curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'k');
     nexttile;imagesc(curr_overlay);axis image off;
     drawnow;
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
 end
 
 
@@ -637,6 +662,13 @@ for curr_stim = 1:length(stim_unique)
         stim_unique(curr_stim),stat_p,sig_flag(stat_p));
 end
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
+
 %% R3m1: Rate of non-stim movements
 
 animals = { ...
@@ -767,6 +799,12 @@ xline(0,'r');
 linkaxes([ax1,ax2],'x');
 ap.prettyfig;
 xlim([-3.1,2.9])
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
 
 %% R3m3: Non-stim move activity
@@ -935,3 +973,8 @@ ap.prettyfig([],h_striatum.Parent);
 ap.prettyfig([],h_cortex.Parent);
 ap.prettyfig([],h_wheel.Parent);
 
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
