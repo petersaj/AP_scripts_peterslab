@@ -719,10 +719,28 @@ for curr_animal_idx = 1:length(animals)
         session_bin_edges = linspace(timelite.timestamps(1),timelite.timestamps(end),n_bins+1);
         move_session_bins = discretize(move_onsets,session_bin_edges);
 
-        move_rate(curr_recording,:) = ap.groupfun(@length,+move_poststim,move_session_bins)./diff(session_bin_edges)';
-        move_rate_stim(curr_recording,:) = ap.groupfun(@sum,+move_poststim,move_session_bins)./diff(session_bin_edges)';
-        move_rate_nonstim(curr_recording,:) = ap.groupfun(@sum,+~move_poststim,move_session_bins)./diff(session_bin_edges)';
+        % Get probability of stim around movements
         p_cue_given_move(curr_recording,:) = ap.groupfun(@mean,+move_poststim,move_session_bins);
+
+        % Get rate of movement with/without stimulus present       
+        [move_onset_tidx_valid,move_onset_tidx] = ismember(move_onsets,timelite.timestamps);
+        if any(~move_onset_tidx_valid)
+            error('Non-valid move onset time index');
+        end
+
+        stim_move_idx = photodiode_bw_interp(move_onset_tidx)==1;      
+        t_session_bins = discretize(timelite.timestamps,session_bin_edges);
+
+        % % (rate relative to stim on/off period)
+        % move_rate_stim(curr_recording,:) = ap.groupfun(@sum,+stim_move_idx,move_session_bins)./ ...
+        %     (ap.groupfun(@nanmean,+(photodiode_bw_interp==1),t_session_bins).*diff(session_bin_edges)');
+        % move_rate_nonstim(curr_recording,:) = ap.groupfun(@sum,+~stim_move_idx,move_session_bins)./ ...
+        %     (ap.groupfun(@nanmean,+(photodiode_bw_interp==0),t_session_bins).*diff(session_bin_edges)');
+
+        % (rate relative to entire time bin e.g. like absolute number)
+        move_rate(curr_recording,:) = ap.groupfun(@length,move_onsets,move_session_bins)./diff(session_bin_edges)';
+        move_rate_stim(curr_recording,:) = ap.groupfun(@sum,+stim_move_idx,move_session_bins)./diff(session_bin_edges)';
+        move_rate_nonstim(curr_recording,:) = ap.groupfun(@sum,+~stim_move_idx,move_session_bins)./diff(session_bin_edges)';
 
         % Get association stat
         [rxn_stat_p(curr_recording), ...
@@ -768,22 +786,24 @@ move_rate_nonstim_sem = ap.groupfun(@AP_sem,move_rate_nonstim_cat(:),ld_split(:)
 p_c2m_sem = ap.groupfun(@AP_sem,p_c2m_cat(:),ld_split(:));
 
 figure('Name','Fig S1 p stim move'); tiledlayout(2,1);
-
 ax1 = nexttile; hold on;
 h1 = errorbar( ...
     padarray(reshape(move_rate_grp,n_bins,[]),[1,0],NaN,'post'), ...
     padarray(reshape(move_rate_avg,n_bins,[]),[1,0],NaN,'post'), ...
-    padarray(reshape(move_rate_sem,n_bins,[]),[1,0],NaN,'post'),'color',[0.5,0.5,0.5],'linewidth',2);
+    padarray(reshape(move_rate_sem,n_bins,[]),[1,0],NaN,'post'), ...
+    'color',[0,0,0],'linewidth',2,'capsize',0);
 h2 = errorbar( ...
     padarray(reshape(move_rate_stim_grp,n_bins,[]),[1,0],NaN,'post'), ...
     padarray(reshape(move_rate_stim_avg,n_bins,[]),[1,0],NaN,'post'), ...
-    padarray(reshape(move_rate_stim_sem,n_bins,[]),[1,0],NaN,'post'),'color',[0,0.5,0],'linewidth',2);
+    padarray(reshape(move_rate_stim_sem,n_bins,[]),[1,0],NaN,'post'), ...
+    'color',[0,0.5,0],'linewidth',2,'capsize',0);
 h3 = errorbar( ...
     padarray(reshape(move_rate_nonstim_grp,n_bins,[]),[1,0],NaN,'post'), ...
     padarray(reshape(move_rate_nonstim_avg,n_bins,[]),[1,0],NaN,'post'), ...
-    padarray(reshape(move_rate_nonstim_sem,n_bins,[]),[1,0],NaN,'post'),'color',[0.5,0,0],'linewidth',2);
+    padarray(reshape(move_rate_nonstim_sem,n_bins,[]),[1,0],NaN,'post'), ...
+    'color',[0.5,0,0],'linewidth',2,'capsize',0);
 xlabel('Learned day')
-ylabel(' Moves/s');
+ylabel(' Wheel turns/s');
 xline(0,'r');
 legend([h1(1),h2(1),h3(1)],{'All','Non-stim','Stim'});
 
