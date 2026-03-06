@@ -96,10 +96,10 @@ data_grid_params.cortex_stim_t = isbetween(wf_t,data_grid_params.stim_t(1),data_
 data_grid_params.striatum_stim_t = isbetween(psth_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
 data_grid_params.rxn_cutoff = 0.3;
 
-% data_grid_params.ld_bins = [-Inf,-2:0,1,1];
+data_grid_params.ld_bins = [-Inf,-2:0,1,Inf];
 % data_grid_params.ld_bins = [-Inf,-2:0,Inf];
-data_grid_params.ld_bins = [-Inf,-2,0,2,Inf]; % same as paper - best
-% data_grid_params.ld_bins = [-Inf,-2:2,2];
+% data_grid_params.ld_bins = [-Inf,-2,0,2,Inf]; % same as paper - best
+% % data_grid_params.ld_bins = [-Inf,-2:2,2];
 data_grid_params.ld_unique = 1:(length(data_grid_params.ld_bins)-1);
 data_grid_params.grid_size = [length(unique(bhv.animal)),length(data_grid_params.ld_unique),n_domains];
 
@@ -299,13 +299,34 @@ norm_bin = find(data_grid_params.ld_bins>=0,1);
 str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
 ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
 
+%%%%% WORKING HERE: choose normalization for passive
 % (passive needs softnorm for near-zero values)
 use_stim = 3;
-str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
-ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
+% str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
+% ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
 
-str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
-ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
+% str_passive_norm_soften = nanmedian(data_grids.striatum_passive(:,norm_bin,:,use_stim),[1,2,4]);
+% ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive(:,norm_bin,:,use_stim),[1,2,4]);
+
+% str_passive_norm_soften = nanmedian(data_grids.striatum_passive(:, :,:,use_stim),'all');
+% ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive(:,:,:,use_stim),'all');
+
+% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
+% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
+
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
+
+
+% % just raw activity
+% str_task_norm = data_grids.striatum_task;
+% ctx_task_norm = data_grids.wf_roi_task;
+% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim);
+% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim);
+
+
+%%%%%%%
+
 
 figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
 plot_wf_v_str = @(wf_data,str_data,col) ...
@@ -371,6 +392,60 @@ for use_str = 1:2
             data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
     end
 end
+
+%%%% TESTING NEW STAT: mpfc-str1 v mpfc-str2
+
+% (task)
+use_ctx = 2;
+use_str = [1,2];
+stat_meas = ...
+    nanmean(str_task_norm(:,:,use_str(1)) - ctx_task_norm(:,:,use_ctx),1) - ...
+    nanmean(str_task_norm(:,:,use_str(2)) - ctx_task_norm(:,:,use_ctx),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(str_task_norm(:,:,use_str),3);
+
+    stat_shuff(curr_shuff,:) = ...
+    nanmean(curr_shuff_data(:,:,1) - ctx_task_norm(:,:,use_ctx),1) - ...
+    nanmean(curr_shuff_data(:,:,2) - ctx_task_norm(:,:,use_ctx),1);
+end
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+for curr_day = 1:length(stat_p)
+    print_stat('Task day bin %d (LD %d:%d): p = %.2g%s\n', ...
+        curr_day,data_grid_params.ld_bins(curr_day), ...
+        data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+end
+
+% (passive)
+use_ctx = 2;
+use_str = [1,2];
+stat_meas = ...
+    nanmean(str_passive_norm(:,:,use_str(1)) - ctx_passive_norm(:,:,use_ctx),1) - ...
+    nanmean(str_passive_norm(:,:,use_str(2)) - ctx_passive_norm(:,:,use_ctx),1);
+
+n_shuff = 10000;
+stat_shuff = nan(n_shuff,size(stat_meas,2));
+for curr_shuff = 1:n_shuff
+    curr_shuff_data = ap.shake(str_passive_norm(:,:,use_str),3);
+
+    stat_shuff(curr_shuff,:) = ...
+    nanmean(curr_shuff_data(:,:,1) - ctx_passive_norm(:,:,use_ctx),1) - ...
+    nanmean(curr_shuff_data(:,:,2) - ctx_passive_norm(:,:,use_ctx),1);
+end
+stat_rank = tiedrank([stat_meas;stat_shuff]);
+stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+for curr_day = 1:length(stat_p)
+    print_stat('Passive day bin %d (LD %d:%d): p = %.2g%s\n', ...
+        curr_day,data_grid_params.ld_bins(curr_day), ...
+        data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+end
+
+
+%%%%%%%
+
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
@@ -805,7 +880,7 @@ h3 = errorbar( ...
 xlabel('Learned day')
 ylabel(' Wheel turns/s');
 xline(0,'r');
-legend([h1(1),h2(1),h3(1)],{'All','Non-stim','Stim'});
+legend([h1(1),h2(1),h3(1)],{'All','Stim','Non-stim'});
 
 ax2 = nexttile;
 errorbar( ...
@@ -961,6 +1036,7 @@ for curr_domain = 1:n_domains
             ap.sem(curr_cortex_stimmove-curr_nostim_cortex_wavg,1));
 
         if curr_domain == 1
+            
             % Plot histogram of stim relative to move onset (on first domain)
             rxn_bins = [-0.5:0.01:1];
             rxn_bin_x = [rxn_bins(2),rxn_bins(2:end-2)+diff(rxn_bins(2:end-1))/2,rxn_bins(end-1)];
@@ -972,8 +1048,7 @@ for curr_domain = 1:n_domains
             colormap(nexttile(h_rxn,curr_day_grp),ap.colormap(...
                 sprintf('W%s',upper(plot_day_color_letters{curr_day_grp}))));
             set(nexttile(h_rxn,curr_day_grp),'XTick','','YTick','');
-            box on;
-            colorbar;
+            box on;colorbar;
 
             % Plot wheel
             wheel_stim_animal = arrayfun(@(x) nanmean(cell2mat(nonstim_move.move_stim_wheel( ...
@@ -995,6 +1070,12 @@ for curr_domain = 1:n_domains
                 wheel_stim_animal,wheel_nostim_animal,'uni',false);
             ap.errorfill(nonstim_move.wheel_align_time{end}, ...
                 nanmean(vertcat(wheel_diff_animal{:}),1),ap.sem(vertcat(wheel_diff_animal{:}),1));    
+
+            % Draw activity scalebars
+            axes(h_cortex_sub(1)); ap.scalebar(0.5,5e-3);
+            axes(h_striatum_sub(1)); ap.scalebar(0.5,1);
+            axes(nexttile(h_wheel,1)); deg_scale = 360; ap.scalebar(0.5,deg_scale*(1024/360)/3);
+
         end
 
     end

@@ -108,6 +108,19 @@ lick_idx = strcmp({timelite.daq_info.channel_name}, 'lick_spout');
 lick_thresh = timelite.data(:,lick_idx) >= ttl_thresh;
 lick_times = timelite.timestamps(find(diff(lick_thresh) == 1)+1);
 
+% Audio onset times (only applicable sometimes - not reliable)
+audio_idx = strcmp({timelite.daq_info.channel_name}, 'audio');
+% (set audio threshold based on times when the photodiode is off)
+audio_on_thresh = mean(timelite.data(photodiode_bw_interp == 0,audio_idx)) + ...
+    std(timelite.data(photodiode_bw_interp == 0,audio_idx))*1.5;
+audio_thresh = abs(timelite.data(:,audio_idx)) > audio_on_thresh;
+
+audio_onsets_raw = timelite.timestamps(diff(audio_thresh)==1);
+% (find first audio onset after photodiode onsets)
+audio_onsets = audio_onsets_raw(arrayfun(@(x) find(audio_onsets_raw > x,1), ...
+    photodiode_times(photodiode_values == 1)));
+
+
 
 
 
