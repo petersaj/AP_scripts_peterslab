@@ -4,7 +4,7 @@
 %% Set path to save figures and print stats (if script thru-run)
 
 %%%% TEMPORARY PATHS WHILE PREPPING CODE
-
+warning('TEMPORARY PATHS WHILE PREPPING CODE')
 local_save_path = 'C:\Users\petersa\Documents\PetersLab\papers\2025_Marica\revisions';
 
 % Path to save figures
@@ -96,8 +96,8 @@ data_grid_params.cortex_stim_t = isbetween(wf_t,data_grid_params.stim_t(1),data_
 data_grid_params.striatum_stim_t = isbetween(psth_t,data_grid_params.stim_t(1),data_grid_params.stim_t(2));
 data_grid_params.rxn_cutoff = 0.3;
 
-data_grid_params.ld_bins = [-Inf,-2:0,1,Inf];
-% data_grid_params.ld_bins = [-Inf,-2:0,Inf];
+% data_grid_params.ld_bins = [-Inf,-2:0,1,Inf];
+data_grid_params.ld_bins = [-Inf,-2:0,0]; % end at LD0 - task after has few trials
 % data_grid_params.ld_bins = [-Inf,-2,0,2,Inf]; % same as paper - best
 % % data_grid_params.ld_bins = [-Inf,-2:2,2];
 data_grid_params.ld_unique = 1:(length(data_grid_params.ld_bins)-1);
@@ -293,40 +293,45 @@ end
 
 %% --> mPFC vs vis/mPFC-striatum by day
 
+
+%%%% ****************** CURRENT NOTES: 
+% - LD by day, then 0+, norm by task looks like a good plot
+% - ANOVA on these shows str1, not str2, difference with cortex
+
+
+
 % Normalize task/passive separately
+% (choose bin to normalize as first post-learning)
 norm_bin = find(data_grid_params.ld_bins>=0,1);
 
+% (normalize task)
 str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
 ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
 
-%%%%% WORKING HERE: choose normalization for passive
-% (passive needs softnorm for near-zero values)
+% normalize passive - needs softnorm for near-zero values)
 use_stim = 3;
-% str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
-% ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
+str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
+ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
 
-% str_passive_norm_soften = nanmedian(data_grids.striatum_passive(:,norm_bin,:,use_stim),[1,2,4]);
-% ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive(:,norm_bin,:,use_stim),[1,2,4]);
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
 
-% str_passive_norm_soften = nanmedian(data_grids.striatum_passive(:, :,:,use_stim),'all');
-% ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive(:,:,:,use_stim),'all');
+%%%%%%%%
 
+% 
 % str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
 % ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
 
-str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
-ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
+
+% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim));
+% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim));
 
 
-% % just raw activity
-% str_task_norm = data_grids.striatum_task;
-% ctx_task_norm = data_grids.wf_roi_task;
-% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim);
-% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim);
+% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
+% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
 
 
 %%%%%%%
-
 
 figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
 plot_wf_v_str = @(wf_data,str_data,col) ...
@@ -393,7 +398,10 @@ for use_str = 1:2
     end
 end
 
-%%%% TESTING NEW STAT: mpfc-str1 v mpfc-str2
+
+%%%% TESTING STATS
+
+% mpfc-str1 v mpfc-str2
 
 % (task)
 use_ctx = 2;
@@ -442,6 +450,41 @@ for curr_day = 1:length(stat_p)
         curr_day,data_grid_params.ld_bins(curr_day), ...
         data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
 end
+
+% anova
+
+% (ctx-str)
+area_1_group = ones(size(str_passive_norm(:,:,1))).*1;
+area_2_group = ones(size(str_passive_norm(:,:,1))).*2;
+
+ld_group = repmat(1:size(str_passive_norm,2),size(str_passive_norm,1),1);
+
+use_data = ~isnan(str_task_norm(:,:,1)) & ~isnan(ctx_task_norm(:,:,2));
+
+s = str_task_norm(:,:,1);
+c = ctx_task_norm(:,:,2);
+
+p = anovan([s(use_data);c(use_data)], ...
+    [vertcat(area_1_group(use_data),area_2_group(use_data)), ...
+    vertcat(ld_group(use_data),ld_group(use_data))], ...
+    'display','off');
+
+
+% (str-str)
+area_1_group = ones(size(str_passive_norm(:,:,1))).*1;
+area_2_group = ones(size(str_passive_norm(:,:,1))).*2;
+
+ld_group = repmat(1:size(str_passive_norm,2),size(str_passive_norm,1),1);
+
+use_data = ~isnan(str_task_norm(:,:,1)) & ~isnan(str_task_norm(:,:,2));
+
+s = str_task_norm(:,:,1);
+c = str_task_norm(:,:,2);
+
+p = anovan([s(use_data);c(use_data)], ...
+    [vertcat(area_1_group(use_data),area_2_group(use_data)), ...
+    vertcat(ld_group(use_data),ld_group(use_data))], ...
+    'model','interaction','display','off');
 
 
 %%%%%%%

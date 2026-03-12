@@ -117,8 +117,8 @@ audio_thresh = abs(timelite.data(:,audio_idx)) > audio_on_thresh;
 
 audio_onsets_raw = timelite.timestamps(diff(audio_thresh)==1);
 % (find first audio onset after photodiode onsets)
-audio_onsets = audio_onsets_raw(arrayfun(@(x) find(audio_onsets_raw > x,1), ...
-    photodiode_times(photodiode_values == 1)));
+% audio_onsets = audio_onsets_raw(arrayfun(@(x) max([nan,find(audio_onsets_raw > x,1)]), ...
+%     photodiode_times(photodiode_values == 1)));
 
 
 
