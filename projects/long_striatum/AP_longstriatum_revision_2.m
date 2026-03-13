@@ -293,46 +293,17 @@ end
 
 %% --> mPFC vs vis/mPFC-striatum by day
 
-
-%%%% ****************** CURRENT NOTES: 
-% - LD by day, then 0+, norm by task looks like a good plot
-% - ANOVA on these shows str1, not str2, difference with cortex
-
-
-
 % Normalize task/passive separately
-% (choose bin to normalize as first post-learning)
+% (normalize data to task LD 0)
 norm_bin = find(data_grid_params.ld_bins>=0,1);
 
-% (normalize task)
 str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
 ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
-
-% normalize passive - needs softnorm for near-zero values)
-use_stim = 3;
-str_passive_norm_soften = nanmedian(data_grids.striatum_passive,[1,2,4]);
-ctx_passive_norm_soften = nanmedian(data_grids.wf_roi_passive,[1,2,4]);
-
-str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
-ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
-
-%%%%%%%%
-
-% 
-% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim)+str_passive_norm_soften);
-% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim)+ctx_passive_norm_soften);
-
-
-% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,use_stim));
-% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim));
-
 
 str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
 ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
 
-
-%%%%%%%
-
+% Plot mPFC vs striatum 1/2
 figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
 plot_wf_v_str = @(wf_data,str_data,col) ...
     errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
@@ -354,7 +325,6 @@ for curr_tile = 1:2
     legend("Striatum "+string(num2cell(1:2)));
 end
 ap.prettyfig;
-
 
 % ~~~ STATS ~~~
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
@@ -392,7 +362,6 @@ for curr_context = ["Task","Passive"]
             curr_context,use_ctx,curr_str,p(1),sig_flag(p(1)),p(2),sig_flag(p(2)))
     end
 end
-
 
 % ~~~ SAVE FIGS ~~~
 if exist('fig_save_flag','var') && fig_save_flag
