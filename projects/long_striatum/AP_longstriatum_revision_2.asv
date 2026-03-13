@@ -359,10 +359,48 @@ ap.prettyfig;
 % ~~~ STATS ~~~
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
-% Compare mPFC to striatum 1/2
-print_stat('\n--FIG 5--\n');
+% Compare against unity (cortex = striatum)
+use_ctx = 2;
 
-print_stat('2-way ANOVA cortex v striatum:\n');
+% (task)
+for use_str = 1:2
+    stat_meas = nanmean(str_task_norm(:,:,use_str) - ctx_task_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_task_norm(:,:,use_str),ctx_task_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Task, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
+end
+
+% (passive)
+for use_str = 1:2
+    stat_meas = nanmean(str_passive_norm(:,:,use_str) - ctx_passive_norm(:,:,use_ctx),1);
+    n_shuff = 10000;
+    stat_shuff = nan(n_shuff,size(stat_meas,2));
+    for curr_shuff = 1:n_shuff
+        curr_shuff_data = ap.shake(cat(3,str_passive_norm(:,:,use_str),ctx_passive_norm(:,:,use_ctx)),3);
+        stat_shuff(curr_shuff,:) = nanmean(curr_shuff_data(:,:,1) - curr_shuff_data(:,:,2),1);
+    end
+    stat_rank = tiedrank([stat_meas;stat_shuff]);
+    stat_p = 1-stat_rank(1,:)/(n_shuff+1);
+    for curr_day = 1:length(stat_p)
+        print_stat('Passive, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+            use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+            data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+    end
+end
+
+
+
+% Compare mPFC to striatum 1/2
 
 use_ctx = 2;
 use_str = [1,2];
@@ -370,28 +408,68 @@ use_str = [1,2];
 [~,group_ld] = ndgrid(1:data_grid_params.grid_size(1), ...
     1:data_grid_params.grid_size(2));
 
-for curr_context = ["Task","Passive"]
-    for curr_str = use_str
-        switch curr_context
-            case "Task"
-                curr_ctx_data = ctx_task_norm(:,:,use_ctx);
-                curr_str_data = str_task_norm(:,:,use_str(curr_str));
-            case "Passive"
-                curr_ctx_data = ctx_passive_norm(:,:,use_ctx);
-                curr_str_data = str_passive_norm(:,:,use_str(curr_str));
-        end
+for curr_str = use_str
 
-        use_data = ~any(isnan(cat(3,curr_ctx_data,curr_str_data)),3);
+    curr_ctx_data = ctx_task_norm(:,:,use_ctx);
+    curr_str_data = str_task_norm(:,:,use_str(curr_str));
 
-        p = anovan([curr_ctx_data(use_data);curr_str_data(use_data)], ...
-            [reshape(ones(sum(use_data,'all'),2).*[1:2],[],1), ...
-            repmat(group_ld(use_data),2,1)], ...
-            'display','off');
+    use_data = ~any(isnan(cat(3,curr_ctx_data,curr_str_data)),3);
 
-        print_stat('%s ctx %d v. str %d: group p = %.2g%s, day p = %.2g%s\n', ...
-            curr_context,use_ctx,curr_str,p(1),sig_flag(p(1)),p(2),sig_flag(p(2)))
-    end
+    p = anovan([curr_ctx_data(use_data);curr_str_data(use_data)], ...
+        [reshape(ones(sum(use_data,'all'),2).*[1:2],[],1), ...
+        repmat(group_ld(use_data),2,1)], ...
+        'display','off');
+
+    print_stat('Passive, cortex %d ~= striatum %d, day bin %d (LD %d:%d): p = %.2g%s\n', ...
+        use_ctx,use_str,curr_day,data_grid_params.ld_bins(curr_day), ...
+        data_grid_params.ld_bins(curr_day+1),stat_p(curr_day),sig_flag(stat_p(curr_day)));
+
+
+    print_stat('group p = %.2g, day p = %.2g\n',p,sig_flag(p))
+
 end
+
+
+
+
+
+% (ctx-str)
+area_1_group = ones(size(str_passive_norm(:,:,1))).*1;
+area_2_group = ones(size(str_passive_norm(:,:,1))).*2;
+
+ld_group = repmat(1:size(str_passive_norm,2),size(str_passive_norm,1),1);
+
+use_data = ~isnan(str_task_norm(:,:,2)) & ~isnan(ctx_task_norm(:,:,2));
+
+s = str_task_norm(:,:,2);
+c = ctx_task_norm(:,:,2);
+
+p = anovan([s(use_data);c(use_data)], ...
+    [vertcat(area_1_group(use_data),area_2_group(use_data)), ...
+    vertcat(ld_group(use_data),ld_group(use_data))], ...
+    'display','off');
+
+% (ctx-str)
+area_1_group = ones(size(str_passive_norm(:,:,1))).*1;
+area_2_group = ones(size(str_passive_norm(:,:,1))).*2;
+
+ld_group = repmat(1:size(str_passive_norm,2),size(str_passive_norm,1),1);
+
+use_data = ~isnan(str_passive_norm(:,:,2)) & ~isnan(ctx_passive_norm(:,:,2));
+
+s = str_passive_norm(:,:,2);
+c = ctx_passive_norm(:,:,2);
+
+p = anovan([s(use_data);c(use_data)], ...
+    [vertcat(area_1_group(use_data),area_2_group(use_data)), ...
+    vertcat(ld_group(use_data),ld_group(use_data))], ...
+    'display','off');
+
+
+
+
+
+%%%%%%%
 
 
 % ~~~ SAVE FIGS ~~~

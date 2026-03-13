@@ -306,6 +306,50 @@ nexttile;imagesc(striatum_sua_task_stim(plot_units,:,3));clim([-3,3]);colormap(a
 nexttile;imagesc(striatum_sua_task_nostim(plot_units,:,3));clim([-3,3]);colormap(ap.colormap('BWR'))
 
 
+%%
+
+
+% Create editable properties box
+channel_properties_fig = uifigure('Name','Set channel properties');
+channel_properties_grid = uigridlayout(channel_properties_fig,[2,2]);
+channel_properties_grid.RowHeight = {'7x','1x'};
+
+all_colors = ...
+    [1,0,0;0,1,0;0,0,1; ... %  W RGB
+    0,1,1;1,0,1;1,1,0];     % CYM
+
+channel_colors = {'W','R','G','B','C','Y','M'};
+
+n_channels = 7;
+
+channel_colors = {'W','R','G','B','C','Y','M'}';
+channel_visible = num2cell(true(n_channels,1));
+
+channel_properties = array2table([channel_colors,channel_visible],'VariableNames',{'Color','Visible'});
+
+channel_properties_table = uitable(channel_properties_grid, ...
+    'ColumnEditable',[true,true], ...
+    'RowName',arrayfun(@(x) sprintf('Channel %d',x),1:n_channels,'uni',false), ...
+    'Data',channel_properties);
+
+
+channel_properties_table.Layout.Column = [1,size(channel_properties,2)];
+
+
+
+
+
+uibutton(channel_properties_grid,'push', ...
+    'Text','Save','ButtonPushedFcn',{@set_probe_recording_slot_save,probe_atlas_gui});
+uibutton(channel_properties_grid,'push', ...
+    'Text','Cancel','ButtonPushedFcn',@set_probe_recording_slot_cancel);
+
+
+
+
+
+
+
 
 
 
