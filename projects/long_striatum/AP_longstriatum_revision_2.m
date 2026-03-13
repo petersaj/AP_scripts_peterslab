@@ -327,8 +327,8 @@ ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi
 % ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,use_stim));
 
 
-% str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
-% ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
 
 
 %%%%%%%
@@ -459,9 +459,9 @@ area_2_group = ones(size(str_passive_norm(:,:,1))).*2;
 
 ld_group = repmat(1:size(str_passive_norm,2),size(str_passive_norm,1),1);
 
-use_data = ~isnan(str_task_norm(:,:,1)) & ~isnan(ctx_task_norm(:,:,2));
+use_data = ~isnan(str_task_norm(:,:,2)) & ~isnan(ctx_task_norm(:,:,2));
 
-s = str_task_norm(:,:,1);
+s = str_task_norm(:,:,2);
 c = ctx_task_norm(:,:,2);
 
 p = anovan([s(use_data);c(use_data)], ...
@@ -469,22 +469,24 @@ p = anovan([s(use_data);c(use_data)], ...
     vertcat(ld_group(use_data),ld_group(use_data))], ...
     'display','off');
 
-
-% (str-str)
+% (ctx-str)
 area_1_group = ones(size(str_passive_norm(:,:,1))).*1;
 area_2_group = ones(size(str_passive_norm(:,:,1))).*2;
 
 ld_group = repmat(1:size(str_passive_norm,2),size(str_passive_norm,1),1);
 
-use_data = ~isnan(str_task_norm(:,:,1)) & ~isnan(str_task_norm(:,:,2));
+use_data = ~isnan(str_passive_norm(:,:,2)) & ~isnan(ctx_passive_norm(:,:,2));
 
-s = str_task_norm(:,:,1);
-c = str_task_norm(:,:,2);
+s = str_passive_norm(:,:,2);
+c = ctx_passive_norm(:,:,2);
 
 p = anovan([s(use_data);c(use_data)], ...
     [vertcat(area_1_group(use_data),area_2_group(use_data)), ...
     vertcat(ld_group(use_data),ld_group(use_data))], ...
-    'model','interaction','display','off');
+    'display','off');
+
+
+
 
 
 %%%%%%%
