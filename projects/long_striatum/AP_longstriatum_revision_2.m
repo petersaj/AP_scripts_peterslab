@@ -213,7 +213,8 @@ plot_passive_data = cat(3,data_grids.striatum_passive(:,:,plot_str,use_stim), ..
 plot_task_data = cat(3,data_grids.striatum_task(:,:,plot_str), ...
     data_grids.wf_roi_task(:,:,plot_ctx));
 
-figure('Name','R1p3 R3M1 context activity'); hold on;
+figure('Name','R1p3 R3M1 context activity'); hold on; 
+xlim([0,1]);ylim(xlim);
 n_areas = length([plot_str,plot_ctx]);
 area_colors = ap.colormap('tube',n_areas);
 task_passive_scale = cell(n_areas,1);
@@ -249,7 +250,14 @@ for curr_area = 1:n_areas
 
         slope_mean = nanmean(task_passive_scale{curr_area});
         slope_sem = ap.sem(task_passive_scale{curr_area});
-        ap.errorfill([0,1],[0,slope_mean],[0,slope_sem],area_colors(curr_area,:));
+
+        % (plot average slope across animals)
+        % ap.errorfill([0,1],[0,slope_mean],[0,slope_sem],area_colors(curr_area,:));
+
+        % (plot slope fit across all data)
+        h_line = refline(curr_scale);
+        h_line.Color = area_colors(curr_area,:);
+        h_line.LineWidth = 2;
 
         line([0,1],[0,1],'color',[0.5,0.5,0.5]);
         xlim(ylim);
@@ -300,8 +308,13 @@ norm_bin = find(data_grid_params.ld_bins>=0,1);
 str_task_norm = data_grids.striatum_task./data_grids.striatum_task(:,norm_bin,:);
 ctx_task_norm = data_grids.wf_roi_task./data_grids.wf_roi_task(:,norm_bin,:);
 
+use_stim = 3;
 str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./data_grids.striatum_task(:,norm_bin,:);
 ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_task(:,norm_bin,:);
+
+str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,3)+1);
+ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,3)+0.001);
+
 
 % Plot mPFC vs striatum 1/2
 figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
