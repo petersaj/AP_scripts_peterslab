@@ -33,6 +33,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
     else
         use_trials = true(size(stim_to_move));
         % use_trials = ap.quantile_bin(length(stim_to_move),3) == 3;
+        % use_trials = stim_to_move > 0.3;
     end
 
     align_times = [ ...

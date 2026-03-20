@@ -270,7 +270,8 @@ ap.prettyfig;
 % Plot slopes by region
 figure('Name','R1p3 R3M3 context slope'); hold on;
 
-swarmchart(cell2mat(cellfun(@(x,y) repelem(x,length(y),1),num2cell(1:3)',task_passive_scale,'uni',false)), ...
+swarmchart(cell2mat(cellfun(@(x,y) repelem(x,length(y),1), ...
+    num2cell(1:length(task_passive_scale))',task_passive_scale,'uni',false)), ...
     cell2mat(task_passive_scale),'filled','MarkerFaceColor',[0.5,0.5,0.5]);
 errorbar(cellfun(@nanmean,task_passive_scale(:)), ...
     cellfun(@ap.sem,task_passive_scale(:)),'k','linewidth',2,'CapSize',0);
@@ -382,6 +383,84 @@ if exist('fig_save_flag','var') && fig_save_flag
     close(findall(0,'Type','figure'));
 end
 
+%% --> (new load) Plot task/passive pre-learn traces
+
+% Set day binning 
+load_dataset_retain = true;
+plot_day_bins = [-2,-1];
+
+% Get task traces (NNaN-out activity after movement onset)
+load_dataset = 'task';
+Marica_2025.figures.load_data;
+
+striatum_plot_day_grp = discretize(striatum_mua_grp.ld,plot_day_bins);
+cortex_plot_day_grp = discretize(wf_grp.ld,plot_day_bins);
+
+move_leeway = 0.1; % time pre-movement to exclude
+striatum_mua_nomove = striatum_mua(:,:,1).*ap.nanout(psth_t > striatum_mua_grp.rxn-move_leeway);
+wf_striatum_roi_nomove = wf_striatum_roi(:,:,:,1).*ap.nanout(wf_t > wf_grp.rxn-move_leeway);
+
+[striatum_mua_task_avg,striatum_mua_task_avg_grp] = ...
+    ap.nestgroupfun({@nanmean,@nanmean},striatum_mua_nomove, ...
+    striatum_mua_grp.animal,[striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
+striatum_mua_task_sem = ...
+    ap.nestgroupfun({@nanmean,@AP_sem},striatum_mua_nomove, ...
+    striatum_mua_grp.animal,[striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
+
+[wf_striatum_roi_task_avg,wf_striatum_roi_task_avg_grp] = ...
+    ap.nestgroupfun({@nanmean,@nanmean},wf_striatum_roi_nomove, ...
+    wf_grp.animal,cortex_plot_day_grp);
+wf_striatum_roi_task_sem = ...
+    ap.nestgroupfun({@nanmean,@AP_sem},wf_striatum_roi_nomove, ...
+    wf_grp.animal,cortex_plot_day_grp);
+
+
+% Get passive traces
+load_dataset = 'passive';
+Marica_2025.figures.load_data;
+
+striatum_plot_day_grp = discretize(striatum_mua_grp.ld,plot_day_bins);
+cortex_plot_day_grp = discretize(wf_grp.ld,plot_day_bins);
+
+[striatum_mua_passive_avg,striatum_mua_passive_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [striatum_plot_day_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+striatum_mua_passive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [striatum_plot_day_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+
+[wf_striatum_roi_passive_avg,wf_striatum_roi_passive_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
+    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
+wf_striatum_roi_passive_sem = ...
+    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
+    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+% Plot task/passive overlay
+plot_passive_stim = 90;
+figure; tiledlayout(n_domains,2,'TileSpacing','compact');
+for curr_domain = 1:n_domains
+
+    str_task_idx = striatum_mua_task_avg_grp(:,2) == curr_domain;
+
+    wf_passive_idx = wf_striatum_roi_passive_avg_grp(:,2) == plot_passive_stim;
+    str_passive_idx = ismember(striatum_mua_passive_avg_grp(:,2:3),[plot_passive_stim,curr_domain],'rows');
+
+    nexttile; hold on;
+    ap.errorfill(wf_t,wf_striatum_roi_task_avg(:,:,curr_domain),wf_striatum_roi_task_sem(:,:,curr_domain),'k');
+    ap.errorfill(wf_t,wf_striatum_roi_passive_avg(wf_passive_idx,:,curr_domain), ...
+        wf_striatum_roi_passive_sem(wf_passive_idx,:,curr_domain),'r');
+    title(sprintf('Cortex %d',curr_domain));
+
+    nexttile; hold on;
+    ap.errorfill(psth_t,striatum_mua_task_avg(str_task_idx,:),striatum_mua_task_sem(str_task_idx,:),'k');
+    ap.errorfill(psth_t,striatum_mua_passive_avg(str_passive_idx,:), ...
+        striatum_mua_passive_sem(str_passive_idx,:),'r');
+    title(sprintf('Striatum %d',curr_domain));
+end
+
+legend({'Task','','Passive'});
 
 %% R2 p4: CCF-aligned probe histology
 

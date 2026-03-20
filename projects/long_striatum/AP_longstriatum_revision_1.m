@@ -4238,8 +4238,8 @@ ylabel('Frac. quiescent trials');
 %% Pre-learning task traces (testing for Fig 4)
 
 % Set day binning 
+load_dataset_retain = true;
 plot_day_bins = [-2,-1];
-
 
 % Get task traces (NNaN-out activity after movement onset)
 load_dataset = 'task';
@@ -4289,69 +4289,28 @@ wf_striatum_roi_passive_sem = ...
     ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
     wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
 
+% Plot task/passive overlay
+plot_passive_stim = 90;
+figure; tiledlayout(n_domains,2,'TileSpacing','compact');
+for curr_domain = 1:n_domains
 
+    str_task_idx = striatum_mua_task_avg_grp(:,2) == curr_domain;
 
-% str_day_color = ap.colormap('KW',length(plot_day_bins)-1);
-% ctx_day_color = ap.colormap('KG',length(plot_day_bins)-1);
-% figure('Name','Fig 2 psth'); h = tiledlayout(n_domains*2,1,'TileSpacing','tight');
-% for curr_domain = 1:n_domains
-% 
-%     nexttile; hold on; set(gca,'ColorOrder',ctx_day_color);
-%     ap.errorfill(wf_t,wf_striatum_roi_nomove_avg(:,:,curr_domain)', ...
-%         wf_striatum_roi_nomove_sem(:,:,curr_domain)');
-% 
-%     nexttile; hold on; set(gca,'ColorOrder',str_day_color);
-%     plot_data_idx = striatum_mua_nomove_avg_grp(:,2) == curr_domain;
-%     ap.errorfill(psth_t,striatum_mua_nomove_avg(plot_data_idx,:)', ...
-%         striatum_mua_nomove_sem(plot_data_idx,:)');
-% 
-% end
-% 
-% linkaxes(h.Children(1:2:end));
-% linkaxes(h.Children(2:2:end));
-% xlim(h.Children,[-0.1,0.5]);
-% ap.prettyfig;
+    wf_passive_idx = wf_striatum_roi_passive_avg_grp(:,2) == plot_passive_stim;
+    str_passive_idx = ismember(striatum_mua_passive_avg_grp(:,2:3),[plot_passive_stim,curr_domain],'rows');
 
+    nexttile; hold on;
+    ap.errorfill(wf_t,wf_striatum_roi_task_avg(:,:,curr_domain),wf_striatum_roi_task_sem(:,:,curr_domain),'k');
+    ap.errorfill(wf_t,wf_striatum_roi_passive_avg(wf_passive_idx,:,curr_domain), ...
+        wf_striatum_roi_passive_sem(wf_passive_idx,:,curr_domain),'r');
+    title(sprintf('Cortex %d',curr_domain));
 
-% unique_stim = unique(striatum_mua_grp.stim);
-% stim_color = {'KB','KW','KR'};
-% 
-% figure('Name','Fig 3 psth');
-% h = tiledlayout(n_domains*2,max(striatum_plot_day_grp)*length(unique_stim), ...
-%     'TileIndexing','ColumnMajor','TileSpacing','tight');
-% for curr_stim = unique_stim'
-% 
-%     [~,curr_stim_idx] = ismember(curr_stim,unique_stim);
-%     day_colormap = ap.colormap(stim_color{curr_stim_idx},length(plot_day_bins)-1);
-% 
-%     for curr_day = 1:length(plot_day_bins)-1
-%         for curr_domain = 1:n_domains
-% 
-%             % (cortex)
-%             nexttile; axis off;
-%             curr_data_idx = wf_striatum_roi_avg_grp(:,1) == curr_day & ...
-%                 wf_striatum_roi_avg_grp(:,2) == curr_stim;
-%             ap.errorfill(wf_t,wf_striatum_roi_avg(curr_data_idx,:,curr_domain), ...
-%                 wf_striatum_roi_sem(curr_data_idx,:,curr_domain), ...
-%                 day_colormap(curr_day,:));
-% 
-%             % (striatum)
-%             nexttile; axis off;
-%             curr_data_idx = striatum_mua_avg_grp(:,1) == curr_day & ...
-%                 striatum_mua_avg_grp(:,2) == curr_stim & ...
-%                 striatum_mua_avg_grp(:,3) == curr_domain;
-%             ap.errorfill(psth_t,striatum_mua_avg(curr_data_idx,:),striatum_mua_sem(curr_data_idx,:), ...
-%                 day_colormap(curr_day,:));
-% 
-%         end
-%     end
-% end
-% linkaxes(h.Children(1:2:end),'y');
-% linkaxes(h.Children(2:2:end),'y');
-% xlim(h.Children,[0,0.5]);
-% ap.prettyfig;
-
-
+    nexttile; hold on;
+    ap.errorfill(psth_t,striatum_mua_task_avg(str_task_idx,:),striatum_mua_task_sem(str_task_idx,:),'k');
+    ap.errorfill(psth_t,striatum_mua_passive_avg(str_passive_idx,:), ...
+        striatum_mua_passive_sem(str_passive_idx,:),'r');
+    title(sprintf('Striatum %d',curr_domain));
+end
 
 
 
