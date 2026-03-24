@@ -1,4 +1,4 @@
-%% Analyses for reviewers (selected/cleaned from v1)
+%% New revision figures (cleaned/renamed from v2)
 % Run-through script
 
 %% Set path to save figures and print stats (if script thru-run)
@@ -8,7 +8,7 @@ warning('TEMPORARY PATHS WHILE PREPPING CODE')
 local_save_path = 'C:\Users\petersa\Documents\PetersLab\papers\2025_Marica\revisions';
 
 % Path to save figures
-fig_savepath = fullfile(local_save_path,'figures','matlab_figs');
+fig_savepath = fullfile(local_save_path,'figures','matlab_figs_runthru');
 
 % Filename to print stats
 stat_savefn = fullfile(local_save_path,'figures','stats.txt');
@@ -42,7 +42,7 @@ if strcmp(getenv('USERNAME'),'petersa')
 end
 
 
-%% R1p1: Correct performance rate by day
+%% [Supp. Fig 1C] Correct performance rate by day
 
 %%% Load non-activity data
 load_dataset = 'noact';
@@ -63,7 +63,7 @@ outcome_daysplit_sem = ap.groupfun(@AP_sem,outcome_mean_daysplit, ...
 plot_days = -3:2;
 plot_day_idx = ismember(outcome_group_x,plot_days);
 
-figure('Name','R1p1 performance');
+figure('Name','Fig S1 performance');
 outcome_group_x_daysplit = outcome_group_x+(0:n_daysplit)./n_daysplit;
 errorbar(reshape(outcome_group_x_daysplit(plot_day_idx,:)',[],1), ...
     reshape(padarray(outcome_daysplit_mean(plot_day_idx,:),[0,1],nan,'post')',[],1), ...
@@ -80,7 +80,94 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% R1p3/R3M1: mPFC-striatum timing (LOAD/PREP DATA)
+%% [Fig 4A] Task/passive pre-learn PSTHs
+
+% Set day binning 
+load_dataset_retain = true;
+plot_day_bins = [-2,-1];
+
+% Get task traces (NNaN-out activity after movement onset)
+load_dataset = 'task';
+Marica_2025.figures.load_data;
+
+striatum_plot_day_grp = discretize(striatum_mua_grp.ld,plot_day_bins);
+cortex_plot_day_grp = discretize(wf_grp.ld,plot_day_bins);
+
+move_leeway = 0.1; % time pre-movement to exclude
+striatum_mua_nomove = striatum_mua(:,:,1).*ap.nanout(psth_t > striatum_mua_grp.rxn-move_leeway);
+wf_striatum_roi_nomove = wf_striatum_roi(:,:,:,1).*ap.nanout(wf_t > wf_grp.rxn-move_leeway);
+
+[striatum_mua_task_avg,striatum_mua_task_avg_grp] = ...
+    ap.nestgroupfun({@nanmean,@nanmean},striatum_mua_nomove, ...
+    striatum_mua_grp.animal,[striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
+striatum_mua_task_sem = ...
+    ap.nestgroupfun({@nanmean,@AP_sem},striatum_mua_nomove, ...
+    striatum_mua_grp.animal,[striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
+
+[wf_striatum_roi_task_avg,wf_striatum_roi_task_avg_grp] = ...
+    ap.nestgroupfun({@nanmean,@nanmean},wf_striatum_roi_nomove, ...
+    wf_grp.animal,cortex_plot_day_grp);
+wf_striatum_roi_task_sem = ...
+    ap.nestgroupfun({@nanmean,@AP_sem},wf_striatum_roi_nomove, ...
+    wf_grp.animal,cortex_plot_day_grp);
+
+
+% Get passive traces
+load_dataset = 'passive';
+Marica_2025.figures.load_data;
+
+striatum_plot_day_grp = discretize(striatum_mua_grp.ld,plot_day_bins);
+cortex_plot_day_grp = discretize(wf_grp.ld,plot_day_bins);
+
+[striatum_mua_passive_avg,striatum_mua_passive_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [striatum_plot_day_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+striatum_mua_passive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
+    striatum_mua,striatum_mua_grp.animal, ...
+    [striatum_plot_day_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
+
+[wf_striatum_roi_passive_avg,wf_striatum_roi_passive_avg_grp] = ...
+    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
+    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
+wf_striatum_roi_passive_sem = ...
+    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
+    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
+
+% Plot task/passive overlay
+plot_passive_stim = 90;
+figure('Name','Fig 4 task passive psths');
+tiledlayout(n_domains,2,'TileSpacing','compact');
+for curr_domain = 1:n_domains
+
+    str_task_idx = striatum_mua_task_avg_grp(:,2) == curr_domain;
+
+    wf_passive_idx = wf_striatum_roi_passive_avg_grp(:,2) == plot_passive_stim;
+    str_passive_idx = ismember(striatum_mua_passive_avg_grp(:,2:3),[plot_passive_stim,curr_domain],'rows');
+
+    nexttile; hold on;
+    ap.errorfill(wf_t,wf_striatum_roi_task_avg(:,:,curr_domain),wf_striatum_roi_task_sem(:,:,curr_domain),'k');
+    ap.errorfill(wf_t,wf_striatum_roi_passive_avg(wf_passive_idx,:,curr_domain), ...
+        wf_striatum_roi_passive_sem(wf_passive_idx,:,curr_domain),'r');
+    title(sprintf('Cortex %d',curr_domain));
+
+    nexttile; hold on;
+    ap.errorfill(psth_t,striatum_mua_task_avg(str_task_idx,:),striatum_mua_task_sem(str_task_idx,:),'k');
+    ap.errorfill(psth_t,striatum_mua_passive_avg(str_passive_idx,:), ...
+        striatum_mua_passive_sem(str_passive_idx,:),'r');
+    title(sprintf('Striatum %d',curr_domain));
+end
+
+legend({'Task','','Passive'});
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
+
+%% [Load/prep data for below cells]
 
 % Grab day-binned task/passive stim responses
 
@@ -131,8 +218,7 @@ wf_roi_rec_tmax = permute(max(wf_roi_rec(:,data_grid_params.cortex_stim_t,:),[],
 data_grids.wf_roi_task = cell2mat(permute(arrayfun(@(domain) accumarray(wf_roi_rec_grp, ...
     wf_roi_rec_tmax(:,domain),data_grid_params.grid_size(1:2),[],NaN('single')),1:n_domains,'uni',false),[1,3,2]));
 
-
-% Get passive activity
+% ~~ Get passive activity
 % (manually clear workspace to keep previously loaded)
 clearvars -except  ...
     load_dataset fig_save_flag stat_fid print_stat save_figs ... % (standard in load_data)
@@ -199,7 +285,7 @@ data_grids.wf_kernel_roi_passive = cell2mat(permute(arrayfun(@(stim) ...
     1:n_domains,'uni',false),[1,3,2])),1:size(wf_kernel_roi_passive_tmax,3),'uni',false), [1,3,4,2]));
 
 
-%% --> task vs passive context difference 
+%% |--> [Fig 4B] Activity by context
 
 plot_str = [1,2];
 plot_ctx = 2;
@@ -213,7 +299,7 @@ plot_passive_data = cat(3,data_grids.striatum_passive(:,:,plot_str,use_stim), ..
 plot_task_data = cat(3,data_grids.striatum_task(:,:,plot_str), ...
     data_grids.wf_roi_task(:,:,plot_ctx));
 
-figure('Name','R1p3 R3M1 context activity'); hold on; 
+figure('Name','Fig 4 context activity'); hold on; 
 xlim([0,1]);ylim(xlim);
 n_areas = length([plot_str,plot_ctx]);
 area_colors = ap.colormap('tube',n_areas);
@@ -268,7 +354,7 @@ legend(h_dot,area_labels,'location','se');
 ap.prettyfig;
 
 % Plot slopes by region
-figure('Name','R1p3 R3M3 context slope'); hold on;
+figure('Name','Fig 4 context slope'); hold on;
 
 swarmchart(cell2mat(cellfun(@(x,y) repelem(x,length(y),1), ...
     num2cell(1:length(task_passive_scale))',task_passive_scale,'uni',false)), ...
@@ -283,7 +369,7 @@ ylabel('Task/passive scale');
 ap.prettyfig;
 
 % ~~~ STATS ~~~
-print_stat('\n--FIG R1 p3/R3 M1--\n');
+print_stat('\n--FIG 4--\n');
 
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
@@ -300,7 +386,7 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% --> mPFC vs vis/mPFC-striatum by day
+%% |--> [Fig 4C]: mPFC vs striatum by context
 
 % Normalize task/passive separately
 % (normalize data to task LD 0)
@@ -316,9 +402,8 @@ ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./data_grids.wf_roi_
 str_passive_norm = data_grids.striatum_passive(:,:,:,use_stim)./(data_grids.striatum_passive(:,norm_bin,:,3)+1);
 ctx_passive_norm = data_grids.wf_roi_passive(:,:,:,use_stim)./(data_grids.wf_roi_passive(:,norm_bin,:,3)+0.001);
 
-
 % Plot mPFC vs striatum 1/2
-figure('Name','R1p3 R3M1 mpfc v striatum'); tiledlayout(1,2);
+figure('Name','Fig 4 mpfc v striatum'); tiledlayout(1,2);
 plot_wf_v_str = @(wf_data,str_data,col) ...
     errorbar(nanmean(str_data,1),nanmean(wf_data,1), ...
     ap.sem(wf_data,1),ap.sem(wf_data,1),ap.sem(str_data,1),ap.sem(str_data,1), ...
@@ -344,7 +429,7 @@ ap.prettyfig;
 sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
 
 % Compare mPFC to striatum 1/2
-print_stat('\n--FIG 5--\n');
+print_stat('\n--FIG 4--\n');
 
 print_stat('2-way ANOVA cortex v striatum:\n');
 
@@ -383,376 +468,8 @@ if exist('fig_save_flag','var') && fig_save_flag
     close(findall(0,'Type','figure'));
 end
 
-%% --> (new load) Plot task/passive pre-learn traces
 
-% Set day binning 
-load_dataset_retain = true;
-plot_day_bins = [-2,-1];
-
-% Get task traces (NNaN-out activity after movement onset)
-load_dataset = 'task';
-Marica_2025.figures.load_data;
-
-striatum_plot_day_grp = discretize(striatum_mua_grp.ld,plot_day_bins);
-cortex_plot_day_grp = discretize(wf_grp.ld,plot_day_bins);
-
-move_leeway = 0.1; % time pre-movement to exclude
-striatum_mua_nomove = striatum_mua(:,:,1).*ap.nanout(psth_t > striatum_mua_grp.rxn-move_leeway);
-wf_striatum_roi_nomove = wf_striatum_roi(:,:,:,1).*ap.nanout(wf_t > wf_grp.rxn-move_leeway);
-
-[striatum_mua_task_avg,striatum_mua_task_avg_grp] = ...
-    ap.nestgroupfun({@nanmean,@nanmean},striatum_mua_nomove, ...
-    striatum_mua_grp.animal,[striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
-striatum_mua_task_sem = ...
-    ap.nestgroupfun({@nanmean,@AP_sem},striatum_mua_nomove, ...
-    striatum_mua_grp.animal,[striatum_plot_day_grp,striatum_mua_grp.domain_idx]);
-
-[wf_striatum_roi_task_avg,wf_striatum_roi_task_avg_grp] = ...
-    ap.nestgroupfun({@nanmean,@nanmean},wf_striatum_roi_nomove, ...
-    wf_grp.animal,cortex_plot_day_grp);
-wf_striatum_roi_task_sem = ...
-    ap.nestgroupfun({@nanmean,@AP_sem},wf_striatum_roi_nomove, ...
-    wf_grp.animal,cortex_plot_day_grp);
-
-
-% Get passive traces
-load_dataset = 'passive';
-Marica_2025.figures.load_data;
-
-striatum_plot_day_grp = discretize(striatum_mua_grp.ld,plot_day_bins);
-cortex_plot_day_grp = discretize(wf_grp.ld,plot_day_bins);
-
-[striatum_mua_passive_avg,striatum_mua_passive_avg_grp] = ...
-    ap.nestgroupfun({@mean,@mean}, ...
-    striatum_mua,striatum_mua_grp.animal, ...
-    [striatum_plot_day_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
-striatum_mua_passive_sem = ap.nestgroupfun({@mean,@AP_sem}, ...
-    striatum_mua,striatum_mua_grp.animal, ...
-    [striatum_plot_day_grp,striatum_mua_grp.stim,striatum_mua_grp.domain_idx]);
-
-[wf_striatum_roi_passive_avg,wf_striatum_roi_passive_avg_grp] = ...
-    ap.nestgroupfun({@mean,@mean},wf_striatum_roi, ...
-    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
-wf_striatum_roi_passive_sem = ...
-    ap.nestgroupfun({@mean,@AP_sem},wf_striatum_roi, ...
-    wf_grp.animal,[cortex_plot_day_grp,cell2mat(wf.trial_stim_values)]);
-
-% Plot task/passive overlay
-plot_passive_stim = 90;
-figure; tiledlayout(n_domains,2,'TileSpacing','compact');
-for curr_domain = 1:n_domains
-
-    str_task_idx = striatum_mua_task_avg_grp(:,2) == curr_domain;
-
-    wf_passive_idx = wf_striatum_roi_passive_avg_grp(:,2) == plot_passive_stim;
-    str_passive_idx = ismember(striatum_mua_passive_avg_grp(:,2:3),[plot_passive_stim,curr_domain],'rows');
-
-    nexttile; hold on;
-    ap.errorfill(wf_t,wf_striatum_roi_task_avg(:,:,curr_domain),wf_striatum_roi_task_sem(:,:,curr_domain),'k');
-    ap.errorfill(wf_t,wf_striatum_roi_passive_avg(wf_passive_idx,:,curr_domain), ...
-        wf_striatum_roi_passive_sem(wf_passive_idx,:,curr_domain),'r');
-    title(sprintf('Cortex %d',curr_domain));
-
-    nexttile; hold on;
-    ap.errorfill(psth_t,striatum_mua_task_avg(str_task_idx,:),striatum_mua_task_sem(str_task_idx,:),'k');
-    ap.errorfill(psth_t,striatum_mua_passive_avg(str_passive_idx,:), ...
-        striatum_mua_passive_sem(str_passive_idx,:),'r');
-    title(sprintf('Striatum %d',curr_domain));
-end
-
-legend({'Task','','Passive'});
-
-%% R2p4: CCF-aligned probe histology
-
-[av,tv,st] = ap_histology.load_ccf;
-
-animals = { ...
-    'AM011','AM012','AM014','AM015','AM016','AM017', ...
-    'AM018','AM019','AM021','AM022','AM026','AM029', ...
-    'AP023','AP025'};
-
-% Set atlas bins to plot through striatum
-striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
-striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
-
-n_atlas_bins = 10;
-atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_bins+1));
-
-histology_atlas_bin_max = cell(length(animals),n_atlas_bins);
-
-for curr_animal_idx = 1:length(animals)
-
-    histology_path = plab.locations.filename('server',animals{curr_animal_idx},[],[],'histology');
-    load(fullfile(histology_path,'AP_histology_processing.mat'));
-
-    % Load images
-    image_path = histology_path;
-    image_dir = dir(fullfile(image_path,'*.tif'));
-    image_filenames = cellfun(@(path,name) fullfile(path,name), ...
-        {image_dir.folder},{image_dir.name},'uni',false);
-    [~,sort_idx] = ap_histology.natsortfiles(image_filenames);
-
-    images = cell(size(image_dir));
-    for curr_im = 1:length(sort_idx)
-        images{curr_im} = tiffreadVolume( ...
-            image_filenames{sort_idx(curr_im)});
-    end
-
-    % Grab atlas images
-    n_slices = length(images);
-    slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
-    slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
-    for curr_slice = 1:length(images)
-        [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
-            ap_histology.grab_atlas_slice(av,tv, ...
-            AP_histology_processing.histology_ccf.slice_vector, ...
-            AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
-    end
-
-    % Build volume of histology images
-    histology_volume = zeros(size(tv),'single');
-    probe_channel = 2;
-    for curr_im_idx = 1:length(images)
-
-        % Rigid transform
-        im_rigid_transformed = ap_histology.rigid_transform( ...
-            images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
-
-        % Affine/nonlin transform
-        if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
-                (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
-                size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
-                size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
-            % Manual alignment (if >3 matched points)
-            histology2atlas_tform = fitgeotform2d( ...
-                AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
-                AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
-        elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
-            % Automatic alignment
-            histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
-        end
-
-        atlas_slice_aligned = imwarp(im_rigid_transformed, ...
-            histology2atlas_tform,'nearest','OutputView', ...
-            imref2d(size(slice_atlas(curr_im_idx).av)));
-
-        % % Check match
-        % figure; imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
-
-        % Add points to volume in CCF space
-        curr_ccf_idx = sub2ind(size(tv), ...
-            round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
-            round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
-            round(slice_atlas_ccf(curr_im_idx).ml(:)));
-
-        histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
-            single(atlas_slice_aligned(:));
-
-    end
-
-    % Get max of histology volume in atlas bins
-    for curr_atlas_bin = 1:n_atlas_bins
-        plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
-        histology_atlas_bin_max{curr_animal_idx,curr_atlas_bin} = ...
-            permute(max(histology_volume(atlas_bins(curr_atlas_bin): ...
-            atlas_bins(curr_atlas_bin+1),:,:),[],1),[2,3,1]);
-    end
-    
-    ap.print_progress_fraction(curr_animal_idx,length(animals));
-end
-
-% Plot probe channel overlay by colored animals
-animal_colors = ap.colormap('tube',14);
-overlay_dilation = 1;
-histology_clim = repelem({[200,500]},length(animals),1);
-
-figure('Name','R2p4 colored histology'); tiledlayout('TileSpacing','none');
-for curr_atlas_bin = 1:n_atlas_bins
-
-    % Plot CCF borders from the middle of the bin
-    plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
-    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
-
-    % Max, color, and flip contrast
-    curr_histology_volume_max_gray = cellfun(@(x,c) ...
-        mat2gray(x,c),histology_atlas_bin_max(:,curr_atlas_bin),histology_clim,'uni',false);
-        
-    curr_histology_volume_max_colored = ...
-        cat(4,curr_histology_volume_max_gray{:}).*permute(animal_colors,[3,4,2,1]);
-    
-    curr_histology_volume_max_colored_white = ...
-        curr_histology_volume_max_colored+(1-cat(4,curr_histology_volume_max_gray{:}));
-
-    curr_histology_combined = min(curr_histology_volume_max_colored_white,[],4);
-
-    % Plot CCF over combined colored image
-    curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'k');
-    nexttile;imagesc(curr_overlay);axis image off;
-    drawnow;
-end
-
-% ~~~ SAVE FIGS ~~~
-if exist('fig_save_flag','var') && fig_save_flag
-    save_figs();
-    close(findall(0,'Type','figure'));
-end
-
-
-%% R3M3: Fraction of quiescent passive trials
-
-%%% Load non-activity data
-load_dataset = 'noact';
-Marica_2025.figures.load_data;
-%%%
-
-% Get which trials in passive were quiescent
-animals = unique(bhv.animal,'stable');
-
-passive_quiescent_trials = struct( ...
-    'stim_x',cell(length(animals),1), ...
-    'quiescent',cell(length(animals),1));
-
-for animal_idx=1:length(animals)
-   
-    animal = animals{animal_idx};
-
-    % Find passive recording days that also have task
-    workflow_passive = {'lcr_passive'};
-    recordings_passive = plab.find_recordings(animal, [], workflow_passive);
-    workflow_task = {'stim_wheel_right*'};
-    recordings_task = plab.find_recordings(animal, [], workflow_task);
-    training_days = ismember({recordings_passive.day}, {recordings_task.day});
-    train_rec_passive = recordings_passive(training_days);
-    bhv_days = {train_rec_passive.day};
-    ephys_days =  bhv_days([train_rec_passive.ephys]);    
-
-    for use_rec = 1:length(ephys_days)
-
-        rec_day = train_rec_passive(use_rec).day;
-        rec_time = train_rec_passive(use_rec).recording{end};
-        load_parts.behavior = true;
-        ap.load_recording
-   
-        % Trial stim values
-        trial_stim_values = vertcat(trial_events.values.TrialStimX);
-        trial_stim_values = trial_stim_values(1:length(stimOn_times));
-
-        % Quiescent trials
-        stim_window = [0,0.5];
-        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
-            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
-            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-            (1:length(stimOn_times))');
-
-        passive_quiescent_trials(animal_idx).stim_x{use_rec,1} = trial_stim_values;
-        passive_quiescent_trials(animal_idx).quiescent{use_rec,1} = quiescent_trials;
-
-    end
-    ap.print_progress_fraction(animal_idx,length(animals));
-end
-
-stim_unique = unique(passive_quiescent_trials(1).stim_x{1});
-stim_color = ap.colormap('BKR',length(stim_unique));
-
-% Plot quiescent trials pre/post learning
-passive_quiescent_stim = cell2mat(cellfun(@(stim,quiescent) ...
-    ap.groupfun(@mean,+quiescent,stim)', ...
-    cat(1,passive_quiescent_trials.stim_x), ...
-    cat(1,passive_quiescent_trials.quiescent),'uni',false));
-
-[passive_quiescent_stim_ld,passive_quiescent_stim_ld_grp] = ...
-    ap.nestgroupfun({@mean,@mean},passive_quiescent_stim, ...
-    grp2idx(bhv.animal),bhv.days_from_learning >= 0);
-passive_quiescent_stim_ld_sem = ...
-    ap.nestgroupfun({@mean,@ap.sem},passive_quiescent_stim, ...
-    grp2idx(bhv.animal),bhv.days_from_learning >= 0);
-
-figure('Name','R3M3 frac q trials');
-x_labels = ["Pre-learn","Post-learn"];
-errorbar(reordercats(categorical(x_labels),x_labels), ...
-    passive_quiescent_stim_ld,passive_quiescent_stim_ld_sem, ...
-    'linewidth',2,'capsize',0)
-axis padded;
-ylabel('Frac. quiescent trials');
-set(gca,'ColorOrder',stim_color)
-ap.prettyfig;
-
-% Plot quiescent trials binned by trial number
-n_trialsplit = length(stim_unique)*5; % n presentations of each stim
-passive_trialsplit_idx = cell2mat(cellfun(@(stim) ...
-    (floor((0:length(stim)-1)/n_trialsplit)+1)', ...
-    cat(1,passive_quiescent_trials.stim_x),'uni',false));
-
-passive_ld_idx = cell2mat(cellfun(@(rec,stim) repelem(rec,length(stim))', ...
-    num2cell(bhv.days_from_learning), ...
-    cat(1,passive_quiescent_trials.stim_x),'uni',false));
-
-[passive_quiescent_stim_trialsplit,passive_quiescent_stim_trialsplit_grp] = ...
-    ap.groupfun(@mean,+cell2mat(cat(1,passive_quiescent_trials.quiescent)), ...
-    [passive_ld_idx,passive_trialsplit_idx,cell2mat(cat(1,passive_quiescent_trials.stim_x))]);
-
-passive_quiescent_stim_trialsplit_sem = ...
-    ap.groupfun(@ap.sem,+cell2mat(cat(1,passive_quiescent_trials.quiescent)), ...
-    [passive_ld_idx,passive_trialsplit_idx,cell2mat(cat(1,passive_quiescent_trials.stim_x))]);
-
-passive_quiescent_stim_trialsplit_grid = ...
-    accumarray([grp2idx(passive_quiescent_stim_trialsplit_grp(:,1)), ...
-    grp2idx(passive_quiescent_stim_trialsplit_grp(:,2)), ...
-    grp2idx(passive_quiescent_stim_trialsplit_grp(:,3))], ...
-    passive_quiescent_stim_trialsplit,[],[],nan);
-
-passive_quiescent_stim_trialsplit_sem_grid = ...
-    accumarray([grp2idx(passive_quiescent_stim_trialsplit_grp(:,1)), ...
-    grp2idx(passive_quiescent_stim_trialsplit_grp(:,2)), ...
-    grp2idx(passive_quiescent_stim_trialsplit_grp(:,3))], ...
-    passive_quiescent_stim_trialsplit_sem,[],[],nan);
-
-passive_quiescent_stim_daysplit_x = reshape((unique(passive_quiescent_stim_trialsplit_grp(:,1)) + ...
-    linspace(0,1,max(passive_quiescent_stim_trialsplit_grp(:,2)+1)))',[],1);
-
-figure('Name','R3M3 daysplit q trials');
-plot_x_idx = isbetween(passive_quiescent_stim_daysplit_x,-3,3);
-
-passive_quiescent_stim_trialsplit_grid_reshape = ...
-    reshape(permute(padarray(passive_quiescent_stim_trialsplit_grid,[0,1],nan,'post'),[2,1,3]),[],3);
-passive_quiescent_stim_trialsplit_sem_grid_reshape = ...
-    reshape(permute(padarray(passive_quiescent_stim_trialsplit_sem_grid,[0,1],nan,'post'),[2,1,3]),[],3);
-
-ap.errorfill(passive_quiescent_stim_daysplit_x(plot_x_idx), ...
-    passive_quiescent_stim_trialsplit_grid_reshape(plot_x_idx,:), ...
-    passive_quiescent_stim_trialsplit_sem_grid_reshape(plot_x_idx,:),stim_color);
-xline(0,'k');
-xlabel('Days from learning');
-ylabel('Frac. quiescent trials');
-axis padded;
-ap.prettyfig;
-
-% ~~~ STATS ~~~
-print_stat('\n--FIG R1 M3--\n');
-
-sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
-
-[passive_quiescent_stim_ld_animal,passive_quiescent_stim_ld_animal_grp] = ...
-    ap.groupfun(@mean,passive_quiescent_stim, ...
-    [grp2idx(bhv.animal),bhv.days_from_learning >= 0]);
-
-for curr_stim = 1:length(stim_unique)
-    stat_p = ranksum( ...
-        passive_quiescent_stim_ld_animal(passive_quiescent_stim_ld_animal_grp(:,2) == 0,curr_stim), ...
-        passive_quiescent_stim_ld_animal(passive_quiescent_stim_ld_animal_grp(:,2) == 1,curr_stim));
-
-    print_stat('Ranksum pre/post stim %d: p = %.2g%s\n', ...
-        stim_unique(curr_stim),stat_p,sig_flag(stat_p));
-end
-
-% ~~~ SAVE FIGS ~~~
-if exist('fig_save_flag','var') && fig_save_flag
-    save_figs();
-    close(findall(0,'Type','figure'));
-end
-
-
-%% R3m1: Rate of non-stim movements
+%% [Supp. Fig 1D] Rate of non-stim movements
 
 animals = { ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
@@ -910,7 +627,297 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% R3m3: Non-stim move activity
+%% [Supp. Fig 1F] Fraction of quiescent passive trials
+
+%%% Load non-activity data
+load_dataset = 'noact';
+Marica_2025.figures.load_data;
+%%%
+
+% Get which trials in passive were quiescent
+animals = unique(bhv.animal,'stable');
+
+passive_quiescent_trials = struct( ...
+    'stim_x',cell(length(animals),1), ...
+    'quiescent',cell(length(animals),1));
+
+for animal_idx=1:length(animals)
+   
+    animal = animals{animal_idx};
+
+    % Find passive recording days that also have task
+    workflow_passive = {'lcr_passive'};
+    recordings_passive = plab.find_recordings(animal, [], workflow_passive);
+    workflow_task = {'stim_wheel_right*'};
+    recordings_task = plab.find_recordings(animal, [], workflow_task);
+    training_days = ismember({recordings_passive.day}, {recordings_task.day});
+    train_rec_passive = recordings_passive(training_days);
+    bhv_days = {train_rec_passive.day};
+    ephys_days =  bhv_days([train_rec_passive.ephys]);    
+
+    for use_rec = 1:length(ephys_days)
+
+        rec_day = train_rec_passive(use_rec).day;
+        rec_time = train_rec_passive(use_rec).recording{end};
+        load_parts.behavior = true;
+        ap.load_recording
+   
+        % Trial stim values
+        trial_stim_values = vertcat(trial_events.values.TrialStimX);
+        trial_stim_values = trial_stim_values(1:length(stimOn_times));
+
+        % Quiescent trials
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            (1:length(stimOn_times))');
+
+        passive_quiescent_trials(animal_idx).stim_x{use_rec,1} = trial_stim_values;
+        passive_quiescent_trials(animal_idx).quiescent{use_rec,1} = quiescent_trials;
+
+    end
+    ap.print_progress_fraction(animal_idx,length(animals));
+end
+
+stim_unique = unique(passive_quiescent_trials(1).stim_x{1});
+stim_color = ap.colormap('BKR',length(stim_unique));
+
+% Plot quiescent trials pre/post learning
+passive_quiescent_stim = cell2mat(cellfun(@(stim,quiescent) ...
+    ap.groupfun(@mean,+quiescent,stim)', ...
+    cat(1,passive_quiescent_trials.stim_x), ...
+    cat(1,passive_quiescent_trials.quiescent),'uni',false));
+
+[passive_quiescent_stim_ld,passive_quiescent_stim_ld_grp] = ...
+    ap.nestgroupfun({@mean,@mean},passive_quiescent_stim, ...
+    grp2idx(bhv.animal),bhv.days_from_learning >= 0);
+passive_quiescent_stim_ld_sem = ...
+    ap.nestgroupfun({@mean,@ap.sem},passive_quiescent_stim, ...
+    grp2idx(bhv.animal),bhv.days_from_learning >= 0);
+
+figure('Name','Fig S1 frac q trials');
+x_labels = ["Pre-learn","Post-learn"];
+errorbar(reordercats(categorical(x_labels),x_labels), ...
+    passive_quiescent_stim_ld,passive_quiescent_stim_ld_sem, ...
+    'linewidth',2,'capsize',0)
+axis padded;
+ylabel('Frac. quiescent trials');
+set(gca,'ColorOrder',stim_color)
+ap.prettyfig;
+
+% Plot quiescent trials binned by trial number
+n_trialsplit = length(stim_unique)*5; % n presentations of each stim
+passive_trialsplit_idx = cell2mat(cellfun(@(stim) ...
+    (floor((0:length(stim)-1)/n_trialsplit)+1)', ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+passive_ld_idx = cell2mat(cellfun(@(rec,stim) repelem(rec,length(stim))', ...
+    num2cell(bhv.days_from_learning), ...
+    cat(1,passive_quiescent_trials.stim_x),'uni',false));
+
+[passive_quiescent_stim_trialsplit,passive_quiescent_stim_trialsplit_grp] = ...
+    ap.groupfun(@mean,+cell2mat(cat(1,passive_quiescent_trials.quiescent)), ...
+    [passive_ld_idx,passive_trialsplit_idx,cell2mat(cat(1,passive_quiescent_trials.stim_x))]);
+
+passive_quiescent_stim_trialsplit_sem = ...
+    ap.groupfun(@ap.sem,+cell2mat(cat(1,passive_quiescent_trials.quiescent)), ...
+    [passive_ld_idx,passive_trialsplit_idx,cell2mat(cat(1,passive_quiescent_trials.stim_x))]);
+
+passive_quiescent_stim_trialsplit_grid = ...
+    accumarray([grp2idx(passive_quiescent_stim_trialsplit_grp(:,1)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,2)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,3))], ...
+    passive_quiescent_stim_trialsplit,[],[],nan);
+
+passive_quiescent_stim_trialsplit_sem_grid = ...
+    accumarray([grp2idx(passive_quiescent_stim_trialsplit_grp(:,1)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,2)), ...
+    grp2idx(passive_quiescent_stim_trialsplit_grp(:,3))], ...
+    passive_quiescent_stim_trialsplit_sem,[],[],nan);
+
+passive_quiescent_stim_daysplit_x = reshape((unique(passive_quiescent_stim_trialsplit_grp(:,1)) + ...
+    linspace(0,1,max(passive_quiescent_stim_trialsplit_grp(:,2)+1)))',[],1);
+
+figure('Name','Fig S1 daysplit q trials');
+plot_x_idx = isbetween(passive_quiescent_stim_daysplit_x,-3,3);
+
+passive_quiescent_stim_trialsplit_grid_reshape = ...
+    reshape(permute(padarray(passive_quiescent_stim_trialsplit_grid,[0,1],nan,'post'),[2,1,3]),[],3);
+passive_quiescent_stim_trialsplit_sem_grid_reshape = ...
+    reshape(permute(padarray(passive_quiescent_stim_trialsplit_sem_grid,[0,1],nan,'post'),[2,1,3]),[],3);
+
+ap.errorfill(passive_quiescent_stim_daysplit_x(plot_x_idx), ...
+    passive_quiescent_stim_trialsplit_grid_reshape(plot_x_idx,:), ...
+    passive_quiescent_stim_trialsplit_sem_grid_reshape(plot_x_idx,:),stim_color);
+xline(0,'k');
+xlabel('Days from learning');
+ylabel('Frac. quiescent trials');
+axis padded;
+ap.prettyfig;
+
+% ~~~ STATS ~~~
+print_stat('\n--FIG S1--\n');
+
+sig_flag = @(p) discretize(p < 0.05,[0,1,Inf],["","*"]);
+
+[passive_quiescent_stim_ld_animal,passive_quiescent_stim_ld_animal_grp] = ...
+    ap.groupfun(@mean,passive_quiescent_stim, ...
+    [grp2idx(bhv.animal),bhv.days_from_learning >= 0]);
+
+for curr_stim = 1:length(stim_unique)
+    stat_p = ranksum( ...
+        passive_quiescent_stim_ld_animal(passive_quiescent_stim_ld_animal_grp(:,2) == 0,curr_stim), ...
+        passive_quiescent_stim_ld_animal(passive_quiescent_stim_ld_animal_grp(:,2) == 1,curr_stim));
+
+    print_stat('Ranksum pre/post stim %d: p = %.2g%s\n', ...
+        stim_unique(curr_stim),stat_p,sig_flag(stat_p));
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
+
+%% [Supp. Fig 2B] CCF-aligned probe histology
+
+[av,tv,st] = ap_histology.load_ccf;
+
+animals = { ...
+    'AM011','AM012','AM014','AM015','AM016','AM017', ...
+    'AM018','AM019','AM021','AM022','AM026','AM029', ...
+    'AP023','AP025'};
+
+% Set atlas bins to plot through striatum
+striatum_ccf_id = find(contains(lower(st.safe_name),'caudoputamen'));
+striatum_ccf_ap = prctile(find(max(av == striatum_ccf_id,[],[2,3])),[0,100]);
+
+n_atlas_bins = 10;
+atlas_bins = round(linspace(striatum_ccf_ap(1),striatum_ccf_ap(2),n_atlas_bins+1));
+
+histology_atlas_bin_max = cell(length(animals),n_atlas_bins);
+
+for curr_animal_idx = 1:length(animals)
+
+    histology_path = plab.locations.filename('server',animals{curr_animal_idx},[],[],'histology');
+    load(fullfile(histology_path,'AP_histology_processing.mat'));
+
+    % Load images
+    image_path = histology_path;
+    image_dir = dir(fullfile(image_path,'*.tif'));
+    image_filenames = cellfun(@(path,name) fullfile(path,name), ...
+        {image_dir.folder},{image_dir.name},'uni',false);
+    [~,sort_idx] = ap_histology.natsortfiles(image_filenames);
+
+    images = cell(size(image_dir));
+    for curr_im = 1:length(sort_idx)
+        images{curr_im} = tiffreadVolume( ...
+            image_filenames{sort_idx(curr_im)});
+    end
+
+    % Grab atlas images
+    n_slices = length(images);
+    slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
+    slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
+    for curr_slice = 1:length(images)
+        [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
+            ap_histology.grab_atlas_slice(av,tv, ...
+            AP_histology_processing.histology_ccf.slice_vector, ...
+            AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
+    end
+
+    % Build volume of histology images
+    histology_volume = zeros(size(tv),'single');
+    probe_channel = 2;
+    for curr_im_idx = 1:length(images)
+
+        % Rigid transform
+        im_rigid_transformed = ap_histology.rigid_transform( ...
+            images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
+
+        % Affine/nonlin transform
+        if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
+                (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
+                size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
+                size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
+            % Manual alignment (if >3 matched points)
+            histology2atlas_tform = fitgeotform2d( ...
+                AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
+                AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
+        elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
+            % Automatic alignment
+            histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
+        end
+
+        atlas_slice_aligned = imwarp(im_rigid_transformed, ...
+            histology2atlas_tform,'nearest','OutputView', ...
+            imref2d(size(slice_atlas(curr_im_idx).av)));
+
+        % % Check match
+        % figure; imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
+
+        % Add points to volume in CCF space
+        curr_ccf_idx = sub2ind(size(tv), ...
+            round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
+            round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
+            round(slice_atlas_ccf(curr_im_idx).ml(:)));
+
+        histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
+            single(atlas_slice_aligned(:));
+
+    end
+
+    % Get max of histology volume in atlas bins
+    for curr_atlas_bin = 1:n_atlas_bins
+        plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
+        histology_atlas_bin_max{curr_animal_idx,curr_atlas_bin} = ...
+            permute(max(histology_volume(atlas_bins(curr_atlas_bin): ...
+            atlas_bins(curr_atlas_bin+1),:,:),[],1),[2,3,1]);
+    end
+    
+    ap.print_progress_fraction(curr_animal_idx,length(animals));
+end
+
+% Plot probe channel overlay by colored animals
+animal_colors = ap.colormap('tube',14);
+overlay_dilation = 1;
+histology_clim = repelem({[200,500]},length(animals),1);
+
+figure('Name','Fig S2 colored histology'); tiledlayout('TileSpacing','none');
+for curr_atlas_bin = 1:n_atlas_bins
+
+    % Plot CCF borders from the middle of the bin
+    plot_atlas_ap = round(mean(atlas_bins(curr_atlas_bin+[0,1])));
+    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
+
+    % Max, color, and flip contrast
+    curr_histology_volume_max_gray = cellfun(@(x,c) ...
+        mat2gray(x,c),histology_atlas_bin_max(:,curr_atlas_bin),histology_clim,'uni',false);
+        
+    curr_histology_volume_max_colored = ...
+        cat(4,curr_histology_volume_max_gray{:}).*permute(animal_colors,[3,4,2,1]);
+    
+    curr_histology_volume_max_colored_white = ...
+        curr_histology_volume_max_colored+(1-cat(4,curr_histology_volume_max_gray{:}));
+
+    curr_histology_combined = min(curr_histology_volume_max_colored_white,[],4);
+
+    % Plot CCF over combined colored image
+    curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'k');
+    nexttile;imagesc(curr_overlay);axis image off;
+    drawnow;
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
+
+%% [Supp. Fig 5] Non-stim move activity
 
 %%% Load non-activity data
 load_dataset = 'task';
@@ -945,8 +952,8 @@ striatum_nostim_baseline = cellfun(@(mua) ...
         mean(mua(:,baseline_t,:,1),[2]), ...
         striatum_nostim_move_mua_sum,'uni',false, ...
         'ErrorHandler',@(varargin) NaN);
-striatum_nostim_move_mua = cellfun(@spikes_norm_smooth_reshape_fcn, ...
-        striatum_nostim_move_mua_sum,striatum_nostim_baseline,'uni',false);
+striatum_nostim_move_mua = cellfun(spikes_norm_smooth_reshape_fcn, ...
+        striatum_nostim_move_mua_sum,striatum_nostim_baseline,'uni',false); %#ok<FUNFUN>
 
 % Plot move-aligned (stim, non-stim) binned by day
 % (non-stim not saved by trial, so day bins by weighted average)
@@ -959,11 +966,11 @@ day_grp = discretize(max(bhv.days_from_learning,-inf),plot_day_bins);
 cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
 striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
 
-figure('Name','R3m3 nostim striatum'); h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
-figure('Name','R3m3 nostim cortex'); h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
-figure('Name','R3m3 nostim rxn'); h_rxn = tiledlayout(2,1);
+figure('Name','Fig S5 nostim striatum'); h_striatum = tiledlayout(n_domains,3); title(h_striatum,'Striatum');
+figure('Name','Fig S5 nostim cortex'); h_cortex = tiledlayout(n_domains,3); title(h_cortex,'Cortex');
+figure('Name','Fig S5 nostim rxn'); h_rxn = tiledlayout(2,1);
 
-figure('Name','R3m3 nostim wheel'); h_wheel = tiledlayout(1,3);
+figure('Name','Fig S5 nostim wheel'); h_wheel = tiledlayout(1,3);
 for curr_plot = 1:3
     nexttile(h_wheel,curr_plot); hold on; set(gca,'ColorOrder',plot_day_colors);
 end
@@ -1111,142 +1118,4 @@ if exist('fig_save_flag','var') && fig_save_flag
     save_figs();
     close(findall(0,'Type','figure'));
 end
-
-%% R1p2: within-animal example
-
-% ~~ Load task and passive data
-
-% Set day binning 
-load_dataset_retain = true;
-
-% Get task data (NNaN-out activity after movement onset)
-load_dataset = 'task';
-Marica_2025.figures.load_data;
-
-move_leeway = 0.1; % time pre-movement to exclude
-striatum_mua_nomove = striatum_mua(:,:,1).*ap.nanout(psth_t > striatum_mua_grp.rxn-move_leeway);
-wf_striatum_roi_nomove = wf_striatum_roi(:,:,:,1).*ap.nanout(wf_t > wf_grp.rxn-move_leeway);
-
-task_data.striatum = striatum_mua_nomove;
-task_data.striatum_grp = striatum_mua_grp;
-task_data.wf = wf_striatum_roi_nomove;
-task_data.wf_grp = wf_grp;
-
-clearvars -except task_data load_dataset_retain
-
-% Get passive data
-load_dataset = 'passive';
-Marica_2025.figures.load_data;
-
-passive_data.striatum = striatum_mua;
-passive_data.striatum_grp = striatum_mua_grp;
-passive_data.wf = wf_striatum_roi;
-passive_data.wf_grp = wf_grp;
-
-% ~~ Average trials in day bins by animal
-
-plot_day_bins = [-Inf,-2,0,Inf];
-
-striatum_task_day_grp = discretize(task_data.striatum_grp.ld,plot_day_bins);
-wf_task_day_grp = discretize(task_data.wf_grp.ld,plot_day_bins);
-
-striatum_passive_day_grp = discretize(passive_data.striatum_grp.ld,plot_day_bins);
-wf_passive_day_grp = discretize(passive_data.wf_grp.ld,plot_day_bins);
-
-[striatum_task_avg,striatum_task_avg_grp] = ...
-    ap.groupfun(@nanmean,task_data.striatum, ...
-    [task_data.striatum_grp.animal,striatum_task_day_grp, ...
-    task_data.striatum_grp.domain_idx]);
-
-[striatum_passive_avg,striatum_passive_avg_grp] = ...
-    ap.groupfun(@nanmean,passive_data.striatum, ...
-    [passive_data.striatum_grp.animal,striatum_passive_day_grp, ...
-    passive_data.striatum_grp.domain_idx,passive_data.striatum_grp.stim]);
-
-[wf_task_avg,wf_task_avg_grp] = ...
-    ap.groupfun(@nanmean,task_data.wf, ...
-    [task_data.wf_grp.animal,wf_task_day_grp]);
-
-[wf_passive_avg,wf_passive_avg_grp] = ...
-    ap.groupfun(@nanmean,passive_data.wf, ...
-    [passive_data.wf_grp.animal,wf_passive_day_grp,passive_data.wf_grp.stim]);
-
-% ~~ Plot all animals
-
-animals = unique(task_data.striatum_grp.animal);
-
-figure('Name','Str 1'); h_str1 = tiledlayout(length(animals),length(plot_day_bins)-1,'TileSpacing','tight');
-figure('Name','Str 2'); h_str2 = tiledlayout(length(animals),length(plot_day_bins)-1,'TileSpacing','tight');
-figure('Name','mPFC'); h_mpfc = tiledlayout(length(animals),length(plot_day_bins)-1,'TileSpacing','tight');
-
-for curr_animal = animals'
-    for curr_day = 1:length(plot_day_bins)-1
-
-        h = nexttile(h_str1,tilenum(h_str1,curr_animal,curr_day)); hold on;
-        plot_idx = ismember(striatum_task_avg_grp,[curr_animal,curr_day,1],'rows');
-        plot(h,striatum_task_avg(plot_idx,:));
-        plot_idx = ismember(striatum_passive_avg_grp,[curr_animal,curr_day,1,90],'rows');
-        plot(h,striatum_passive_avg(plot_idx,:));
-        axis off
-
-        h = nexttile(h_str2,tilenum(h_str2,curr_animal,curr_day)); hold on;
-        plot_idx = ismember(striatum_task_avg_grp,[curr_animal,curr_day,2],'rows');
-        plot(h,striatum_task_avg(plot_idx,:));
-        plot_idx = ismember(striatum_passive_avg_grp,[curr_animal,curr_day,2,90],'rows');
-        plot(h,striatum_passive_avg(plot_idx,:));
-        axis off
-
-        h = nexttile(h_mpfc,tilenum(h_mpfc,curr_animal,curr_day)); hold on;
-        plot_idx = ismember(wf_task_avg_grp,[curr_animal,curr_day],'rows');
-        plot(h,wf_task_avg(plot_idx,:,2));
-        plot_idx = ismember(wf_passive_avg_grp,[curr_animal,curr_day,90],'rows');
-        plot(h,wf_passive_avg(plot_idx,:,2));
-        axis off
-
-        drawnow;
-    end
-end
-
-linkaxes(h_str1.Children,'xy');
-linkaxes(h_str2.Children,'xy');
-linkaxes(h_mpfc.Children,'xy');
-
-% ~~ Plot specific animal
-
-curr_animal = 13;
-
-figure('Name',num2str(curr_animal)); 
-h_act = tiledlayout(3,length(plot_day_bins)-1,'TileSpacing','tight','TileIndexing','ColumnMajor');
-
-for curr_day = 1:length(plot_day_bins)-1
-
-    h = nexttile; hold on;
-    plot_idx = ismember(striatum_task_avg_grp,[curr_animal,curr_day,1],'rows');
-    plot(h,striatum_task_avg(plot_idx,:));
-    plot_idx = ismember(striatum_passive_avg_grp,[curr_animal,curr_day,1,90],'rows');
-    plot(h,striatum_passive_avg(plot_idx,:));
-    axis off
-
-    h = nexttile; hold on;
-    plot_idx = ismember(striatum_task_avg_grp,[curr_animal,curr_day,2],'rows');
-    plot(h,striatum_task_avg(plot_idx,:));
-    plot_idx = ismember(striatum_passive_avg_grp,[curr_animal,curr_day,2,90],'rows');
-    plot(h,striatum_passive_avg(plot_idx,:));
-    axis off
-
-    h = nexttile; hold on;
-    plot_idx = ismember(wf_task_avg_grp,[curr_animal,curr_day],'rows');
-    plot(h,wf_task_avg(plot_idx,:,2));
-    plot_idx = ismember(wf_passive_avg_grp,[curr_animal,curr_day,90],'rows');
-    plot(h,wf_passive_avg(plot_idx,:,2));
-    axis off
-
-    drawnow;
-end
-
-h_grid = reshape(h_act.Children,3,[]);
-for curr_area = 1:size(h_grid,1)
-    linkaxes(h_grid(curr_area,:),'xy');
-end
-
 
