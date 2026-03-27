@@ -386,7 +386,7 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% |--> [Fig 4C]: mPFC vs striatum by context
+%% |--> [Fig 4C] mPFC vs striatum by context
 
 % Normalize task/passive separately
 % (normalize data to task LD 0)
@@ -908,6 +908,99 @@ for curr_atlas_bin = 1:n_atlas_bins
     curr_overlay = imoverlay(curr_histology_combined,curr_ccf_borders,'k');
     nexttile;imagesc(curr_overlay);axis image off;
     drawnow;
+end
+
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
+
+%% [Fig. S4] Task activity heatmaps (Fig 1A) split by animal
+
+%%% Load non-activity data
+load_dataset = 'task';
+Marica_2025.figures.load_data;
+%%%
+
+% plot_day_bins = [-Inf,-2,0,Inf];
+plot_day_bins = [-Inf,-3:2,Inf];
+
+cortex_plot_day_grp = discretize(max(wf_grp.ld,-inf),plot_day_bins);
+striatum_plot_day_grp = discretize(max(striatum_mua_grp.ld,-inf),plot_day_bins);
+
+% Plot single area by animal
+animals = unique(bhv.animal,'stable');
+
+plot_domains = [1,2];
+
+trials_scale = [15,50]; % (small, big)
+
+for curr_domain = plot_domains
+
+    f_ctx = figure('Name',sprintf('Fig X cortex %d heatmaps',curr_domain));
+    h_ctx = tiledlayout(f_ctx,length(animals),max(cortex_plot_day_grp), ...
+        'TileIndexing','ColumnMajor','TileSpacing','none');
+
+    f_str = figure('Name',sprintf('Fig X striatum %d',curr_domain));
+    h_str = tiledlayout(f_str,length(animals),max(cortex_plot_day_grp), ...
+        'TileIndexing','ColumnMajor','TileSpacing','none');
+
+    for curr_day = 1:max(cortex_plot_day_grp)
+        for curr_animal = 1:length(animals)
+
+            % Cortex
+            curr_trials = find(cortex_plot_day_grp == curr_day & ...
+                wf_grp.animal == curr_animal);
+
+            if any(curr_trials)
+                nexttile(h_ctx,tilenum(h_ctx,curr_animal,curr_day));
+
+                [sorted_rxn,sort_idx] = sort(wf_grp.rxn(curr_trials));
+                imagesc(wf_t,[],movmean(wf_striatum_roi(curr_trials(sort_idx),:,curr_domain,1),heatmap_smooth));
+                colormap(gca,ap.colormap('WG'));
+                clim([0,1e-2]);
+                axis off;
+
+                hold on
+                xline(0,'color','r');
+                plot(sorted_rxn,1:length(curr_trials),'b');
+
+                h = ap.scalebar([],trials_scale(find(length(curr_trials) > trials_scale,1,'last')));
+                if length(curr_trials) < trials_scale(2)
+                    h(2).Color = [0,1,1];
+                end
+            end
+
+            % Striatum
+            curr_trials = find(striatum_plot_day_grp == curr_day & ...
+                striatum_mua_grp.domain_idx == curr_domain & ...
+                striatum_mua_grp.animal == curr_animal);
+
+            if any(curr_trials)
+                nexttile(h_str,tilenum(h_str,curr_animal,curr_day));
+
+                [sorted_rxn,sort_idx] = sort(striatum_mua_grp.rxn(curr_trials));
+                imagesc(psth_t,[],movmean(striatum_mua(curr_trials(sort_idx),:,1),heatmap_smooth));
+                colormap(gca,ap.colormap('WK'));
+                clim([0,3]);
+                axis off;
+
+                hold on
+                xline(0,'color','r');
+                plot(sorted_rxn,1:length(curr_trials),'b');
+
+                h = ap.scalebar([],trials_scale(find(length(curr_trials) > trials_scale,1,'last')));
+                if length(curr_trials) < trials_scale(2)
+                    h(2).Color = [0,1,1];
+                end
+            end
+
+            drawnow;
+        end
+    end
+    ap.prettyfig('eps',f_ctx);
+    ap.prettyfig('eps',f_str);
 end
 
 % ~~~ SAVE FIGS ~~~
