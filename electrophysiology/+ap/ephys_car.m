@@ -1,16 +1,22 @@
-function ephys_car(data_raw_filenames,data_car_filename,probe_version)
-% ephys_car(data_raw_filename,data_car_filename,probe_version)
+function ephys_car(data_raw_filenames,data_car_filename,probe_info)
+% ephys_car(data_raw_filename,data_car_filename,probe_info)
 % Apply common average referencing to Neuroipxels data
 %
 % 1) Get median across simultaneously-sampled channels (1/bank)
 % 2) Get scaling factor of median for each channel
 % 3) Scale and subtract median for each channel
+%
+% probe_info: output from plab.ephys.oe_probe_info
+
 
 % Hardcode channel number and get channel index across ADCs
 % (X ADCs, Y channels each, same-index channels sampled together e.g.
 % ADC1/Ch1 + ADC2/Ch1...)
 % (https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Neuropixels-CAR.html)
-n_chan = 384;
+
+n_chan = probe_info.n_chan;
+
+probe_version = sscanf(probe_info.probe_type,'%*s%d%*s');
 switch probe_version
     case 1
         % Neuropixels 1.0
@@ -19,6 +25,7 @@ switch probe_version
         % Neuropixels 2.0
         n_adcs = 24;
 end
+
 ch_adc_idx = reshape(reshape(1:n_chan,2,[])',n_chan/n_adcs,[]);
 
 % Choose data chunk size
@@ -47,30 +54,35 @@ for curr_recording = 1:length(data_raw_filenames)
     while ~data_eof
 
         % Load in current data chunk
-        curr_data = fread(fid_raw, [384 chunkSize], '*int16');
+        curr_data = fread(fid_raw, [n_chan chunkSize], '*int16');
 
         % Subtract median across channels
         curr_data_centered = curr_data - median(curr_data,2);
 
-        % Loop through ADC channel indicies
+        % Loop through ADC channel indicies and shanks
         curr_data_car = zeros(size(curr_data),'int16');
         for curr_adc_idx = 1:size(ch_adc_idx,1)
-            % Get same-index channels across ADCs
-            curr_channels = ch_adc_idx(curr_adc_idx,:);
 
-            % Get median signal across channels
-            curr_data_adc_median = median(curr_data_centered(curr_channels,:),1);
+            %%%% IN PROGRESS: BY SHANK?
+            % for curr_shank = unique(probe_info.kcoords)'
+            %     % Get same-index channels across ADCs within shank
+            %     curr_channels = intersect(ch_adc_idx(curr_adc_idx,:), ...
+            %         find(probe_info.kcoords == curr_shank));
 
-            % Get scaling factor of median for each channel
-            curr_data_adc_median_scale = ...
-                sum(curr_data_centered(curr_channels,:).*curr_data_adc_median,2)./ ...
-                sum(curr_data_adc_median.^2);
-            curr_data_adc_median_scaled = int16(curr_data_adc_median_scale.* ...
-                double(curr_data_adc_median));
+                % Get median signal across channels
+                curr_data_adc_median = median(curr_data_centered(curr_channels,:),1);
 
-            % Subtract scaled median from data
-            curr_data_car(curr_channels,:) = curr_data_centered(curr_channels,:) - ...
-                curr_data_adc_median_scaled;
+                % Get scaling factor of median for each channel
+                curr_data_adc_median_scale = ...
+                    sum(curr_data_centered(curr_channels,:).*curr_data_adc_median,2)./ ...
+                    sum(curr_data_adc_median.^2);
+                curr_data_adc_median_scaled = int16(curr_data_adc_median_scale.* ...
+                    double(curr_data_adc_median));
+
+                % Subtract scaled median from data
+                curr_data_car(curr_channels,:) = curr_data_centered(curr_channels,:) - ...
+                    curr_data_adc_median_scaled;
+            % end
         end
 
         fwrite(fid_car, curr_data_car, 'int16');
