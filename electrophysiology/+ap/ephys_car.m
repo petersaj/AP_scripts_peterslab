@@ -1,22 +1,25 @@
-function ephys_car(data_raw_filenames,data_car_filename)
-% ephys_car(data_raw_filename,data_car_filename)
+function ephys_car(data_raw_filenames,data_car_filename,probe_version)
+% ephys_car(data_raw_filename,data_car_filename,probe_version)
 % Apply common average referencing to Neuroipxels data
 %
 % 1) Get median across simultaneously-sampled channels (1/bank)
 % 2) Get scaling factor of median for each channel
 % 3) Scale and subtract median for each channel
 
-% Allow for multiple filenames: package in cell if only one filename
-if ~iscell(data_raw_filenames)
-    data_raw_filenames = {data_raw_filenames};
-end
-
 % Hardcode channel number and get channel index across ADCs
-% (16 ADCs, 12 channels each, same-index channels sampled together e.g.
+% (X ADCs, Y channels each, same-index channels sampled together e.g.
 % ADC1/Ch1 + ADC2/Ch1...)
 % (https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Neuropixels-CAR.html)
 n_chan = 384;
-ch_adc_idx = reshape(reshape(1:n_chan,2,[])',12,[]);
+switch probe_version
+    case 1
+        % Neuropixels 1.0
+        n_adcs = 32;
+    case 2
+        % Neuropixels 2.0
+        n_adcs = 24;
+end
+ch_adc_idx = reshape(reshape(1:n_chan,2,[])',n_chan/n_adcs,[]);
 
 % Choose data chunk size
 chunkSize = 1e6;
@@ -26,7 +29,7 @@ fid_car = fopen(data_car_filename, 'w');
 
 for curr_recording = 1:length(data_raw_filenames)
 
-    curr_data_raw_filename = data_raw_filenames{curr_recording};
+    curr_data_raw_filename = data_raw_filenames(curr_recording);
     fprintf('CAR-ing data: %s (file %d/%d) \n',curr_data_raw_filename, ...
         curr_recording,length(data_raw_filenames))
 

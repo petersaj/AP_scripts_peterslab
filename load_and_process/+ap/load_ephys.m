@@ -29,16 +29,18 @@ if ~exist('load_probe','var')
 end
 
 % Get OE folders
-open_ephys_dir = dir(fullfile(ephys_path,'experiment*','recording*','continuous','*-AP'));
-oe_recordings = unique(extract({open_ephys_dir.folder},'recording'+digitsPattern));
+open_ephys_data_dir = dir(fullfile(ephys_path,'/**/','continuous.dat'));
+open_ephys_recording_paths = string({open_ephys_data_dir(~contains({open_ephys_data_dir.folder}, ...
+    {'ADC','LFP'},'IgnoreCase',true)).folder});
 
-if ~isscalar(open_ephys_dir) && length(open_ephys_dir) == length(oe_recordings)
+oe_recordings = unique(extract(open_ephys_recording_paths,'recording'+digitsPattern));
+
+if ~isscalar(open_ephys_recording_paths) && length(open_ephys_recording_paths) == length(oe_recordings)
     % Multiple recordings: assume concatenated
-    open_ephys_path = fullfile({open_ephys_dir.folder},{open_ephys_dir.name});
+    open_ephys_path = fullfile({open_ephys_recording_paths.folder},{open_ephys_recording_paths.name});
 else
     % Single recording or muliple non-recording folders: separate probes
-    open_ephys_path = {fullfile(open_ephys_dir(load_probe).folder, ...
-        open_ephys_dir(load_probe).name)};
+    open_ephys_path = open_ephys_recording_paths(load_probe);
 end
 
 % Get kilosort output folder
@@ -75,10 +77,10 @@ if any(contains({kilosort_dir.name},'site'))
         kilosort_path = fullfile(kilosort_top_path, ...
             ephys_site_paths(ephys_use_site).name);
 
-        open_ephys_dir = dir(fullfile(ephys_path, ...
+        open_ephys_recording_paths = dir(fullfile(ephys_path, ...
             ephys_site_paths(ephys_use_site).name,'experiment*', ...
             'recording*','continuous','*-AP'));
-        open_ephys_path = fullfile({open_ephys_dir.folder},{open_ephys_dir.name});
+        open_ephys_path = fullfile({open_ephys_recording_paths.folder},{open_ephys_recording_paths.name});
     end
 end
 
@@ -177,7 +179,8 @@ waveform_duration_fwhm = arrayfun(@(x) ...
 % 'timestamps.npy' are recomputed across recording and not always accurate)
 flipper_sync_idx = 1;
 
-open_ephys_ttl_path = unique({dir(fullfile(ephys_path,'**',open_ephys_dir(load_probe).name,'TTL')).folder});
+open_ephys_ttl_path = fullfile(strrep(open_ephys_path, ...
+    'continuous','events'),'TTL');
 
 % Load TTL sample numbers
 open_ephys_ttl_sample_numbers = cellfun(@(data_path) ...
@@ -197,7 +200,7 @@ else
     % If clock resets, make pseudocontinuous to match ks2oe
     % (load OE samples)
     oe_samples_dir = cellfun(@(data_path) ...
-        dir(fullfile(data_path,'continuous','*-AP','sample_numbers.npy')), ...
+        dir(fullfile(data_path,'/**/','sample_numbers.npy')), ...
         open_ephys_path,'uni',false);
     oe_samples_fns = cellfun(@(data_dir) ...
         fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);

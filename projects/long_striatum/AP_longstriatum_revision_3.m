@@ -1,5 +1,5 @@
 %% New revision figures (cleaned/renamed from v2)
-% Run-through script
+% Preparing for integration into generate_figures
 
 %% Set path to save figures and print stats (if script thru-run)
 
@@ -167,7 +167,7 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% [Load/prep data for below cells]
+%% [Fig 4B-D: Load/prep data for below cells]
 
 % Grab day-binned task/passive stim responses
 
@@ -386,7 +386,7 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% |--> [Fig 4C] mPFC vs striatum by context
+%% |--> [Fig 4C-D] mPFC vs striatum by context
 
 % Normalize task/passive separately
 % (normalize data to task LD 0)
@@ -469,7 +469,7 @@ if exist('fig_save_flag','var') && fig_save_flag
 end
 
 
-%% [Supp. Fig 1D] Rate of non-stim movements
+%% [Supp. Fig 1D-E] Rate of non-stim movements and P(stim|move)
 
 animals = { ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
@@ -585,7 +585,7 @@ move_rate_nonstim_sem = ap.groupfun(@AP_sem,move_rate_nonstim_cat(:),ld_split(:)
 [p_c2m_avg,p_c2m_avg_grp] = ap.groupfun(@mean,p_c2m_cat(:),ld_split(:));
 p_c2m_sem = ap.groupfun(@AP_sem,p_c2m_cat(:),ld_split(:));
 
-figure('Name','Fig S1 p stim move'); tiledlayout(2,1);
+figure('Name','Fig S1 move stim rate prob'); tiledlayout(2,1);
 ax1 = nexttile; hold on;
 h1 = errorbar( ...
     padarray(reshape(move_rate_grp,n_bins,[]),[1,0],NaN,'post'), ...
@@ -916,7 +916,7 @@ if exist('fig_save_flag','var') && fig_save_flag
     close(findall(0,'Type','figure'));
 end
 
-%% [Fig. S4] Task activity heatmaps (Fig 1A) split by animal
+%% [Supp. Fig. 4] Task activity heatmaps (Fig 1A) split by animal
 
 %%% Load non-activity data
 load_dataset = 'task';
@@ -938,11 +938,11 @@ trials_scale = [15,50]; % (small, big)
 
 for curr_domain = plot_domains
 
-    f_ctx = figure('Name',sprintf('Fig X cortex %d heatmaps',curr_domain));
+    f_ctx = figure('Name',sprintf('Fig S4 cortex %d heatmaps',curr_domain));
     h_ctx = tiledlayout(f_ctx,length(animals),max(cortex_plot_day_grp), ...
         'TileIndexing','ColumnMajor','TileSpacing','none');
 
-    f_str = figure('Name',sprintf('Fig X striatum %d',curr_domain));
+    f_str = figure('Name',sprintf('Fig S4 striatum %d',curr_domain));
     h_str = tiledlayout(f_str,length(animals),max(cortex_plot_day_grp), ...
         'TileIndexing','ColumnMajor','TileSpacing','none');
 
