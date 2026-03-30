@@ -6,26 +6,25 @@ function ephys_car(data_raw_filenames,data_car_filename,probe_info)
 % 2) Get scaling factor of median for each channel
 % 3) Scale and subtract median for each channel
 %
+% INPUTS: 
+% data_raw_filenames: filename(s) of binary files
+% data_car_filename: filename to write CAR'd data
 % probe_info: output from plab.ephys.oe_probe_info
 
-
-% Hardcode channel number and get channel index across ADCs
-% (X ADCs, Y channels each, same-index channels sampled together e.g.
-% ADC1/Ch1 + ADC2/Ch1...)
-% (https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Neuropixels-CAR.html)
-
+% Grab probe info
 n_chan = probe_info.n_chan;
-
 probe_version = sscanf(probe_info.probe_type,'%*s%d%*s');
+
+% Index channels by ADC (ADCs simultaneously sample, loop through channels)
+% (ADC info: https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Neuropixels-CAR.html)
 switch probe_version
     case 1
-        % Neuropixels 1.0
+        % Neuropixels 1.0: 32 ADCs, 12 ch each
         n_adcs = 32;
     case 2
-        % Neuropixels 2.0
+        % Neuropixels 2.0: 24 ADCs, 16 ch each
         n_adcs = 24;
 end
-
 ch_adc_idx = reshape(reshape(1:n_chan,2,[])',n_chan/n_adcs,[]);
 
 % Choose data chunk size
@@ -56,18 +55,26 @@ for curr_recording = 1:length(data_raw_filenames)
         % Load in current data chunk
         curr_data = fread(fid_raw, [n_chan chunkSize], '*int16');
 
+        switch probe_version
+            case 1
+                % Neuropixels 1.0: already bandpassed
+                curr_data_bandpass = curr_data;
+            case 2
+                % Neuropixels 2.0: broadband, needs bandpassing
+                % (using bandpass design from Open Ephys: 
+                % https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Bandpass-Filter.html)
+                bandpass_freq = [300,6000];
+                samplerate = 30000;
+                [b,a] = butter(1, bandpass_freq/(samplerate/2));
+                curr_data_bandpass = int16(filter(b,a,curr_data')');
+        end
+
         % Subtract median across channels
-        curr_data_centered = curr_data - median(curr_data,2);
+        curr_data_centered = curr_data_bandpass - median(curr_data_bandpass,2);
 
         % Loop through ADC channel indicies and shanks
         curr_data_car = zeros(size(curr_data),'int16');
         for curr_adc_idx = 1:size(ch_adc_idx,1)
-
-            %%%% IN PROGRESS: BY SHANK?
-            % for curr_shank = unique(probe_info.kcoords)'
-            %     % Get same-index channels across ADCs within shank
-            %     curr_channels = intersect(ch_adc_idx(curr_adc_idx,:), ...
-            %         find(probe_info.kcoords == curr_shank));
 
             curr_channels = ch_adc_idx(curr_adc_idx,:);
 
@@ -84,7 +91,7 @@ for curr_recording = 1:length(data_raw_filenames)
             % Subtract scaled median from data
             curr_data_car(curr_channels,:) = curr_data_centered(curr_channels,:) - ...
                 curr_data_adc_median_scaled;
-            % end
+
         end
 
         fwrite(fid_car, curr_data_car, 'int16');
