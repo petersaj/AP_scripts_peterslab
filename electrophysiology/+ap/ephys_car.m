@@ -69,29 +69,31 @@ for curr_recording = 1:length(data_raw_filenames)
             %     curr_channels = intersect(ch_adc_idx(curr_adc_idx,:), ...
             %         find(probe_info.kcoords == curr_shank));
 
-                % Get median signal across channels
-                curr_data_adc_median = median(curr_data_centered(curr_channels,:),1);
+            curr_channels = ch_adc_idx(curr_adc_idx,:);
 
-                % Get scaling factor of median for each channel
-                curr_data_adc_median_scale = ...
-                    sum(curr_data_centered(curr_channels,:).*curr_data_adc_median,2)./ ...
-                    sum(curr_data_adc_median.^2);
-                curr_data_adc_median_scaled = int16(curr_data_adc_median_scale.* ...
-                    double(curr_data_adc_median));
+            % Get median signal across channels
+            curr_data_adc_median = median(curr_data_centered(curr_channels,:),1);
 
-                % Subtract scaled median from data
-                curr_data_car(curr_channels,:) = curr_data_centered(curr_channels,:) - ...
-                    curr_data_adc_median_scaled;
+            % Get scaling factor of median for each channel
+            curr_data_adc_median_scale = ...
+                sum(curr_data_centered(curr_channels,:).*curr_data_adc_median,2)./ ...
+                sum(curr_data_adc_median.^2);
+            curr_data_adc_median_scaled = int16(curr_data_adc_median_scale.* ...
+                double(curr_data_adc_median));
+
+            % Subtract scaled median from data
+            curr_data_car(curr_channels,:) = curr_data_centered(curr_channels,:) - ...
+                curr_data_adc_median_scaled;
             % end
         end
 
         fwrite(fid_car, curr_data_car, 'int16');
 
         ap.print_progress_fraction(chunkInd,nChunksTotal);
-        
+
         chunkInd = chunkInd+1;
         data_eof = feof(fid_raw);
-        
+
     end
 
     % Close raw file

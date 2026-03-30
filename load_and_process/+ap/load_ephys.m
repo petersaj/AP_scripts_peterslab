@@ -227,11 +227,12 @@ open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx
 open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
 
 % Resample Open Ephys flipper to DAQ sample rate
+open_ephys_flipper_trace_t = open_ephys_flipper.timestamps(1): ...
+    1/timelite.daq_info(1).rate: open_ephys_flipper.timestamps(end);
 open_ephys_flipper_trace = logical(normalize(interp1( ...
     open_ephys_flipper.timestamps, ...
     single(open_ephys_flipper.value), ...
-    open_ephys_flipper.timestamps(1):1/timelite.daq_info(1).rate: ...
-    open_ephys_flipper.timestamps(end),'previous'),'range'));
+    open_ephys_flipper_trace_t,'previous'),'range'));
 
 % Get Open Ephys corresponding to timelite flipper
 % (get lag between timelite and ephys by correlation)
@@ -246,15 +247,16 @@ curr_ephys_flipper_idx =  ...
 % (set equivalent flips for ephys/timelite)
 flipper_flip_times_ephys = open_ephys_flipper.timestamps(curr_ephys_flipper_idx);
 
-% Pick flipper times to use for alignment
+% Pick flipper times to use for alignment and handle problems
 if length(flipper_flip_times_ephys) == length(flipper_times)
     % If same number of flips in ephys/timelite, use all
     sync_timelite = flipper_times;
     sync_ephys = flipper_flip_times_ephys;
 
 elseif length(flipper_flip_times_ephys) < length(flipper_times)
-    % If more flips in ephys, assume timelite got all flips and only
-    % subset of flips caught in ephys: find usable subset of TL flips
+    % If more flips in timelite than ephys, assume timelite got all flips
+    % and only subset of flips caught in ephys: find usable subset of TL
+    % flips
 
     % Estimate nearest flip in ephys for each flip in timelite
     flip_timelite_ephys_timediff = ...
@@ -262,21 +264,31 @@ elseif length(flipper_flip_times_ephys) < length(flipper_times)
         flipper_times + ephys_timelite_flipper_lag,'nearest','extrap') - ...
         (flipper_times+ephys_timelite_flipper_lag);
 
-    % Set cutoff to find "matched" flips
-    % (note clock drift makes matching flips have drifting offset)
-    flip_timediff_thresh = 0.1;
-    use_timelite_flips = abs(flip_timelite_ephys_timediff) < flip_timediff_thresh;
+    % Find the first flip that was out of sync
+    flip_timediff_thresh = 0.01;
+    last_good_flip_idx = find(abs(flip_timelite_ephys_timediff) > flip_timediff_thresh,1)-2;
 
-    if sum(use_timelite_flips) == length(flipper_flip_times_ephys)
-        % Successful if same number of matched flips: 
-        % use all ephys flips
-        sync_ephys = flipper_flip_times_ephys;
-        % use subset of matched timelite flips
-        sync_timelite = flipper_times(use_timelite_flips);
-    else
-        % If not, unclear where the matched flips are, error out
-        error('%s %s: Cannot match timelite/ephys flips',animal,rec_day);
-    end
+    % Use flips that occured before desync
+    sync_timelite = flipper_times(1:last_good_flip_idx);
+    sync_ephys = flipper_flip_times_ephys(1:last_good_flip_idx);
+
+    %%%%%%%% UNDER CONSTRUCTION
+    % DS031 2026-03-29 1249: ephys missed ~7s which it doesn't know about,
+    % need generalized solution to identify chunks of missed flips
+
+    % For future: generalized solution to look for gaps could be
+    % truncating from the unmatched flips, finding delay, matching,
+    % repeating. This finds the delay in the first instance, but haven't
+    % gotten to specifically removing the timelite-only flips yet.
+    
+    % m_t = finddelay(+flipper_thresh(timelite.timestamps>flipper_times(first_bad_flip_idx)), ...
+    %     +open_ephys_flipper_trace(open_ephys_flipper_trace_t > ...
+    %     open_ephys_flipper.timestamps(first_bad_flip_idx)))/timelite.daq_info(1).rate;
+    %%%%%%%%%%%%%%
+
+    % Warn missed flips: this solution may not be general yet
+    warning('%s %s: Ephys missed flips, using first %d/%d (%.0f%%) flips',animal,rec_day, ...
+        last_good_flip_idx,length(flipper_times),100*last_good_flip_idx/length(flipper_times));
 
 elseif length(flipper_flip_times_ephys) > length(flipper_times)
     % If more flips in ephys than timelite, assume extraneous brief upward
