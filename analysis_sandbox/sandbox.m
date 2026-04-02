@@ -31,74 +31,34 @@ animals = unique(extractBetween({task_dir.folder}, ...
 
 
 
-%% 4-shank processing test
+%% OE dropped data: message center
 
-oe_metadata = jsondecode(fileread("D:\4shank_test\experiment1\recording1\structure.oebin"));
+% doing here: read in oe messages to check (and compensate?) for dropped data
 
-n_channels = oe_metadata.continuous(1).num_channels;
-
-channel_info = horzcat(oe_metadata.continuous(1).channels.channel_metadata);
-
-electrode_idx = vertcat(channel_info(2,:).value);
-
-% need to make probe dictionary? 
-% https://kilosort.readthedocs.io/en/latest/tutorials/make_probe.html
-
-% X/Y pos are in settings.xml
+oe_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\events\MessageCenter\text.npy";
 
 
-curr_ephys_settings_file = "D:\4shank_test\settings.xml";
-curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
+bad_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\events\MessageCenter\text.npy";
+medium_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-26\ephys\experiment1\recording1\events\MessageCenter\text.npy";
+good_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP025\2024-09-13\ephys\experiment1\recording1\events\MessageCenter\text.npy";
 
-% (wow, this is really buried...)
-channels_str = curr_ephys_settings.SIGNALCHAIN.PROCESSOR(1).EDITOR.CUSTOM_PARAMETERS.NP_PROBE.CHANNELS;
-x_str = curr_ephys_settings.SIGNALCHAIN.PROCESSOR(1).EDITOR.CUSTOM_PARAMETERS.NP_PROBE.ELECTRODE_XPOS;
-y_str = curr_ephys_settings.SIGNALCHAIN.PROCESSOR(1).EDITOR.CUSTOM_PARAMETERS.NP_PROBE.ELECTRODE_YPOS;
-
-channel_idx = cellfun(@(x) sscanf(x,'CH%dAttribute'),fieldnames(x_str));
-
-x_pos = struct2array(x_str);
-y_pos = struct2array(y_str);
-
-shank = cellfun(@(x) sscanf(x,'%*d:%d'),struct2array(channels_str));
-
-% KS probe dictionary
-% these need to be numpy ndarrays
-
-
-chanMap = (1:length(channel_idx))-1;
-xc = x_pos;
-yc = y_pos;
-k_coords = shank;
-n_chan = length(channel_idx);
-
-
-% probe = {
-%     'chanMap': chanMap,
-%     'xc': xc,
-%     'yc': yc,
-%     'kcoords': kcoords,
-%     'n_chan': n_chan
-% }
-
-% In kilosort, will need "probe" argument
-% is this all available for 1-shank? if so, just do this every time?
-
-% p = load_probe('.../test_prb.prb')
-% results = run_kilosort(..., probe=p)
-
-curr_ephys_settings_file = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-26\ephys\settings.xml";
-curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
+x = readlines(medium_ex);
 
 
 
-oe_settings_fn = "D:\4shank_test\settings.xml";
-oe_settings_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-26\ephys\settings.xml";
+% Read sync messages to get first sample and sample rate
 
-probe = plab.ephys.oe_probe_geometry(oe_settings_fn);
+sync_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\sync_messages.txt";
 
+sync_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-27\ephys\experiment1\recording1\sync_messages.txt";
 
+x = readlines(sync_messages_fn);
+r = regexp(x,'- (?<stream>.*) @ (?<sample_rate>.*) Hz: (?<first_sample>\d*)','names');
 
+%%%%%%%% TO DO HERE %%%%%%%%%%
+% - get first sample from sync messages (sample-first = recorded sample)
+% - find possibly lost samples
+% - deal with them somehow
 
 
 

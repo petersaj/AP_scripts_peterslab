@@ -31,27 +31,30 @@ animals = unique(extractBetween({task_dir.folder}, ...
 
 
 
-%% 4-shank processing test
+%% OE dropped data: message center
 
-oe_metadata = jsondecode(fileread("D:\4shank_test\experiment1\recording1\structure.oebin"));
+% doing here: read in oe messages to check (and compensate?) for dropped data
 
-n_channels = oe_metadata.continuous(1).num_channels;
-
-channel_info = horzcat(oe_metadata.continuous(1).channels.channel_metadata);
-
-electrode_idx = vertcat(channel_info(2,:).value);
-
-% need to make probe dictionary? 
-% https://kilosort.readthedocs.io/en/latest/tutorials/make_probe.html
-
-% X/Y pos are in settings.xml
+oe_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\events\MessageCenter\text.npy";
 
 
-curr_ephys_settings_file = "D:\4shank_test\settings.xml";
-curr_ephys_settings = readstruct(curr_ephys_settings_file,'filetype','xml');
+bad_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\events\MessageCenter\text.npy";
+medium_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-26\ephys\experiment1\recording1\events\MessageCenter\text.npy";
+good_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP025\2024-09-13\ephys\experiment1\recording1\events\MessageCenter\text.npy";
 
-% (wow, this is really buried...)
-x_str = curr_ephys_settings.SIGNALCHAIN.PROCESSOR(1).EDITOR.CUSTOM_PARAMETERS.NP_PROBE.ELECTRODE_XPOS;
-y_str = curr_ephys_settings.SIGNALCHAIN.PROCESSOR(1).EDITOR.CUSTOM_PARAMETERS.NP_PROBE.ELECTRODE_YPOS;
+x = readlines(medium_ex);
 
-c = textscan(x_str,'CH
+
+
+% Read sync messages to get first sample and sample rate
+
+sync_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\sync_messages.txt";
+
+sync_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-27\ephys\experiment1\recording1\sync_messages.txt";
+
+
+
+
+
+
+
