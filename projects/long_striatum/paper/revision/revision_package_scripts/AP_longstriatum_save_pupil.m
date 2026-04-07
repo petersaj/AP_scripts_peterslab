@@ -1,6 +1,7 @@
+%% Load and package passive pupil data
 % Modified from PG_pupillometryiwthplots
 
-save_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Lab\Papers\Marica_2025\data';
+save_path = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Lab\Papers\Marica_2026\data';
 
 animals = { ...
     'AM011','AM012','AM014','AM015','AM016','AM017', ...
@@ -14,16 +15,14 @@ scoreThresh = 0.0;
 mousecam_framerate = 30;
 pupil_t = -0.5:1/mousecam_framerate:1.5;
 
-% pooled outputs for quiescent trials only
-psthData_allQui       = [];
-orientationIdx_allQui = [];
-learnDayIdx_allQui    = [];
-mouseIdx_allQui       = [];
+% Initialize data cell
+data_all = cell(length(animals),1);
 
 % Loop across all mice
 for animal_idx = 1:length(animals)
 
     animal = animals{animal_idx};
+    data_animal = table;
 
     % Find passive recording days that also have task
     workflow_passive = {'lcr_passive'};
@@ -87,10 +86,10 @@ for animal_idx = 1:length(animals)
         fprintf(' %d additional bad nodes dropped \n \n', sum(sum(pointScores<scoreThresh)));
 
         % Fit circles to frames
-        radius = nan(numFrames,1);
-        center = nan(numFrames,2);
-        diameterPx = nan(numFrames,1);
-        fitRmse = nan(numFrames,1);
+        pupil_radius = nan(numFrames,1);
+        pupil_center = nan(numFrames,2);
+        pupil_diameterPx = nan(numFrames,1);
+        pupil_fitRmse = nan(numFrames,1);
 
         for f = 1:numFrames
             xpts = X(:,f);
@@ -98,10 +97,10 @@ for animal_idx = 1:length(animals)
             valid = ~isnan(xpts) & ~isnan(ypts);
             if nnz(valid) < 3
                 % Not enough points to fit a circle
-                radius(f) = NaN;
-                center(f,:) = [NaN NaN];
-                diameterPx(f) = NaN;
-                fitRmse(f) = NaN;
+                pupil_radius(f) = NaN;
+                pupil_center(f,:) = [NaN NaN];
+                pupil_diameterPx(f) = NaN;
+                pupil_fitRmse(f) = NaN;
                 continue;
             end
 
@@ -124,277 +123,87 @@ for animal_idx = 1:length(animals)
             radTerm = (a^2 + bpar^2)/4 - c;
             if radTerm <= 0
                 % numerical degeneracy -> treat as invalid
-                radius(f) = NaN;
-                center(f,:) = [NaN NaN];
-                diameterPx(f) = NaN;
-                fitRmse(f) = NaN;
+                pupil_radius(f) = NaN;
+                pupil_center(f,:) = [NaN NaN];
+                pupil_diameterPx(f) = NaN;
+                pupil_fitRmse(f) = NaN;
                 continue;
             end
             R = sqrt(radTerm);
 
             % Store results
-            radius(f) = R;
-            center(f,:) = [xc yc];
-            diameterPx(f) = 2*R;
+            pupil_radius(f) = R;
+            pupil_center(f,:) = [xc yc];
+            pupil_diameterPx(f) = 2*R;
 
             % Compute RMSE of radial residuals as a fit quality metric. Might have
             % to fit ovals instead if the fit is bad
             dists = hypot(xg - xc, yg - yc);
             residuals = dists - R;
-            fitRmse(f) = sqrt(mean(residuals.^2));
+            pupil_fitRmse(f) = sqrt(mean(residuals.^2));
         end
 
         % Now Z-score
-        mu = nanmean(diameterPx);
-        sig = nanstd(diameterPx);
+        mu = nanmean(pupil_diameterPx);
+        sig = nanstd(pupil_diameterPx);
         if sig == 0 || isnan(sig)
-            diameterZ = nan(size(diameterPx));
+            pupil_diameterZ = nan(size(pupil_diameterPx));
         else
-            diameterZ = (diameterPx - mu) ./ sig;
+            pupil_diameterZ = (pupil_diameterPx - mu) ./ sig;
         end
 
         % Store results
-        diameterPx_all{curr_rec} = diameterPx;
-        diameterZ_all{curr_rec}  = diameterZ;
-        radius_all{curr_rec}     = radius;
-        center_all{curr_rec}     = center;
-        fitRmse_all{curr_rec}    = fitRmse;
+        diameterPx_all{curr_rec} = pupil_diameterPx;
+        diameterZ_all{curr_rec}  = pupil_diameterZ;
+        radius_all{curr_rec}     = pupil_radius;
+        center_all{curr_rec}     = pupil_center;
+        fitRmse_all{curr_rec}    = pupil_fitRmse;
 
         % Lowpass and smooth pupil data
-        diameterPx_filt = sgolayfilt(lowpass(fillmissing(diameterZ',"linear"),4,30),3,15);
+        pupil_diameterPx_filt = sgolayfilt(lowpass(fillmissing(pupil_diameterZ',"linear"),4,30),3,15);
         % (remove originally missing data)
-        diameterPx_filt(isnan(diameterZ)) = NaN;
+        pupil_diameterPx_filt(isnan(pupil_diameterZ)) = NaN;
 
 
         %% Align pupillometry to stimuli
         load_parts.mousecam = true;
         ap.load_recording;
 
+        % Get stim positions
+        trial_stim_x_all = vertcat(trial_events.values.TrialStimX);
+        trial_stim_x = trial_stim_x_all(1:length(stimOn_times));
 
-
-
-    
-    diameterPxAllFlip = cellfun(@transpose, diameterPx_all, 'UniformOutput', false);
-    diameterZAllFlip = cellfun(@transpose, diameterZ_all, 'UniformOutput', false);
-
-    %Lowpass filter to get rid of jitteriness
-    diameterZAllFlipFilt = cellfun(@(x) lowpass(fillmissing(x, "linear"), 4, 30), diameterZAllFlip, 'UniformOutput', false);
-    diameterPxAllFlipFilt = cellfun(@(x) lowpass(fillmissing(x, "linear"), 4, 30), diameterPxAllFlip, 'UniformOutput', false);
-
-    % try savgol after
-    diameterZAllFlipFiltSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterZAllFlipFilt, 'UniformOutput', false);
-    diameterPxAllFlipFiltSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterPxAllFlipFilt, 'UniformOutput', false);
-
-    % for just savgol
-    % diameterZAllFlipSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterZAllFlip, 'UniformOutput', false);
-    % diameterPxAllFlipSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterPxAllFlip, 'UniformOutput', false);
-
-    % Output to use
-    pupilPerFile = diameterZAllFlipFiltSav;
-
-    % Mask fillmissing'ed values back out
-    basemasks = cellfun(@isnan, diameterPx_all, 'UniformOutput',false);
-    for nanmask = 1:numel(pupilPerFile)
-        pupilPerFile{nanmask}(basemasks{nanmask}) = NaN;
-    end
-
-
-
-
-
-    end
-
-    %% Align pupillometry to stimuli
-
-    % Grab the recording days and time for the mouse
-
-    allPassives = cell(numel(fileList),2);
-
-    passiveM = plab.find_recordings(animalID, [], 'lcr_passive');
-
-    % limit to recording days, not habituation
-    if nFiles ~= size(passiveM, 2)
-        fprintf(animalID, ' mismatch between recording files and hdf5 files. Excluding habitation days may be broken')
-    end
-
-    taskIdx = find(strcmp(animalID,bhv{:,"animal"}));
-    taskDays = bhv{:,"rec_day"}(taskIdx);
-    taskMask = ismember({passiveM.day}, {taskDays{:}});
-    passiveM = passiveM(taskMask);
-
-    diameterPx_all = diameterPx_all(taskMask);
-    diameterZ_all  = diameterZ_all(taskMask);
-
-    [s,recs] = size(passiveM);
-
-    % loop to get relevant variables from each recording
-    frameStims = cell(recs,5);
-    for curr_rec = 1:recs
-        animal = passiveM(curr_rec).animal;
-        rec_day = passiveM(curr_rec).day;
-        rec_time = passiveM(curr_rec).recording{end};
-        verbose = false; % this turns on/off progress display in command line
-
-        % Loading components separately. Could maybe be more efficient but is
-        % better than calling ap.load_recording
-        ap.load_timelite;
-        ap.load_mousecam;
-        ap.load_bonsai;
-
-        % Get quiescence mask
+        % Get quiescent trials
         stim_window = [0,0.5];
         quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
             timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
             timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
             (1:length(stimOn_times))');
 
-        % Grab the frame times and put them in one cell
-        frameStims(curr_rec,1) = {mousecam_times};
-        frameStims(curr_rec,2) = {stimOn_times'};
-        frameStims(curr_rec,3) = {(vertcat(trial_events.values.TrialStimX))'};
-        frameStims(curr_rec,4) = {quiescent_trials'};
-    end
-
-
-
-
-    diameterPxAllFlip = cellfun(@transpose, diameterPx_all, 'UniformOutput', false);
-    diameterZAllFlip = cellfun(@transpose, diameterZ_all, 'UniformOutput', false);
-
-    %Lowpass filter to get rid of jitteriness
-    diameterZAllFlipFilt = cellfun(@(x) lowpass(fillmissing(x, "linear"), 4, 30), diameterZAllFlip, 'UniformOutput', false);
-    diameterPxAllFlipFilt = cellfun(@(x) lowpass(fillmissing(x, "linear"), 4, 30), diameterPxAllFlip, 'UniformOutput', false);
-
-    % try savgol after
-    diameterZAllFlipFiltSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterZAllFlipFilt, 'UniformOutput', false);
-    diameterPxAllFlipFiltSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterPxAllFlipFilt, 'UniformOutput', false);
-
-    % for just savgol
-    % diameterZAllFlipSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterZAllFlip, 'UniformOutput', false);
-    % diameterPxAllFlipSav = cellfun(@(x) sgolayfilt(x, 3, 15), diameterPxAllFlip, 'UniformOutput', false);
-
-    % Output to use
-    pupilPerFile = diameterZAllFlipFiltSav;
-
-    % Mask fillmissing'ed values back out
-    basemasks = cellfun(@isnan, diameterPx_all, 'UniformOutput',false);
-    for nanmask = 1:numel(pupilPerFile)
-        pupilPerFile{nanmask}(basemasks{nanmask}) = NaN;
-    end
-
-    % Prepare accumulators
-    psthData       = [];   % will become [nTrials x (pre+post+1)]
-    orientationIdx = [];   % will become [nTrials x 1] (1=left,2=center,3=right)
-    dayIdx         = [];   % will become [nTrials x 1] (recording index n)
-    orientationLab = {};
-    recDayLabels   = {};
-
-    nRecs = min(nFiles, size(frameStims,1));
-
-    % Getting peri-stimulus pupil diameter values
-    for this_rec = 1:nRecs
-        % grab stimulus/frame info for this recording
-        frameTimes = frameStims{this_rec,1}';
-        stimTimes  = frameStims{this_rec,2}';
-        stimPosVec = frameStims{this_rec,3}';
-        quiescent_trials = frameStims{this_rec,4}';
-
-        % pupil trace for this recording
-        trace = pupilPerFile{this_rec}(:); % ensure column vector
-        nFrames = numel(trace);
-
-        % only take positions with a stimtime and frames with a pupil
-        stimPosVec = stimPosVec(1:numel(stimTimes));
-        frameTimes = frameTimes(1:numel(trace));
-
-        % filter to only valid trials
-        validTrials = ~isnan(stimTimes) & ~isnan(stimPosVec);
-        stimTimes = stimTimes(validTrials);
-        stimPosVec = stimPosVec(validTrials);
-        quiescent_trials = quiescent_trials(validTrials);
-
         % Extract pupil traces around each stim time
-        extract_times = stimTimes + pupil_t;
-        localMat = interp1(frameTimes, trace, extract_times);
+        % (SLEAP frames can be < mousecam frames if empty data at end)
+        extract_times = stimOn_times + pupil_t;
+        pupil_diameter_trial = interp1(mousecam_times(1:length(pupil_diameterPx_filt)), ...
+            pupil_diameterPx_filt,extract_times);
 
-        % Orientation labels
-        localOrient = nan(numel(stimPosVec), 1);
-        localOrient(stimPosVec == -90) = 1;   % left
-        localOrient(stimPosVec == 0)   = 2;   % center
-        localOrient(stimPosVec == 90)  = 3;   % right
+        % Save data in table
+        data_animal.animal(curr_rec) = {animal};
+        data_animal.rec_day(curr_rec) = {rec_day};
 
-        % readable labels for trialInfo
-        for tt = 1:numel(localOrient)
-            if localOrient(tt) == 1, ol = 'left';
-            elseif localOrient(tt) == 2, ol = 'center';
-            elseif localOrient(tt) == 3, ol = 'right';
-            else ol = 'other'; end
-            orientationLab{end+1,1} = ol; %#ok<SAGROW>
-            % store the rec day string if passiveM has it
-            if isfield(passiveM, 'day') && numel(passiveM) >= this_rec
-                recDayLabels{end+1,1} = passiveM(this_rec).day; %#ok<SAGROW>
-            else
-                recDayLabels{end+1,1} = sprintf('rec%d', this_rec); %#ok<SAGROW>
-            end
-        end
+        data_animal.trial_stim_values(curr_rec) = {trial_stim_x(quiescent_trials)};
+        data_animal.pupil_diameter(curr_rec) = {pupil_diameter_trial(quiescent_trials,:)};
 
-        % Grab the learning day from aniDates to produce LearnDayIdx
-        AL = find(strcmp(animalID, aniDates(:,1)));
-        if ~isnan(aniDates{AL,2})
-            learnDay = datetime(aniDates{AL,2});
-            idxLearn = find({passiveM.day} == learnDay);
-            learnDayIdx = dayIdx - idxLearn;
-        else
-            learnDayIdx = nan([size(dayIdx)]);
-            idxLearn = NaN;
-        end
-
-        % Now to make the megatrial matrix
-        nTrialsLocal = size(localMat,1);
-        localMouse = repmat(animal_idx, nTrialsLocal,1);
-
-        % append for for quiescent
-        localMatQui    = localMat(quiescent_trials,:);
-        localOrientQui = localOrient(quiescent_trials,:);
-        localMouseQui  = localMouse(quiescent_trials,:);
-
-        psthData_allQui       = [psthData_allQui; localMatQui];                %#ok<AGROW>
-        orientationIdx_allQui = [orientationIdx_allQui; localOrientQui];       %#ok<AGROW>
-        mouseIdx_allQui       = [mouseIdx_allQui; localMouseQui]; %#ok<AGROW>
-
-        % learn-day relative index for this recording (n is recording index)
-        if exist('idxLearn','var') && ~isempty(idxLearn) && ~isnan(idxLearn)
-            rel = this_rec - idxLearn;
-        else
-            rel = NaN;
-        end
-        localDay = repmat(rel, nTrialsLocal,1);
-        localDayQui = localDay(frameStims{this_rec,4}',:);
-        learnDayIdx_allQui = [learnDayIdx_allQui; localDayQui];
+        fprintf('Finished %s rec %d/%d\n',animal,curr_rec,length(train_rec_passive))
     end
+
+    % Add current animal to full dataset
+    data_all{animal_idx} = data_animal;
+
 end
 
-
-% Package into a beautiful quiescent table
-
-animalIDQui = {};
-for i = 1:numel(mouseIdx_allQui)
-    animalIDQui{i,1} = mouseIDs{mouseIdx_allQui(i)};
-end
-
-orientationDirQui = [];
-for y = 1:numel(orientationIdx_allQui)
-    if orientationIdx_allQui(y,1) == 1
-        orientationDirQui(y,1) = -90;    % left
-    elseif orientationIdx_allQui(y,1) == 2
-        orientationDirQui(y,1) = 0;    % center
-    elseif orientationIdx_allQui(y,1) == 3
-        orientationDirQui(y,1) = 90;     % right
-    end
-end
-
-pupilDiamByFrameQui = psthData_allQui;
-
-pupilsQuiescent = table(animalIDQui, mouseIdx_allQui, learnDayIdx_allQui, orientationDirQui, pupilDiamByFrameQui);
-
+% Concatenate data into one table and save
+pupil = vertcat(data_all{:});
+save_filename = fullfile(save_path, 'pupil_passive');
+save(save_filename, "pupil", "-v7.3");
+fprintf('Saved: %s\n',save_filename);
 

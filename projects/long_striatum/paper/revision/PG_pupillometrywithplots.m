@@ -2,7 +2,7 @@
 %% Script to get pupil and plot diameter across trials from labelled SLEAP HDF5 files
 
 % Directory for sorted SLEAP output HDF5 files
-sleapDir = 'Z:\Users\Peter_Gorman\Pupils_temporary\Outputs_Sorted\lcr_passive'
+sleapDir = fullfile(plab.locations.server_path,'Users\Peter_Gorman\Pupils_temporary\Outputs_Sorted\lcr_passive');
 
 % Confidence threshold for SLEAP point scores
 scoreThresh = 0.0;    
