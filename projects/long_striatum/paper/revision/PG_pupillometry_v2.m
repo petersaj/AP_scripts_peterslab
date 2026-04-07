@@ -1,14 +1,12 @@
 % Cleaning up PG pupil code to be consistent with other figure code
 
-
-%% Load general data
+%% [Fig S8] Pupil responses to passive stimuli
 
 %%% Load data for figure
 load_dataset = 'noact';
 Marica_2026.figures.load_data;
-%%%
 
-%% Load pupil data
+% Load pupil data
 data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2026','data');
 pupil_data_filename = fullfile(data_path,'pupil_passive');
 load(pupil_data_filename);
@@ -16,9 +14,6 @@ load(pupil_data_filename);
 mousecam_framerate = 30;
 pupil_t = -0.5:1/mousecam_framerate:1.5;
 pupil_deriv_t = pupil_t(1:end-1) + diff(pupil_t)/2;
-
-plot_day_bins = [-Inf,-2,0,2,Inf];
-pupil_plot_day_grp = discretize(max(pupil_diameter_grp.ld,-inf),plot_day_bins);
 
 % Concatenate pupil data and create indicies
 pupil_diameter = cell2mat(pupil.pupil_diameter);
@@ -34,6 +29,10 @@ pupil_diameter_grp.ld = cell2mat(cellfun(@(animal,data) repmat(animal,size(data,
     num2cell(bhv.days_from_learning),pupil.pupil_diameter,'uni',false));
 
 pupil_diameter_grp.stim = cell2mat(pupil.trial_stim_values);
+%%%
+
+plot_day_bins = [-Inf,-2,0,2,Inf];
+pupil_plot_day_grp = discretize(max(pupil_diameter_grp.ld,-inf),plot_day_bins);
 
 % Plot average pupil diameter derivative
 [pupil_deriv_avg,pupil_deriv_avg_grp] = ...
@@ -47,7 +46,7 @@ pupil_deriv_sem = ...
 stim_color = ap.colormap('BKR',3);
 unique_stim = unique(pupil_diameter_grp.stim);
 
-figure;
+figure('Name','Fig S8 pupil deriv');
 h = tiledlayout(1,4,'TileSpacing','compact','Padding','compact');
 for curr_day = 1:length(plot_day_bins)-1
     nexttile; hold on;
@@ -80,7 +79,8 @@ pupil_deriv_AUC_sem = ...
     pupil_diameter_grp.animal,[pupil_plot_day_grp,pupil_diameter_grp.stim]);
 
 % Plot across day bins
-figure; hold on
+figure('Name','Fig S8 pupil deriv AUC');
+hold on
 set(gca,'ColorOrder',stim_color)
 for curr_stim = unique_stim'
     curr_data_idx = ismember(pupil_deriv_AUC_grp(:,2),curr_stim);
@@ -90,11 +90,10 @@ end
 axis square padded;
 ylabel('Mean derivative AUC')
  
-
 % ~~~ STATS ~~~
 % (compare day i to i+1)
 print_stat('\n--FIG S8--\n');
-print_stat('Pupil deriv max\n');
+print_stat('Pupil deriv AUC\n');
 
 [pupil_deriv_AUC_dayavg,pupil_deriv_AUC_dayavg_grp] = ...
     ap.nestgroupfun({@nanmean,@nanmean},pupil_deriv_AUC, ...
@@ -133,8 +132,9 @@ for curr_compare_day = 1:length(plot_day_bins)-2
     end
 end
 
-%%%%% WORKING HERE
-% Stim 0 isn't sig pre-learning? that's a little surprising
-
-
+% ~~~ SAVE FIGS ~~~
+if exist('fig_save_flag','var') && fig_save_flag
+    save_figs();
+    close(findall(0,'Type','figure'));
+end
 
