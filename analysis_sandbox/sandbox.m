@@ -31,34 +31,24 @@ animals = unique(extractBetween({task_dir.folder}, ...
 
 
 
-%% OE dropped data: message center
+%% Move pupil SLEAP files
 
-% doing here: read in oe messages to check (and compensate?) for dropped data
+sleap_dir = dir(fullfile(plab.locations.server_path,'Users','Peter_Gorman','Pupils_temporary','Outputs_Sorted','lcr_passive','**','*.h5'));
+sleap_fileparts = regexp({sleap_dir.name},'(?<animal>.*?)_(?<rec_day>.*?)_(?<rec_time>Recording_.*?)_mousecam','names');
 
-oe_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\events\MessageCenter\text.npy";
+for curr_file_idx = 1:length(sleap_dir)  
+    curr_fn = fullfile(sleap_dir(curr_file_idx).folder,sleap_dir(curr_file_idx).name);
+    target_fn = fullfile(plab.locations.server_data_path, ...
+        sleap_fileparts{curr_file_idx}.animal, ...
+        sleap_fileparts{curr_file_idx}.rec_day, ...
+        sleap_fileparts{curr_file_idx}.rec_time, ...
+        'mousecam','sleap','pupil_v1',sleap_dir(curr_file_idx).name);
 
+    mkdir(fileparts(target_fn));
+    copyfile(curr_fn,target_fn);
+    fprintf('Copied: %s\n',sleap_dir(curr_file_idx).name)
+end
 
-bad_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\events\MessageCenter\text.npy";
-medium_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-26\ephys\experiment1\recording1\events\MessageCenter\text.npy";
-good_ex = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP025\2024-09-13\ephys\experiment1\recording1\events\MessageCenter\text.npy";
-
-x = readlines(medium_ex);
-
-
-
-% Read sync messages to get first sample and sample rate
-
-sync_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\2026-03-29\ephys\experiment1\recording1\sync_messages.txt";
-
-sync_messages_fn = "\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG003\2026-03-27\ephys\experiment1\recording1\sync_messages.txt";
-
-x = readlines(sync_messages_fn);
-r = regexp(x,'- (?<stream>.*) @ (?<sample_rate>.*) Hz: (?<first_sample>\d*)','names');
-
-%%%%%%%% TO DO HERE %%%%%%%%%%
-% - get first sample from sync messages (sample-first = recorded sample)
-% - find possibly lost samples
-% - deal with them somehow
 
 
 

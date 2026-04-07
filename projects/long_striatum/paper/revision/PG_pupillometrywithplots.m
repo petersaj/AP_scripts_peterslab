@@ -2,16 +2,14 @@
 %% Script to get pupil and plot diameter across trials from labelled SLEAP HDF5 files
 
 % Directory for sorted SLEAP output HDF5 files
-sleapDir = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Users\Peter_Gorman\Pupils_temporary\Outputs_Sorted\lcr_passive';
+sleapDir = 'Z:\Users\Peter_Gorman\Pupils_temporary\Outputs_Sorted\lcr_passive'
 
 % Confidence threshold for SLEAP point scores
 scoreThresh = 0.0;    
 
-% PSTH window
-pre = 15;
-post = 45;
-x = -pre:post; 
-
+% Define time to extract
+mousecam_framerate = 30;
+pupil_t = -0.5:1/mousecam_framerate:1.5;
 
 %% Load behavior, add 'learned_days' and 'days_from_learning' fields
 data_path = fullfile(plab.locations.server_path,'Lab','Papers','Marica_2026','data');
@@ -49,13 +47,7 @@ end
 
 %% Pupil responses to lcr_passive stimuli across days, for multiple mice
 
-mouseIDs = unique(bhv.animal); % grabbing mice in question from bhv table
-
-% pooled outputs 
-psthData_all       = [];
-orientationIdx_all = [];
-learnDayIdx_all    = [];
-mouseIdx_all       = [];    
+mouseIDs = unique(bhv.animal); % grabbing mice in question from bhv table 
 
 % pooled outputs for quiescent trials only
 psthData_allQui       = [];
@@ -281,81 +273,39 @@ for m = 1:numel(mouseIDs)
     orientationLab = {};   
     recDayLabels   = {};   
     
-    nWindow = numel(-pre:post);
     nRecs = min(nFiles, size(frameStims,1)); 
 
     % Getting peri-stimulus pupil diameter values
     for this_rec = 1:nRecs
         % grab stimulus/frame info for this recording 
-        frameTimes = frameStims{this_rec,1};
-        stimTimes  = frameStims{this_rec,2};
-        stimPosVec = frameStims{this_rec,3};    
-        
+        frameTimes = frameStims{this_rec,1}';
+        stimTimes  = frameStims{this_rec,2}';
+        stimPosVec = frameStims{this_rec,3}';    
+        quiescent_trials = frameStims{this_rec,4}';
+       
         % pupil trace for this recording
         trace = pupilPerFile{this_rec}(:); % ensure column vector
         nFrames = numel(trace);
-        
-        % convert stim times to nearest (previous) frame indices
-        stimFrameIdx = interp1(frameTimes, (1:numel(frameTimes))', stimTimes, 'previous', NaN);
-    
-        % if lengths differ for some reason, trim to the minimum and warn
-        if numel(stimFrameIdx) ~= numel(stimPosVec)
-            warning('Recording %d: stimTimes (%d) and stimPosVec (%d) differ in length — trimming to min length.', ...
-                    this_rec, numel(stimFrameIdx), numel(stimPosVec));
-            L = min(numel(stimFrameIdx), numel(stimPosVec));
-            stimFrameIdx = stimFrameIdx(1:L);
-            stimPosVec   = stimPosVec(1:L);
-        end
-    
-        % build logical mask of valid trials 
-        validTrials = ~isnan(stimFrameIdx) & ~isnan(stimPosVec);
+
+        % only take positions with a stimtime and frames with a pupil
+        stimPosVec = stimPosVec(1:numel(stimTimes));
+        frameTimes = frameTimes(1:numel(trace));
         
         % filter to only valid trials
-        stimFrameIdx = stimFrameIdx(validTrials);
-        stimPosVec   = stimPosVec(validTrials);
-        
-        % also filter quiescent mask to match the same trial subset
-        quiescent_trials = frameStims{this_rec,4};
+        validTrials = ~isnan(stimTimes) & ~isnan(stimPosVec);
+        stimTimes = stimTimes(validTrials);
+        stimPosVec = stimPosVec(validTrials);
         quiescent_trials = quiescent_trials(validTrials);
-        
-        if isempty(stimFrameIdx)
-            continue;
-        end
-        
-        % preallocate local trial matrix (trials x window)
-        nTrialsLocal = numel(stimFrameIdx);
-        localMat = nan(nTrialsLocal, nWindow);
-        localOrient = nan(nTrialsLocal,1);
-        
-        winOffsets = -pre:post;
-        for tt = 1:nTrialsLocal
-            centerIdx = stimFrameIdx(tt);
-            windowIdx = centerIdx + winOffsets;
-            
-            % clip and fill with NaN where outside bounds
-            valid = windowIdx >= 1 & windowIdx <= nFrames;
-            tmp = nan(1, nWindow);
-            tmp(valid) = trace(windowIdx(valid));
-            localMat(tt,:) = tmp;
-            
-            % map orientation label to index
-            pos = stimPosVec(tt);
-            if pos == -90
-                localOrient(tt) = 1;    % left
-            elseif pos == 0
-                localOrient(tt) = 2;    % center
-            elseif pos == 90
-                localOrient(tt) = 3;    % right
-            else
-                % unknown orientation: add as NaN and store as a separate code
-                localOrient(tt) = NaN;
-            end
-        end
-        
-        % append to global arrays
-        psthData       = [psthData; localMat]; %#ok<AGROW>
-        orientationIdx = [orientationIdx; localOrient]; %#ok<AGROW>
-        dayIdx         = [dayIdx; repmat(this_rec, size(localMat,1), 1)]; %#ok<AGROW>
+
+        % Extract pupil traces around each stim time
+        extract_times = stimTimes + pupil_t;
+        localMat = interp1(frameTimes, trace, extract_times);
+
+        % Orientation labels
+        localOrient = nan(numel(stimPosVec), 1);
+        localOrient(stimPosVec == -90) = 1;   % left
+        localOrient(stimPosVec == 0)   = 2;   % center
+        localOrient(stimPosVec == 90)  = 3;   % right
         
         % readable labels for trialInfo
         for tt = 1:numel(localOrient)
@@ -385,14 +335,7 @@ for m = 1:numel(mouseIDs)
 
         % Now to make the megatrial matrix
         nTrialsLocal = size(localMat,1);
-        
-        % append to pooled arrays
         localMouse = repmat(m, nTrialsLocal,1);
-
-        psthData_all       = [psthData_all; localMat];                %#ok<AGROW>
-        orientationIdx_all = [orientationIdx_all; localOrient];       %#ok<AGROW>
-        mouseIdx_all       = [mouseIdx_all; localMouse]; %#ok<AGROW>
-       
 
         % append for for quiescent 
         localMatQui    = localMat(quiescent_trials,:);
@@ -410,34 +353,11 @@ for m = 1:numel(mouseIDs)
             rel = NaN;            
         end
         localDay = repmat(rel, nTrialsLocal,1);
-        learnDayIdx_all = [learnDayIdx_all; localDay];
-
         localDayQui = localDay(frameStims{this_rec,4}',:);
         learnDayIdx_allQui = [learnDayIdx_allQui; localDayQui];
     end
 end
 
-%% Package into a beautiful table 
-
-animalID = {};
-for i = 1:numel(mouseIdx_all)
-    animalID{i,1} = mouseIDs{mouseIdx_all(i)};
-end
-
-orientationDir = [];
-for y = 1:numel(orientationIdx_all)
-    if orientationIdx_all(y,1) == 1
-            orientationDir(y,1) = -90;    % left
-    elseif orientationIdx_all(y,1) == 2
-            orientationDir(y,1) = 0;    % center
-    elseif orientationIdx_all(y,1) == 3
-            orientationDir(y,1) = 90;     % right
-    end
-end
-
-pupilDiamByFrame = psthData_all;
-
-pupils = table(animalID, mouseIdx_all, learnDayIdx_all, orientationDir, pupilDiamByFrame);
 
 %% Package into a beautiful quiescent table 
 
@@ -450,9 +370,9 @@ orientationDirQui = [];
 for y = 1:numel(orientationIdx_allQui)
     if orientationIdx_allQui(y,1) == 1
             orientationDirQui(y,1) = -90;    % left
-    elseif orientationIdx_all(y,1) == 2
+    elseif orientationIdx_allQui(y,1) == 2
             orientationDirQui(y,1) = 0;    % center
-    elseif orientationIdx_all(y,1) == 3
+    elseif orientationIdx_allQui(y,1) == 3
             orientationDirQui(y,1) = 90;     % right
     end
 end
@@ -461,9 +381,12 @@ pupilDiamByFrameQui = psthData_allQui;
 
 pupilsQuiescent = table(animalIDQui, mouseIdx_allQui, learnDayIdx_allQui, orientationDirQui, pupilDiamByFrameQui);
 
+
 %% Script for videographic plots 
 
-col = [0.066666666666667	0.266666666666667	0.611764705882353;  0.580392156862745	0.427450980392157	0.203921568627451; 0.890196078431372	0.309803921568627	0.309803921568627];
+col = [0.38823529411	0.38823529411	0.38823529411;  0.066666666666667	0.266666666666667	0.611764705882353; 0.890196078431372	0.309803921568627	0.309803921568627];
+
+t = pupil_t;
 
 dayBins = {
     struct('mask', learnDayIdx_allQui <= -3,                         'title', '<=-3')
@@ -472,13 +395,14 @@ dayBins = {
     struct('mask', learnDayIdx_allQui >= 2,                          'title', '>=2')
 };
 
-
 %% deriv with avg and sem across mice, no baseline subtraction
 
 figure;
 tiledlayout(1,4,'TileSpacing','compact','Padding','compact')
 
 mouseIDs = unique(mouseIdx_allQui);
+
+tDeriv = t(1:end-1) + mean(diff(t))/2;
 
 for g = 1:numel(dayBins)
     nexttile; hold on
@@ -496,14 +420,10 @@ for g = 1:numel(dayBins)
 
             % Drop sparse trials
             trialCoverage = mean(~isnan(subset), 2);
-            subset = subset(trialCoverage >= 0.99, :);
+            subset = subset(trialCoverage == 1, :);
 
             % Derivative per trial
             subsetDeriv = diff(subset, 1, 2);
-
-            % Baseline subtract each trial
-            % trialBase = mean(subsetDeriv(:, 20:21), 2, 'omitnan');
-            % subsetDeriv = subsetDeriv - trialBase;
 
             % Mouse-level mean derivative trace
             mouseTrace = mean(subsetDeriv, 1, 'omitnan');
@@ -514,26 +434,19 @@ for g = 1:numel(dayBins)
         avg = mean(mouseTraces, 1, 'omitnan');
         nValid = sum(~isnan(mouseTraces), 1);
         sem = std(mouseTraces, 0, 1, 'omitnan') ./ sqrt(nValid);
-        
+
         c = col(orientation,:); 
+
         % plot individual traces
         % for m = 1:size(mouseTraces,1)
-        %     plot(mouseTraces(m,:), ...
-        %         'Color', [c 0.4], ...   
-        %         'LineWidth', 1);
+        %     plot(tDeriv, mouseTraces(m,:), 'Color', 0.7*c + 0.3, 'LineWidth', 1);
         % end
-
-        x = 1:numel(avg);
-        upper = avg + sem;
-        lower = avg - sem;
-
-        fill([x fliplr(x)], [upper fliplr(lower)], c, ...
-            'FaceAlpha', 0.2, 'EdgeColor', 'none');
-        plot(x, avg, 'Color', c, 'LineWidth', 4)
+        
+        ap.errorfill(tDeriv, avg, sem, c, 0.2, 1, 4);
     end
 
     ylim([-0.03, 0.035]);
-    xline(15.5, 'k--')
+    xline(0)
     title(dayBins{g}.title)
     hold off
 end
@@ -541,9 +454,11 @@ end
 
 %% AUC quantification from derivative traces, averaged across mice, no baseline subtraction
 
+t = pupil_t;
+tDeriv = t(1:end-1) + mean(diff(t))/2;
 
-basewindow = 15:16;   % pre-stimulus derivative bins
-peakwindow = 25:45;  % AUC window on derivative trace
+baseMask = tDeriv >= -0.02 & tDeriv <= 0.02;   
+peakMask = tDeriv >= 0.32 & tDeriv <= 0.98;    
 
 mouseIDs = unique(mouseIdx_allQui);
 
@@ -554,7 +469,9 @@ aucSems  = nan(numel(dayBins), 3);
 for g = 1:numel(dayBins)
     for orientation = 1:3
         for m = 1:numel(mouseIDs)
-            trialMask = orientationIdx_allQui == orientation & dayBins{g}.mask & mouseIdx_allQui == mouseIDs(m);
+            trialMask = orientationIdx_allQui == orientation & ...
+                        dayBins{g}.mask & ...
+                        mouseIdx_allQui == mouseIDs(m);
 
             subset = psthData_allQui(trialMask, :);
 
@@ -565,16 +482,11 @@ for g = 1:numel(dayBins)
             % Derivative per trial
             subsetDeriv = diff(subset, 1, 2);
 
-            % Baseline subtract each trial 
-            % trialBase = mean(subsetDeriv(:, basewindow), 2, 'omitnan');
-            % subsetDeriv = subsetDeriv - trialBase;
-
             % Trial-wise AUC in the window
-            trialAUC = trapz(peakwindow, subsetDeriv(:, peakwindow), 2);
+            trialAUC = trapz(tDeriv(peakMask), subsetDeriv(:, peakMask), 2);
 
             % Mouse-level mean AUC
             aucMouse(m, g, orientation) = mean(trialAUC, 'omitnan');
-            %figure;hold on;for n = 1:size(subsetDeriv,1) plot(subsetDeriv(n,:));end
         end
 
         vals = aucMouse(:, g, orientation);
@@ -620,19 +532,129 @@ ylabel('Mean derivative AUC')
 hold off
 
 
-%% pairwise comparisons
+%% permutation tests: orientation comparisons within each day bin
+
+nPerm = 10000;
+
+oriPairs = [1 2;
+            1 3;
+            2 3];
+
+oriResults = table();
 
 for g = 1:numel(dayBins)
-    vals = squeeze(aucMouse(:, g, :));  % [mouse x orientation]
+    vals = squeeze(aucMouse(:, g, :));   % [mouse x orientation]
 
-    % remove mice with any NaNs
-    valid = all(~isnan(vals), 2);
-    vals = vals(valid, :);
+    for p = 1:size(oriPairs,1)
+        o1 = oriPairs(p,1);
+        o2 = oriPairs(p,2);
 
-    % pairwise comparisons
-    [~, p12] = ttest(vals(:,1), vals(:,2));
-    [~, p13] = ttest(vals(:,1), vals(:,3));
-    [~, p23] = ttest(vals(:,2), vals(:,3));
+        x = vals(:, o1);
+        y = vals(:, o2);
 
-    fprintf('Day %d: p12=%.3g, p13=%.3g, p23=%.3g\n', g, p12, p13, p23);
+        [pval, obsDiff, nPairs] = permtest_paired_signflip(x, y, nPerm);
+
+        newRow = table( ...
+            g, string(dayBins{g}.title), o1, o2, nPairs, obsDiff, pval, ...
+            'VariableNames', {'dayIdx','dayLabel','ori1','ori2','nPairs','obsDiff','pValue'} );
+
+        oriResults = [oriResults; newRow]; %#ok<AGROW>
+    end
+end
+
+disp(oriResults)
+
+%% permutation tests: consecutive day comparisons across all mice
+
+aucMouseDay = squeeze(mean(aucMouse, 3, 'omitnan'));   % [mouse x day]
+
+nPerm = 10000;
+
+dayConsecResults = table();
+
+for g = 1:numel(dayBins)-1
+    x = aucMouseDay(:, g);
+    y = aucMouseDay(:, g+1);
+
+    [pval, obsDiff, nPairs] = permtest_paired_signflip(x, y, nPerm);
+
+    newRow = table( ...
+        g, string(dayBins{g}.title), ...
+        g+1, string(dayBins{g+1}.title), ...
+        nPairs, obsDiff, pval, ...
+        'VariableNames', {'day1Idx','day1Label','day2Idx','day2Label','nPairs','obsDiff','pValue'} );
+
+    dayConsecResults = [dayConsecResults; newRow]; %#ok<AGROW>
+end
+
+disp(dayConsecResults)
+
+%% permutation tests: day comparisons within each orientation
+
+nPerm = 10000;
+
+dayResults = table();
+
+for orientation = 1:3
+    for g1 = 1:numel(dayBins)-1
+        for g2 = g1+1:numel(dayBins)
+
+            x = aucMouse(:, g1, orientation);
+            y = aucMouse(:, g2, orientation);
+
+            [pval, obsDiff, nPairs] = permtest_paired_signflip(x, y, nPerm);
+
+            newRow = table( ...
+                orientation, g1, string(dayBins{g1}.title), ...
+                g2, string(dayBins{g2}.title), ...
+                nPairs, obsDiff, pval, ...
+                'VariableNames', {'orientation','day1Idx','day1Label','day2Idx','day2Label','nPairs','obsDiff','pValue'} );
+
+            dayResults = [dayResults; newRow]; %#ok<AGROW>
+        end
+    end
+end
+
+disp(dayResults)
+
+oriResults.pBonf = min(oriResults.pValue * 3, 1);
+dayConsecResults.pBonf = min(dayConsecResults.pValue * (numel(dayBins)-1), 1);
+
+function [p, obsDiff, nPairs] = permtest_paired_signflip(x, y, nPerm)
+%PERMTEST_PAIRED_SIGNFLIP Paired permutation test using sign flips.
+%   x, y      paired observations (can contain NaNs)
+%   nPerm     number of permutations
+%
+%   p         two-sided permutation p-value
+%   obsDiff   observed mean paired difference
+%   nPairs    number of paired observations used
+
+    if nargin < 3 || isempty(nPerm)
+        nPerm = 10000;
+    end
+
+    % keep only complete pairs
+    valid = ~isnan(x) & ~isnan(y);
+    x = x(valid);
+    y = y(valid);
+
+    d = x(:) - y(:);
+    nPairs = numel(d);
+
+    if nPairs == 0
+        p = NaN;
+        obsDiff = NaN;
+        return
+    end
+
+    obsDiff = mean(d);
+
+    permStats = nan(nPerm,1);
+    for i = 1:nPerm
+        signs = sign(rand(nPairs,1) - 0.5);
+        signs(signs == 0) = 1;
+        permStats(i) = mean(d .* signs);
+    end
+
+    p = mean(abs(permStats) >= abs(obsDiff));
 end

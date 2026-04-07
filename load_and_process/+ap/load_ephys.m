@@ -36,8 +36,8 @@ open_ephys_recording_paths = string({open_ephys_data_dir(~contains({open_ephys_d
 oe_recordings = unique(extract(open_ephys_recording_paths,'recording'+digitsPattern));
 
 if ~isscalar(open_ephys_recording_paths) && length(open_ephys_recording_paths) == length(oe_recordings)
-    % Multiple recordings: assume concatenated
-    open_ephys_path = fullfile({open_ephys_recording_paths.folder},{open_ephys_recording_paths.name});
+    % Multiple recordings: assume concatenated, use all folders
+    open_ephys_path = open_ephys_recording_paths;
 else
     % Single recording or muliple non-recording folders: separate probes
     open_ephys_path = open_ephys_recording_paths(load_probe);
@@ -169,6 +169,47 @@ waveform_duration_peaktrough = ...
 waveform_duration_fwhm = arrayfun(@(x) ...
     sum(waveforms_movmean(x,:) <= min(waveforms_movmean(x,:))/2) * ...
     1e6/ephys_sample_rate,1:size(templates,1));
+
+%% Check for Open Ephys dropped data
+
+%%%%%%%%%%%%% UNDER CONSTRUCTION
+% 
+% At the moment - just gives a warning
+% 
+% Examples where this happens: 
+% Many drops: DS031 2026-03-29
+% One drop: PG003 2026-03-26
+
+oe_sync_messages_fn = fullfile(fileparts(fileparts(open_ephys_path{1})),"sync_messages.txt");
+oe_sync_messages = regexp(readlines(oe_sync_messages_fn), ...
+    '- (?<stream>.*) @ (?<sample_rate>.*) Hz: (?<first_sample>\d*)','names');
+oe_stream_info = vertcat(oe_sync_messages{:});
+
+oe_messages_fn = fullfile(fileparts(fileparts(open_ephys_path{1})), ...
+    "events","MessageCenter","text.npy");
+oe_message_center_text = readlines(oe_messages_fn);
+oe_bad_samples_string = regexp(oe_message_center_text(2), ...
+    'NPX TIMESTAMP JUMP: (?<time_jump>\d+).*?sample number (?<sample>\d+)','names');
+if ~isempty(oe_bad_samples_string)
+    % (convert strings: 'timestamp jump' is 100khz clock on Npx headstage)
+    oe_bad_samples = struct('time_jump', ...
+        num2cell(str2double(vertcat(oe_bad_samples_string.time_jump))/1e5), ...
+        'sample', ...
+        num2cell(str2double(vertcat(oe_bad_samples_string.sample))));
+
+    warning('%s %s ephys had %d drops = %.4fs',animal,rec_day, ...
+        length(oe_bad_samples),sum(vertcat(oe_bad_samples.time_jump)));
+
+    % % drop ephys flips that happen on the bad sample
+    % drop_ephys_flips = ismember(vertcat(open_ephys_ttl_sample_numbers{:}), ...
+    %     str2double(vertcat(oe_bad_samples.sample)));
+    %
+    % % drop timelite flips that are within dropped time
+    % (this is going to be harder: each drop means it needs to be re-aligned)
+    % % (if I'm lucky - I could just iteratively remove these? would need to be
+    % lag-aligned first though)
+    % % vertcat(oe_bad_samples.sample)
+end
 
 
 %% Convert timestamps to timelite (with flipper)
