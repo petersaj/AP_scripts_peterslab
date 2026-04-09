@@ -56,14 +56,13 @@ elseif wf_cam_tl_frame_diff < 0
     [wf_dropped_frames,wf_dropped_frame_idx] = ...
         plab.wf.find_dropped_frames(widefield_metadata_fn,false);
 
-    % Match dropped frame index to frames
-    % (can be short if frames dropped at end)
+    % Match dropped frame index to frames (can be short if 
     wf_dropped_frame_idx_timelite = padarray(wf_dropped_frame_idx, ...
         length(widefield_expose_times)-length(wf_dropped_frame_idx),false,'post');
 
     if -wf_cam_tl_frame_diff == length(wf_dropped_frames)
         % If dropped frames were all identified, use non-dropped frames
-        wf_use_frames = ~wf_dropped_frame_idx_timelite;
+        wf_use_frames = ~wf_dropped_frame_idx;
         warning('Widefield: identified dropped frames')
 
     else
@@ -75,16 +74,11 @@ elseif wf_cam_tl_frame_diff < 0
         % DS030 2026-03-12 0854 (one middle-drop)
         % 2) Many seconds of missing frames at end, usually camera broke
         wf_n_end_drops = (-wf_cam_tl_frame_diff - length(wf_dropped_frames));
-        if wf_n_end_drops < 3
-            wf_use_frames = ~wf_dropped_frame_idx_timelite;
-            wf_use_frames(end-(wf_n_end_drops-1):end) = false;
-            warning('Widefield: [%d] dropped frames could not be identified, assuming at the end', ...
-                wf_n_end_drops);
-        else
-            error('Widefield: [%d] unidentified drops = too many for coincidental end drops, too few for camera malfunction', ...
-                wf_n_end_drops)
-        end
-
+        wf_use_frames = ~wf_dropped_frame_idx;
+        wf_use_frames(end-(wf_n_end_drops-1):end) = false;
+        warning('Widefield: dropped frames could not be identified, assuming [%d] drops at the end', ...
+            wf_n_end_drops);
+        
     end
 end
 
