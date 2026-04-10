@@ -1,5 +1,9 @@
 % Load electrophysiology data
 
+if verbose; disp('Loading Ephys (%s)...'); end
+
+%% Set paths
+ 
 % Set parent ephys path
 ephys_path = plab.locations.filename('server',animal,rec_day,[],'ephys');
 
@@ -19,19 +23,17 @@ end
 % Get path for raw data and kilosort for given recording
 kilosort_top_path = fullfile(ephys_path,kilosort_folder);
 
-if verbose; fprintf('Loading Ephys (%s)...\n',kilosort_folder); end
-
-%% Load and prepare Kilosort data
+% Get OE folders
+open_ephys_data_dir = dir(fullfile(ephys_path,'/**/','continuous.dat'));
+open_ephys_recording_paths = string({open_ephys_data_dir(~contains({open_ephys_data_dir.folder}, ...
+    {'ADC','LFP'},'IgnoreCase',true)).folder});
 
 % Set default probe to load
 if ~exist('load_probe','var')
     load_probe = 1;
 end
 
-% Get OE folders
-open_ephys_data_dir = dir(fullfile(ephys_path,'/**/','continuous.dat'));
-open_ephys_recording_paths = string({open_ephys_data_dir(~contains({open_ephys_data_dir.folder}, ...
-    {'ADC','LFP'},'IgnoreCase',true)).folder});
+%% Load Kilosort data
 
 oe_recordings = unique(extract(open_ephys_recording_paths,'recording'+digitsPattern));
 
@@ -97,21 +99,6 @@ oe_metadata = jsondecode(fileread(oe_metadata_fn));
 oe_ap_samplerate = oe_metadata(1).continuous(1).sample_rate;
 
 % Load kilosort data
-% (spike times: load open ephys times - create if not yet created)
-spike_times_openephys_filename = fullfile(kilosort_path,'spike_times_openephys.npy');
-if ~exist(spike_times_openephys_filename,'file')
-    ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
-
-    oe_samples_dir = cellfun(@(data_path) ...
-        dir(fullfile(data_path,'sample_numbers.npy')), ...
-        open_ephys_path,'uni',false);
-    oe_samples_fn = cellfun(@(data_dir) ...
-        fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);
-
-    plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_samples_fn, ...
-        oe_metadata(1).continuous(1).sample_rate);
-end
-spike_times_openephys = readNPY(spike_times_openephys_filename);
 
 % (spike times: index Open Ephys timestamps rather than assume constant
 % sampling rate as before, this accounts for potentially dropped data)
@@ -121,6 +108,8 @@ channel_positions = readNPY(fullfile(kilosort_path,'channel_positions.npy'));
 channel_map = readNPY(fullfile(kilosort_path,'channel_map.npy'));
 winv = readNPY(fullfile(kilosort_path,'whitening_mat_inv.npy'));
 template_amplitudes = double(readNPY(fullfile(kilosort_path,'amplitudes.npy')));
+
+%% Calculate template properties
 
 % Default channel map/positions are from end: make from surface
 % (hardcode this: kilosort2 drops channels)
@@ -151,8 +140,6 @@ template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./
 spike_depths = template_depths(spike_templates);
 
 % Get waveform width 
-ephys_sample_rate = 30000; % (just hardcoded for now, it never changes)
-
 % (use smoothed waveform - Kilosort often has bumps)
 waveforms_movmean = movmean(waveforms,3,2);
 
@@ -163,173 +150,103 @@ waveforms_movmean = movmean(waveforms,3,2);
     transpose(1:size(waveforms_movmean,1)));
 waveform_peak = waveform_peak_rel + waveform_trough - 1;
 waveform_duration_peaktrough = ...
-    1e6*(waveform_peak - waveform_trough)/ephys_sample_rate;
+    1e6*(waveform_peak - waveform_trough)/oe_ap_samplerate;
 
 % 2) full width half max
 waveform_duration_fwhm = arrayfun(@(x) ...
     sum(waveforms_movmean(x,:) <= min(waveforms_movmean(x,:))/2) * ...
-    1e6/ephys_sample_rate,1:size(templates,1));
+    1e6/oe_ap_samplerate,1:size(templates,1));
 
-%% Check for Open Ephys dropped data
+%% Load (or create) spike/TTL timestamps
 
-%%%%%%%%%%%%% UNDER CONSTRUCTION
-% 
-% At the moment - just gives a warning
-% 
-% Examples where this happens: 
-% Many drops: DS031 2026-03-29
-% One drop: PG003 2026-03-26
+% Set timestamp filenames (spike times and TTL)
+spike_times_openephys_filename =  fullfile(kilosort_path,'spike_times_openephys.npy');
+open_ephys_ttl_filename =  fullfile(kilosort_path,'open_ephys_ttl.mat');
 
-oe_sync_messages_fn = fullfile(fileparts(fileparts(open_ephys_path{1})),"sync_messages.txt");
-oe_sync_messages = regexp(readlines(oe_sync_messages_fn), ...
-    '- (?<stream>.*) @ (?<sample_rate>.*) Hz: (?<first_sample>\d*)','names');
-oe_stream_info = vertcat(oe_sync_messages{:});
+% If timestamps don't exist, create them
+if ~exist(spike_times_openephys_filename,'file') || ~exist(open_ephys_ttl_filename,'file')
+    ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
 
-oe_messages_fn = fullfile(fileparts(fileparts(open_ephys_path{1})), ...
-    "events","MessageCenter","text.npy");
-oe_message_center_text = readlines(oe_messages_fn);
-oe_bad_samples_string = regexp(oe_message_center_text(2), ...
-    'NPX TIMESTAMP JUMP: (?<time_jump>\d+).*?sample number (?<sample>\d+)','names');
-if ~isempty(oe_bad_samples_string)
-    % (convert strings: 'timestamp jump' is 100khz clock on Npx headstage)
-    oe_bad_samples = struct('time_jump', ...
-        num2cell(str2double(vertcat(oe_bad_samples_string.time_jump))/1e5), ...
-        'sample', ...
-        num2cell(str2double(vertcat(oe_bad_samples_string.sample))));
+    oe_samples_dir = cellfun(@(data_path) ...
+        dir(fullfile(data_path,'sample_numbers.npy')), ...
+        open_ephys_path,'uni',false);
+    oe_samples_fn = cellfun(@(data_dir) ...
+        fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);
 
-    warning('%s %s ephys had %d drops = %.4fs',animal,rec_day, ...
-        length(oe_bad_samples),sum(vertcat(oe_bad_samples.time_jump)));
-
-    % % drop ephys flips that happen on the bad sample
-    % drop_ephys_flips = ismember(vertcat(open_ephys_ttl_sample_numbers{:}), ...
-    %     str2double(vertcat(oe_bad_samples.sample)));
-    %
-    % % drop timelite flips that are within dropped time
-    % (this is going to be harder: each drop means it needs to be re-aligned)
-    % % (if I'm lucky - I could just iteratively remove these? would need to be
-    % lag-aligned first though)
-    % % vertcat(oe_bad_samples.sample)
+    plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_samples_fn, ...
+        oe_metadata(1).continuous(1).sample_rate);
 end
 
+% Load timestamps
+spike_times_openephys = readNPY(spike_times_openephys_filename);
+load(open_ephys_ttl_filename);
 
-%% Convert timestamps to timelite (with flipper)
+%% %%% UNDER CONSTRUCTION: new timestamp conversion
+
 % (allow for multiple files if multiple recordings concatenated)
 
-% Load ephys flipper
-% (use sample numbers as accurate, convert into timestamps -
-% 'timestamps.npy' are recomputed across recording and not always accurate)
+% Set TTL index for flipper (sync)
 flipper_sync_idx = 1;
-
-open_ephys_ttl_path = fullfile(strrep(open_ephys_path, ...
-    'continuous','events'),'TTL');
-
-% Load TTL sample numbers
-open_ephys_ttl_sample_numbers = cellfun(@(data_path) ...
-    readNPY(fullfile(data_path,'sample_numbers.npy')), ...
-    open_ephys_ttl_path,'uni',false)';
-
-% Check for clock resets as backwards TTL timesteps across recordings
-open_ephys_ttl_sample_backstep = ...
-    find(cellfun(@(x) x(1),open_ephys_ttl_sample_numbers(2:end)) - ...
-    cellfun(@(x) x(end),open_ephys_ttl_sample_numbers(1:end-1)) < 0) + 1;
-
-if isempty(open_ephys_ttl_sample_backstep)
-    % If no clock resets, just concatenate
-    open_ephys_ttl_timestamps = ...
-        double(vertcat(open_ephys_ttl_sample_numbers{:}))/oe_ap_samplerate;
-else
-    % If clock resets, make pseudocontinuous to match ks2oe
-    % (load OE samples)
-    oe_samples_dir = cellfun(@(data_path) ...
-        dir(fullfile(data_path,'/**/','sample_numbers.npy')), ...
-        open_ephys_path,'uni',false);
-    oe_samples_fns = cellfun(@(data_dir) ...
-        fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);
-    oe_samples_split = cellfun(@readNPY,oe_samples_fns,'uni',false);
-    oe_recordings_last_samples = cellfun(@(x) x(end),oe_samples_split);
-
-    open_ephys_ttl_sample_numbers_pseudocontinuous = ...
-        open_ephys_ttl_sample_numbers;
-    open_ephys_ttl_sample_numbers_pseudocontinuous(open_ephys_ttl_sample_backstep) = ...
-        cellfun(@(x,sample_add) x + sample_add, ...
-        open_ephys_ttl_sample_numbers(open_ephys_ttl_sample_backstep), ...
-        num2cell(oe_recordings_last_samples(open_ephys_ttl_sample_backstep-1)), ...
-        'uni',false);
-
-    open_ephys_ttl_timestamps = ...
-        double(vertcat(open_ephys_ttl_sample_numbers_pseudocontinuous{:}))/oe_ap_samplerate;
-end
-
-open_ephys_ttl_states = cell2mat(cellfun(@(data_path) ...
-    readNPY(fullfile(data_path,'states.npy')),open_ephys_ttl_path,'uni',false)');
-
-open_ephys_ttl_flipper_idx = abs(open_ephys_ttl_states) == flipper_sync_idx;
-open_ephys_flipper.value = sign(open_ephys_ttl_states(open_ephys_ttl_flipper_idx));
-open_ephys_flipper.timestamps = open_ephys_ttl_timestamps(open_ephys_ttl_flipper_idx);
+open_ephys_ttl_flipper_idx = abs(open_ephys_ttl.state) == flipper_sync_idx;
 
 % Resample Open Ephys flipper to DAQ sample rate
-open_ephys_flipper_trace_t = open_ephys_flipper.timestamps(1): ...
-    1/timelite.daq_info(1).rate: open_ephys_flipper.timestamps(end);
+open_ephys_flipper_trace_t = open_ephys_ttl.timestamps(1): ...
+    1/timelite.daq_info(1).rate: open_ephys_ttl.timestamps(end);
 open_ephys_flipper_trace = logical(normalize(interp1( ...
-    open_ephys_flipper.timestamps, ...
-    single(open_ephys_flipper.value), ...
+    open_ephys_ttl.timestamps(open_ephys_ttl_flipper_idx), ...
+    single(sign(open_ephys_ttl.state(open_ephys_ttl_flipper_idx))), ...
     open_ephys_flipper_trace_t,'previous'),'range'));
 
 % Get Open Ephys corresponding to timelite flipper
 % (get lag between timelite and ephys by correlation)
 ephys_timelite_flipper_lag = finddelay(+flipper_thresh, ...
     +open_ephys_flipper_trace)/timelite.daq_info(1).rate + ...
-    open_ephys_flipper.timestamps(1);
+    open_ephys_ttl.timestamps(1);
 % (get all ephys flips within the matching continuous window)
 curr_ephys_flipper_idx =  ...
-    open_ephys_flipper.timestamps >= ephys_timelite_flipper_lag & ...
-    open_ephys_flipper.timestamps <= ephys_timelite_flipper_lag + ...
+    open_ephys_ttl_flipper_idx & ...
+    open_ephys_ttl.timestamps >= ephys_timelite_flipper_lag & ...
+    open_ephys_ttl.timestamps <= ephys_timelite_flipper_lag + ...
     length(flipper_thresh)/timelite.daq_info(1).rate;
 % (set equivalent flips for ephys/timelite)
-flipper_flip_times_ephys = open_ephys_flipper.timestamps(curr_ephys_flipper_idx);
+flipper_flip_times_ephys = ...
+    open_ephys_ttl.timestamps(curr_ephys_flipper_idx);
 
-% Pick flipper times to use for alignment and handle problems
+% Pick flipper times to use for alignment
 if length(flipper_flip_times_ephys) == length(flipper_times)
     % If same number of flips in ephys/timelite, use all
     sync_timelite = flipper_times;
     sync_ephys = flipper_flip_times_ephys;
 
 elseif length(flipper_flip_times_ephys) < length(flipper_times)
-    % If more flips in timelite than ephys, assume timelite got all flips
-    % and only subset of flips caught in ephys: find usable subset of TL
-    % flips
+    % If more flips in ephys, assume timelite got all flips and ephys
+    % missed flips (sometimes adds extraneous if dropped data): set
+    % "usable" flips as being within a time threshold
 
-    % Estimate nearest flip in ephys for each flip in timelite
-    flip_timelite_ephys_timediff = ...
+    % Estimate nearest flip for timelite->ephys and ephys->timelite
+    flip_timelite2ephys_timediff = ...
         interp1(flipper_flip_times_ephys,flipper_flip_times_ephys, ...
         flipper_times + ephys_timelite_flipper_lag,'nearest','extrap') - ...
         (flipper_times+ephys_timelite_flipper_lag);
 
-    % Find the first flip that was out of sync
+    flip_ephys2timelite_timediff = ...
+        interp1((flipper_times+ephys_timelite_flipper_lag),(flipper_times+ephys_timelite_flipper_lag), ...
+        flipper_flip_times_ephys,'nearest','extrap') - ...
+        flipper_flip_times_ephys;
+
+    % Set cutoff to find "matched" flips
     flip_timediff_thresh = 0.01;
-    last_good_flip_idx = find(abs(flip_timelite_ephys_timediff) > flip_timediff_thresh,1)-2;
+    use_timelite_flips = abs(flip_timelite2ephys_timediff) < flip_timediff_thresh;
+    use_ephys_flips = abs(flip_ephys2timelite_timediff) < flip_timediff_thresh;
 
-    % Use flips that occured before desync
-    sync_timelite = flipper_times(1:last_good_flip_idx);
-    sync_ephys = flipper_flip_times_ephys(1:last_good_flip_idx);
-
-    %%%%%%%% UNDER CONSTRUCTION
-    % DS031 2026-03-29 1249: ephys missed ~7s which it doesn't know about,
-    % need generalized solution to identify chunks of missed flips
-
-    % For future: generalized solution to look for gaps could be
-    % truncating from the unmatched flips, finding delay, matching,
-    % repeating. This finds the delay in the first instance, but haven't
-    % gotten to specifically removing the timelite-only flips yet.
-    
-    % m_t = finddelay(+flipper_thresh(timelite.timestamps>flipper_times(first_bad_flip_idx)), ...
-    %     +open_ephys_flipper_trace(open_ephys_flipper_trace_t > ...
-    %     open_ephys_flipper.timestamps(first_bad_flip_idx)))/timelite.daq_info(1).rate;
-    %%%%%%%%%%%%%%
-
-    % Warn missed flips: this solution may not be general yet
-    warning('%s %s: Ephys missed flips, using first %d/%d (%.0f%%) flips',animal,rec_day, ...
-        last_good_flip_idx,length(flipper_times),100*last_good_flip_idx/length(flipper_times));
+    if sum(use_timelite_flips) == sum(use_ephys_flips)
+        % Successful matching if same number of usable flips
+        sync_ephys = flipper_flip_times_ephys(use_ephys_flips);
+        sync_timelite = flipper_times(use_timelite_flips);
+    else
+        % If not, unclear where the matched flips are, error out
+        error('%s %s: Cannot match timelite/ephys flips',animal,rec_day);
+    end
 
 elseif length(flipper_flip_times_ephys) > length(flipper_times)
     % If more flips in ephys than timelite, assume extraneous brief upward
@@ -356,7 +273,6 @@ end
 
 % Get spike times in timelite time
 spike_times_timelite = interp1(sync_ephys,sync_timelite,spike_times_openephys,'linear','extrap');
-
 
 %% Load probe position 
 

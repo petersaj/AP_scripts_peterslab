@@ -49,6 +49,29 @@ for curr_file_idx = 1:length(sleap_dir)
     fprintf('Copied: %s\n',sleap_dir(curr_file_idx).name)
 end
 
+%%
+
+% timestamps: convert to timestamps + time jump
+
+
+plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_samples_fn, ...
+    oe_metadata(1).continuous(1).sample_rate);
+
+spike_times_openephys = readNPY(spike_times_openephys_filename);
+
+
+open_ephys_ttl_timestamps = ...
+    double(vertcat(open_ephys_ttl_sample_numbers{:}))/oe_ap_samplerate;
+
+
+% Create array of timestamps
+
+% maybe do this in plab.ephys.ks2oe_timestamps?
+% the problem is that the ttl timestamps will be wrong though
+
+oe_bad_samples = plab.ephys.find_dropped_ephys(open_ephys_path{1});
+
+
 
 
 

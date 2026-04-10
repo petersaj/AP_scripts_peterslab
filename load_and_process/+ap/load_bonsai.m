@@ -153,25 +153,23 @@ if contains(bonsai_workflow,'wheel')
         end
     end    
     
-%     % Get all outcome times (interleaved reward/punish)
-%     % (NOT DONE YET)
-%     bonsai_reward_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
-%     bonsai_reward_reltime = seconds(bonsai_reward_datetime - bonsai_reward_datetime(1));
-% 
-%     bonsai_timelite_reward_idx = interp1(bonsai_reward_reltime, ...
-%         1:length(bonsai_reward_reltime),reward_times-reward_times(1),'nearest','extrap');
-% 
-%     timelite2bonsai = reward_times;
-%     bonsai2timelite_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
-% 
-%     bonsai_relative_t = bonsai2timelite_datetime(1);
-%     bonsai2timelite = seconds(bonsai2timelite_datetime - bonsai_relative_t);
-% 
-%     event_datetime = vertcat(trial_events.timestamps.Outcome);
-% 
-%     event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
-% 
-%     event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
+    % % % Get all outcome times (interleaved reward/punish)
+    % % % (NOT DONE YET)
+    % bonsai_reward_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
+    % bonsai_reward_reltime = seconds(bonsai_reward_datetime - bonsai_reward_datetime(1));
+    % 
+    % bonsai_timelite_reward_idx = interp1(bonsai_reward_reltime, ...
+    %     1:length(bonsai_reward_reltime),reward_times-reward_times(1),'nearest','extrap');
+    % 
+    % timelite2bonsai = reward_times;
+    % bonsai2timelite_datetime = vertcat(trial_events.timestamps([trial_events.values.Outcome] == 1).Outcome);
+    % 
+    % bonsai_relative_t = bonsai2timelite_datetime(1);
+    % bonsai2timelite = seconds(bonsai2timelite_datetime - bonsai_relative_t);
+    % 
+    % event_datetime = vertcat(trial_events.timestamps.StimOn);
+    % event_t_bonsai = seconds(event_datetime - bonsai_relative_t);
+    % event_t_tl = interp1(bonsai2timelite,timelite2bonsai,event_t_bonsai,'linear','extrap');
 
 
 %% Passive workflows
