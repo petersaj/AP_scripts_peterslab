@@ -1,6 +1,6 @@
 % Load electrophysiology data
 
-if verbose; disp('Loading Ephys (%s)...'); end
+if verbose; disp('Loading Ephys...'); end
 
 %% Set paths
  
