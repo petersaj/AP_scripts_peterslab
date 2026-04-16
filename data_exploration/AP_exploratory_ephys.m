@@ -477,7 +477,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'striatum'; % striatum, even, click, define
+mua_method = 'click'; % striatum, even, click, define
 
 switch mua_method
 
@@ -499,40 +499,10 @@ switch mua_method
 
     case 'click'
         % (for clickable manual depths)
-        h = figure('units','normalized','position',[0.05,0.2,0.1,0.7]);
-        unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
-
-        if exist('probe_areas','var')
-            probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
-                probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
-
-            probe_areas_boundaries = probe_areas{1}.probe_depth;
-            probe_areas_centers = mean(probe_areas_boundaries,2);
-
-            probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
-            probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
-                1:height(probe_areas{1}),probe_areas_image_depth, ...
-                'previous','extrap');
-            probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
-
-            image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
-            yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
-            set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
-        end
-
-        norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
-        unit_dots = scatter3( ...
-            norm_spike_n,template_depths(unique(spike_templates)), ...
-            unique(spike_templates),20,'k','filled');
-        multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
-        xlim(unit_axes,[-0.1,1]);
-        ylim([-50, max(channel_positions(:,2))+50]);
-        ylabel('Depth (\mum)')
-        xlabel('Normalized log rate')
-
+        unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas);    
         title('Click MUA borders');
         user_click_coords = ginput;
-        close(h);
+        close(unit_axes.Parent.Parent);
         depth_group_edges = user_click_coords(:,2);
 
     case 'define'
@@ -544,37 +514,7 @@ switch mua_method
 end
 
 % Draw units and borders
-figure('units','normalized','position',[0.05,0.2,0.1,0.7]);
-unit_axes = axes('YDir','reverse'); hold on; xlabel('Norm spike rate');ylabel('Depth');
-
-if exist('probe_areas','var')
-    probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
-        probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
-
-    probe_areas_boundaries = probe_areas{1}.probe_depth;
-    probe_areas_centers = mean(probe_areas_boundaries,2);
-
-    probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
-    probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
-        1:height(probe_areas{1}),probe_areas_image_depth, ...
-        'previous','extrap');
-    probe_areas_image = probe_areas_rgb(probe_areas_image_idx,:,:);
-
-    image(unit_axes,[0,1],probe_areas_image_depth,probe_areas_image);
-    yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
-    set(unit_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
-end
-
-norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
-unit_dots = scatter3( ...
-    norm_spike_n,template_depths(unique(spike_templates)), ...
-    unique(spike_templates),20,'k','filled');
-multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
-xlim(unit_axes,[-0.1,1]);
-ylim([-50, max(channel_positions(:,2))+50]);
-ylabel('Depth (\mum)')
-xlabel('Normalized log rate')
-
+unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas);
 yline(depth_group_edges,'linewidth',2,'color','r');
 depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
 text(zeros(length(depth_group_centers),1),depth_group_centers, ...
@@ -606,7 +546,7 @@ binned_spikes_std(isnan(binned_spikes_std)) = 0;
 use_svs = 1:200;
 kernel_t = [-0.5,0.5];
 kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
-lambda = 20;
+lambda = 10;
 zs = [false,false];
 cvfold = 5;
 return_constant = false;
@@ -623,7 +563,7 @@ fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
 % Convert kernel to pixel space
 r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
 
-AP_imscroll(r_px,kernel_frames/wf_framerate);
+ap.imscroll(r_px,kernel_frames/wf_framerate);
 clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
 colormap(AP_colormap('BWR'));
 axis image;

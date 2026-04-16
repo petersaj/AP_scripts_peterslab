@@ -218,9 +218,10 @@ if length(flipper_flip_times_ephys) == length(flipper_times)
     sync_timelite = flipper_times;
     sync_ephys = flipper_flip_times_ephys;
 
-else
-    % If different number of timelite/ephys flips: 
-    % find usable flips as "matched" with a very short estimated time delay
+elseif length(flipper_flip_times_ephys) < length(flipper_times)
+    % If different number of tim more flips in ephys, assume timelite got all flips and ephys
+    % missed flips (sometimes adds extraneous if dropped data): set
+    % "usable" flips as being within a time threshold
 
     % Estimate nearest flip for timelite->ephys and ephys->timelite
     flip_timelite2ephys_timediff = ...
@@ -245,6 +246,27 @@ else
     else
         % If not, unclear where the matched flips are, error out
         error('%s %s: Cannot match timelite/ephys flips',animal,rec_day);
+    end
+
+elseif length(flipper_flip_times_ephys) > length(flipper_times)
+    % If more flips in ephys than timelite, assume extraneous brief upward
+    % flips from a bad connection or resting voltage: remove short upward
+    % flips
+
+    bad_ephys_flips_down = open_ephys_flipper.value(curr_ephys_flipper_idx) == -1 & ...
+        [0;diff(flipper_flip_times_ephys)] < 0.05;
+
+    use_ephys_flips = ~bad_ephys_flips_down & ~circshift(bad_ephys_flips_down,-1);
+
+    if sum(use_ephys_flips) == length(flipper_times)
+        % Successful if same number of matched flips:
+        % use subset of ephys flips
+        sync_ephys = flipper_flip_times_ephys(use_ephys_flips);
+        % use all timelite flips
+        sync_timelite = flipper_times;
+    else
+        % If not, unclear where the matched flips are, error out
+        error('%s %s: flips ephys > timelite, cannot fix',animal,rec_day);
     end
 
 end
