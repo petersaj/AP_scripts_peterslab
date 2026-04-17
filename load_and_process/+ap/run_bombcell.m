@@ -1,7 +1,7 @@
 function run_bombcell(rawFile,ephysKilosortPath,meta_filename,kilosortVersion)
 % run_bombcell(ap_band_filename,kilosort_path,meta_filename)
 %
-% Run Bombcell (JF quality metrics) and supplemental metrics
+% Run Bombcell (JF quality metrics) and extra metrics
 %
 % ap_band_filename - filename of AP-band data used to run kilosort
 % kilosort_path - path with kilosort output

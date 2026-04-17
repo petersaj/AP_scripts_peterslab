@@ -292,11 +292,14 @@ if strcmp(ephys_qc_type,'bombcell')
     % Load Bombcell quality metrics (if exist)
     qMetrics_path = fullfile(kilosort_path,'qMetrics');
     if  exist(qMetrics_path,'dir')
+
         % Bombcell function to load all metrics, only used for troubleshooting
         %     [param, qMetric] = bc.load.loadSavedMetrics(qMetrics_path);
-        % (native bombcell labels)
-        %  unitType = bc_getQualityUnitType(param, qMetric);
-        % (extra metrics & translated bombcell labels)
+
+        % Load unit labels
+        % % (native bombcell labels)
+        % %  unitType = bc_getQualityUnitType(param, qMetric);
+        % (extra metrics & translated bombcell labels created in ap.run_bombcell)
         load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
 
         % Define good units from labels

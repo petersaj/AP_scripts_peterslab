@@ -52,16 +52,10 @@ end
 %% bombcell axon tests
 
 kilosortVersion = 4;
-
-% savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4\qMetrics';
-% ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4';
-% meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\structure.oebin';
-% rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\continuous\Neuropix-PXI-100.ProbeA-AP\continuous.dat';
-
-savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\kilosort4\qMetrics';
-ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\kilosort4';
-meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\experiment1\recording2\structure.oebin';
-rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\experiment1\recording2\continuous\Neuropix-PXI-107.ProbeA-AP\continuous.dat';
+savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4\qMetrics';
+ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4';
+meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\structure.oebin';
+rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\continuous\Neuropix-PXI-100.ProbeA-AP\continuous.dat';
 
 % Get file info of metadata
 ephysMetaDir = dir(meta_filename);
@@ -86,13 +80,12 @@ param.plotGlobal = false;
 param.plotDetails = false;
 
 % Run
-rerun = true;
+rerun = false;
 qMetricsExist = ~isempty(dir(fullfile(savePath, 'qMetric*.mat'))) || ~isempty(dir(fullfile(savePath, 'templates._bc_qMetrics.parquet')));
 
-%%%%%%%%%% NEW PARAMS TO TEST FOR AXONS
+%%%%%%%%%% NEW PARAMS
 param.minWidthFirstPeak_nonSomatic = Inf;
 param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
-%%%%%%%%%%
 
 if qMetricsExist == 0 || rerun
     [qMetric, unitType] = bc.qm.runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
@@ -101,5 +94,14 @@ else
     [param, qMetric] = bc.load.loadSavedMetrics(savePath);
     unitType = bc.qm.getQualityUnitType(param, qMetric, savePath);
 end
+
+
+% new params for axons? 
+
+% for defining qMetrics / invalid peaks
+
+% for getting unit type
+unitType = bc.qm.getQualityUnitType(param, qMetric, savePath);
+
 
 
