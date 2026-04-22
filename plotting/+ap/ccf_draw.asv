@@ -126,11 +126,31 @@ classdef ccf_draw < handle
             % histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','probe_ccf.mat');
             % histology_fn = dir(histology_filepattern);
             % load(fullfile(histology_fn.folder,histology_fn.name));
-            %
-            % probe_labels = string(1:length(probe_ccf));
-            % probe_ccf_vertices = {probe_ccf.points}
+            % Loop through probes and draw
+            % for curr_probe = 1:length(probe_ccf)
+            % 
+            %     % Get line of best fit through mean of marked points
+            %     probe_coords_mean = mean(probe_ccf(curr_probe).points,1);
+            %     xyz = bsxfun(@minus,probe_ccf(curr_probe).points,probe_coords_mean);
+            %     [~,~,V] = svd(xyz,0);
+            %     histology_probe_direction = V(:,1);
+            % 
+            %     % (make sure the direction goes down in DV - flip if it's going up)
+            %     if histology_probe_direction(2) < 0
+            %         histology_probe_direction = -histology_probe_direction;
+            %     end
+            % 
+            %     % Evaluate line of best fit (length of probe to deepest point)
+            %     [~,deepest_probe_idx] = max(probe_ccf(curr_probe).points(:,2));
+            %     probe_deepest_point = probe_ccf(curr_probe).points(deepest_probe_idx,:);
+            %     probe_deepest_point_com_dist = pdist2(probe_coords_mean,probe_deepest_point);
+            %     probe_length_ccf = 3840/10; % mm / ccf voxel size
+            % 
+            %     probe_line_eval = probe_deepest_point_com_dist - [probe_length_ccf,0];
+            %     probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
+            %     obj.draw_probes(probe_line,probe_color);
+            % end
 
- 
             % -- (AP histology v2)
             histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
             histology_fn = dir(histology_filepattern);
@@ -143,8 +163,7 @@ classdef ccf_draw < handle
                 vertcat(x.vertices_ccf.ml)), ...
                 AP_histology_processing.annotation,'uni',false);
 
-            % Loop through probes and draw
-            for curr_probe = 1:length(probe_ccf_vertices)
+            for curr_probe = 1:length(probe_labels)
 
                 % Get line of best fit through mean of marked points
                 probe_coords_mean = mean(probe_ccf_vertices{curr_probe},1);
@@ -167,6 +186,9 @@ classdef ccf_draw < handle
                 probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
                 obj.draw_probes(probe_line,probe_color);
             end
+
+
+
         end
 
     end

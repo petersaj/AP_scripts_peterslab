@@ -53,15 +53,15 @@ end
 
 kilosortVersion = 4;
 
-% savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4\qMetrics';
-% ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4';
-% meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\structure.oebin';
-% rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\continuous\Neuropix-PXI-100.ProbeA-AP\continuous.dat';
+savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4\qMetrics';
+ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\kilosort4';
+meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\structure.oebin';
+rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\AP022\2024-05-15\ephys\experiment1\recording1\continuous\Neuropix-PXI-100.ProbeA-AP\continuous.dat';
 
-savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\kilosort4\qMetrics';
-ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\kilosort4';
-meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\experiment1\recording2\structure.oebin';
-rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\experiment1\recording2\continuous\Neuropix-PXI-107.ProbeA-AP\continuous.dat';
+% savePath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\kilosort4\qMetrics';
+% ephysKilosortPath = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\kilosort4';
+% meta_filename = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\experiment1\recording2\structure.oebin';
+% rawFile = '\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\PG001\2026-04-16\ephys\experiment1\recording2\continuous\Neuropix-PXI-107.ProbeA-AP\continuous.dat';
 
 % Get file info of metadata
 ephysMetaDir = dir(meta_filename);
@@ -89,10 +89,13 @@ param.plotDetails = false;
 rerun = true;
 qMetricsExist = ~isempty(dir(fullfile(savePath, 'qMetric*.mat'))) || ~isempty(dir(fullfile(savePath, 'templates._bc_qMetrics.parquet')));
 
-%%%%%%%%%% NEW PARAMS TO TEST FOR AXONS
-param.minWidthFirstPeak_nonSomatic = Inf;
-param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
-%%%%%%%%%%
+% %%%%%%%%%% NEW PARAMS TO TEST FOR AXONS
+% param.minWidthFirstPeak_nonSomatic = Inf;
+% param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
+% % % Julie suggestion
+% param.maxPeak1ToPeak2Ratio_nonSomatic = 1/3;
+% param.minTroughToPeak2Ratio_nonSomatic = 4;
+% %%%%%%%%%%
 
 if qMetricsExist == 0 || rerun
     [qMetric, unitType] = bc.qm.runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
@@ -103,3 +106,40 @@ else
 end
 
 
+%%% Extra quality metric: threshold correlation between template v. average
+
+% Load raw waveforms to run extra template vs. raw quality metrics
+% (load channel map to use only channels used by kilosort)
+channel_map = readNPY(fullfile(ephysKilosortPath,'channel_map.npy'))+1; % 0-idx > 1-idx
+rawWaveforms.average_full = readNPY([fullfile(savePath, 'templates._bc_rawWaveforms.npy')]);
+rawWaveforms.average = rawWaveforms.average_full(:,channel_map,:);
+
+% Get full-probe correlation between template and raw waveform
+n_templates = size(templateWaveforms,1);
+template_waveform_flat = normalize(reshape(permute(templateWaveforms,[2,3,1]),[],n_templates),'center');
+raw_waveform_flat = normalize(reshape(permute(rawWaveforms.average,[3,2,1]),[],n_templates),'center');
+template_raw_waveform_corr = sum( ...
+    (template_waveform_flat./vecnorm(template_waveform_flat,2,1)).* ...
+    (raw_waveform_flat./vecnorm(raw_waveform_flat,2,1)),1);
+
+% Set and apply threshold, set bad units in final unitType
+template_raw_waveform_corr_thresh = 0.3;
+bad_waveform_corr = template_raw_waveform_corr < template_raw_waveform_corr_thresh;
+
+unitType_extra_qc = unitType;
+unitType_extra_qc(bad_waveform_corr) = 0;
+
+%%% Get labels and save
+
+% Set names for numbered unit types
+unit_type_labels = { ...
+    0,'noise'; ...
+    1,'singleunit';...
+    2,'multiunit';...
+    3,'axon'};
+
+[~,unitType_idx] = ismember(unitType_extra_qc,cell2mat(unit_type_labels(:,1)));
+template_qc_labels = unit_type_labels(unitType_idx,2);
+
+% Save extra quality metrics and final template quality control labels
+save(fullfile(savePath, 'template_qc_labels.mat'),'template_qc_labels');

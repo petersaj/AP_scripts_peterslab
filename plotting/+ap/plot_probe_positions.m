@@ -149,7 +149,7 @@ if plot_units
     disp('Finding and plotting units...')
 
     recordings = plab.find_recordings(animal);
-    ephys_recordings = recordings([recordings.ephys]);
+    ephys_recordings = recordings([recordings.ephys]>0);
 
     figure('color','w');
     h = tiledlayout(1,length(ephys_recordings));

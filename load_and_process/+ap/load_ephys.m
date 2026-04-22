@@ -293,12 +293,25 @@ if strcmp(ephys_qc_type,'bombcell')
     qMetrics_path = fullfile(kilosort_path,'qMetrics');
     if  exist(qMetrics_path,'dir')
 
-        % Bombcell function to load all metrics, only used for troubleshooting
-        %     [param, qMetric] = bc.load.loadSavedMetrics(qMetrics_path);
-
         % Load unit labels
-        % % (native bombcell labels)
-        % %  unitType = bc_getQualityUnitType(param, qMetric);
+
+        %%%%%%%%%%%%%% UNDER CONSTRUCTION: 
+        % Going back to native bombcell labels to apply params on the fly,
+        % makes changing params more robust without saving new labels any
+        % time a lab-wide param is changed
+        % 
+        % - Decide whether/how to add raw/template corr param
+        % - Bombcell function to load all metrics, only used for troubleshooting
+        % [bombcell_param, bombcell_qMetric] = bc.load.loadSavedMetrics(qMetrics_path);
+        % - Adjust these axon parameters: 
+        % param.minWidthFirstPeak_nonSomatic = Inf;
+        % param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
+        % - Turn of label saving (just loading for here)
+        % bombcell_param.saveAsTSV = false;
+        % - get bombcell unit type: 
+        % unitType = bc.qm.getQualityUnitType(bombcell_param, bombcell_qMetric);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
         % (extra metrics & translated bombcell labels created in ap.run_bombcell)
         load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
 
