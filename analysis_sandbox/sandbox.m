@@ -143,3 +143,5 @@ template_qc_labels = unit_type_labels(unitType_idx,2);
 
 % Save extra quality metrics and final template quality control labels
 save(fullfile(savePath, 'template_qc_labels.mat'),'template_qc_labels');
+
+
