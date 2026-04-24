@@ -147,7 +147,14 @@ save(fullfile(savePath, 'template_qc_labels.mat'),'template_qc_labels');
 
 %% fixing ccfdraw
 
-load("\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\histology\DS031\AP_histology_processing_NEWTEST.mat");
+clear all;
+
+animal = 'DS031';
+
+histology_dir = dir(fullfile(plab.locations.server_data_path,animal,'**','AP_histology_processing.mat'));
+histology_fn = fullfile(histology_dir.folder,histology_dir.name);
+
+load(histology_fn);
 
 % Grab atlas images
 [av,tv,st] = ap_histology.load_ccf;
@@ -186,7 +193,7 @@ for annotation_idx = 1:length(AP_histology_processing.annotation)
             atlas_tform = AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx};
         end
 
-        % Convert vertices to CCF coordinates and store
+        % Convert vertices to CCF coordinates
         annotation_vertices_histology_subscript = round(transformPointsInverse( ...
             atlas_tform,curr_vertices));
 
@@ -205,22 +212,25 @@ for annotation_idx = 1:length(AP_histology_processing.annotation)
     end
 end
 
+save(histology_fn,'AP_histology_processing');
 
 
  
-%  (plotting tests)
-curr_probe = 5;
-
-ap = {AP_histology_processing.annotation(curr_probe).vertices_ccf.ap};
-dv = {AP_histology_processing.annotation(curr_probe).vertices_ccf.dv};
-ml = {AP_histology_processing.annotation(curr_probe).vertices_ccf.ml};
-
-slice = 10;
-
-% slice = slice+1;
-plot3(ap{slice},ml{slice},dv{slice},'or');
-
-x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
+% %  (plotting tests)
+% figure; hold on;
+% 
+% curr_probe = 5;
+% 
+% ap = {AP_histology_processing.annotation(curr_probe).vertices_ccf.ap};
+% dv = {AP_histology_processing.annotation(curr_probe).vertices_ccf.dv};
+% ml = {AP_histology_processing.annotation(curr_probe).vertices_ccf.ml};
+% 
+% slice = 10;
+% 
+% % slice = slice+1;
+% plot3(ap{slice},ml{slice},dv{slice},'.k');
+% 
+% x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
 
 
 

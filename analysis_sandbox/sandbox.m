@@ -145,9 +145,16 @@ template_qc_labels = unit_type_labels(unitType_idx,2);
 save(fullfile(savePath, 'template_qc_labels.mat'),'template_qc_labels');
 
 
-%% fixing ccfdraw
+%% AP_histology annotations: fix manual alignment 
 
-load("\\qnap-ap001.dpag.ox.ac.uk\APlab\Data\DS031\histology\DS031\AP_histology_processing_NEWTEST.mat");
+clear all;
+
+animal = 'DS029';
+
+histology_dir = dir(fullfile(plab.locations.server_data_path,animal,'**','AP_histology_processing.mat'));
+histology_fn = fullfile(histology_dir.folder,histology_dir.name);
+
+load(histology_fn);
 
 % Grab atlas images
 [av,tv,st] = ap_histology.load_ccf;
@@ -205,7 +212,8 @@ for annotation_idx = 1:length(AP_histology_processing.annotation)
     end
 end
 
-
+save(histology_fn,'AP_histology_processing');
+fprintf('Saved %s\n',histology_fn)
 
  
 % %  (plotting tests)
