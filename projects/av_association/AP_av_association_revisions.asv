@@ -101,8 +101,11 @@ for curr_move = 1:n_moves
         reshape(curr_wheel_event_trace,1,1,[]),event_kernel,'same');
 end
 
-% (add noise)
+% (add independent noise)
 toy_data = toy_data + 3*randn(size(toy_data));
+
+% (add correlated noise)
+toy_data = toy_data + reshape(smooth(randn(1,size(toy_data,3)),100)*10,1,1,[]);
 
 % (reshape)
 toy_data = reshape(toy_data,[],length(time_bin_centers));
@@ -178,16 +181,9 @@ ap.imscroll(kernels_px,frame_shifts);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image
-
+set(gcf,'name','Decoding');
 
 % Encoding
-
-task_regressors = {stim_regressors;reward_regressors;stim_move_regressors;nonstim_move_regressors};
-
-task_t_shifts = { ...
-    [-0.2,2]; ... % stim
-    [-0.2,2]};    % move
-
 skip_t = 60; % seconds start/end to skip for artifacts
 skip_frames = round(skip_t*wf_framerate);
 [kernels,predicted_signals,explained_var] = ...
@@ -195,10 +191,56 @@ skip_frames = round(skip_t*wf_framerate);
     vertcat(stim_regressors(:,skip_frames:end-skip_frames), ...
     move_regressors(:,skip_frames:end-skip_frames)), ...
     wf_V(1:n_components,skip_frames:end-skip_frames), ...
-    -frame_shifts,lambda,[],cv_fold);
+    frame_shifts,lambda,[],cv_fold);
+
+kernels_px = plab.wf.svd2px(wf_U(:,:,1:size(kernels,3)),permute(kernels,[3,2,1]));
+ap.imscroll(kernels_px,frame_shifts);
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image
+set(gcf,'name','Encoding');
+
+% REVIEWER SUGGESTION: regress out movement, decoding on residual
+skip_t = 60; % seconds start/end to skip for artifacts
+skip_frames = round(skip_t*wf_framerate);
+[kernels,predicted_signals_move] = ...
+    ap.regresskernel( ...
+    move_regressors(:,skip_frames:end-skip_frames), ...
+    wf_V(1:n_components,skip_frames:end-skip_frames), ...
+    frame_shifts,lambda,[],cv_fold);
+
+[kernels,predicted_signals,explained_var] = ...
+    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
+    predicted_signals_move, ...
+    stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv_fold);
 
 kernels_px = plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels);
 ap.imscroll(kernels_px,frame_shifts);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image
+set(gcf,'name','Decoding (move residual)');
+
+% (just checking: try alternate - remove stim and decode move?
+skip_t = 60; % seconds start/end to skip for artifacts
+skip_frames = round(skip_t*wf_framerate);
+[kernels,predicted_signals_move] = ...
+    ap.regresskernel( ...
+    move_regressors(:,skip_frames:end-skip_frames), ...
+    wf_V(1:n_components,skip_frames:end-skip_frames), ...
+    frame_shifts,lambda,[],cv_fold);
+
+[kernels,predicted_signals,explained_var] = ...
+    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
+    predicted_signals_move, ...
+    move_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv_fold);
+
+kernels_px = plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels);
+ap.imscroll(kernels_px,frame_shifts);
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image
+set(gcf,'name','Decoding (move residual)');
+
+
+
