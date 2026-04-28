@@ -267,7 +267,7 @@ for curr_shank = 1:n_shanks
     
     [~,ytick_sort_idx] = sort(ytick_values);
     set(h_shank(curr_shank), ...
-        'YTick',ytick_values(ytick_sort_idx),'YTickLabels',ytick_labels(ytick_sort_idx));
+        'YTick',ytick_values(),'YTickLabels',probe_areas{1}.acronym(curr_shank_areas(label_sort_idx)));
 
 end
 linkaxes(h.Children,'y')

@@ -1,7 +1,14 @@
-function unit_dots = plot_unit_depthrate(spike_times,spike_templates,template_depths,probe_areas,plot_axes)
-% plot_unit_depthrate(spike_times,spike_templates,template_depths,probe_areas,plot_axes)
+function unit_dots = plot_unit_depthrate(plot_axes)
+% plot_unit_depthrate(plot_axes)
 %
 % Plot unit depth vs spike rate, with areas (if available)
+% (grabs variables from base workspace)
+
+% Pull variables from base workspace
+spike_times_openephys = evalin('base','spike_times_openephys');
+spike_templates = evalin('base','spike_templates');
+template_depths = evalin('base','template_depths');
+probe_areas = evalin('base','probe_areas');
 
 if ~exist('plot_axes','var') || isempty(plot_axes)
     figure('Units','normalized','Position',[0.02,0.2,0.1,0.6])
@@ -44,7 +51,7 @@ end
 
 set(unit_axes,'YDir','reverse');
 spike_rate = (accumarray(findgroups(spike_templates),1)+1)/ ...
-    diff(prctile(spike_times,[0,100]));
+    diff(prctile(spike_times_openephys,[0,100]));
 
 unit_dots = scatter(unit_axes, ...
     spike_rate,template_depths(unique(spike_templates)),20,'k','filled');
