@@ -136,6 +136,14 @@ template_chan_amp_overthresh = template_chan_amp.*(template_chan_amp >= template
 % (get center-of-mass on thresholded channel amplitudes)
 template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
 
+%%%%%%%%%%% UNDER CONSTRUCTION
+% get shank for template in 4-shank recording
+
+shank_spacing = 250;
+shank_x = (0:4)*shank_spacing-shank_spacing/2;
+
+%%%%%%%%%
+
 % Get the depth of each spike
 spike_depths = template_depths(spike_templates);
 
@@ -295,22 +303,30 @@ if strcmp(ephys_qc_type,'bombcell')
 
         % Load unit labels
 
-        %%%%%%%%%%%%%% UNDER CONSTRUCTION: 
-        % Going back to native bombcell labels to apply params on the fly,
-        % makes changing params more robust without saving new labels any
-        % time a lab-wide param is changed
-        % 
-        % - Decide whether/how to add raw/template corr param
-        % - Bombcell function to load all metrics, only used for troubleshooting
-        % [bombcell_param, bombcell_qMetric] = bc.load.loadSavedMetrics(qMetrics_path);
-        % - Adjust these axon parameters: 
+        % %%%%%%%%%%%%%% UNDER CONSTRUCTION: 
+        % % Going back to native bombcell labels to apply params on the fly,
+        % % makes changing params more robust without saving new labels any
+        % % time a lab-wide param is changed
+        % % 
+        % % - Decide whether/how to add raw/template corr param
+        % % - Bombcell function to load all metrics, only used for troubleshooting
+        % [bombcell_param, bombcell_qMetric] = bc.load.loadSavedMetrics(qMetrics_path,false);
+        % % - Adjust these axon parameters: 
         % param.minWidthFirstPeak_nonSomatic = Inf;
         % param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
-        % - Turn of label saving (just loading for here)
+        % % - Turn of label saving (just loading for here)
         % bombcell_param.saveAsTSV = false;
-        % - get bombcell unit type: 
+        % % - get bombcell unit type: 
         % unitType = bc.qm.getQualityUnitType(bombcell_param, bombcell_qMetric);
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % % Set names for numbered unit types
+        % unit_type_labels = { ...
+        %     0,'noise'; ...
+        %     1,'singleunit';...
+        %     2,'multiunit';...
+        %     3,'axon'};
+        % [~,unitType_idx] = ismember(unitType,cell2mat(unit_type_labels(:,1)));
+        % template_qc_labels = unit_type_labels(unitType_idx,2);
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         % (extra metrics & translated bombcell labels created in ap.run_bombcell)
         load(fullfile(qMetrics_path, 'template_qc_labels.mat'))

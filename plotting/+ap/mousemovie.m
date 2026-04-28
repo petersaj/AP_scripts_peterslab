@@ -29,7 +29,9 @@ handles.n_frames = handles.movie_vr.NumberOfFrames;
 handles.framerate = handles.movie_vr.FrameRate;
 
 if ~exist('movie_t') || isempty(movie_t)
-    handles.movie_t = (1:handles.n_frames)/handles.framerate;
+    % (used to estimate time: more useful to show frame number)
+    % handles.movie_t = (1:handles.n_frames)/handles.framerate;
+    handles.movie_t = 1:handles.n_frames;
 elseif length(movie_t) ~= handles.n_frames
     error('Different number timestamps and frames');
 else
