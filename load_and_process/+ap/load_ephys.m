@@ -135,14 +135,11 @@ template_chan_amp_thresh = max(template_chan_amp,[],2)*0.5;
 template_chan_amp_overthresh = template_chan_amp.*(template_chan_amp >= template_chan_amp_thresh);
 % (get center-of-mass on thresholded channel amplitudes)
 template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
-
-%%%%%%%%%%% UNDER CONSTRUCTION
-% get shank for template in 4-shank recording
-
+% (get shank for each unit)
 shank_spacing = 250;
-shank_x = (0:4)*shank_spacing-shank_spacing/2;
-
-%%%%%%%%%
+shank_borders = (0:4)*shank_spacing-shank_spacing/2;
+template_xpos = sum(template_chan_amp_overthresh.*channel_positions(:,1)',2)./sum(template_chan_amp_overthresh,2);
+template_shanks = discretize(template_xpos,shank_borders);
 
 % Get the depth of each spike
 spike_depths = template_depths(spike_templates);
@@ -384,6 +381,7 @@ end
 % Throw out all non-good template data
 templates = templates(good_templates,:,:);
 template_depths = template_depths(good_templates);
+template_shanks = template_shanks(good_templates);
 waveforms = waveforms(good_templates,:);
 waveform_duration_peaktrough = waveform_duration_peaktrough(good_templates);
 waveform_duration_fwhm = waveform_duration_fwhm(good_templates);

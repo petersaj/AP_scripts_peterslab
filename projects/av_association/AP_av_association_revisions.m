@@ -350,13 +350,6 @@ set(gcf,'name','Decoding (move residual)');
 
 
 %% Decoding after encoding-regressing out movement
-% RUNNING VISUAL FIRST TO TEST
-
-% Animal names per group taken from
-% `Song_2025.package.save_wf_kernels_passive`
-animals = cell(2,1);
-animals{1} = {'DS007','DS010','AP019','AP021','DS011','AP022'}; % VA
-animals{2} = {'DS000','DS004','DS014','DS015','DS016'}; % AV
 
 % Load behavior
 % (animals packaged here:)
@@ -364,141 +357,155 @@ animals{2} = {'DS000','DS004','DS014','DS015','DS016'}; % AV
 data_path = fullfile(plab.locations.server_path,'Lab','Papers','Song_2025','data');
 load(fullfile(data_path,'behavior.mat'));
 
-% % Just storing here for now
-% % passive:
-% 'lcr_passive','hml_passive_audio'
-%
-% % task:
-% 'stim_wheel_right_stage\d';
-% 'stim_wheel_right_stage\d_audio_*';
+% Get animals from behavior structure
+animals = cell(2,1);
+animals{1} = behavior_aligned{1}.reaction_time.name; % VA
+animals{2} = behavior_aligned{2}.reaction_time.name; % AV
 
+% Loop through modalities/animal groups/animals, get kernels
 animal_kernels = struct;
-for curr_animal_group = 1:length(animals)
-    for curr_animal_idx = 1:length(animals{curr_animal_group})
+for curr_modality = 1:2
+    switch curr_modality
+        case 1 % visual
+            modality_name = 'visual';
+            task_workflow = 'stim_wheel_right_stage\d';
+        case 2 % auditory
+            modality_name = 'audio';
+            task_workflow = 'stim_wheel_right_stage\d_audio_*';
+    end
 
-        % Find visual recordings from current animal
-        animal = animals{curr_animal_group}{curr_animal_idx};
-        recordings_all = plab.find_recordings(animal,[],'stim_wheel_right_stage\d');
-        recordings = recordings_all(~[recordings_all.ephys]);
+    for curr_animal_group = 1:length(animals)
+        for curr_animal_idx = 1:length(animals{curr_animal_group})
 
-        % Get corresponding learned days from behavior
-        bhv_curr_task_idx = contains(behavior_each_mice{curr_animal_group}.workflow_name{curr_animal_idx},'visual');
+            % Find visual recordings from current animal
+            animal = animals{curr_animal_group}{curr_animal_idx};
+            recordings_all = plab.find_recordings(animal,[],task_workflow);
+            recordings = recordings_all(~[recordings_all.ephys]);
 
-        % (check that number of recordings match those in behavior)
-        if length(recordings) ~= sum(bhv_curr_task_idx)
-            error('Bad recording matching');
-        end
+            % Get corresponding learned days from behavior
+            bhv_curr_task_idx = contains(behavior_each_mice{curr_animal_group}.workflow_name{curr_animal_idx},modality_name);
 
-        % Loop though animals, run encoding/decoding
-        for curr_recording = 1:length(recordings)
-
-            rec_time = recordings(curr_recording).recording{end};
-            rec_day = recordings(curr_recording).day;
-            load_parts.widefield = true;
-            load_parts.widefield_master = true;
-            load_parts.mousecam = true;
-            ap.load_recording;
-
-            % Load and prep pupil SLEAP tracking
-            pupil_sleap_dir = dir(fullfile(fileparts(mousecam_fn),'**','*.h5'));
-            if isempty(pupil_sleap_dir)
-                continue
+            % (check that number of recordings match those in behavior)
+            if length(recordings) ~= sum(bhv_curr_task_idx)
+                error('Bad recording matching');
             end
-            pupil_sleap_fn = fullfile(pupil_sleap_dir.folder,pupil_sleap_dir.name);
 
-            tracks = h5read(pupil_sleap_fn,'/tracks');       % frames x nodes x 2 (x/y-position)
-            % (scores aren't used at the moment - PG didn't need previously)
-            % pointScores = h5read(pupil_sleap_fn,'/point_scores')'; % frames x nodes
-            % instanceScores = h5read(pupil_sleap_fn, '/instance_scores')'; % transpose to 1 x frames
+            % Loop though animals, run encoding/decoding
+            for curr_recording = 1:length(recordings)
 
-            % Fit circle (solve for a,b,c in x^2 + y^2 + a*x + b*y + c = 0)
-            % (use only non-NaN vertices, remove points with too few vertices)
-            circle_fit_fun = @(x,y) [x(~any(isnan([x,y]),2)) y(~any(isnan([x,y]),2)) ...
-                ones(sum(~any(isnan([x,y]),2)),1)]\ ...
-                -(x(~any(isnan([x,y]),2)).^2+y(~any(isnan([x,y]),2)).^2);
+                preload_vars = who;
 
-            min_pupil_points = 3;
-            pupil_valid_frames = sum(~any(isnan(tracks),3),2) >= min_pupil_points;
+                rec_time = recordings(curr_recording).recording{end};
+                rec_day = recordings(curr_recording).day;
+                load_parts.widefield = true;
+                load_parts.widefield_master = true;
+                load_parts.mousecam = true;
+                ap.load_recording;
 
-            pupil_circle_fit = nan(3,length(mousecam_times));
-            pupil_circle_fit(:,pupil_valid_frames) = cell2mat(arrayfun(@(frame) ...
-                circle_fit_fun(tracks(frame,:,1)',tracks(frame,:,2)'), ...
-                find(pupil_valid_frames)','uni',false));
+                % Load and prep pupil SLEAP tracking
+                pupil_sleap_dir = dir(fullfile(fileparts(mousecam_fn),'**','*.h5'));
+                if isempty(pupil_sleap_dir)
+                    continue
+                end
+                pupil_sleap_fn = fullfile(pupil_sleap_dir.folder,pupil_sleap_dir.name);
 
-            pupil = struct( ...
-                'x',-pupil_circle_fit(1,:)./2, ...
-                'y',-pupil_circle_fit(2,:)./2, ...
-                'diameter',2*sqrt(sum(pupil_circle_fit(1:2,:).^2,1)/4-pupil_circle_fit(3,:)));
+                tracks = h5read(pupil_sleap_fn,'/tracks');       % frames x nodes x 2 (x/y-position)
+                % (scores aren't used at the moment - PG didn't need previously)
+                % pointScores = h5read(pupil_sleap_fn,'/point_scores')'; % frames x nodes
+                % instanceScores = h5read(pupil_sleap_fn, '/instance_scores')'; % transpose to 1 x frames
 
-            % Regression parameters
-            time_bins = [wf_t;wf_t(end)+1/wf_framerate];
-            n_components = 200;
-            frame_shifts = -10:30;
-            lamda_encode = 0;
-            lambda_decode = 15;
-            cv_fold = 5;
-            skip_t = 60; % seconds start/end to skip for artifacts
-            skip_frames = round(skip_t*wf_framerate);
+                % Fit circle (solve for a,b,c in x^2 + y^2 + a*x + b*y + c = 0)
+                % (use only non-NaN vertices, remove points with too few vertices)
+                circle_fit_fun = @(x,y) [x(~any(isnan([x,y]),2)) y(~any(isnan([x,y]),2)) ...
+                    ones(sum(~any(isnan([x,y]),2)),1)]\ ...
+                    -(x(~any(isnan([x,y]),2)).^2+y(~any(isnan([x,y]),2)).^2);
 
-            % Stim onset regressors
-            stim_regressors = histcounts(stimOn_times,time_bins);
+                min_pupil_points = 3;
+                pupil_valid_frames = sum(~any(isnan(tracks),3),2) >= min_pupil_points;
 
-            % Move regressors
-            % (move onset, wheel velocity, pupil diameter, pupil velocity)
-            wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
-            move_onset_regressors = histcounts(wheel_starts,time_bins);
+                pupil_circle_fit = nan(3,length(mousecam_times));
+                pupil_circle_fit(:,pupil_valid_frames) = cell2mat(arrayfun(@(frame) ...
+                    circle_fit_fun(tracks(frame,:,1)',tracks(frame,:,2)'), ...
+                    find(pupil_valid_frames)','uni',false));
 
-            wheel_velocity_resample = interp1(timelite.timestamps,wheel_velocity,wf_t);
-            pupil_diameter_resample = interp1(mousecam_times,pupil.diameter,wf_t);
-            pupil_velocity_resample = interp1(sqrt(diff(pupil.x).^2+diff(pupil.y).^2),wf_t);
+                pupil = struct( ...
+                    'x',-pupil_circle_fit(1,:)./2, ...
+                    'y',-pupil_circle_fit(2,:)./2, ...
+                    'diameter',2*sqrt(sum(pupil_circle_fit(1:2,:).^2,1)/4-pupil_circle_fit(3,:)));
 
-            move_regressors = vertcat( ...
-                move_onset_regressors,wheel_velocity_resample', ...
-                pupil_diameter_resample',pupil_velocity_resample');
+                % Regression parameters
+                time_bins = [wf_t;wf_t(end)+1/wf_framerate];
+                n_components = 200;
+                frame_shifts = -10:30;
+                lamda_encode = 0;
+                lambda_decode = 15;
+                cv_fold = 5;
+                skip_t = 60; % seconds start/end to skip for artifacts
+                skip_frames = round(skip_t*wf_framerate);
 
-            % Encoding: stim kernel
-            kernels_stimmove_encode = ...
-                ap.regresskernel( ...
-                vertcat(stim_regressors(:,skip_frames:end-skip_frames), ...
-                move_regressors(:,skip_frames:end-skip_frames)), ...
-                wf_V(1:n_components,skip_frames:end-skip_frames), ...
-                frame_shifts,lamda_encode,[],cv_fold);
+                % Stim onset regressors
+                stim_regressors = histcounts(stimOn_times,time_bins);
 
-            % Encoding: stim and move separately (to use residuals)
-            [kernels_stim_encode,predicted_signals_stim] = ...
-                ap.regresskernel(stim_regressors(:,skip_frames:end-skip_frames), ...
-                wf_V(1:n_components,skip_frames:end-skip_frames), ...
-                frame_shifts,lamda_encode,[],cv_fold);
+                % Move regressors
+                % (move onset, wheel velocity, pupil diameter, pupil velocity)
+                wheel_starts = timelite.timestamps(diff([0;wheel_move]) == 1);
+                move_onset_regressors = histcounts(wheel_starts,time_bins);
 
-            [kernels_move_encode,predicted_signals_move] = ...
-                ap.regresskernel(move_regressors(:,skip_frames:end-skip_frames), ...
-                wf_V(1:n_components,skip_frames:end-skip_frames), ...
-                frame_shifts,lamda_encode,[],cv_fold);
+                wheel_velocity_resample = interp1(timelite.timestamps,wheel_velocity,wf_t);
+                pupil_diameter_resample = interp1(mousecam_times,pupil.diameter,wf_t);
+                pupil_velocity_resample = interp1(sqrt(diff(pupil.x).^2+diff(pupil.y).^2),wf_t);
 
-            % Decoding: regress to stim and move (on full and residuals)
-            kernels_stim_decode_full = ...
-                ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
-                stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
+                move_regressors = vertcat( ...
+                    move_onset_regressors,wheel_velocity_resample', ...
+                    pupil_diameter_resample',pupil_velocity_resample');
 
-            kernels_stim_decode_moveresiduals = ...
-                ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
-                predicted_signals_move, ...
-                stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
+                % Encoding: stim kernel
+                kernels_stimmove_encode = ...
+                    ap.regresskernel( ...
+                    vertcat(stim_regressors(:,skip_frames:end-skip_frames), ...
+                    move_regressors(:,skip_frames:end-skip_frames)), ...
+                    wf_V(1:n_components,skip_frames:end-skip_frames), ...
+                    frame_shifts,lamda_encode,[],cv_fold);
 
-            kernels_stim_decode_stimresiduals = ...
-                ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
-                predicted_signals_stim, ...
-                stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
+                % Encoding: stim and move separately (to use residuals)
+                [kernels_stim_encode,predicted_signals_stim] = ...
+                    ap.regresskernel(stim_regressors(:,skip_frames:end-skip_frames), ...
+                    wf_V(1:n_components,skip_frames:end-skip_frames), ...
+                    frame_shifts,lamda_encode,[],cv_fold);
 
-            % Store variables
-            animal_kernels(curr_animal_group).stimmove_encode{curr_animal_idx}{curr_recording} = permute(kernels_stimmove_encode,[3,2,1]);
-            animal_kernels(curr_animal_group).stim_encode{curr_animal_idx}{curr_recording} = permute(kernels_stim_encode,[3,2,1]);
-            animal_kernels(curr_animal_group).move_encode{curr_animal_idx}{curr_recording} = permute(kernels_move_encode,[3,2,1]);
-            animal_kernels(curr_animal_group).stim_decode_full{curr_animal_idx}{curr_recording} = kernels_stim_decode_full;
-            animal_kernels(curr_animal_group).stim_decode_moveresiduals{curr_animal_idx}{curr_recording} =  kernels_stim_decode_moveresiduals;
-            animal_kernels(curr_animal_group).stim_decode_stimresiduals{curr_animal_idx}{curr_recording} = kernels_stim_decode_stimresiduals;
+                [kernels_move_encode,predicted_signals_move] = ...
+                    ap.regresskernel(move_regressors(:,skip_frames:end-skip_frames), ...
+                    wf_V(1:n_components,skip_frames:end-skip_frames), ...
+                    frame_shifts,lamda_encode,[],cv_fold);
 
-            fprintf('Finished %s day %d/%d\n',animal,curr_recording,length(recordings))
+                % Decoding: regress to stim and move (on full and residuals)
+                kernels_stim_decode_full = ...
+                    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
+                    stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
+
+                kernels_stim_decode_moveresiduals = ...
+                    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
+                    predicted_signals_move, ...
+                    stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
+
+                kernels_stim_decode_stimresiduals = ...
+                    ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
+                    predicted_signals_stim, ...
+                    stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
+
+                % Store variables
+                animal_kernels(curr_animal_group,curr_modality).stimmove_encode{curr_animal_idx}{curr_recording} = permute(kernels_stimmove_encode,[3,2,1]);
+                animal_kernels(curr_animal_group,curr_modality).stim_encode{curr_animal_idx}{curr_recording} = permute(kernels_stim_encode,[3,2,1]);
+                animal_kernels(curr_animal_group,curr_modality).move_encode{curr_animal_idx}{curr_recording} = permute(kernels_move_encode,[3,2,1]);
+                animal_kernels(curr_animal_group,curr_modality).stim_decode_full
+                {curr_animal_idx}{curr_recording} = kernels_stim_decode_full;
+                animal_kernels(curr_animal_group,curr_modality).stim_decode_moveresiduals{curr_animal_idx}{curr_recording} =  kernels_stim_decode_moveresiduals;
+                animal_kernels(curr_animal_group,curr_modality).stim_decode_stimresiduals{curr_animal_idx}{curr_recording} = kernels_stim_decode_stimresiduals;
+
+                % Clear recording variables and print progress
+                clearvars('-except',preload_vars{:});
+                fprintf('Finished %s day %d/%d\n',animal,curr_recording,length(recordings))
+            end
         end
     end
 end
@@ -508,13 +515,13 @@ save_fn = fullfile(save_path,'encoding_decoding_kernels');
 save(save_fn,'animal_kernels');
 fprintf('\n---\nSaved %s\n---\n',save_fn)
 
-% (for test plotting)
-kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),x);
-ap.imscroll(kernels_px,frame_shifts);
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-axis image
-set(gcf,'name','Encoding');
+% % (for test plotting)
+% kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),x);
+% ap.imscroll(kernels_px,frame_shifts);
+% clim(max(abs(clim)).*[-1,1]);
+% colormap(ap.colormap('PWG'));
+% axis image
+% set(gcf,'name','Encoding');
 
 % %%%%%% UNUSED AT THE MOMENT - USE ON FIG GENERATION?
 % recordings_learned = behavior_each_mice{curr_animal_group}.learned{curr_animal_idx}(bhv_curr_task_idx);
