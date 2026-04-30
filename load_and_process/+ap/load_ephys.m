@@ -111,11 +111,6 @@ template_amplitudes = double(readNPY(fullfile(kilosort_path,'amplitudes.npy')));
 
 %% Calculate template properties
 
-% Default channel map/positions are from end: make from surface
-% (hardcode this: kilosort2 drops channels)
-max_depth = 3840;
-channel_positions(:,2) = max_depth - channel_positions(:,2);
-
 % Unwhiten templates
 templates = zeros(size(templates_whitened));
 for t = 1:size(templates_whitened,1)
@@ -133,8 +128,8 @@ template_chan_amp = squeeze(range(templates,2));
 % (zero-out low amplitude channels)
 template_chan_amp_thresh = max(template_chan_amp,[],2)*0.5;
 template_chan_amp_overthresh = template_chan_amp.*(template_chan_amp >= template_chan_amp_thresh);
-% (get center-of-mass on thresholded channel amplitudes)
-template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
+% (get tip distance center-of-mass on thresholded channel amplitudes)
+template_tipdist = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
 % (get shank for each unit)
 shank_spacing = 250;
 shank_borders = (0:4)*shank_spacing-shank_spacing/2;
@@ -142,7 +137,7 @@ template_xpos = sum(template_chan_amp_overthresh.*channel_positions(:,1)',2)./su
 template_shanks = discretize(template_xpos,shank_borders);
 
 % Get the depth of each spike
-spike_depths = template_depths(spike_templates);
+spike_tipdist = template_tipdist(spike_templates);
 
 % Get waveform width 
 % (use smoothed waveform - Kilosort often has bumps)
@@ -380,7 +375,7 @@ end
 
 % Throw out all non-good template data
 templates = templates(good_templates,:,:);
-template_depths = template_depths(good_templates);
+template_tipdist = template_tipdist(good_templates);
 template_shanks = template_shanks(good_templates);
 waveforms = waveforms(good_templates,:);
 waveform_duration_peaktrough = waveform_duration_peaktrough(good_templates);
@@ -390,7 +385,7 @@ waveform_duration_fwhm = waveform_duration_fwhm(good_templates);
 good_spikes = ismember(spike_templates,find(good_templates));
 spike_templates = spike_templates(good_spikes);
 template_amplitudes = template_amplitudes(good_spikes);
-spike_depths = spike_depths(good_spikes);
+spike_tipdist = spike_tipdist(good_spikes);
 spike_times_timelite = spike_times_timelite(good_spikes);
 
 % Rename the remaining spike templates (1:N, to match index for template)

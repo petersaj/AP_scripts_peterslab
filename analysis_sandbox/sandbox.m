@@ -236,10 +236,71 @@ fprintf('Saved %s\n',histology_fn)
 %% Probe area plotting - do with rectangles
 
 
+% Draw areas for all shanks
+n_shanks = max(probe_areas{1}.probe_shank);
+figure;
+h = tiledlayout(1,n_shanks,'TileSpacing','none');
+h_shank = gobjects(n_shanks,1);
+for curr_shank = 1:n_shanks
+
+    % Create shank axis
+    h_shank(curr_shank) = nexttile; hold on; 
+
+    % Plot areas as rectangles
+    curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
+    for curr_area = curr_shank_areas'
+        curr_rgb = hex2dec(mat2cell(probe_areas{1}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
+        curr_y = probe_areas{1}.tip_distance(curr_area,:);
+        rectangle('Position',[0,min(curr_y), ...
+            1,abs(diff(curr_y))], ...
+            'FaceColor',curr_rgb,'EdgeColor','none');
+    end
+
+    % Label area centers
+    curr_area_centers = mean(probe_areas{1}.tip_distance(curr_shank_areas,:),2);
+    dist_labels = (0:0.5:max(probe_areas{1}.tip_distance,[],'all'))';
+
+    ytick_values = vertcat(curr_area_centers,dist_labels);
+    ytick_labels = vertcat(probe_areas{1}.acronym(curr_shank_areas), ...
+        cellfun(@num2str,num2cell(dist_labels),'uni',false));
+    
+    [~,ytick_sort_idx] = sort(ytick_values);
+    set(h_shank(curr_shank), ...
+        'YTick',ytick_values(ytick_sort_idx),'YTickLabels',ytick_labels(ytick_sort_idx));
+
+end
+linkaxes(h.Children,'y')
+
+% Plot units by shank
+norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
+for curr_shank = unique(template_shanks)'
+    curr_shank_templates = template_shanks == curr_shank;
+    unit_dots = scatter(h_shank(curr_shank), ...
+        norm_spike_count(curr_shank_templates), ....
+        template_tipdist(curr_shank_templates)/1000,20,'k','filled');
+    xlabel(h_shank(curr_shank),'Rate')
+end
+
+%%%%%%%% MOVING TO SINGLE AXIS
+% (have argument to plot shanks on single/multiple axes)
 %%% I think I still want to do this on one axis - that way can select any
 %%% rectangle ROI in cellraster
 
+
+
 % Draw areas for all shanks
+shank_axes_split = true;
+
+figure;
+% Axes: split by shank, or all on one
+if shank_axes_split
+    h = tiledlayout(1,n_shanks,'TileSpacing','none');
+    h_shank = arrayfun(@nexttile,1:n_shanks);
+else
+    h_shank(1:n_shanks) = deal(axes);
+end
+
+
 shank_size = 3.84;
 n_shanks = max(probe_areas{1}.probe_shank);
 figure;
@@ -266,7 +327,7 @@ for curr_shank = 1:n_shanks
     dist_labels = (0:0.5:max(shank_size-probe_areas{1}.tip_distance,[],'all'))';
 
     ytick_values = vertcat(curr_area_centers,dist_labels);
-    ytick_labels = vertcat(probe_areas{1}.acronym(curr_shank_areas(label_sort_idx)), ...
+    ytick_labels = vertcat(probe_areas{1}.acronym(curr_shank_areas), ...
         cellfun(@num2str,num2cell(dist_labels),'uni',false));
     
     [~,ytick_sort_idx] = sort(ytick_values);
@@ -276,14 +337,9 @@ for curr_shank = 1:n_shanks
 end
 linkaxes(h.Children,'y')
 
-% Plot units by shank
-norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
-for curr_shank = unique(template_shanks)'
-    curr_shank_templates = template_shanks == curr_shank;
-    unit_dots = scatter(h_shank(curr_shank), ...
-        norm_spike_count(curr_shank_templates), ....
-        template_depths(curr_shank_templates)/1000,20,'k','filled');
-    xlabel(h_shank(curr_shank),'Rate')
-end
+
+
+
+
 
 
