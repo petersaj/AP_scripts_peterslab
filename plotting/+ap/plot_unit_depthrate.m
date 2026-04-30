@@ -67,14 +67,21 @@ for curr_shank = 1:n_shanks
 end
 linkaxes(shank_axes,'y')
 
-% Plot units by shank
-unit_dots = gobjects(n_shanks,1);
+% Plot units
 norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
-for curr_shank = unique(template_shanks)'
-    curr_shank_templates = template_shanks == curr_shank;
-    unit_dots(curr_shank) = scatter(shank_axes(curr_shank), ...
-        norm_spike_count(curr_shank_templates)+shank_xoffset(curr_shank), ....
-        template_tipdist(curr_shank_templates)/1000,20,'k','filled');
-    xlabel(shank_axes(curr_shank),'Rate')
+
+unit_xplot = norm_spike_count + shank_xoffset(template_shanks)';
+unit_yplot = template_tipdist/1000;
+
+if split_shanks
+    unit_dots = arrayfun(@(shank) scatter(shank_axes(shank), ...
+        unit_xplot(template_shanks==shank), ...
+        unit_yplot(template_shanks==shank),20,'k','filled'),1:n_shanks);
+else
+    unit_dots = scatter(unique(shank_axes), ...
+        unit_xplot,unit_yplot,20,'k','filled');
 end
+xlabel(shank_axes(curr_shank),'Rate')
+
+
 

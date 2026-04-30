@@ -349,21 +349,19 @@ gui_data = guidata(cellraster_gui);
 
 switch eventdata.Key
     case 'downarrow'
-        % N units down      
+        % One unit down      
         template_tipdist = get(gui_data.unit_dots,'YData');
-        template_id = 1:length(template_tipdist);
+        template_id = get(gui_data.unit_dots,'ZData');
         depth_sort = sortrows([template_tipdist',template_id'],1);
-        new_unit = depth_sort(circshift(ismember(depth_sort(:,2), ...
-            gui_data.curr_unit),-length(gui_data.curr_unit)),2);
+        new_unit = depth_sort(circshift(ismember(depth_sort(:,2),gui_data.curr_unit),1),2);
         gui_data.curr_unit = new_unit;
         
     case 'uparrow'
-        % N units up
+        % One unit up
         template_tipdist = get(gui_data.unit_dots,'YData');
-        template_id = 1:length(template_tipdist);
+        template_id = get(gui_data.unit_dots,'ZData');
         depth_sort = sortrows([template_tipdist',template_id'],1);
-        new_unit = depth_sort(circshift(ismember(depth_sort(:,2), ...
-            gui_data.curr_unit),length(gui_data.curr_unit)),2);
+        new_unit = depth_sort(circshift(ismember(depth_sort(:,2),gui_data.curr_unit),-1),2);
         gui_data.curr_unit = new_unit;
         
     case 'rightarrow'
@@ -417,13 +415,13 @@ switch eventdata.Key
     case 'm'    
         % Draw rectangle to select units for multiunit
         unit_roi = drawrectangle(gui_data.unit_dots.Parent);
-        unit_bounds = unit_roi.Position(1:2)+[0,0;unit_roi.Position(3:4)];
+        unit_bounds = unit_roi.Position([1,3])+[0,0;unit_roi.Position([2,4])];
         selected_units = ...
             isbetween(gui_data.unit_dots.XData,unit_bounds(1,1),unit_bounds(2,1)) & ...
             isbetween(gui_data.unit_dots.YData,unit_bounds(1,2),unit_bounds(2,2));
         unit_roi.delete;
 
-        gui_data.curr_unit = find(selected_units);
+        gui_data.curr_unit = selected_units;
         
     case 'u'
         % Enter and go to unit
