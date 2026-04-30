@@ -235,6 +235,10 @@ fprintf('Saved %s\n',histology_fn)
 
 %% Probe area plotting - do with rectangles
 
+
+%%% I think I still want to do this on one axis - that way can select any
+%%% rectangle ROI in cellraster
+
 % Draw areas for all shanks
 shank_size = 3.84;
 n_shanks = max(probe_areas{1}.probe_shank);
@@ -281,3 +285,5 @@ for curr_shank = unique(template_shanks)'
         template_depths(curr_shank_templates)/1000,20,'k','filled');
     xlabel(h_shank(curr_shank),'Rate')
 end
+
+
