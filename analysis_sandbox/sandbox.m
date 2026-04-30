@@ -232,58 +232,61 @@ fprintf('Saved %s\n',histology_fn)
 % 
 % x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
 
+%% Draw probe insertion point on widefield
 
-%% Probe area plotting - do with rectangles
+% 1) get insertion point from histology
+% 2) add point_ccf in wf_draw to transform CCF coord to wf
 
-% Draw areas for all shanks
-shank_axes_split = false;
+animal = 'DS030';
 
-% Axes: split by shank, or all on one
-n_shanks = max(probe_areas{1}.probe_shank);
-figure;
-if shank_axes_split
-    h = tiledlayout(1,n_shanks,'TileSpacing','none');
-    shank_axes = arrayfun(@(x) nexttile(h),1:n_shanks);
-    shank_xoffset = zeros(1,n_shanks);
-else
-    shank_axes(1:n_shanks) = deal(axes);
-    shank_xoffset = 1:n_shanks;
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_fn = dir(histology_filepattern);
+load(fullfile(histology_fn.folder,histology_fn.name));
+
+probe_labels = string({AP_histology_processing.annotation.label});
+probe_ccf_vertices = arrayfun(@(x) horzcat( ...
+    vertcat(x.vertices_ccf.ap), ...
+    vertcat(x.vertices_ccf.dv), ...
+    vertcat(x.vertices_ccf.ml)), ...
+    AP_histology_processing.annotation,'uni',false);
+
+probe_ccf_insertion = cell(size(probe_ccf_vertices));
+for curr_probe = 1:length(probe_ccf_vertices)
+
+    % Load CCF atlas
+    [av,tv,st] = ap_histology.load_ccf;
+
+    % Get line of best fit through mean of marked points
+    [~,~,probe_fit] = svd(probe_ccf_vertices{curr_probe} - mean(probe_ccf_vertices{curr_probe},1),0);
+
+    probe_direction = probe_fit(:,1);
+    % (ensure vector goes downward in DV)
+    probe_direction(2) = abs(probe_direction(2));
+    probe_vector = mean(probe_ccf_vertices{curr_probe},1) + padarray(probe_direction',[1,0],0,'pre');
+
+    % Grab AV values across probe trajectory
+    max_eval = round(sqrt(max(size(av)).^2*2));
+    eval_points_probe = (-max_eval:max_eval);
+    eval_points_ccf = round(interp1([0,norm(diff(probe_vector))],probe_vector, ...
+        eval_points_probe,'linear','extrap'));
+
+    eval_points_ccf_valid = eval_points_ccf(all(eval_points_ccf > 0 & eval_points_ccf <= size(av),2),:);
+
+    eval_points_ccf_idx = sub2ind(size(av),eval_points_ccf_valid(:,1), ...
+        eval_points_ccf_valid(:,2),eval_points_ccf_valid(:,3));
+
+    probe_trajectory_av = av(eval_points_ccf_idx);
+
+    % Get insertion point as first point with brain label
+    probe_ccf_insertion{curr_probe} = eval_points_ccf_valid(find(probe_trajectory_av>1,1),:);
+
 end
 
-% Draw areas for all shanks
-for curr_shank = 1:n_shanks
+arrayfun(@(x) ap.wf_draw('point_ccf',probe_ccf_insertion{x}([1,3])),1:length(probe_ccf_insertion));
 
-    hold(shank_axes(curr_shank),'on');
 
-    % Plot areas as rectangles
-    curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
-    for curr_area = curr_shank_areas'
-        curr_rgb = hex2dec(mat2cell(probe_areas{1}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
-        curr_y = probe_areas{1}.tip_distance(curr_area,:);
-        rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
-            1,abs(diff(curr_y))], ...
-            'FaceColor',curr_rgb,'EdgeColor','none');
-    end
 
-    % Label area centers
-    text(repelem(shank_xoffset(curr_shank),length(curr_shank_areas),1), ...
-        probe_areas{1}.tip_distance(curr_shank_areas,1), ...
-        probe_areas{1}.acronym(curr_shank_areas));
 
-    set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas{1}.tip_distance,[],'all'));
-    
-end
-linkaxes(shank_axes,'y')
-
-% Plot units by shank
-norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
-for curr_shank = unique(template_shanks)'
-    curr_shank_templates = template_shanks == curr_shank;
-    unit_dots = scatter(shank_axes(curr_shank), ...
-        norm_spike_count(curr_shank_templates)+shank_xoffset(curr_shank), ....
-        template_tipdist(curr_shank_templates)/1000,20,'k','filled');
-    xlabel(shank_axes(curr_shank),'Rate')
-end
 
 
 

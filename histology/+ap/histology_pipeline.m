@@ -326,16 +326,18 @@ ap.histology_ephys_align(st,histology_path, ...
 
 %% Grab areas along trajectory from probe annotation
 
-slice_path = 'C:\Users\peter\OneDrive\Desktop\test_hist';
+use_probe = 1;
 
-% Load probe CCF
-histology_processing_fn = fullfile(slice_path,'AP_histology_processing.mat');
-load(histology_processing_fn);
+animal = 'DS030';
+
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_fn = dir(histology_filepattern);
+load(fullfile(histology_fn.folder,histology_fn.name));
 
 annotation_vertices_ccf = ...
-    [vertcat(AP_histology_processing.annotation.vertices_ccf.ap), ...
-    vertcat(AP_histology_processing.annotation.vertices_ccf.dv), ...
-    vertcat(AP_histology_processing.annotation.vertices_ccf.ml)];
+    [vertcat(AP_histology_processing.annotation(use_probe).vertices_ccf.ap), ...
+    vertcat(AP_histology_processing.annotation(use_probe).vertices_ccf.dv), ...
+    vertcat(AP_histology_processing.annotation(use_probe).vertices_ccf.ml)];
 
 % Load CCF atlas
 [av,tv,st] = ap_histology.load_ccf;
@@ -360,7 +362,6 @@ eval_points_ccf_idx = sub2ind(size(av),eval_points_ccf_valid(:,1), ...
     eval_points_ccf_valid(:,2),eval_points_ccf_valid(:,3));
 
 probe_trajectory_av = av(eval_points_ccf_idx);
-
 
 % Get trajectory area colors and plot
 trajectory_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...

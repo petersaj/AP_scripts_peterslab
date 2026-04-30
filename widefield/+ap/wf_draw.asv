@@ -119,15 +119,6 @@ switch type
         plot(bregma_offset_x+point_ml*1000/um2pixel, ...
             bregma_offset_y-point_ap*1000/um2pixel,'.b','markersize',20);
         warning('um/px: needs more accurate measurement');
-
-    case 'point_ccf'
-        % Plot a point at specific CCF coordinates [AP,ML]
-        % (NOTE: this doesn't take into account the 5-degree tilt, so it's
-        % a little incorrect)
-        point_ccf_aligned = [fliplr(color),1]*ccf_tform.T;
-
-        plot(point_ccf_aligned(1),point_ccf_aligned(2), ...
-            '.r','markersize',20);
         
     case 'cortex'
         % Plot cortex outline (aligned to master retinotopy)
@@ -140,12 +131,14 @@ switch type
             plot(outline(:,1),outline(:,2),'color',color),areas,'uni',false), ...
                 dorsal_cortex_borders_aligned,'uni',false);
 
-    case 'area'
+    case {'area','point_ccf'}
         % Plot CCF area by search
         % (NOTE: rotate CCF 5 degrees nose-up)
 
         allen_atlas_path = fileparts(which('template_volume_10um.npy'));
         av = readNPY(fullfile(allen_atlas_path, 'annotation_volume_10um_by_index.npy'));
+
+        switch typu
         st = loadStructureTree(fullfile(allen_atlas_path, 'structure_tree_safe_2017.csv'));
         
         structure_search = lower(inputdlg('Search structures'));
