@@ -123,14 +123,14 @@ waveforms = cell2mat(arrayfun(@(x) templates(x,:,max_site(x)), ...
     (1:size(templates,1))','uni',false));
 
 % Get depth of each template
-% (min-max range for each channel)
+% (get min-max range for each channel)
 template_chan_amp = squeeze(range(templates,2));
-% (low amplitude channels to ignore)
+% (zero-out low amplitude channels)
 template_chan_amp_thresh = max(template_chan_amp,[],2)*0.5;
 template_chan_amp_overthresh = template_chan_amp.*(template_chan_amp >= template_chan_amp_thresh);
-% (tip distance center-of-mass: negative so increasing goes down)
-template_depths = -sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
-% (shank for each unit)
+% (get center-of-mass on thresholded channel amplitudes)
+template_depths = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
+% (get shank for each unit)
 shank_spacing = 250;
 shank_borders = (0:4)*shank_spacing-shank_spacing/2;
 template_xpos = sum(template_chan_amp_overthresh.*channel_positions(:,1)',2)./sum(template_chan_amp_overthresh,2);
