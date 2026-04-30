@@ -9,7 +9,7 @@ function cellraster(align_times,align_groups)
 % These variables are required in the base workspace: 
 % templates (output from kilosort)
 % channel_positions (output from kilosort)
-% template_depths (calculated from center-of-mass or otherwise)
+% template_tipdist (calculated from center-of-mass or otherwise)
 % spike_times_timelite (spike_times aligned to timelite)
 % spike_templates (output from kilosort+1)
 % template_amplitudes (output from kilosort)
@@ -69,12 +69,12 @@ align_groups = cellfun(@(x) padarray(x,[0,1-all(x(:,1) == 1)],1,'pre'),align_gro
 try
 templates = evalin('base','templates');
 channel_positions = evalin('base','channel_positions');
-template_depths = evalin('base','template_depths');
+template_tipdist = evalin('base','template_tipdist');
 spike_times = evalin('base','spike_times_timelite');
 spike_templates = evalin('base','spike_templates');
 template_amplitudes = evalin('base','template_amplitudes');
 catch me
-    missing_var = textscan(me.message,'Undefined function or variable '' %s');
+    missing_var = textscan(me.message,'Unrecognized function or variable '' %s');
     error(['Ephys variable missing from base workspace: ' cell2mat(missing_var{:})]);
 end
 
@@ -132,7 +132,7 @@ linkprop(unit_axes.YAxis,'Limits');
 
 norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
 unit_dots = scatter3( ...
-    norm_spike_n,template_depths(unique(spike_templates)), ...
+    norm_spike_n,template_tipdist(unique(spike_templates)), ...
     unique(spike_templates),20,'k','filled','ButtonDownFcn',@unit_click);
 xlim(unit_axes,[0,1]);
 set(unit_axes.YAxis,'limits',[0, max(channel_positions(:,2))]);
@@ -398,17 +398,17 @@ gui_data = guidata(cellraster_gui);
 switch eventdata.Key
     case 'downarrow'
         % One unit down      
-        template_depths = get(gui_data.unit_dots,'YData');
+        template_tipdist = get(gui_data.unit_dots,'YData');
         template_id = get(gui_data.unit_dots,'ZData');
-        depth_sort = sortrows([template_depths',template_id'],1);
+        depth_sort = sortrows([template_tipdist',template_id'],1);
         new_unit = depth_sort(circshift(ismember(depth_sort(:,2),gui_data.curr_unit),1),2);
         gui_data.curr_unit = new_unit;
         
     case 'uparrow'
         % One unit up
-        template_depths = get(gui_data.unit_dots,'YData');
+        template_tipdist = get(gui_data.unit_dots,'YData');
         template_id = get(gui_data.unit_dots,'ZData');
-        depth_sort = sortrows([template_depths',template_id'],1);
+        depth_sort = sortrows([template_tipdist',template_id'],1);
         new_unit = depth_sort(circshift(ismember(depth_sort(:,2),gui_data.curr_unit),-1),2);
         gui_data.curr_unit = new_unit;
         
@@ -465,10 +465,10 @@ switch eventdata.Key
         [~,multiunit_click] = ginput(2);
         multiunit_depths = sort(multiunit_click);
         
-        template_depths = get(gui_data.unit_dots,'YData');
+        template_tipdist = get(gui_data.unit_dots,'YData');
         template_id = get(gui_data.unit_dots,'ZData');
-        gui_data.curr_unit = template_id(template_depths >= multiunit_depths(1) & ...
-            template_depths <= multiunit_depths(2));       
+        gui_data.curr_unit = template_id(template_tipdist >= multiunit_depths(1) & ...
+            template_tipdist <= multiunit_depths(2));       
         
     case 'u'
         % Enter and go to unit
