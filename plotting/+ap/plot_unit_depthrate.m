@@ -1,69 +1,80 @@
-function unit_dots = plot_unit_depthrate(plot_axes)
-% plot_unit_depthrate(plot_axes)
+function unit_dots = plot_unit_depthrate(plot_axes,split_shanks)
+% plot_unit_depthrate(split_shanks)
 %
-% Plot unit depth vs spike rate, with areas (if available)
+% % Plot unit depth vs spike rate, with areas (if available)
 % (grabs variables from base workspace)
+% 
+% INPUTS:
+% plot_axes - axis handle to plot shanks
+% split_shanks - shanks on separate axes (true) or one axis (false). True
+% by default without area_axes, forced as false with area_axes.
+
+arguments
+    plot_axes = []
+    split_shanks = true
+end
 
 % Pull variables from base workspace
 spike_times_openephys = evalin('base','spike_times_openephys');
 spike_templates = evalin('base','spike_templates');
-template_depths = evalin('base','template_depths');
+template_tipdist = evalin('base','template_tipdist');
+template_shanks = evalin('base','template_shanks');
 probe_areas = evalin('base','probe_areas');
 
-if ~exist('plot_axes','var') || isempty(plot_axes)
-    figure('Units','normalized','Position',[0.02,0.2,0.1,0.6])
-    area_axes = axes;
-else
-    area_axes = plot_axes;
-end
-unit_axes = axes('Color','none','YAxisLocation','right');
-
-hold(area_axes,'on');
-hold(unit_axes,'on');
-
-% Plot units (depth vs normalized rate) with areas
-if exist('probe_areas','var') && ~isempty(probe_areas)
-    probe_areas_rgb = permute(cell2mat(cellfun(@(x) hex2dec({x(1:2),x(3:4),x(5:6)})'./255, ...
-        probe_areas{1}.color_hex_triplet,'uni',false)),[1,3,2]);
-
-    if any(ismember(probe_areas{1}.Properties.VariableNames,'probe_depth'))
-        % (old format)
-        probe_areas_boundaries = probe_areas{1}.probe_depth;
-    elseif any(ismember(probe_areas{1}.Properties.VariableNames,'tip_distance'))
-        % (new format)
-        probe_areas_boundaries = 3840-probe_areas{1}.tip_distance*1000;
+% Set up axes
+n_shanks = max(probe_areas{1}.probe_shank);
+if isempty(plot_axes)
+    % No axes specified: make figure and axes
+    figure('Units','normalized','Position',[0.02,0.2,0.1,0.6]);
+    if split_shanks
+        h = tiledlayout(1,n_shanks,'TileSpacing','none');
+        shank_axes = arrayfun(@(x) nexttile(h),1:n_shanks);
+        shank_xoffset = zeros(1,n_shanks);
+    else
+        shank_axes(1:n_shanks) = deal(axes);
+        shank_xoffset = 1:n_shanks;
     end
-    probe_areas_centers = mean(probe_areas_boundaries,2);
-
-    probe_areas_image_depth = 0:1:max(probe_areas_boundaries,[],'all');
-    probe_areas_image_idx = interp1(probe_areas_boundaries(:,1), ...
-        1:height(probe_areas{1}),probe_areas_image_depth, ...
-        'previous','extrap');
-    probe_areas_image = ones(length(probe_areas_image_idx),1,3);
-    probe_areas_image(~isnan(probe_areas_image_idx),:,:) = ...
-        probe_areas_rgb(probe_areas_image_idx(~isnan(probe_areas_image_idx)),:,:);
-    
-    set(area_axes,'YDir','reverse');
-    image(area_axes,[],probe_areas_image_depth,probe_areas_image);
-    yline(unique(probe_areas_boundaries(:)),'color','k','linewidth',1);
-    set(area_axes,'YTick',probe_areas_centers,'YTickLabels',probe_areas{1}.acronym);
+else
+    % Plot axes specified: use axes, don't split shanks
+    split_shanks = false; % override split shanks if axes specified
+    shank_axes(1:n_shanks) = deal(plot_axes);
+    shank_xoffset = 1:n_shanks;
 end
 
-set(unit_axes,'YDir','reverse');
-spike_rate = (accumarray(findgroups(spike_templates),1)+1)/ ...
-    diff(prctile(spike_times_openephys,[0,100]));
+% Draw areas for all shanks
+for curr_shank = 1:n_shanks
 
-unit_dots = scatter(unit_axes, ...
-    spike_rate,template_depths(unique(spike_templates)),20,'k','filled');
-ylabel('Depth (\mum)')
-xlabel('Spike rate')
-set(unit_axes,'XScale','log');
+    hold(shank_axes(curr_shank),'on');
+    curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
 
-% Link axes and set ylim to probe length
-linkaxes([area_axes,unit_axes],'y');
-area_axes.YLim = [0,3840];
-unit_axes.YLim = [0,3840];
+    % Plot areas as rectangles
+    for curr_area = curr_shank_areas'
+        curr_rgb = hex2dec(mat2cell(probe_areas{1}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
+        curr_y = probe_areas{1}.tip_distance(curr_area,:);
+        rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
+            1,abs(diff(curr_y))], ...
+            'FaceColor',curr_rgb,'EdgeColor','none');
+    end
 
-% Ensure overlaid axes
-unit_axes.Position = area_axes.Position;
+    % Label area centers
+    text(shank_axes(curr_shank), ...
+        repelem(shank_xoffset(curr_shank),length(curr_shank_areas),1), ...
+        probe_areas{1}.tip_distance(curr_shank_areas,1), ...
+        probe_areas{1}.acronym(curr_shank_areas));
+
+    set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas{1}.tip_distance,[],'all'));
+    
+end
+linkaxes(shank_axes,'y')
+
+% Plot units by shank
+unit_dots = gobjects(n_shanks,1);
+norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
+for curr_shank = unique(template_shanks)'
+    curr_shank_templates = template_shanks == curr_shank;
+    unit_dots(curr_shank) = scatter(shank_axes(curr_shank), ...
+        norm_spike_count(curr_shank_templates)+shank_xoffset(curr_shank), ....
+        template_tipdist(curr_shank_templates)/1000,20,'k','filled');
+    xlabel(shank_axes(curr_shank),'Rate')
+end
 

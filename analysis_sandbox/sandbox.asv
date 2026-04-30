@@ -236,53 +236,55 @@ fprintf('Saved %s\n',histology_fn)
 %% Probe area plotting - do with rectangles
 
 % Draw areas for all shanks
-shank_axes_split = false;
+shank_axes_split = true;
 
-% Axes: split by shank, or all on one
-n_shanks = max(probe_areas{1}.probe_shank);
 figure;
+% Axes: split by shank, or all on one
 if shank_axes_split
     h = tiledlayout(1,n_shanks,'TileSpacing','none');
-    shank_axes = arrayfun(@(x) nexttile(h),1:n_shanks);
-    shank_xoffset = zeros(1,n_shanks);
+    h_shank = arrayfun(@nexttile,1:n_shanks);
 else
-    shank_axes(1:n_shanks) = deal(axes);
-    shank_xoffset = 1:n_shanks;
+    h_shank(1:n_shanks) = deal(axes);
 end
 
 % Draw areas for all shanks
+n_shanks = max(probe_areas{1}.probe_shank);
+figure;
 for curr_shank = 1:n_shanks
-
-    hold(shank_axes(curr_shank),'on');
 
     % Plot areas as rectangles
     curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
     for curr_area = curr_shank_areas'
         curr_rgb = hex2dec(mat2cell(probe_areas{1}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
         curr_y = probe_areas{1}.tip_distance(curr_area,:);
-        rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
+        rectangle(h_shank(curr_shank),'Position',[0,min(curr_y), ...
             1,abs(diff(curr_y))], ...
             'FaceColor',curr_rgb,'EdgeColor','none');
     end
 
     % Label area centers
-    text(repelem(shank_xoffset(curr_shank),length(curr_shank_areas),1), ...
-        probe_areas{1}.tip_distance(curr_shank_areas,1), ...
-        probe_areas{1}.acronym(curr_shank_areas));
+    curr_area_centers = mean(probe_areas{1}.tip_distance(curr_shank_areas,:),2);
+    dist_labels = (0:0.5:max(probe_areas{1}.tip_distance,[],'all'))';
 
-    set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas{1}.tip_distance,[],'all'));
+    ytick_values = vertcat(curr_area_centers,dist_labels);
+    ytick_labels = vertcat(probe_areas{1}.acronym(curr_shank_areas), ...
+        cellfun(@num2str,num2cell(dist_labels),'uni',false));
     
+    [~,ytick_sort_idx] = sort(ytick_values);
+    set(h_shank(curr_shank), ...
+        'YTick',ytick_values(ytick_sort_idx),'YTickLabels',ytick_labels(ytick_sort_idx));
+
 end
-linkaxes(shank_axes,'y')
+linkaxes(h.Children,'y')
 
 % Plot units by shank
 norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
 for curr_shank = unique(template_shanks)'
     curr_shank_templates = template_shanks == curr_shank;
-    unit_dots = scatter(shank_axes(curr_shank), ...
-        norm_spike_count(curr_shank_templates)+shank_xoffset(curr_shank), ....
+    unit_dots = scatter(h_shank(curr_shank), ...
+        norm_spike_count(curr_shank_templates), ....
         template_tipdist(curr_shank_templates)/1000,20,'k','filled');
-    xlabel(shank_axes(curr_shank),'Rate')
+    xlabel(h_shank(curr_shank),'Rate')
 end
 
 
