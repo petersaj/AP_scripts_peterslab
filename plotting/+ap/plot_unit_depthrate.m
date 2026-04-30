@@ -70,7 +70,7 @@ linkaxes(shank_axes,'y')
 % Plot units
 norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
 
-unit_xplot = norm_spike_count + shank_xoffset(template_shanks)';
+unit_xplot = norm_spike_count + reshape(shank_xoffset(template_shanks),[],1);
 unit_yplot = template_tipdist/1000;
 
 if split_shanks
