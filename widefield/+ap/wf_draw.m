@@ -1,28 +1,30 @@
-function h = wf_draw(type,color,manual_bregma)
+function h = wf_draw(type,draw_param,manual_bregma)
 % h = wf_draw(type,color,manual_bregma)
 %
 % Draw CCF areas on aligned widefield image
 %
-% Type: 
-% - scalebar
-% - bregma
-% - grid
-% - point: [AP,ML] in mm transformed via CCF alignment
-% - point_absolute: [AP,ML] in mm absolute distance (um/px)
-% - cortex: outline of whole cortex
-% - ccf: all cortical area boundaries
-% - area: search and plot CCF area
+% INPUTS    
+% `type` options (and use of `draw_param` input)
+% - scalebar (draw_param = color)
+% - bregma (draw_param = color)
+% - grid (draw_param = color)
+% - point: [AP,ML] in mm transformed via CCF alignment (draw_param = [AP,ML])
+% - point_absolute: [AP,ML] in mm absolute distance (um/px) (draw_param = [AP,ML])
+% - point_ccf: [AP,ML] in CCF coordinates (draw_param = [AP,ML])
+% - cortex: outline of whole cortex (draw_param = color)
+% - ccf: all cortical area boundaries (draw_param = color)
+% - area: search and plot CCF area (draw_param = color)
+% - probe_insertion: insertion point of probes from aligned histology (draw_param = animal)
 %
-% Color: color of overlay
+% `manual_bregma`: false (default) if aligned image, true to manually select
 %
-% manual_bregma: false (default) if aligned image, true to manually select
+% OUTPUTS
+% `h`: handle to drawn object(s)
 
-if ~exist('color','var')
-    color = 'k';
-end
-
-if ~exist('manual_bregma','var')
-    manual_bregma = false;
+arguments 
+    type
+    draw_param = 'k'
+    manual_bregma = false
 end
 
 
@@ -71,11 +73,11 @@ switch type
         y_scale_um = 1000;
         y_scale_px = y_scale_um/um2pixel;
         line(gca,repmat(min(xlim(gca)),2,1), ...
-            min(ylim(gca)) + [0,y_scale_px],'color',color,'linewidth',2)
+            min(ylim(gca)) + [0,y_scale_px],'color',draw_param,'linewidth',2)
 
     case 'bregma'
         % Plot bregma on aligned widefield
-        h.bregma = plot(bregma_offset_x,bregma_offset_y,'.','color',color,'MarkerSize',15);
+        h.bregma = plot(bregma_offset_x,bregma_offset_y,'.','color',draw_param,'MarkerSize',15);
     
     case 'grid'
         % Plot 500um spaced grid
@@ -91,18 +93,18 @@ switch type
 
         
         for curr_xline = 1:length(xlines_pos)
-            h.xlines(curr_xline) = line(xlim,repmat(xlines_pos(curr_xline),1,2),'color',color,'linestyle','-');
+            h.xlines(curr_xline) = line(xlim,repmat(xlines_pos(curr_xline),1,2),'color',draw_param,'linestyle','-');
         end
         
         for curr_yline = 1:length(ylines_pos)
-            h.ylines(curr_yline) = line(repmat(ylines_pos(curr_yline),1,2),ylim,'color',color,'linestyle','-');
+            h.ylines(curr_yline) = line(repmat(ylines_pos(curr_yline),1,2),ylim,'color',draw_param,'linestyle','-');
         end
         
         h.bregma = plot(bregma_offset_x,bregma_offset_y,'xr','MarkerSize',10);
 
     case 'point'
         % Plot a point at specific coordinates (in CCF-aligned transform)
-        point_ml_ap = fliplr(color);
+        point_ml_ap = fliplr(draw_param);
 
         point_ccf = bregma([3,1]) + point_ml_ap*100.*[1,-1];
         point_ccf_aligned = [point_ccf,1]*ccf_tform.T;
@@ -114,7 +116,7 @@ switch type
         % Plot a point at specific coordinates (in um/px)
         % (NOTE: this shouldn't be used for aligned images, since
         % CCF-relative coordinates will be more consistent)
-        [point_ap,point_ml] = deal(color(1),color(2));
+        [point_ap,point_ml] = deal(draw_param(1),draw_param(2));
 
         plot(bregma_offset_x+point_ml*1000/um2pixel, ...
             bregma_offset_y-point_ap*1000/um2pixel,'.b','markersize',20);
@@ -122,9 +124,10 @@ switch type
 
     case 'point_ccf'
         % Plot a point at specific CCF coordinates [AP,ML]
-        % (NOTE: this doesn't take into account the 5-degree tilt, so it's
-        % a little incorrect)
-        point_ccf_aligned = [fliplr(color),1]*ccf_tform.T;
+        % (NOTE: like the cortical borders, this doesn't take into account
+        % 5-degree tilt. Possibly a little off, but possibly not since
+        % transform might accomodate for that)
+        point_ccf_aligned = [fliplr(draw_param),1]*ccf_tform.T;
 
         plot(point_ccf_aligned(1),point_ccf_aligned(2), ...
             '.r','markersize',20);
@@ -132,12 +135,12 @@ switch type
     case 'cortex'
         % Plot cortex outline (aligned to master retinotopy)
         h = plot(dorsal_cortex_outline_aligned(:,1), ...
-            dorsal_cortex_outline_aligned(:,2),'color',color);
+            dorsal_cortex_outline_aligned(:,2),'color',draw_param);
 
     case 'ccf'
         % Plot cortex area borders (aligned to master retinotopy)
         h = cellfun(@(areas) cellfun(@(outline) ...
-            plot(outline(:,1),outline(:,2),'color',color),areas,'uni',false), ...
+            plot(outline(:,1),outline(:,2),'color',draw_param),areas,'uni',false), ...
                 dorsal_cortex_borders_aligned,'uni',false);
 
     case 'area'
@@ -167,13 +170,21 @@ switch type
             [fliplr(coords),ones(size(coords,1),1)]*ccf_tform.T,top_down_structure_borders,'uni',false);
 
         h = cellfun(@(outline) ...
-            plot(outline(:,1),outline(:,2),'color',color), ...
+            plot(outline(:,1),outline(:,2),'color',draw_param), ...
             top_down_structure_borders_aligned,'uni',false);
+
+    case 'probe_insertion'
+        probe_insertion_ccf = ap.histology.get_probe_insertion_ccf(draw_param);
+        for curr_probe = 1:length(probe_insertion_ccf)
+            ap.wf_draw('point_ccf',probe_insertion_ccf{curr_probe}([1,3]));
+        end
 
     otherwise
         warning('Invalid reference: %s',type);
         
 end
+
+
 
 % %% Create top-down cortical boundaries from CCF (RUN ONCE)
 % %

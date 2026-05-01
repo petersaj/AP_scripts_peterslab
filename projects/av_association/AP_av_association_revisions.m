@@ -518,11 +518,12 @@ for curr_animal_group = 1:length(animals)
             % Clear recording variables and print progress
             clearvars('-except',preload_vars{:});
             fprintf('Finished %s day %d/%d\n',animal,curr_recording,length(rec_days))
+            reset(gpuDevice());
 
             catch me
-                clearvars('-except',preload_vars{:});
-                fprintf('Error, skipping: %s day %d/%d\n',animal,curr_recording,length(rec_days))
+                fprintf('Error: "%s", skipping: %s day %d/%d\n',me.message,animal,curr_recording,length(rec_days))
                 warning(me.message);
+                clearvars('-except',preload_vars{:});
                 continue
             end
         end
