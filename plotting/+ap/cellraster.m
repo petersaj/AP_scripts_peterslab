@@ -162,11 +162,11 @@ gui_data.align_groups = align_groups;
 gui_data.templates = templates;
 gui_data.channel_positions = channel_positions;
 gui_data.spike_times = spike_times;
-gui_data.spike_templates = spike_templates;
+gui_data.spike_templates = double(spike_templates);
 gui_data.template_amplitudes = template_amplitudes;
 
 % (current settings)
-gui_data.curr_unit = spike_templates(1);
+gui_data.curr_unit = double(spike_templates(1));
 gui_data.curr_align = 1;
 gui_data.curr_group = 1;
 

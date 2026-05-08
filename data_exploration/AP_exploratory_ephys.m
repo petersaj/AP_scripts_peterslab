@@ -19,13 +19,13 @@ spike_binning_t_centers = spike_binning_t_edges(1:end-1) + diff(spike_binning_t_
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
 for curr_depth = 1:size(depth_corr_bins,2)
     curr_depth_templates_idx = ...
-        find(template_depths >= depth_corr_bins(1,curr_depth) & ...
-        template_depths < depth_corr_bins(2,curr_depth));
+        find(template_tipdist >= depth_corr_bins(1,curr_depth) & ...
+        template_tipdist < depth_corr_bins(2,curr_depth));
 
     % (to plot only responsive cells)
     % curr_depth_templates_idx = ...
-    %     intersect(find(template_depths >= depth_corr_bins(1,curr_depth) & ...
-    %     template_depths < depth_corr_bins(2,curr_depth)),responsive_units);
+    %     intersect(find(template_tipdist >= depth_corr_bins(1,curr_depth) & ...
+    %     template_tipdist < depth_corr_bins(2,curr_depth)),responsive_units);
 
     binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
@@ -73,8 +73,8 @@ spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spik
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
 for curr_depth = 1:size(depth_corr_bins,2)
     curr_depth_templates_idx = ...
-        find(template_depths >= depth_corr_bins(1,curr_depth) & ...
-        template_depths < depth_corr_bins(2,curr_depth));
+        find(template_tipdist >= depth_corr_bins(1,curr_depth) & ...
+        template_tipdist < depth_corr_bins(2,curr_depth));
     
     binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
@@ -179,7 +179,7 @@ end
 
 % Plot sorted
 % (sort depth)
-[~,sort_idx] = sort(template_depths);
+[~,sort_idx] = sort(template_tipdist);
 % 
 % % (sort max time)
 % [~,max_idx] = max(max(abs(unit_psth),[],3),[],2);
@@ -235,7 +235,7 @@ event_response_rank = tiedrank(horzcat(event_response,event_response_shuff)')';
 event_response_p = event_response_rank(:,1)./(n_shuff+1);
 
 % Plot responsive units by depth
-unit_dots = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas);
+unit_dots = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_tipdist,probe_areas);
 unit_dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
 
 % Plot rasters of responsive units (from above - if done)
@@ -252,7 +252,7 @@ responsive_units = find(event_response_p < 0.05 | event_response_p > 0.95);
 % [~,sort_idx] = sort(max_t);
 %
 % (sort by depth)
-[~,sort_idx] = sort(template_depths(responsive_units));
+[~,sort_idx] = sort(template_tipdist(responsive_units));
 
 ap.imscroll(unit_psth(responsive_units(sort_idx),:,:));
 colormap(AP_colormap('BWR'));
@@ -266,7 +266,7 @@ if ~exist('tans','var')
     AP_longstriatum_classify_striatal_units
 end
 
-[~,tan_sort_idx] = sort(template_depths(striatum_celltypes.tan));
+[~,tan_sort_idx] = sort(template_tipdist(striatum_celltypes.tan));
 tan_idx = find(tans);
 ap.imscroll(unit_psth(tan_idx(tan_sort_idx),:,:))
 colormap(AP_colormap('BWR'));
@@ -312,7 +312,7 @@ switch mua_method
 
         norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
         unit_dots = scatter3( ...
-            norm_spike_n,template_depths(unique(spike_templates)), ...
+            norm_spike_n,template_tipdist(unique(spike_templates)), ...
             unique(spike_templates),20,'k','filled');
         multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
         xlim(unit_axes,[-0.1,1]);
@@ -387,7 +387,7 @@ h = tiledlayout(1,2);
 
 % Plot units and depths
 ax_h = nexttile; set(gca,'YDir','reverse');hold on;
-ap.plot_unit_depthrate(spike_templates,template_depths,probe_areas,ax_h)
+ap.plot_unit_depthrate(spike_templates,template_tipdist,probe_areas,ax_h)
 
 % Plot MUA
 depth_psth_smooth_baseline = nanmean(depth_psth_smooth(:,t_centers<0,:),2);
@@ -440,7 +440,7 @@ stim_positions = cellfun(@(x,y,times) repmat([y,x],length(times),1), ...
 % use_spikes = spike_times_timelite(spike_templates == 276);
 % use_spikes = spike_times_timelite(spike_templates == 180);
 use_spikes = spike_times_timelite(ismember(spike_templates, ...
-    find(template_depths > 1500 & template_depths < 2500)));
+    find(template_tipdist > 1500 & template_tipdist < 2500)));
 
 % Get stim times vector (x,y)
 stim_aligned_avg = cell(nY,nX);
@@ -499,7 +499,7 @@ switch mua_method
 
     case 'click'
         % (for clickable manual depths)
-        unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas);    
+        unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_tipdist,probe_areas);    
         title('Click MUA borders');
         user_click_coords = ginput;
         close(unit_axes.Parent.Parent);
@@ -514,7 +514,7 @@ switch mua_method
 end
 
 % Draw units and borders
-unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas);
+unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_tipdist,probe_areas);
 yline(depth_group_edges,'linewidth',2,'color','r');
 depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
 text(zeros(length(depth_group_centers),1),depth_group_centers, ...
@@ -781,7 +781,7 @@ axis image;
 % r_px_timepoint = sqrt(squeeze(sum(r_px.^2,3)));
 r_px_timepoint = squeeze(max(r_px,[],3));
 
-[~,sort_idx] = sort(template_depths);
+[~,sort_idx] = sort(template_tipdist);
 % [~,sort_idx] = sort(explained_var.total,'descend');
 plot_templates = explained_var.total > 0;
 plot_templates_sort = sort_idx(plot_templates(sort_idx));
@@ -826,7 +826,7 @@ aligned_trace_predicted_mean_baseline = nanmean(aligned_trace_predicted_mean(:,t
 aligned_trace_predicted_mean_norm = (aligned_trace_predicted_mean-aligned_trace_predicted_mean_baseline)./(aligned_trace_predicted_mean_baseline+softnorm);
 
 % Plot depth-sorted
-[~,sort_idx] = sort(template_depths);
+[~,sort_idx] = sort(template_tipdist);
 figure;
 subplot(1,2,1);
 imagesc(t,[],aligned_trace_measured_mean_norm(sort_idx,:,:));
@@ -991,7 +991,7 @@ for curr_recording = 1:length(recordings)
     norm_spike_n = mat2gray(log10(accumarray(findgroups(spike_templates),1)+1));
 
     unit_dots = scatter( ...
-        norm_spike_n,template_depths(unique(spike_templates)),20,'k','filled');
+        norm_spike_n,template_tipdist(unique(spike_templates)),20,'k','filled');
     multiunit_lines = arrayfun(@(x) line(xlim,[0,0],'linewidth',2,'visible','off'),1:2);
     xlim(unit_axes,[-0.1,1]);
     ylim([-50, max(channel_positions(:,2))+50]);
