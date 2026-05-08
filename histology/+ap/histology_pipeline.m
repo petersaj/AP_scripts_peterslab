@@ -405,5 +405,211 @@ line(eval_points_ccf_valid([1,end],1), ...
     eval_points_ccf_valid([1,end],3),'color','b','linewidth',2)
 
 
+%% Volume viewer (testing)
+
+% (old - plot planes in 3d)
+
+% % Initialize guidata
+% gui_data = struct;
+% gui_data.tv = tv;
+% gui_data.av = av;
+% gui_data.st = st;
+% 
+% % Load in slice images
+% gui_data.slice_im_path = slice_im_path;
+% slice_im_dir = dir([slice_im_path filesep '*.tif']);
+% slice_im_fn = natsortfiles(cellfun(@(path,fn) [path filesep fn], ...
+%     {slice_im_dir.folder},{slice_im_dir.name},'uni',false));
+% gui_data.slice_im = cell(length(slice_im_fn),1);
+% for curr_slice = 1:length(slice_im_fn)
+%     gui_data.slice_im{curr_slice} = imread(slice_im_fn{curr_slice});
+% end
+% 
+% % Load corresponding CCF slices
+% ccf_slice_fn = [slice_im_path filesep 'histology_ccf.mat'];
+% load(ccf_slice_fn);
+% gui_data.histology_ccf = histology_ccf;
+% 
+% % Load histology/CCF alignment
+% ccf_alignment_fn = [slice_im_path filesep 'atlas2histology_tform.mat'];
+% load(ccf_alignment_fn);
+% gui_data.histology_ccf_alignment = atlas2histology_tform;
+% 
+% % Warp histology to CCF
+% gui_data.atlas_aligned_histology = cell(length(gui_data.slice_im),1);
+% for curr_slice = 1:length(gui_data.slice_im)
+%     curr_av_slice = gui_data.histology_ccf(curr_slice).av_slices;
+%     curr_av_slice(isnan(curr_av_slice)) = 1;
+%     curr_slice_im = gui_data.slice_im{curr_slice};
+% 
+%     tform = affine2d;
+%     tform.T = gui_data.histology_ccf_alignment{curr_slice};
+%     % (transform is CCF -> histology, invert for other direction)
+%     tform = invert(tform);
+% 
+%     tform_size = imref2d([size(gui_data.histology_ccf(curr_slice).av_slices,1), ...
+%         size(gui_data.histology_ccf(curr_slice).av_slices,2)]);
+% 
+%     gui_data.atlas_aligned_histology{curr_slice} = ...
+%         imwarp(curr_slice_im,tform,'nearest','OutputView',tform_size);
+% 
+% end
+% 
+% % Create figure
+% gui_fig = figure;
+% 
+% % Set up 3D plot for volume viewing
+% axes_atlas = axes;
+% [~, brain_outline] = plotBrainGrid([],axes_atlas);
+% set(axes_atlas,'ZDir','reverse');
+% hold(axes_atlas,'on');
+% axis vis3d equal off manual
+% view([-30,25]);
+% caxis([0 300]);
+% [ap_max,dv_max,ml_max] = size(tv);
+% xlim([-10,ap_max+10])
+% ylim([-10,ml_max+10])
+% zlim([-10,dv_max+10])
+% 
+% switch channel
+%     case 1
+%         colormap(AP_colormap('WR'));
+%     case 2
+%         colormap(AP_colormap('WG'));
+%     case 3
+%         colormap(AP_colormap('WB'));
+% end
+% 
+% % Turn on rotation by default
+% h = rotate3d(axes_atlas);
+% h.Enable = 'on';
+% 
+% % Draw all aligned slices
+% histology_surf = gobjects(length(gui_data.slice_im),1);
+% for curr_slice = 1:length(gui_data.slice_im)
+% 
+%     % Get thresholded image
+%     curr_slice_im = gui_data.atlas_aligned_histology{curr_slice}(:,:,channel);
+%     slice_alpha = curr_slice_im;
+%     value_thresh = 25;
+% 
+%     % Draw if thresholded pixels (ignore if not)
+%     if any(curr_slice_im(:) > value_thresh)
+%         % Draw a surface at CCF coordinates
+%         histology_surf(curr_slice) = surface( ...
+%             gui_data.histology_ccf(curr_slice).plane_ap, ...
+%             gui_data.histology_ccf(curr_slice).plane_ml, ...
+%             gui_data.histology_ccf(curr_slice).plane_dv);
+% 
+%         % Draw the slice on the surface
+%         histology_surf(curr_slice).FaceColor = 'texturemap';
+%         histology_surf(curr_slice).EdgeColor = 'none';
+%         histology_surf(curr_slice).CData = gui_data.atlas_aligned_histology{curr_slice}(:,:,channel);
+% 
+%         % Set the alpha data
+%         max_alpha = 1;
+%         slice_alpha = mat2gray(curr_slice_im,[value_thresh,double(max(curr_slice_im(:)))])*max_alpha;
+%         histology_surf(curr_slice).FaceAlpha = 'texturemap';
+%         histology_surf(curr_slice).AlphaDataMapping = 'none';
+%         histology_surf(curr_slice).AlphaData = slice_alpha;
+% 
+%         drawnow;
+%     end
+% end
+% 
 
 
+animal = 'DS030';
+
+[av,tv,st] = ap_histology.load_ccf;
+
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_dir = dir(histology_filepattern);
+load(fullfile(histology_dir.folder,histology_dir.name));
+
+% Load images
+image_path = histology_dir.folder;
+image_dir = dir(fullfile(image_path,'*.tif'));
+image_filenames = cellfun(@(path,name) fullfile(path,name), ...
+    {image_dir.folder},{image_dir.name},'uni',false);
+[~,sort_idx] = ap_histology.natsortfiles(image_filenames);
+
+images = cell(size(image_dir));
+for curr_im = 1:length(sort_idx)
+    images{curr_im} = tiffreadVolume( ...
+        image_filenames{sort_idx(curr_im)});
+    ap.print_progress_fraction(curr_im,length(sort_idx))
+end
+
+% Grab atlas slices
+n_slices = length(images);
+slice_atlas = struct('tv',cell(n_slices,1), 'av',cell(n_slices,1));
+slice_atlas_ccf = struct('ap',cell(n_slices,1),'ml',cell(n_slices,1),'dv',cell(n_slices,1));
+for curr_slice = 1:length(images)
+    [slice_atlas(curr_slice),slice_atlas_ccf(curr_slice)] = ...
+        ap_histology.grab_atlas_slice(av,tv, ...
+        AP_histology_processing.histology_ccf.slice_vector, ...
+        AP_histology_processing.histology_ccf.slice_points(curr_slice,:), 1);
+end
+
+% Build volume of histology images
+histology_volume = zeros(size(tv),'single');
+probe_channel = 5;
+for curr_im_idx = 1:length(images)
+
+    % Rigid transform
+    im_rigid_transformed = ap_histology.rigid_transform( ...
+        images{curr_im_idx}(:,:,probe_channel),curr_im_idx,AP_histology_processing);
+
+    % Affine/nonlin transform
+    if isfield(AP_histology_processing.histology_ccf,'control_points') && ...
+            (size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) == ...
+            size(AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},1)) && ...
+            size(AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx},1) >= 3
+        % Manual alignment (if >3 matched points)
+        histology2atlas_tform = fitgeotform2d( ...
+            AP_histology_processing.histology_ccf.control_points.histology{curr_im_idx}, ...
+            AP_histology_processing.histology_ccf.control_points.atlas{curr_im_idx},'pwl');
+    elseif isfield(AP_histology_processing.histology_ccf,'atlas2histology_tform')
+        % Automatic alignment
+        histology2atlas_tform = invert(AP_histology_processing.histology_ccf.atlas2histology_tform{curr_im_idx});
+    end
+
+    atlas_slice_aligned = imwarp(im_rigid_transformed, ...
+        histology2atlas_tform,'nearest','OutputView', ...
+        imref2d(size(slice_atlas(curr_im_idx).av)));
+
+    % % Check match
+    % figure; imshowpair(slice_atlas(curr_im_idx).av,atlas_slice_aligned);
+
+    % Add points to volume in CCF space
+    curr_ccf_idx = sub2ind(size(tv), ...
+        round(slice_atlas_ccf(curr_im_idx).ap(:)), ...
+        round(slice_atlas_ccf(curr_im_idx).dv(:)), ...
+        round(slice_atlas_ccf(curr_im_idx).ml(:)));
+
+    histology_volume(curr_ccf_idx) = histology_volume(curr_ccf_idx) + ...
+        single(atlas_slice_aligned(:));
+
+    ap.print_progress_fraction(curr_im,length(sort_idx))
+
+end
+
+slice_thickness = 100;
+xy_spread = 3;
+slice_conv_filter = fspecial3('ellipsoid',[slice_thickness/10,repelem(xy_spread,1,2)]);
+histology_volume_conv = convn(histology_volume,slice_conv_filter,'same');
+figure; tiledlayout(1,3);
+for curr_ax = 1:3
+    nexttile;
+    imagesc(squeeze(max(histology_volume_conv,[],curr_ax)));
+    axis image;
+end
+
+% FILTERING - MAYBE INTERPOLATE ACROSS NON-IMAGED AREAS INSTEAD? 
+% (at the moment it gives stripes because zeros where non-imaged)
+
+% (this method may is silly and takes ages)
+r = histology_volume;
+r(r==0)=NaN;
+r2 = fillmissing(r,'nearest');

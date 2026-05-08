@@ -535,16 +535,16 @@ save_fn = fullfile(save_path,'encoding_decoding_kernels');
 save(save_fn,'animal_kernels');
 fprintf('\n---\nSaved %s\n---\n',save_fn)
 
-% (for test plotting)
-wf_U = plab.wf.load_master_U;
-n_components = 200;
-
-kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),x);
-ap.imscroll(kernels_px);
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-axis image
-set(gcf,'name','Encoding');
+% % (for test plotting)
+% wf_U = plab.wf.load_master_U;
+% n_components = 200;
+% 
+% kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),x);
+% ap.imscroll(kernels_px);
+% clim(max(abs(clim)).*[-1,1]);
+% colormap(ap.colormap('PWG'));
+% axis image
+% set(gcf,'name','Encoding');
 
 % %%%%%% UNUSED AT THE MOMENT - USE ON FIG GENERATION?
 % recordings_learned = behavior_each_mice{curr_animal_group}.learned{curr_animal_idx}(bhv_curr_task_idx);

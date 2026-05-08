@@ -83,5 +83,5 @@ else
 end
 xlabel(shank_axes(curr_shank),'Rate')
 
-
-
+% Set y-limit around units
+ylim(prctile(unit_yplot,[0,100])+[-0.1,0.1]);
