@@ -77,12 +77,6 @@ catch me
     error(['Ephys variable missing from base workspace: ' cell2mat(missing_var{:})]);
 end
 
-% Pull regions from base workspace, if available
-try
-    probe_areas = evalin('base','probe_areas{1}');
-catch me
-end
-
 % Initialize figure and axes
 cellraster_gui = figure('color','w','units','normalized','position',[0.02,0.15,0.3,0.7]);
 tiledlayout(cellraster_gui,6,4,'TileSpacing','tight');

@@ -365,8 +365,11 @@ animals{1} = behavior_aligned{1}.reaction_time.name; % VA
 animals{2} = behavior_aligned{2}.reaction_time.name; % AV
 
 % Loop through modalities/animal groups/animals, get kernels
-animal_kernels = struct;
-for curr_animal_group = 1:length(animals)
+%%%%%%%%%% TURNING OFF FOR RE-DO
+% animal_kernels = struct;
+load("C:\Users\petersa\Documents\PetersLab\papers\2025_Song\data_test\encoding_decoding_kernels.mat");
+%%%%%%%%%%%%%
+for curr_animal_group = 2:length(animals)
     for curr_animal_idx = 1:length(animals{curr_animal_group})
 
         animal = animals{curr_animal_group}{curr_animal_idx};
