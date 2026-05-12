@@ -5,7 +5,7 @@ function run_bombcell(rawFile,ephysKilosortPath,meta_filename,kilosortVersion)
 %
 % ap_band_filename - filename of AP-band data used to run kilosort
 % kilosort_path - path with kilosort output
-% meta_filename - filename for recording metadata
+% meta_filename - filename for recording metadata (structure.oebin file)
 
 %% Run bombcell 
 

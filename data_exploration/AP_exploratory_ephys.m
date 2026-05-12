@@ -12,10 +12,10 @@ depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); .
     (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
 depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
 
-spike_binning_t = 0.005; % seconds
-spike_binning_t_edges = min(timelite.timestamps):spike_binning_t:max(timelite.timestamps);
-% spike_binning_t = 0.1; % seconds
-% spike_binning_t_edges = min(spike_times_timelite):spike_binning_t:max(spike_times_timelite);
+% spike_binning_t = 0.005; % seconds
+% spike_binning_t_edges = min(timelite.timestamps):spike_binning_t:max(timelite.timestamps);
+spike_binning_t = 0.1; % seconds
+spike_binning_t_edges = min(spike_times_timelite):spike_binning_t:max(spike_times_timelite);
 spike_binning_t_centers = spike_binning_t_edges(1:end-1) + diff(spike_binning_t_edges)/2;
 
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);

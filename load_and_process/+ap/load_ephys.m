@@ -221,6 +221,7 @@ if length(flipper_flip_times_ephys) == length(flipper_times)
 else
     % If different number of timelite/ephys flips: 
     % find usable flips as "matched" with a very short estimated time delay
+    warning('%s %s: Unmatched timelite/ephys flips',animal,rec_day);
 
     % Estimate nearest flip for timelite->ephys and ephys->timelite
     flip_timelite2ephys_timediff = ...

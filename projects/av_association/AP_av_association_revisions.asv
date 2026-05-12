@@ -572,17 +572,19 @@ for use_kernel = kernel_types'
         curr_kernels{use_kernels}),[],[],[], ...
         [modality_idx_cat(use_kernels),learned_idx_cat(use_kernels)]);
 
-    % Get kernel pixels time-max
+    % Plotting
+    kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),kernel_avg);
+
+    % t-max
     surround_samplerate = 35;
     frame_shifts = -10:30;
     frame_shifts_t = frame_shifts./surround_samplerate;
+
     max_t = [0,0.2];
     use_t = isbetween(frame_shifts_t,max_t(1),max_t(2));
-   
-    kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),kernel_avg);
+
     kernel_tmax = permute(max(kernels_px(:,:,use_t,:,:),[],3),[1,2,4,5,3]);
 
-    % Plot time-max kernels
     [~,plot_grp_order] = ismember([1,0;1,1;0,0;0,1],kernel_avg_grp,'rows');
     plot_grp_order_name = {'Vis pre','Vis post','Aud pre','Aud post'};
 
