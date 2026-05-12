@@ -558,10 +558,9 @@ learned_idx_cat = cell2mat(cellfun(@(x,workflow) x(~contains(workflow,'mixed')),
     vertcat(learned_cat{use_animal_grp}),vertcat(workflow_cat{use_animal_grp}),'uni',false));
 
 % Get kernel types
-kernel_types = fieldnames(encoding_decoding_kernels);
+kernel_types = string(fieldnames(encoding_decoding_kernels));
 
 for use_kernel = kernel_types'
-
     % Grab kernel and average by modality/learning
     curr_kernels_animalsplit = [encoding_decoding_kernels(use_animal_grp).(use_kernel)];
     curr_kernels = horzcat(curr_kernels_animalsplit{:});
@@ -583,23 +582,27 @@ for use_kernel = kernel_types'
     kernel_tmax = permute(max(kernels_px(:,:,use_t,:,:),[],3),[1,2,4,5,3]);
 
     % Plot time-max kernels
-    [~,plot_grp_order] = ismember([1,0;1,1;0,0;0,1],kernel_avg_grp,'rows');
+    plot_group_order = [1,0;1,1;0,0;0,1];
+    [~,plot_grp_sort] = ismember([1,0;1,1;0,0;0,1],kernel_avg_grp,'rows');
     plot_grp_order_name = {'Vis pre','Vis post','Aud pre','Aud post'};
 
     figure;
     h = tiledlayout(size(kernel_tmax,3),size(kernel_tmax,4),'TileSpacing','none');
     curr_clim = [0,max(kernel_tmax,[],'all')];
+    modality_colors = {'WB','WR'};
     for curr_modal_learn = 1:size(kernel_tmax,4)
         for curr_subkernel = 1:size(kernel_tmax,3)
             % Choose tile
             nexttile(tilenum(h,curr_subkernel,curr_modal_learn));
 
             % Plot kernel tmax (in set group order)
-            curr_plot_modal_learn = plot_grp_order(curr_modal_learn);
-            imagesc(kernel_tmax(:,:,curr_subkernel,curr_modal_learn));
+            curr_plot_modal_learn = plot_grp_sort(curr_modal_learn);
+            imagesc(kernel_tmax(:,:,curr_subkernel,curr_plot_modal_learn));
             clim(curr_clim);
-            colormap(ap.colormap('WG'));
             axis image off;
+
+            curr_color = modality_colors{plot_group_order(curr_modal_learn,1)+1};
+            colormap(ap.colormap(curr_color));
 
             % Title column
             if curr_subkernel == 1
@@ -608,7 +611,6 @@ for use_kernel = kernel_types'
         end
     end
     title(h,strrep(use_kernel,'_',' '));
-
+    ap.prettyfig;
 end
-
 
