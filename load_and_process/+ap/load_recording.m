@@ -54,7 +54,7 @@ if ~exist('verbose','var')
     verbose = false;
 end
 
-if verbose; fprintf('Loading %s, %s, Recording %s\n', animal, rec_day, rec_time); end;
+if verbose; fprintf('Loading [%s %s Recording %s]...\n', animal, rec_day, rec_time); end;
 
 % If nothing specified, load everything (but not LFP)
 if ~exist('load_parts','var')
@@ -103,7 +103,7 @@ if load_parts.ephys && ...
     ap.load_ephys
 end
 
-if verbose; disp('Finished.'); end;
+if verbose; fprintf('Finished loading: [%s %s Recording %s]\n', animal, rec_day, rec_time); end;
 
 
 

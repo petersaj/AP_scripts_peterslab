@@ -212,6 +212,11 @@ curr_ephys_flipper_idx =  ...
 flipper_flip_times_ephys = ...
     open_ephys_ttl.timestamps(curr_ephys_flipper_idx);
 
+% % (for debugging: plot aligned timelite/ephys flipper)
+% figure; hold on;
+% plot((timelite.timestamps-timelite.timestamps(1))+ephys_timelite_flipper_lag,flipper_thresh);
+% plot(open_ephys_flipper_trace_t,open_ephys_flipper_trace+1);
+
 % Pick flipper times to use for alignment
 if length(flipper_flip_times_ephys) == length(flipper_times)
     % If same number of flips in ephys/timelite, use all
@@ -220,8 +225,7 @@ if length(flipper_flip_times_ephys) == length(flipper_times)
 
 else
     % If different number of timelite/ephys flips: 
-    % find usable flips as "matched" with a very short estimated time delay
-    warning('%s %s: Unmatched timelite/ephys flips',animal,rec_day);
+    % find usable flips as "matched" with a very short estimated time delay   
 
     % Estimate nearest flip for timelite->ephys and ephys->timelite
     flip_timelite2ephys_timediff = ...
@@ -234,18 +238,19 @@ else
         flipper_flip_times_ephys,'nearest','extrap') - ...
         flipper_flip_times_ephys;
 
-    % Set cutoff to find "matched" flips
-    flip_timediff_thresh = 0.01;
-    use_timelite_flips = abs(flip_timelite2ephys_timediff) < flip_timediff_thresh;
-    use_ephys_flips = abs(flip_ephys2timelite_timediff) < flip_timediff_thresh;
+    % Set cutoff to find "matched" flips (detrend for clock drift)
+    flip_timediff_thresh = 2e-3; % empirical: shortest error I've seen
+    use_timelite_flips = abs(detrend(flip_timelite2ephys_timediff)) < flip_timediff_thresh;
+    use_ephys_flips = abs(detrend(flip_ephys2timelite_timediff)) < flip_timediff_thresh;
 
     if sum(use_timelite_flips) == sum(use_ephys_flips)
         % Successful matching if same number of usable flips
+        warning('%s %s: Unmatched timelite/ephys flips - found matches',animal,rec_day);
         sync_ephys = flipper_flip_times_ephys(use_ephys_flips);
         sync_timelite = flipper_times(use_timelite_flips);
     else
         % If not, unclear where the matched flips are, error out
-        error('%s %s: Cannot match timelite/ephys flips',animal,rec_day);
+        error('%s %s: Unmatched timelite/ephys flips - cannot match',animal,rec_day);
     end
 
 end
