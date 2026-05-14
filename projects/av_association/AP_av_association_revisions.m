@@ -487,6 +487,9 @@ for curr_animal_group = 1:length(animals)
                 wf_V(1:n_components,skip_frames:end-skip_frames), ...
                 frame_shifts,lamda_encode,[],cv_fold);
 
+            predicted_signals_stim_nonan = predicted_signals_stim;
+
+
             [kernels_move_encode,predicted_signals_move] = ...
                 ap.regresskernel(move_regressors(:,skip_frames:end-skip_frames), ...
                 wf_V(1:n_components,skip_frames:end-skip_frames), ...
@@ -499,12 +502,12 @@ for curr_animal_group = 1:length(animals)
 
             kernels_stim_decode_moveresiduals = ...
                 ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
-                predicted_signals_move, ...
+                fillmissing(predicted_signals_move,'constant',0), ...
                 stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
 
             kernels_stim_decode_stimresiduals = ...
                 ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames) - ...
-                predicted_signals_stim, ...
+                fillmissing(predicted_signals_stim,'constant',0), ...
                 stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda_decode,[],cv_fold);
 
             % Store variables
@@ -552,8 +555,8 @@ learned_cat = arrayfun(@(grp) behavior_each_mice{grp}.learned,1:length(behavior_
 
 % Set groups to use (VA,AV)
 use_animal_grp = 1:2;
-modality_idx_cat = cell2mat(cellfun(@(x) contains(x(~contains(x,'mixed')),'visual'), ...
-    vertcat(workflow_cat{use_animal_grp}),'uni',false));
+modality_idx_cat = cell2mat(cellfun(@(x) contains(x(~contains(x,'mixed')),'audio'), ...
+    vertcat(workflow_cat{use_animal_grp}),'uni',false)); % 0 = Vis, 1 = Aud
 learned_idx_cat = cell2mat(cellfun(@(x,workflow) x(~contains(workflow,'mixed')), ...
     vertcat(learned_cat{use_animal_grp}),vertcat(workflow_cat{use_animal_grp}),'uni',false));
 
@@ -567,42 +570,46 @@ for use_kernel = kernel_types'
 
     use_kernels = ~cellfun(@isempty,curr_kernels);
 
-    [kernel_avg,kernel_avg_grp] = ap.groupfun(@mean,cat(4, ...
+    [kernel_avg,kernel_avg_grp] = ap.groupfun(@nanmean,cat(4, ...
         curr_kernels{use_kernels}),[],[],[], ...
         [modality_idx_cat(use_kernels),learned_idx_cat(use_kernels)]);
 
     % Get kernel pixels time-max
+    kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),kernel_avg);
+
+    max_t = [-inf,inf]; % max over full kernel
     surround_samplerate = 35;
     frame_shifts = -10:30;
     frame_shifts_t = frame_shifts./surround_samplerate;
-    max_t = [0,0.2];
-    use_t = isbetween(frame_shifts_t,max_t(1),max_t(2));
-   
-    kernels_px = plab.wf.svd2px(wf_U(:,:,1:n_components),kernel_avg);
+    use_t = isbetween(frame_shifts_t,max_t(1),max_t(2));   
     kernel_tmax = permute(max(kernels_px(:,:,use_t,:,:),[],3),[1,2,4,5,3]);
 
     % Plot time-max kernels
-    plot_group_order = [1,0;1,1;0,0;0,1];
-    [~,plot_grp_sort] = ismember([1,0;1,1;0,0;0,1],kernel_avg_grp,'rows');
+    plot_group_order = [0,0;0,1;1,0;1,1];
+    [~,plot_grp_sort] = ismember(plot_group_order,kernel_avg_grp,'rows');
     plot_grp_order_name = {'Vis pre','Vis post','Aud pre','Aud post'};
 
     figure;
     h = tiledlayout(size(kernel_tmax,3),size(kernel_tmax,4),'TileSpacing','none');
-    curr_clim = [0,max(kernel_tmax,[],'all')];
     modality_colors = {'WB','WR'};
     for curr_modal_learn = 1:size(kernel_tmax,4)
         for curr_subkernel = 1:size(kernel_tmax,3)
             % Choose tile
-            nexttile(tilenum(h,curr_subkernel,curr_modal_learn));
+            curr_ax = nexttile(tilenum(h,curr_subkernel,curr_modal_learn));
 
             % Plot kernel tmax (in set group order)
             curr_plot_modal_learn = plot_grp_sort(curr_modal_learn);
             imagesc(kernel_tmax(:,:,curr_subkernel,curr_plot_modal_learn));
-            clim(curr_clim);
             axis image off;
 
-            curr_color = modality_colors{plot_group_order(curr_modal_learn,1)+1};
-            colormap(ap.colormap(curr_color));
+            curr_color = modality_colors{kernel_avg_grp(curr_plot_modal_learn,1)+1};
+            colormap(curr_ax,ap.colormap(curr_color));
+
+            if contains(use_kernel,'encode')
+                clim([0,0.01]);
+            elseif contains(use_kernel,'decode')
+                clim([0,0.0003]);
+            end
 
             % Title column
             if curr_subkernel == 1
@@ -613,4 +620,7 @@ for use_kernel = kernel_types'
     title(h,strrep(use_kernel,'_',' '));
     ap.prettyfig;
 end
+
+
+
 
