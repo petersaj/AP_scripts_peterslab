@@ -190,24 +190,41 @@ curr_unit_unique_idx = ismember(unique(gui_data.spike_templates),gui_data.curr_u
 gui_data.unit_dots.CData = zeros(length(curr_unit_unique_idx),3) + [1,0,0].*curr_unit_unique_idx;
 gui_data.unit_dots.SizeData = 20*ones(size(curr_unit_unique_idx)) + 50*curr_unit_unique_idx;
 
-% Plot waveform across probe (any channels with > x*max value)
-% (reversed YDir, flip Y axis and plot depth)
+% Plot waveform across probe (reversed YDir, flip Y axis and plot depth)
 template_xscale = 3;
 template_yscale = 0.01;
-plot_frac_max = 0.1; % fraction of max percentage to plot channels
+template_n_surround_plot = 5; % plot N channels around max
+
+[~,max_channel] = max(max(abs(gui_data.templates(gui_data.curr_unit,:,:)),[],2),[],3);
+center_channel = round(median(max_channel));
+template_plot_channels = [-template_n_surround_plot:template_n_surround_plot] + round(median(center_channel));
+template_plot_channels = template_plot_channels(template_plot_channels > 0 & ...
+    template_plot_channels <= size(gui_data.channel_positions,1));
+
+%%%%% UNDER CONSTRUCTION: plot channels with % from max? 
 
 max_amp = max(abs(gui_data.templates(gui_data.curr_unit,:,:)),[],2);
-template_plot_channels = find(any(max_amp > max(max_amp*plot_frac_max,[],'all'),1));
+plot_channels = find(max_amp > max(max_amp*0.1));
+
+
+%%%%%%%%%
+
 
 template_y = permute(-gui_data.templates(gui_data.curr_unit,:,template_plot_channels) ...
     *template_yscale + permute(gui_data.channel_positions(template_plot_channels,2),[3,2,1]),[2,3,1]);
 template_x = repmat((1:size(gui_data.templates,2))' + ...
     gui_data.channel_positions(template_plot_channels,1)'*template_xscale,[1,1,length(gui_data.curr_unit)]);
-
 set(gui_data.waveform_lines, ...
     'XData',reshape(padarray(template_x,[1,0],NaN,'post'),[],1), ...
     'YData',reshape(padarray(template_y,[1,0],NaN,'post'),[],1));
-axis(get(gui_data.waveform_lines(1),'Parent'),'tight')
+
+yrange = range(gui_data.channel_positions(:,2))*0.03.*[-1,1];
+ylim(get(gui_data.waveform_lines,'Parent'),[gui_data.channel_positions(center_channel,2) + yrange]);
+
+% set(gui_data.waveform_lines, ...
+%     'XData',reshape(padarray(template_x,[1,0],NaN,'post'),[],1), ...
+%     'YData',reshape(padarray(template_y,[1,0],NaN,'post'),[],1));
+% axis(get(gui_data.waveform_lines(1),'Parent'),'tight')
 
 % Bin spikes (use only spikes within time range, big speed-up)
 curr_spikes_idx = ismember(gui_data.spike_templates,gui_data.curr_unit);

@@ -587,7 +587,7 @@ for use_kernel = kernel_types'
     plot_grp_order_name = {'Vis pre','Vis post','Aud pre','Aud post'};
 
     figure;
-    h = tiledlayout(size(kernel_tmax,3),size(kernel_tmax,4),'TileSpacing','none');
+    h = tiledlayout(size(kernel_tmax,3),size(kernel_tmax,4),'TileSpacing','tight');
     modality_colors = {'WB','WR'};
     for curr_modal_learn = 1:size(kernel_tmax,4)
         for curr_subkernel = 1:size(kernel_tmax,3)
@@ -598,20 +598,22 @@ for use_kernel = kernel_types'
             curr_plot_modal_learn = plot_grp_sort(curr_modal_learn);
             imagesc(kernel_tmax(:,:,curr_subkernel,curr_plot_modal_learn));
             axis image off;
+            ap.wf_draw('ccf',[0.5,0.5,0.5]);
 
             curr_color = modality_colors{kernel_avg_grp(curr_plot_modal_learn,1)+1};
             colormap(curr_ax,ap.colormap(curr_color));
 
             if contains(use_kernel,'encode')
-                clim([0,0.01]);
+                clim([0,max(clim)]);
             elseif contains(use_kernel,'decode')
                 clim([0,0.0003]);
             end
+            colorbar
 
             % Title column
             if curr_subkernel == 1
                 title(gca,plot_grp_order_name{curr_modal_learn})
-            end
+            end      
         end
     end
     title(h,strrep(use_kernel,'_',' '));
@@ -688,9 +690,14 @@ move_regressors = vertcat( ...
 move_regressor_labels = {'Move onset','Wheel velocity', ...
     'Pupil diameter','Pupil velocity'};
 
-% Regress movement
+% Regress movement or stimulus
 [kernels_move_encode,predicted_signals_move] = ...
     ap.regresskernel(move_regressors(:,skip_frames:end-skip_frames), ...
+    wf_V(1:n_components,skip_frames:end-skip_frames), ...
+    frame_shifts,lamda_encode,[],cv_fold);
+
+[kernels_stim_encode,predicted_signals_stim] = ...
+    ap.regresskernel(stim_regressors(:,skip_frames:end-skip_frames), ...
     wf_V(1:n_components,skip_frames:end-skip_frames), ...
     frame_shifts,lamda_encode,[],cv_fold);
 
@@ -706,6 +713,8 @@ roi_labels = {roi1(plot_roi_idx).name};
 wf_roi = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames),[],[],roi_masks);
 wf_roi_moveresidual = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames)- ...
     fillmissing(predicted_signals_move,'constant',0),[],[],roi_masks);
+wf_roi_stimresidual = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames)- ...
+    fillmissing(predicted_signals_stim,'constant',0),[],[],roi_masks);
 
 figure;
 h = tiledlayout(size(move_regressors,1)+2,1,'tilespacing','none');
@@ -718,12 +727,12 @@ for curr_roi = 1:size(roi_masks,3)
     nexttile;hold on;
     plot(wf_roi(curr_roi,:),'color',[0,0.7,0],'linewidth',2);
     plot(wf_roi_moveresidual(curr_roi,:),'k')
+    plot(wf_roi_stimresidual(curr_roi,:),'b')
     ylabel(roi_labels{curr_roi});
-    legend({'Measured','Movement-residual'});
+    legend({'Measured','Move-residual','Stim-residual'});
 end
 linkaxes(h.Children,'x');
 t = [65500,68000];
 xlim(t);
-
 
 

@@ -685,38 +685,45 @@ move_regressors = vertcat( ...
     move_onset_regressors,wheel_velocity_resample', ...
     pupil_diameter_resample',pupil_velocity_resample');
 
-% ROI activity and residual?
+move_regressor_labels = {'Move onset','Wheel velocity', ...
+    'Pupil diameter','Pupil velocity'};
 
+% Regress movement
 [kernels_move_encode,predicted_signals_move] = ...
     ap.regresskernel(move_regressors(:,skip_frames:end-skip_frames), ...
     wf_V(1:n_components,skip_frames:end-skip_frames), ...
     frame_shifts,lamda_encode,[],cv_fold);
 
+% Plot raw and residual ROI activity
+roi_mask_filename = fullfile(plab.locations.server_path,'Lab','Papers','Song_2025','data','General_information','roi.mat');
+load(roi_mask_filename); % saved as `roi1`
 
-[~,mpfc_roi_mask] = ap.wf_roi(wf_U,wf_V,wf_avg);
-[~,sm_roi_mask] = ap.wf_roi(wf_U,wf_V,wf_avg);
-[~,vis_roi_mask] = ap.wf_roi(wf_U,wf_V,wf_avg);
+plot_rois = {'l-V1','l-SSp'};
+plot_roi_idx = ismember({roi1.name},plot_rois);
+roi_masks = cell2mat(reshape(cellfun(@(x) x.mask,{roi1(plot_roi_idx).data},'uni',false),1,1,[]));
+roi_labels = {roi1(plot_roi_idx).name};
 
-mpfc_roi = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames),[],[],mpfc_roi_mask);
-mpfc_roi_moveresidual = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames)- ...
-    fillmissing(predicted_signals_move,'constant',0),[],[],mpfc_roi_mask);
-
-wf_roi = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames),[],[],cat(3,sm_roi_mask,vis_roi_mask));
+wf_roi = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames),[],[],roi_masks);
 wf_roi_moveresidual = ap.wf_roi(wf_U(:,:,1:n_components),wf_V(1:n_components,skip_frames:end-skip_frames)- ...
-    fillmissing(predicted_signals_move,'constant',0),[],[],cat(3,sm_roi_mask,vis_roi_mask));
-
+    fillmissing(predicted_signals_move,'constant',0),[],[],roi_masks);
 
 figure;
 h = tiledlayout(size(move_regressors,1)+2,1,'tilespacing','none');
 for curr_regressor = 1:size(move_regressors,1)
     nexttile;
-    plot(move_regressors(curr_regressor,:));
+    plot(move_regressors(curr_regressor,:),'k','linewidth',2);
+    ylabel(move_regressor_labels{curr_regressor});
 end
-for curr_roi = 1:2
+for curr_roi = 1:size(roi_masks,3)
     nexttile;hold on;
-    plot(wf_roi(curr_roi,:));
-    plot(wf_roi_moveresidual(curr_roi,:))
+    plot(wf_roi(curr_roi,:),'color',[0,0.7,0],'linewidth',2);
+    plot(wf_roi_moveresidual(curr_roi,:),'k')
+    ylabel(roi_labels{curr_roi});
+    legend({'Measured','Movement-residual'});
 end
 linkaxes(h.Children,'x');
 t = [65500,68000];
 xlim(t);
+
+
+
