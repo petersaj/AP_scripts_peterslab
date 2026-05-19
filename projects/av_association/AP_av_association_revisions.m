@@ -606,7 +606,7 @@ for use_kernel = kernel_types'
             if contains(use_kernel,'encode')
                 clim([0,max(clim)]);
             elseif contains(use_kernel,'decode')
-                clim([0,0.0003]);
+                clim([0,3e-4]);
             end
             colorbar
 

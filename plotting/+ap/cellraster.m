@@ -51,7 +51,7 @@ end
 align_groups = reshape(align_groups,1,[]);
 
 % (replicate for each align_times if only one)
-if length(align_times) > 1 && length(align_groups) == 1
+if length(align_times) > 1 && isscalar(align_groups)
    align_groups = repmat(align_groups,size(align_times));
 elseif length(align_times) > 1 && length(align_groups) < length(align_times)
     error('Mismatching align time/group sets')
@@ -128,7 +128,7 @@ t_peri_event = use_align + t_bins;
 t_peri_event(any(isnan(t_peri_event),2),:) = 0;
 
 % Set functions for key presses
-set(cellraster_gui,'KeyPressFcn',@key_press);
+set(cellraster_gui,'KeyReleaseFcn',@key_press);
 
 % Package gui data
 gui_data = struct;
