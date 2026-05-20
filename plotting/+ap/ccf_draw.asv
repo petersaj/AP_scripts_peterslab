@@ -136,7 +136,44 @@ classdef ccf_draw < handle
             histology_filename = fullfile(histology_dir.folder,histology_dir.name);
 
             probe_line_fits = ap_histology.fit_probe_line(histology_filename);
-            arrayfun(@(curr_probe)  obj.draw_probes(probe_line_fits(curr_probe).ccf,probe_color),1:length(probe_line_fits));
+            for curr_probe = 1:length(probe_line_fits)
+
+            end
+
+
+            load(fullfile(histology_fn.folder,histology_fn.name));
+            
+            probe_labels = string({AP_histology_processing.annotation.label});
+            probe_ccf_vertices = arrayfun(@(x) horzcat( ...
+                vertcat(x.vertices_ccf.ap), ...
+                vertcat(x.vertices_ccf.dv), ...
+                vertcat(x.vertices_ccf.ml)), ...
+                AP_histology_processing.annotation,'uni',false);
+
+            % Loop through probes and draw
+            for curr_probe = 1:length(probe_ccf_vertices)
+
+                % Get line of best fit through mean of marked points
+                probe_coords_mean = mean(probe_ccf_vertices{curr_probe},1);
+                xyz = bsxfun(@minus,probe_ccf_vertices{curr_probe},probe_coords_mean);
+                [~,~,V] = svd(xyz,0);
+                histology_probe_direction = V(:,1);
+
+                % (make sure the direction goes down in DV - flip if it's going up)
+                if histology_probe_direction(2) < 0
+                    histology_probe_direction = -histology_probe_direction;
+                end
+
+                % Evaluate line of best fit (length of probe to deepest point)
+                [~,deepest_probe_idx] = max(probe_ccf_vertices{curr_probe}(:,2));
+                probe_deepest_point = probe_ccf_vertices{curr_probe}(deepest_probe_idx,:);
+                probe_deepest_point_com_dist = pdist2(probe_coords_mean,probe_deepest_point);
+                probe_length_ccf = 3840/10; % mm / ccf voxel size
+
+                probe_line_eval = probe_deepest_point_com_dist - [probe_length_ccf,0];
+                probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
+                obj.draw_probes(probe_line,probe_color);
+            end
         end
 
     end
