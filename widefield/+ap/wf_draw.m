@@ -174,13 +174,20 @@ switch type
             top_down_structure_borders_aligned,'uni',false);
 
     case 'probe_insertion'
-        probe_insertion_ccf = ap.histology.get_probe_insertion_ccf(draw_param);
-        for curr_probe = 1:length(probe_insertion_ccf)
-            ap.wf_draw('point_ccf',probe_insertion_ccf{curr_probe}([1,3]));
+        % Get probe insertion points from AP_histology and draw
+        animal = draw_param;
+        histology_filepattern = plab.locations.filename('server', ...
+            animal,[],[],'histology','**','AP_histology_processing.mat');
+        histology_dir = dir(histology_filepattern);
+        histology_fn = fullfile(histology_dir.folder,histology_dir.name);
+
+        probe_line_fits = ap_histology.fit_probe_line(histology_fn);
+        for curr_probe = 1:length(probe_line_fits)
+            ap.wf_draw('point_ccf',probe_line_fits(curr_probe).ccf(1,[1,3]));
         end
 
     otherwise
-        warning('Invalid reference: %s',type);
+        warning('Invalid draw type: %s',type);
         
 end
 
