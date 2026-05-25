@@ -405,7 +405,7 @@ line(eval_points_ccf_valid([1,end],1), ...
     eval_points_ccf_valid([1,end],3),'color','b','linewidth',2)
 
 
-%% Volume viewer (testing)
+%% Volume viewer (in progress)
 
 % (old - plot planes in 3d)
 
@@ -519,7 +519,7 @@ line(eval_points_ccf_valid([1,end],1), ...
 % 
 
 
-animal = 'DS030';
+animal = 'AP036';
 
 [av,tv,st] = ap_histology.load_ccf;
 
@@ -554,7 +554,7 @@ end
 
 % Build volume of histology images
 histology_volume = zeros(size(tv),'single');
-probe_channel = 5;
+probe_channel = 2;
 for curr_im_idx = 1:length(images)
 
     % Rigid transform
@@ -613,3 +613,8 @@ end
 r = histology_volume;
 r(r==0)=NaN;
 r2 = fillmissing(r,'nearest');
+r2(isnan(r2)) = 0;
+
+
+% Get bounding box with data
+
