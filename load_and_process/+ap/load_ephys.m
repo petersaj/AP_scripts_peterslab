@@ -216,6 +216,7 @@ flipper_flip_times_ephys = ...
 % figure; hold on;
 % plot((timelite.timestamps-timelite.timestamps(1))+ephys_timelite_flipper_lag,flipper_thresh);
 % plot(open_ephys_flipper_trace_t,open_ephys_flipper_trace+1);
+% legend({'Timelite','Ephys'})
 
 % Pick flipper times to use for alignment
 if length(flipper_flip_times_ephys) == length(flipper_times)

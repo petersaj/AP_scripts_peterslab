@@ -1,0 +1,70 @@
+%% A/P striatum 
+% some kind of iteration of comparing A/P striatum in naive, 2-stim
+% learning, appetitive/aversive learning
+
+%% DS: posterior striatal recordings from previous project?
+
+% Animals that had posterior recordings + learned visual
+
+
+
+animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
+    'DS005','DS000','DS013','DS014','DS015','DS016', ... % A-V, performed both
+    'AP021','DS001', ... % V-A, didn't perform A mixed
+    'DS003','DS004', ... % A-V, didn't perform A mixed
+    'AP019', ... % V-A, unmixed tasks
+    'AP020', ... % V-A, didn't learn A, unmixed tasks
+    'AP018' ... % didn't learn A
+    };
+
+% not included: 
+% DS006 - didn't learn V = naive-ish?
+% DS013 - didn't learn V, but started in mixed? 
+
+animal_col = vertcat(ap.colormap('tube'),lines(7));
+ccf_draw = ap.ccf_draw;
+ccf_draw.draw_name('Caudoputamen');
+
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+    probe_color = animal_col(curr_animal,:);
+    ccf_draw.draw_probes_nte(animal,probe_color);
+end
+
+% Find anterior/posterior striatum recordings (from NTE)
+str_rec_days = cell(length(animals),2); % [ant,pos]
+for curr_animal = 1:length(animals)
+
+    animal = animals{curr_animal};
+
+    nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','*probe_positions.mat');
+    nte_fns = dir(nte_filepattern);
+
+    % Get days for all NTE files
+    day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
+    rec_days = extract({nte_fns.folder},day_pattern);
+
+    % Load NTE files
+    nte_all = cell(size(nte_fns));
+    for curr_recording = 1:length(nte_fns)
+        nte_all{curr_recording} = load(fullfile(nte_fns(curr_recording).folder, ...
+            nte_fns(curr_recording).name));
+    end
+
+    % Get NTE files with A/P striatum
+    ap_striatum_threshold = 550;
+    anterior_recordings = cellfun(@(x) x.probe_positions_ccf{1}(1,2),nte_all) < ap_striatum_threshold;
+    striatum_recordings = cellfun(@(x) any(strcmp(x.probe_areas{1}.name,'Caudoputamen')),nte_all);
+
+    str_ant_rec = rec_days(striatum_recordings & anterior_recordings);
+    str_pos_rec = rec_days(striatum_recordings & ~anterior_recordings);
+
+    str_rec_days{curr_animal,1} = str_ant_rec;
+    str_rec_days{curr_animal,2} = str_pos_rec;
+
+end
+
+
+
+
+

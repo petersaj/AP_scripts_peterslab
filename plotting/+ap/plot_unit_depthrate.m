@@ -56,22 +56,22 @@ if exist('probe_areas','var')
 
         % LEGACY SUPPORT
         % - If `probe_depth` instead of `tip_distance`, calculate
-        if ~any(strcmp(probe_areas{load_probe}.Properties.VariableNames,'tip_distance')) && ...
-                any(strcmp(probe_areas{load_probe}.Properties.VariableNames,'probe_depth'))
-            probe_areas{load_probe}.tip_distance = 3840 - probe_areas{load_probe}.probe_depth;
+        if ~any(strcmp(probe_areas{1}.Properties.VariableNames,'tip_distance')) && ...
+                any(strcmp(probe_areas{1}.Properties.VariableNames,'probe_depth'))
+            probe_areas{1}.tip_distance = 3840 - probe_areas{1}.probe_depth;
         end
         % - if no `probe_shank`, add 1's
-        if ~any(strcmp(probe_areas{load_probe}.Properties.VariableNames,'probe_shank'))
-            probe_areas{load_probe}.probe_shank = ones(height(probe_areas{load_probe}),1);
+        if ~any(strcmp(probe_areas{1}.Properties.VariableNames,'probe_shank'))
+            probe_areas{1}.probe_shank = ones(height(probe_areas{1}),1);
         end
         
         % Get areas on current shank
-        curr_shank_areas = find(probe_areas{load_probe}.probe_shank==curr_shank);
+        curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
 
         % Plot areas as rectangles
         for curr_area = reshape(curr_shank_areas,1,[])
-            curr_rgb = hex2dec(mat2cell(probe_areas{load_probe}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
-            curr_y = probe_areas{load_probe}.tip_distance(curr_area,:);
+            curr_rgb = hex2dec(mat2cell(probe_areas{1}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
+            curr_y = probe_areas{1}.tip_distance(curr_area,:);
             rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
                 1,abs(diff(curr_y))], ...
                 'FaceColor',curr_rgb,'EdgeColor','none');
@@ -80,10 +80,10 @@ if exist('probe_areas','var')
         % Label area centers
         text(shank_axes(curr_shank), ...
             repelem(shank_xoffset(curr_shank),length(curr_shank_areas),1), ...
-            probe_areas{load_probe}.tip_distance(curr_shank_areas,1), ...
-            probe_areas{load_probe}.acronym(curr_shank_areas));
+            probe_areas{1}.tip_distance(curr_shank_areas,1), ...
+            probe_areas{1}.acronym(curr_shank_areas));
 
-        set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas{load_probe}.tip_distance,[],'all'));
+        set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas{1}.tip_distance,[],'all'));
     end
 end
 
