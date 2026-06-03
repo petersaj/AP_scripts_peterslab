@@ -53,17 +53,6 @@ if exist('probe_areas','var')
     for curr_shank = 1:n_shanks
 
         hold(shank_axes(curr_shank),'on');
-
-        % LEGACY SUPPORT
-        % - If `probe_depth` instead of `tip_distance`, calculate
-        if ~any(strcmp(probe_areas{1}.Properties.VariableNames,'tip_distance')) && ...
-                any(strcmp(probe_areas{1}.Properties.VariableNames,'probe_depth'))
-            probe_areas{1}.tip_distance = 3840 - probe_areas{1}.probe_depth;
-        end
-        % - if no `probe_shank`, add 1's
-        if ~any(strcmp(probe_areas{1}.Properties.VariableNames,'probe_shank'))
-            probe_areas{1}.probe_shank = ones(height(probe_areas{1}),1);
-        end
         
         % Get areas on current shank
         curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
