@@ -174,9 +174,8 @@ for curr_animal = 1:length(animals)
 
             % Get striatum templates
             striatum_idx = strcmp(probe_areas{1}.name,'Caudoputamen');
-            striatum_depth = prctile(probe_areas{1}.probe_depth(striatum_idx,:),[0,100],'all');
-            striatum_templates = template_depths >= striatum_depth(1) & ...
-                template_depths <= striatum_depth(2);
+            striatum_depth = prctile(probe_areas{1}.tip_distance(striatum_idx,:),[0,100],'all');
+            striatum_templates = isbetween(template_tipdist,striatum_depth(1),striatum_depth(2));
 
             % Store unit PSTHs and responsive units (striatum units only)
             unit_psth_all{curr_animal,curr_ap}{curr_day,curr_modality} = unit_psth(striatum_templates,:,:);
@@ -187,77 +186,6 @@ for curr_animal = 1:length(animals)
     end
     ap.print_progress_fraction(curr_animal,length(animals));
 end
-
-
-
-
-%% ^^ Unit data analysis
-% (some dirty plots)
-
-animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
-    'DS000','DS013','DS014','DS015','DS016', ... % A-V, performed both
-    'DS005', ... % A-V, frequency task
-    'AP021','DS001', ... % V-A, didn't perform A mixed
-    'DS003','DS004', ... % A-V, didn't perform A mixed
-    };
-
-% Load unit and performance data
-data_dir = 'C:\Users\petersa\Documents\PetersLab\analysis\ant_pos_striatum\data';
-load(fullfile(data_dir,'unit_data'));
-load(fullfile(data_dir,'bhv_p'));
-
-% (get days with auditory performance?)
-cell2mat(horzcat(bhv_p{:,1})') < 0.05;
-cell2mat(horzcat(bhv_p{:,2})') < 0.05;
-
-% (manually define V>A)
-training_order = ~ismember(animals', ...
-    {'AP022','DS007','DS010','DS011','AP021','DS001'});
-
-% Get total fraction of responsive units by modality
-responsive_units_frac = cellfun(@(x) arrayfun(@(curr_day) ...
-    [mean(x{curr_day,1}), ... % V
-    mean(x{curr_day,2})], ... % A
-    (1:size(x,1))','uni',false), ...
-    responsive_units_all,'uni',false);
-
-r = cellfun(@(x) nanmean(cell2mat(x),1),responsive_units_frac,'uni',false);
-figure;
-for str_ap = 1:2
-    r2 = cell2mat(r(:,str_ap));
-    nexttile;
-    bar(categorical({'V>A','A>V'}),ap.groupfun(@nanmean,r2,training_order,[]))
-    legend({'V','A'});
-    ylabel('Fraction responsive units');
-end
-linkaxes(gcf().Children.Children);
-
-
-% Get overlap in responsive units by modality
-responsive_units_n = cellfun(@(x) arrayfun(@(curr_day) ...
-    [sum(x{curr_day,1} & x{curr_day,2}), ... % V+A
-    sum(x{curr_day,1} & ~x{curr_day,2}), ... % V
-    sum(~x{curr_day,1} & x{curr_day,2})], ...% A
-    (1:size(x,1))','uni',false), ...
-    responsive_units_all,'uni',false);
-
-responsive_units_overlap_frac = ...
-    cellfun(@(x) cellfun(@(x) x./sum(x),x,'uni',false), ...
-    responsive_units_n,'uni',false);
-
-a = cell2mat(vertcat(responsive_units_overlap_frac{:,1}));
-
-r = cellfun(@(x) nanmean(cell2mat(x),1),responsive_units_overlap_frac,'uni',false);
-figure;
-for str_ap = 1:2
-    r2 = cell2mat(r(:,str_ap));
-    nexttile;
-    bar(categorical({'V>A','A>V'}),ap.groupfun(@nanmean,r2,training_order,[]))
-    legend({'V+A','V','A'});
-    ylabel('Fraction responsive units');
-end
-linkaxes(gcf().Children.Children);
-
 
 % Smooth and normalize PSTH data
 unit_psth_all_smooth = cellfun(@(x) cellfun(@(x) ...
@@ -272,7 +200,7 @@ unit_psth_all_norm = cellfun(@(x) cellfun(@(x) ...
 
 % Plot PSTHs for V/A units during V/A stim
 str_ap = 2;
-use_animals = training_order == 0;
+use_animals = true(size(animals));
 
 vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
@@ -309,15 +237,21 @@ title('Aud (A units)')
 
 % Plot PSTHs for V/A units during V/A stim
 str_ap = 2;
-use_animals = training_order==1;
+use_animals = true(size(animals));
 
 vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 
 responsive_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,1}),responsive_units_all(use_animals,str_ap),'uni',false)));
-[~,sort_idx] = sort(nanmean(vis_psth_cat(responsive_units_cat,500:700,3),2));
+% % (sort amplitude)
+% [~,sort_idx] = sort(nanmean(vis_psth_cat(responsive_units_cat,500:700,3),2));
+% (sort timing)
+[~,max_t] = max(vis_psth_cat(responsive_units_cat,:,3),[],2);
+[~,sort_idx] = sort(max_t);
 
-figure; colormap(AP_colormap('BWR'));
+
+figure; 
+colormap(AP_colormap('BWR'));
 h = tiledlayout(1,2);
 
 nexttile;
@@ -329,6 +263,8 @@ nexttile;
 imagesc(aud_psth_cat(responsive_units_cat(sort_idx),:,2));
 clim([-10,10]);
 title('Aud (V units)')
+
+
 
 
 

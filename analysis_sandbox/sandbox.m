@@ -231,3 +231,22 @@ fprintf('Saved %s\n',histology_fn)
 % plot3(ap{slice},ml{slice},dv{slice},'.k');
 % 
 % x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
+
+
+%% Unit in CCF space
+
+ap.ccf_outline_3d;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -394,6 +394,7 @@ end
 % Throw out all non-good template data
 templates = templates(good_templates,:,:);
 template_tipdist = template_tipdist(good_templates);
+template_xpos = template_xpos(good_templates);
 template_shanks = template_shanks(good_templates);
 waveforms = waveforms(good_templates,:);
 waveform_duration_peaktrough = waveform_duration_peaktrough(good_templates);

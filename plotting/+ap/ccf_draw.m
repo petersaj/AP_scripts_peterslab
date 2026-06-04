@@ -20,11 +20,8 @@ classdef ccf_draw < handle
         function obj = ccf_draw
 
             % Load atlas
-            allen_atlas_path = fileparts(which('template_volume_10um.npy'));
-
-            obj.av = readNPY(fullfile(allen_atlas_path,'annotation_volume_10um_by_index.npy'));
-            obj.st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
-
+            [obj.av,~,obj.st] = ap_histology.load_ccf;
+      
             % Create figure and axes
             obj.ccf_fig = figure('color','w');
             h = tiledlayout('flow','Tilespacing','none');
@@ -34,18 +31,10 @@ classdef ccf_draw < handle
                 hold(obj.ccf_axes(curr_ax),'on');
             end
 
-            % Properties for 2D axes
+            % Plot 2D brain outlines
             set(obj.ccf_axes(1:3),'YDir','reverse')
             axis(obj.ccf_axes(1:3),'equal','off')
 
-            % Properties for 3D axis
-            set(obj.ccf_axes(4),'ZDir','reverse');
-            axis(obj.ccf_axes(4),'vis3d','equal','off','manual','tight');
-            view(obj.ccf_axes(4),[-30,25]);
-            h_rot = rotate3d(obj.ccf_axes(4));
-            h_rot.Enable = 'on';
-
-            % Plot 2D brain outlines
             for curr_view = 1:3
                 curr_outline = bwboundaries(squeeze((max(obj.av,[],curr_view)) > 1));
                 % (only plot largest outline)
@@ -60,17 +49,7 @@ classdef ccf_draw < handle
             linkaxes(obj.ccf_axes(1:3));
 
             % Plot 3D brain outlines
-            slice_spacing = 5;
-            brain_volume = ...
-                bwmorph3(bwmorph3(obj.av(1:slice_spacing:end, ...
-                1:slice_spacing:end,1:slice_spacing:end)>1,'majority'),'majority');
-            brain_outline_patchdata = isosurface(permute(brain_volume,[3,1,2]),0.5);
-            brain_outline = patch( ...
-                obj.ccf_axes(4), ...
-                'Vertices',brain_outline_patchdata.vertices*slice_spacing, ...
-                'Faces',brain_outline_patchdata.faces, ...
-                'FaceColor',[0.7,0.7,0.7],'EdgeColor','none','FaceAlpha',0.1);
-            axis tight
+            ap.ccf_outline_3d(obj.ccf_axes(4),obj.av);
 
         end
 

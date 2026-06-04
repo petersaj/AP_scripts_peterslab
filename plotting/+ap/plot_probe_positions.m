@@ -28,35 +28,11 @@ if isempty(nte_fns) && isempty(histology_fn)
 end
 
 
-%% Load atlas
+%% Plot brain outline
 
-allen_atlas_path = fileparts(which('template_volume_10um.npy'));
-av = readNPY([allen_atlas_path filesep 'annotation_volume_10um_by_index.npy']); % the number at each pixel labels the area, see note below
-
-%% Set up axes, plot brain outline
-
-figure('Color','w','name',animal);
-
-% Set up 3D axes
-ccf_3d_axes = axes;
-set(ccf_3d_axes,'ZDir','reverse');
-hold(ccf_3d_axes,'on');
-axis(ccf_3d_axes,'vis3d','equal','off','manual');
-view([-30,25]);
-axis tight;
-h = rotate3d(ccf_3d_axes);
-h.Enable = 'on';
-
-slice_spacing = 5;
-brain_volume = ...
-    bwmorph3(bwmorph3(av(1:slice_spacing:end, ...
-    1:slice_spacing:end,1:slice_spacing:end)>1,'majority'),'majority');
-brain_outline_patchdata = isosurface(permute(brain_volume,[3,1,2]),0.5);
-brain_outline = patch( ...
-    'Vertices',brain_outline_patchdata.vertices*slice_spacing, ...
-    'Faces',brain_outline_patchdata.faces, ...
-    'FaceColor',[0.7,0.7,0.7],'EdgeColor','none','FaceAlpha',0.1);
-
+ccf_outline = ap.ccf_outline_3d;
+ccf_outline.Parent.Parent.Name = animal;
+ccf_3d_axes = ccf_outline.Parent;
 
 %% Draw probes (from Neuropixels Trajectory Explorer)
 
