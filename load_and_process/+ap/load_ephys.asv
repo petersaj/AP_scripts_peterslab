@@ -304,11 +304,11 @@ end
 
 %% Get CCF positions of units 
 
-% (Currently only from NTE - approximate)
+% (Currently only from NTE)
 
 % Loop through shanks, interpolate template position relative to shank
 % (NTE saves positions as [top1,bottom1,top2...])
-% (assumes CCF = real distance, which is only approximate)
+% (assumes CCF
 
 template_ccf = nan(size(templates,1),3);
 for curr_shank = unique(template_shanks)'
@@ -416,7 +416,6 @@ template_shanks = template_shanks(good_templates);
 waveforms = waveforms(good_templates,:);
 waveform_duration_peaktrough = waveform_duration_peaktrough(good_templates);
 waveform_duration_fwhm = waveform_duration_fwhm(good_templates);
-template_ccf = template_ccf(good_templates,:);
 
 % Throw out all non-good spike data
 good_spikes = ismember(spike_templates,find(good_templates));

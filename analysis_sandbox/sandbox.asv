@@ -243,19 +243,19 @@ animal = 'PG006';rec_day = '2026-05-21'; rec_time = '1644';
 ap.load_recording
 
 
-% Get trial stim values
+% Trial stim values
 trial_stim_values = vertcat(trial_events.values.TrialStimX);
 trial_stim_values = trial_stim_values(1:length(stimOn_times));
 
-% Get quiescent trials
+% Quiescent trials
 stim_window = [0,0.5];
 quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
     timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
     timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
     (1:length(stimOn_times))');
 
-% Get stim response for each unit (post-pre stim)
-stim_align_times = arrayfun(@(x) stimOn_times(trial_stim_values == x & quiescent_trials), ...
+% Get stim response for each unit
+stim_align_times = arrayfun(@(x) stimOn_times(trial_stim_values == x), ...
     unique(trial_stim_values),'uni',false);
 
 unit_resp_stim_t = [0.05,0.15];
@@ -269,12 +269,12 @@ event_spikes_meandiff = cellfun(@(event,baseline) ...
     squeeze(mean(diff([baseline,event],[],2),1)), ...
     event_spikes,baseline_spikes,'uni',false);
 
-% Plot brain outline
-ap.ccf_outline_3d;
-% Plot all units as small points
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),5,[0.5,0.5,0.5],'filled');
-% Plot unit response center/right as semi-transparent scaled/colored points
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10*max(event_spikes_meandiff{2},0)+1,'b','filled','MarkerFaceAlpha',0.5);
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10*max(event_spikes_meandiff{3},0)+1,'r','filled','MarkerFaceAlpha',0.5);
 
+ap.ccf_outline_3d;
+scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),5,[0.5,0.5,0.5],'filled');
+
+scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),max(event_spikes_meandiff{2},0)+1,'b','filled','MarkerFaceAlpha',0.5);
+scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),max(event_spikes_meandiff{3},0)+1,'r','filled','MarkerFaceAlpha',0.5);
+
+scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),max(event_spikes_meandiff{3},0)+1,'r','filled','AlphaData',0.5);
 
