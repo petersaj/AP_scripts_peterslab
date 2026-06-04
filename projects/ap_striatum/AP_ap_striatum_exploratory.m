@@ -81,6 +81,7 @@ t_bins = raster_window(1):psth_bin_size:raster_window(2);
 t_centers = conv2(t_bins,[1,1]/2,'valid');
 
 % Get PSTHs and responsive units
+unit_ccf_all = cell(length(animals),2);
 unit_psth_all = cell(length(animals),2);
 responsive_units_all = cell(length(animals),2);
 for curr_animal = 1:length(animals)
@@ -178,6 +179,7 @@ for curr_animal = 1:length(animals)
             striatum_templates = isbetween(template_tipdist,striatum_depth(1),striatum_depth(2));
 
             % Store unit PSTHs and responsive units (striatum units only)
+            unit_ccf_all{curr_animal,curr_ap}{curr_day,curr_modality} = template_ccf(striatum_templates,:,:);
             unit_psth_all{curr_animal,curr_ap}{curr_day,curr_modality} = unit_psth(striatum_templates,:,:);
             responsive_units_all{curr_animal,curr_ap}{curr_day,curr_modality} = responsive_units(striatum_templates);
 

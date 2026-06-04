@@ -235,13 +235,9 @@ fprintf('Saved %s\n',histology_fn)
 
 %% Unit in CCF space
 
-% % 1-shank
-% animal = 'PG001';rec_day = '2026-04-16';rec_time = '1638';
-% 4-shank
+% Load example recording
 animal = 'PG006';rec_day = '2026-05-21'; rec_time = '1644';
-
 ap.load_recording
-
 
 % Get trial stim values
 trial_stim_values = vertcat(trial_events.values.TrialStimX);
