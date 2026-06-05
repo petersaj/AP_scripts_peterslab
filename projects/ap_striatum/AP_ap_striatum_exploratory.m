@@ -267,10 +267,19 @@ clim([-10,10]);
 title('Aud (V units)')
 
 
+% Plot responsive units in CCF
+unit_ccf_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_ccf_all(use_animals,str_ap),'uni',false));
+unit_color = [ismember((1:size(unit_ccf_cat,1))',a_units_cat), ...
+    zeros(size(unit_ccf_cat,1),1), ...
+    ismember((1:size(unit_ccf_cat,1))',v_units_cat)];
+unit_color(~any(unit_color,2),:) = 0.5;
 
+unit_size = max(1,10*nanmean(vis_psth_cat(:,500:700,3),2));
 
-
-
-
+% Plot units on ccf (colored responsive, scaled by response, jittered x/y)
+ap.ccf_outline_3d([],[],["brain","caudoputamen"]);
+scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*10, ...
+    unit_ccf_cat(:,3)+rand(size(unit_ccf_cat,1),1)*10, ...
+    unit_ccf_cat(:,2),unit_size,unit_color,'filled','MarkerFaceAlpha',0.5);
 
 
