@@ -1,10 +1,10 @@
 function ccf_outline = ccf_outline_3d(ccf_3d_axes,av,plot_structures)
 % Draw 3D outline of CCF
 %
-% ccf_3d_axes - axes to plot on (new figure if excluded) av - CCF annotated
-% volume (loaded if excluded) plot_structures - "brain" or empty is whole
-% brain, can be string/cell array of multiple regions (e.g.
-% ["brain","caudoputamen"])
+% ccf_3d_axes - axes to plot on (new figure if excluded) 
+% av - CCF annotated volume (loaded if excluded) 
+% plot_structures - string/cell array of names/acronyms, "brain" or empty
+% is whole-brain outline, e.g. ["brain","caudoputamen"])
 
 arguments 
     ccf_3d_axes = []
@@ -47,7 +47,8 @@ for curr_structure = reshape(plot_structures,1,[])
         face_alpha = 0.1;
     else
         % Plot `area` if specified
-        plot_structure_idx = find(strcmpi(st.safe_name,curr_structure));
+        plot_structure_idx = find(strcmpi(st.safe_name,curr_structure) | ...
+            strcmpi(st.acronym,curr_structure));
         plot_structure_id = st.structure_id_path{plot_structure_idx};
         plot_ccf_idx = find(cellfun(@(x) contains(x,plot_structure_id), ...
             st.structure_id_path));

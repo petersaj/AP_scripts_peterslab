@@ -306,7 +306,8 @@ end
 
 % (Currently only from NTE - approximate)
 
-% Loop through shanks, interpolate template position relative to shank
+% Loop through shanks, interpolate template position relative to shank in
+% CCF space: [AP,DV,ML]
 % (NTE saves positions as [top1,bottom1,top2...])
 % (assumes CCF = real distance, which is only approximate)
 
