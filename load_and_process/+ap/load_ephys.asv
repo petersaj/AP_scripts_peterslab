@@ -163,12 +163,8 @@ waveform_duration_fwhm = arrayfun(@(x) ...
 spike_times_openephys_filename =  fullfile(kilosort_path,'spike_times_openephys.npy');
 open_ephys_ttl_filename =  fullfile(kilosort_path,'open_ephys_ttl.mat');
 
-% (set last update of function to check for current version)
-ks2oe_timestamps_lastupdate = datetime('2026-06-25');
-
-if (exist(spike_times_openephys_filename,'file') && exist(open_ephys_ttl_filename,'file')) || ...
-        (datetime(dir(spike_times_openephys_filename).date) < ks2oe_timestamps_lastupdate)
-    % If timestamps don't exist or are before last update: (re)create them
+% If timestamps don't exist, create them
+if ~exist(spike_times_openephys_filename,'file') || ~exist(open_ephys_ttl_filename,'file')
     ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
 
     oe_samples_dir = cellfun(@(data_path) ...
@@ -178,7 +174,7 @@ if (exist(spike_times_openephys_filename,'file') && exist(open_ephys_ttl_filenam
         fullfile(data_dir.folder,data_dir.name),oe_samples_dir,'uni',false);
 
     plab.ephys.ks2oe_timestamps(ks_spike_times_fn,oe_samples_fns, ...
-        oe_metadata(1).continuous(1).sample_rate,true);
+        oe_metadata(1).continuous(1).sample_rate);
 end
 
 % Load timestamps
@@ -191,13 +187,11 @@ load(open_ephys_ttl_filename);
 
 % Set TTL index for flipper (sync)
 flipper_sync_idx = 1;
-open_ephys_ttl_flipper_idx = find(abs(open_ephys_ttl.state) == flipper_sync_idx);
+open_ephys_ttl_flipper_idx = abs(open_ephys_ttl.state) == flipper_sync_idx;
 
 % Resample Open Ephys flipper to DAQ sample rate
-open_ephys_flipper_trace_t = ...
-    open_ephys_ttl.timestamps(open_ephys_ttl_flipper_idx(1)): ...
-    1/timelite.daq_info(1).rate: ...
-    open_ephys_ttl.timestamps(open_ephys_ttl_flipper_idx(end));
+open_ephys_flipper_trace_t = open_ephys_ttl.timestamps(1): ...
+    1/timelite.daq_info(1).rate: open_ephys_ttl.timestamps(end);
 open_ephys_flipper_trace = logical(normalize(interp1( ...
     open_ephys_ttl.timestamps(open_ephys_ttl_flipper_idx), ...
     single(sign(open_ephys_ttl.state(open_ephys_ttl_flipper_idx))), ...
@@ -207,33 +201,29 @@ open_ephys_flipper_trace = logical(normalize(interp1( ...
 % (get lag between timelite and ephys by correlation)
 ephys_timelite_flipper_lag = finddelay(+flipper_thresh, ...
     +open_ephys_flipper_trace)/timelite.daq_info(1).rate + ...
-    open_ephys_flipper_trace_t(1);
+    open_ephys_ttl.timestamps(1);
 % (get all ephys flips within the matching continuous window)
-curr_ephys_flipper_idx = intersect(...
-    open_ephys_ttl_flipper_idx, ... % the flipper channel
-    find(isbetween(open_ephys_ttl.timestamps,ephys_timelite_flipper_lag, ... % during timelite time frame
-    ephys_timelite_flipper_lag + length(flipper_thresh)/timelite.daq_info(1).rate)));
-
-% (flag very short ephys flips to remove -occsaionally from bad connection)
-short_ephys_flips = reshape(open_ephys_ttl_flipper_idx(find(diff( ...
-    open_ephys_ttl.timestamps(open_ephys_ttl_flipper_idx)) < 1e-4) + [0,1]),[],1);
-% (set ephys flips that should correspond to timelite)
-flipper_times_ephys = ...
-    open_ephys_ttl.timestamps(setdiff(curr_ephys_flipper_idx,short_ephys_flips));
+curr_ephys_flipper_idx =  ...
+    open_ephys_ttl_flipper_idx & ...
+    open_ephys_ttl.timestamps >= ephys_timelite_flipper_lag & ...
+    open_ephys_ttl.timestamps <= ephys_timelite_flipper_lag + ...
+    length(flipper_thresh)/timelite.daq_info(1).rate;
+% (set equivalent flips for ephys/timelite)
+flipper_flip_times_ephys = ...
+    open_ephys_ttl.timestamps(curr_ephys_flipper_idx);
 
 % % (for debugging: plot aligned timelite/ephys flipper)
 % figure; hold on;
 % plot((timelite.timestamps-timelite.timestamps(1))+ephys_timelite_flipper_lag,flipper_thresh);
 % plot(open_ephys_flipper_trace_t,open_ephys_flipper_trace+1.2);
-% plot(open_ephys_ttl.timestamps(short_ephys_flips),2.2,'.r','MarkerSize',20);
 % ylim([-1,2.5]);
 % legend({'Timelite','Ephys'})
 
 % Pick flipper times to use for alignment
-if length(flipper_times_ephys) == length(flipper_times)
+if length(flipper_flip_times_ephys) == length(flipper_times)
     % If same number of flips in ephys/timelite, use all
     sync_timelite = flipper_times;
-    sync_ephys = flipper_times_ephys;
+    sync_ephys = flipper_flip_times_ephys;
 
 else
     % If different number of timelite/ephys flips: 
@@ -241,28 +231,25 @@ else
 
     % Estimate nearest flip for timelite->ephys and ephys->timelite
     flip_timelite2ephys_timediff = ...
-        interp1(flipper_times_ephys,flipper_times_ephys, ...
+        interp1(flipper_flip_times_ephys,flipper_flip_times_ephys, ...
         flipper_times + ephys_timelite_flipper_lag,'nearest','extrap') - ...
         (flipper_times+ephys_timelite_flipper_lag);
 
     flip_ephys2timelite_timediff = ...
         interp1((flipper_times+ephys_timelite_flipper_lag),(flipper_times+ephys_timelite_flipper_lag), ...
-        flipper_times_ephys,'nearest','extrap') - ...
-        flipper_times_ephys;
+        flipper_flip_times_ephys,'nearest','extrap') - ...
+        flipper_flip_times_ephys;
 
-    % Set cutoff to find "matched" flips
-    % (remove rlowess-smoothed to account for clock drift: annoyingly slow,
-    % but the most robust so far)
-    % (for ephys: also remove very quick flips e.g. bad connection)
-    flip_timediff_thresh = 1e-3; % empirical
-    use_timelite_flips = abs(flip_timelite2ephys_timediff-smooth(flip_timelite2ephys_timediff,1000,'rlowess')) < flip_timediff_thresh;
-    use_ephys_flips = abs(flip_ephys2timelite_timediff-smooth(flip_ephys2timelite_timediff,1000,'rlowess')) < flip_timediff_thresh & ...
-            vertcat(true,diff(flipper_times_ephys) > 0.05);
+    % Set cutoff to find "matched" flips (small difference between flips)
+    % (don't use first flip, just to ensure no assumptions)   
+    flip_timediff_thresh = 5e-3; % empirical
+    use_timelite_flips = vertcat(faabs(diff(flip_timelite2ephys_timediff)) < flip_timediff_thresh;
+    use_ephys_flips = abs(diff(flip_ephys2timelite_timediff)) < flip_timediff_thresh;
 
     if sum(use_timelite_flips) == sum(use_ephys_flips)
         % Successful matching if same number of usable flips
         warning('%s %s: Unmatched timelite/ephys flips - found matches',animal,rec_day);
-        sync_ephys = flipper_times_ephys(use_ephys_flips);
+        sync_ephys = flipper_flip_times_ephys(use_ephys_flips);
         sync_timelite = flipper_times(use_timelite_flips);
     else
         % If not, unclear where the matched flips are, error out
