@@ -15,14 +15,19 @@ end
 % Trajectory explorer probe position files
 % (include /ephys and /ephys/** subfolders)
 nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','**','*probe_positions.mat');
-nte_fns = dir(nte_filepattern);
+nte_filenames = dir(nte_filepattern);
 
 % Histology probe position files
-histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
-histology_fn = dir(histology_filepattern);
+% % (old version)
+% histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
+% histology_fn = dir(histology_filepattern);
+% (new version)
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_dir = dir(histology_filepattern);
+histology_filename = fullfile(histology_dir.folder,histology_dir.name);
 
 % Return if no files found
-if isempty(nte_fns) && isempty(histology_fn)
+if isempty(nte_filenames) && isempty(histology_filename)
     fprintf('No probe positions found: %s\n',animal);
     return;
 end
@@ -38,9 +43,9 @@ ccf_3d_axes = ccf_outline.Parent;
 
 if plot_nte
 
-    for curr_recording = 1:length(nte_fns)
+    for curr_recording = 1:length(nte_filenames)
 
-        load(fullfile(nte_fns(curr_recording).folder, nte_fns(curr_recording).name));
+        load(fullfile(nte_filenames(curr_recording).folder, nte_filenames(curr_recording).name));
 
         % Loop through probes and draw
         for curr_probe = 1:length(probe_positions_ccf)
@@ -52,7 +57,7 @@ if plot_nte
                 'linewidth',2,'color','b')
 
             date_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
-            curr_day = cell2mat(extract(nte_fns(curr_recording).folder,date_pattern));
+            curr_day = cell2mat(extract(nte_filenames(curr_recording).folder,date_pattern));
             text(probe_positions_ccf{curr_probe}(1,1), ...
                 probe_positions_ccf{curr_probe}(3,1), ...
                 probe_positions_ccf{curr_probe}(2,1), ...
@@ -69,49 +74,25 @@ end
 %% Draw probes (from histology)
 
 if plot_histology
+    if ~isempty(histology_filename)
 
-    if ~isempty(histology_fn)
+        % Load histology and get probe fits
+        load(histology_filename);
+        probe_line_fits = ap_histology.fit_probe_line(histology_filename);
 
-        load(fullfile(histology_fn.folder,histology_fn.name));
+        for curr_probe = 1:length(probe_line_fits)
+            % Draw probe line
+            line(ccf_3d_axes, ...
+                probe_line_fits(curr_probe).ccf(:,1), ...
+                probe_line_fits(curr_probe).ccf(:,3), ...
+                probe_line_fits(curr_probe).ccf(:,2), ...
+                'linewidth',2,'color','r')
 
-        for curr_probe = 1:length(probe_ccf)
-
-            % Get line of best fit through mean of marked points
-            probe_coords_mean = mean(probe_ccf(curr_probe).points,1);
-            xyz = bsxfun(@minus,probe_ccf(curr_probe).points,probe_coords_mean);
-            [~,~,V] = svd(xyz,0);
-            histology_probe_direction = V(:,1);
-
-            % (make sure the direction goes down in DV - flip if it's going up)
-            if histology_probe_direction(2) < 0
-                histology_probe_direction = -histology_probe_direction;
-            end
-
-            % Evaluate line of best fit (length of probe to deepest point)
-            [~,deepest_probe_idx] = max(probe_ccf(curr_probe).points(:,2));
-            probe_deepest_point = probe_ccf(curr_probe).points(deepest_probe_idx,:);
-            probe_deepest_point_com_dist = pdist2(probe_coords_mean,probe_deepest_point);
-            probe_length_ccf = 3840/10; % mm / ccf voxel size
-
-            probe_line_eval = probe_deepest_point_com_dist - [probe_length_ccf,0];
-            probe_line = (probe_line_eval'.*histology_probe_direction') + probe_coords_mean;
-
-            % Draw probe in 3D view
-            line(ccf_3d_axes,probe_line(:,1),probe_line(:,3),probe_line(:,2), ...
-                'linewidth',2,'color','r');
-
-            % Write text
-            if isfield(probe_ccf,'day') && ~isempty(probe_ccf(curr_probe).day)
-                probe_text = sprintf('Trajectory %d [%s]',curr_probe,probe_ccf(curr_probe).day);
-            else
-                probe_text = sprintf('Trajectory %d',curr_probe);
-            end
-
-            text(probe_line(1,1),probe_line(1,3),probe_line(1,2), ...
-                probe_text,'color','r');
-            text(probe_line(2,1),probe_line(2,3),probe_line(2,2), ...
-                probe_text,'color','r');
-
+            % Label probe
+            text(probe_line_fits(curr_probe).ccf(1,1), ...
+                probe_line_fits(curr_probe).ccf(1,3), ...
+                probe_line_fits(curr_probe).ccf(1,2), ...
+                probe_line_fits(curr_probe).label,'color','r');
         end
     end
 end

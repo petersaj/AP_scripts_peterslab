@@ -233,3 +233,27 @@ fprintf('Saved %s\n',histology_fn)
 % x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
 
 
+%% Fixing probe line fits
+
+ccf_outline = ap.ccf_outline_3d;
+ccf_3d_axes = ccf_outline.Parent;
+
+histology_filename = "C:\Users\petersa\Desktop\test_hist\AP_histology_processing.mat";
+
+load(histology_filename);
+probe_line_fits = ap_histology.fit_probe_line(histology_filename);
+
+arrayfun(@(curr_probe) ...
+    line(ccf_3d_axes, ...
+    probe_line_fits(curr_probe).ccf(:,1), ...
+    probe_line_fits(curr_probe).ccf(:,3), ...
+    probe_line_fits(curr_probe).ccf(:,2), ...
+    'linewidth',2,'color','r'), ...
+    1:length(probe_line_fits));
+
+
+
+
+
+
+
