@@ -77,7 +77,6 @@ if plot_histology
     if ~isempty(histology_filename)
 
         % Load histology and get probe fits
-        load(histology_filename);
         probe_line_fits = ap_histology.fit_probe_line(histology_filename);
 
         for curr_probe = 1:length(probe_line_fits)

@@ -325,6 +325,7 @@ ap.histology_ephys_align(st,histology_path, ...
 
 
 %% Grab areas along trajectory from probe annotation
+% (OLD: use fit_probe_line to get probe fit)
 
 use_probe = 1;
 
@@ -609,11 +610,11 @@ end
 % FILTERING - MAYBE INTERPOLATE ACROSS NON-IMAGED AREAS INSTEAD? 
 % (at the moment it gives stripes because zeros where non-imaged)
 
-% (this method may is silly and takes ages)
-r = histology_volume;
-r(r==0)=NaN;
-r2 = fillmissing(r,'nearest');
-r2(isnan(r2)) = 0;
+% % (this method may is silly and takes ages)
+% r = histology_volume;
+% r(r==0)=NaN;
+% r2 = fillmissing(r,'nearest');
+% r2(isnan(r2)) = 0;
 
 
 % Get bounding box with data

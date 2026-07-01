@@ -290,8 +290,7 @@ ccf_outline = patch(ccf_outline.Parent, ...
     'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
 
 % (need to interpolate between slices - also the isosurface takes ages?
-% playing around with conv below to check if it's just because it's bitty,
-% looks ok)
+% playing around with conv below to check if it's just because 
 
 slice_thickness = 100;
 xy_spread = 3;
@@ -304,9 +303,7 @@ histology_patchdata = isosurface(permute(histology_volume_conv(:,:,:,plot_channe
     histology_threshold,[3,1,2]),0.5);
 
 figure;
-
-ccf_outline = ap.ccf_outline_3d;
-patch(ccf_outline.Parent, ...
+ccf_outline = patch(ccf_outline.Parent, ...
     'Vertices',histology_patchdata.vertices, ...
     'Faces',histology_patchdata.faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',0.5);
+    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
