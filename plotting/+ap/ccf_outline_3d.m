@@ -1,4 +1,6 @@
 function ccf_outline = ccf_outline_3d(ccf_3d_axes,av,plot_structures)
+% ccf_outline = ccf_outline_3d(ccf_3d_axes,av,plot_structures)
+%
 % Draw 3D outline of CCF
 %
 % ccf_3d_axes - axes to plot on (new figure if excluded) 

@@ -233,80 +233,12 @@ fprintf('Saved %s\n',histology_fn)
 % x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
 
 
-%% Dahee injection figure
-
-% Get maximum fluorescence within CCF bins of aligned histology images
-histology_path = 'C:\Users\petersa\Desktop\Dahee_histology';
-atlas_orientation = 1;
-% atlas_bin_size = 100; % full CCF, define bin size
-atlas_bin_size = 600:20:800; % partial CCF, define bin edges
-[image_aligned_binmax,ccf_bin_edges] = ap_histology.bin_aligned_images(histology_path,atlas_orientation,atlas_bin_size);
-
-% Plot binned max with CCF borders
-% (load atlas)
-av = ap_histology.load_ccf;
-histology_clim = [30000,max(image_aligned_binmax,[],'all')];
-plot_channel = 1;
-plot_channel_color = [1,0,0]; % (pseudocolor of channel)
-overlay_dilation = 1; % (how thick to plot the CCF borders)
-figure; tiledlayout('TileSpacing','none');
-for curr_atlas_bin = 1:size(image_aligned_binmax,3)
-    % Get CCF borders from the middle of the bin
-    plot_atlas_ap = round(mean(ccf_bin_edges(curr_atlas_bin+[0,1])));
-    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
-
-    % Create color image
-    curr_im_colored = 1- ... % flip background black -> white
-        (mat2gray(image_aligned_binmax(:,:,curr_atlas_bin,plot_channel),histology_clim) ... % range-normalize
-        .*permute(1-plot_channel_color,[3,4,2,1])); % color (1-to flip black/white)
-
-    % Plot max image with CCF borders overlaid
-    curr_overlay = imoverlay(curr_im_colored,curr_ccf_borders,'k');
-    nexttile;imagesc(curr_overlay);axis image off;
-    drawnow;
-end
 
 
-% Binarize and show volume? 
 
-% bin by 1's? 
 
-histology_path = 'C:\Users\petersa\Desktop\Dahee_histology';
-atlas_orientation = 1;
-atlas_bin_size = 1; 
-histology_volume = ap_histology.bin_aligned_images(histology_path,atlas_orientation,atlas_bin_size);
 
-plot_channel = 1;
-histology_threshold = 20000;
-histology_patchdata = isosurface(permute(histology_volume(:,:,:,plot_channel) > ...
-    histology_threshold,[3,1,2]),0.5);
 
-ccf_outline = ap.ccf_outline_3d;
 
-figure;
-ccf_outline = patch(ccf_outline.Parent, ...
-    'Vertices',histology_patchdata.vertices, ...
-    'Faces',histology_patchdata.faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
 
-% (need to interpolate between slices - also the isosurface takes ages?
-% playing around with conv below to check if it's just because it's bitty,
-% looks ok)
 
-slice_thickness = 100;
-xy_spread = 3;
-slice_conv_filter = fspecial3('ellipsoid',[slice_thickness/10,repelem(xy_spread,1,2)]);
-histology_volume_conv = convn(histology_volume,slice_conv_filter,'same');
-
-plot_channel = 1;
-histology_threshold = 20000;
-histology_patchdata = isosurface(permute(histology_volume_conv(:,:,:,plot_channel) > ...
-    histology_threshold,[3,1,2]),0.5);
-
-figure;
-
-ccf_outline = ap.ccf_outline_3d;
-patch(ccf_outline.Parent, ...
-    'Vertices',histology_patchdata.vertices, ...
-    'Faces',histology_patchdata.faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',0.5);

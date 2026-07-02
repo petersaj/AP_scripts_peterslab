@@ -257,7 +257,9 @@ for curr_atlas_bin = 1:size(image_aligned_binmax,3)
 
     % Create color image
     curr_im_colored = 1- ... % flip background black -> white
-        (mat2gray(image_aligned_binmax(:,:,curr_atlas_bin,plot_channel),histology_clim) ... % range-normalize
+        (mat2gray( ... % range-normalize
+        max(image_aligned_binmax(:,:,curr_atlas_bin,plot_channel),0,'omitnan'), ... % set NaNs to 0
+        histology_clim) ... % clip to min/max values
         .*permute(1-plot_channel_color,[3,4,2,1])); % color (1-to flip black/white)
 
     % Plot max image with CCF borders overlaid
@@ -267,43 +269,48 @@ for curr_atlas_bin = 1:size(image_aligned_binmax,3)
 end
 
 
-% Binarize and show volume? 
 
-% bin by 1's? 
-
+% Get non-binned histology volume
 histology_path = 'C:\Users\petersa\Desktop\Dahee_histology';
 atlas_orientation = 1;
-atlas_bin_size = 1; 
+atlas_bin_size = 1; % return full histology volume
 histology_volume = ap_histology.bin_aligned_images(histology_path,atlas_orientation,atlas_bin_size);
 
-plot_channel = 1;
-histology_threshold = 20000;
-histology_patchdata = isosurface(permute(histology_volume(:,:,:,plot_channel) > ...
-    histology_threshold,[3,1,2]),0.5);
+% Moving median to fill small gaps (e.g. between slices)
+histology_volume_movmed = movmedian(histology_volume(:,:,:,plot_channel),5,'omitmissing');
 
+% Binarize histology and get patch data
+plot_channel = 1;
+histology_threshold = 40000;
+
+
+% Get 
+[histology_faces,histology_vertices] = ...
+    extractIsosurface(permute(histology_volume_movmed(:,:,:,plot_channel) ...
+    > histology_threshold,[3,1,2]),0.5);
+
+
+% Plot histology patch data with brain outline
 ccf_outline = ap.ccf_outline_3d;
 
-figure;
-ccf_outline = patch(ccf_outline.Parent, ...
+face_alpha = 0.5;
+patch(ccf_outline.Parent, ...
+    'Vertices',histology_vertices, ...
+    'Faces',histology_faces, ...
+    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
+
+
+
+face_alpha = 0.5;
+patch(ccf_outline.Parent, ...
     'Vertices',histology_patchdata.vertices, ...
     'Faces',histology_patchdata.faces, ...
     'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
 
-% (need to interpolate between slices - also the isosurface takes ages?
-% playing around with conv below to check if it's just because 
 
-slice_thickness = 100;
-xy_spread = 3;
-slice_conv_filter = fspecial3('ellipsoid',[slice_thickness/10,repelem(xy_spread,1,2)]);
-histology_volume_conv = convn(histology_volume,slice_conv_filter,'same');
 
-plot_channel = 1;
-histology_threshold = 20000;
-histology_patchdata = isosurface(permute(histology_volume_conv(:,:,:,plot_channel) > ...
-    histology_threshold,[3,1,2]),0.5);
 
-figure;
-ccf_outline = patch(ccf_outline.Parent, ...
-    'Vertices',histology_patchdata.vertices, ...
-    'Faces',histology_patchdata.faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
+
+
+
+
