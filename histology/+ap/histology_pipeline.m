@@ -629,8 +629,15 @@ histology_path = dir(histology_filepattern).folder;
 % Get histology in CCF volume
 histology_volume = ap_histology.histology_volume(histology_path);
 
-% Plot maximum-projection images within atlas bins
-atlas_bin_edges = 1:20:size(histology_volume,1);
+
+% Channel to plot
+plot_channel = 2;
+
+% Plot maximum-projection images within atlas bins (within imaged area)
+atlas_bin_size = 20;
+
+histology_ap_imaged = find(~all(isnan(max(histology_volume,[],4)),[2,3]));
+atlas_bin_edges = histology_ap_imaged(1):atlas_bin_size:histology_ap_imaged(end);
 
 n_channels = size(histology_volume,4);
 histology_volume_binmax = nan([size(histology_volume,[2,3]),length(atlas_bin_edges)-1,n_channels]);
@@ -646,13 +653,13 @@ for curr_channel = 1:n_channels
     end
 end
 
+
 % ~~ Plot binned max with CCF borders
-% (load atlas)
 av = ap_histology.load_ccf;
+
 % (set min/max value to display)
-histology_clim = [30000,max(histology_volume_binmax,[],'all')];
+histology_clim = prctile(histology_volume_binmax(:,:,:,plot_channel),[0,100],'all');
 % (set channel to plot)
-plot_channel = 1;
 % (set color to pseudocolor plot)
 plot_channel_color = [1,0,0];
 % (set thickness of CCF border outline)
@@ -678,24 +685,37 @@ for curr_atlas_bin = 1:size(histology_volume_binmax,3)
 end
 
 % ~~ Plot binarized fluorescence in 3D brain
-% Set channel to plot and value to threshold 
-plot_channel = 1;
-histology_threshold = 50000;
+plot_channels = 2:n_channels;
 
-% Moving median to fill small gaps (e.g. between slices)
-histology_volume_movmed = movmedian(histology_volume(:,:,:,plot_channel),10,'omitmissing');
+channel_colors = {'g','r','b','m'};
+brain_plot = ap.ccf_outline_3d([],[],["brain","CP"]);
 
-% Get thresholded histology 3D outline 
-% (fast function extractIsosurface requires medical imaging toolbox)
-[histology_faces,histology_vertices] = ...
-    extractIsosurface(permute(histology_volume_movmed ...
-    > histology_threshold,[3,1,2]),0.5);
+for plot_channel = 2:n_channels
+    % Set channel to plot and value to threshold
+    histology_threshold = 500;
 
-% Plot histology patch data 
-% (draw brain and PO outline)
-ap.ccf_outline_3d([],[],["brain","PO"]);
+    % Moving median to fill small gaps (e.g. between slices)
+    histology_volume_movmed = movmedian(histology_volume(:,:,:,plot_channel),10,'omitmissing');
 
-face_alpha = 0.5;
-patch('Vertices',histology_vertices, ...
-    'Faces',histology_faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
+    % Get thresholded histology 3D outline
+    % (fast function extractIsosurface requires medical imaging toolbox)
+    [histology_faces,histology_vertices] = ...
+        extractIsosurface(permute(histology_volume_movmed > ...
+        histology_threshold,[3,1,2]),0.5);
+
+    % Plot histology patch
+    histology_alpha = 1;
+    patch(brain_plot.Parent, ...
+        'Vertices',histology_vertices, ...
+        'Faces',histology_faces, ...
+        'FaceColor',channel_colors{plot_channel}, ...
+        'EdgeColor','none','FaceAlpha',histology_alpha);
+
+    drawnow;
+end
+
+
+
+
+
+
