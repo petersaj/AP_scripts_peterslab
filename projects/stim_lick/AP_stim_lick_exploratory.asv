@@ -397,13 +397,20 @@ stim_center_times(stim_x == -90) = cell2mat(stim_pd_off_grouped(stim_x == -90))+
 time_bins = [wf_t;wf_t(end)+1/wf_framerate];
 
 task_events = zeros(0,length(time_bins)-1);
+frame_shifts = cell(0);
+
 task_events(end+1,:) = histcounts(stimOn_times(stim_x == rewarded_x),time_bins);
+frame_shifts(end+1,:) = -5:20;
+
 task_events(end+1,:) = histcounts(stim_center_times(stim_x == rewarded_x),time_bins);
+frame_shifts(end+1,:) = -5:20;
+
 task_events(end+1,:) = histcounts(stimOn_times(stim_x == -90),time_bins);
+
 
 n_components = 200;
 
-frame_shifts = -35:35;
+frame_shifts = -5:20;
 lambda = 20;
 cv_fold = 3;
 
@@ -417,7 +424,6 @@ ap.imscroll(plab.wf.svd2px(wf_U(:,:,1:size(kernels,1)),kernels));
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image;
-
 
 
 %% Task kernel (static task)

@@ -1,14 +1,16 @@
 function [k,predicted_signals,explained_var,predicted_signals_reduced] = ...
-    AP_regresskernel(regressors,signals,t_shifts,lambdas,zs,cvfold,return_constant,use_constant,discontinuities)
+    regresskernel(regressors,signals,t_shifts,lambdas,zs,cvfold,return_constant,use_constant,discontinuities)
 % [k,predicted_signals,explained_var,predicted_signals_reduced] = ...
-%     AP_regresskernel(regressors,signals,t_shifts,lambdas,zs,cvfold,return_constant,use_constant,discontinuities)
+%     regresskernel(regressors,signals,t_shifts,lambdas,zs,cvfold,return_constant,use_constant,discontinuities)
 %
 % Linear regression of kernel from regressors to outputs
 %
 % Inputs:
-% regressors - dim x time
+% regressors - dim x time (or cell array grouped dim x time, paired with
+% t_shifts)
 % signals - dim x time, one kernel will be returned for each dim
-% t_shifts - time shifts of regressors
+% t_shifts - time shifts of regressors (can be cell array, paired with
+% regressors)
 % lambda - ridge regression regularization (can be one for each regressor)
 % zs - length 2 logical vector: zscore 1) regressors, 2) signals
 % (default is [false,true])

@@ -37,7 +37,6 @@ end
 % softnorm = softening factor for normalizing (default = 0)
 %
 % OUTPUTS
-%
 % psth = group x t x align
 % raster = trial x t x align
 % t = timepoints (bin centers)
