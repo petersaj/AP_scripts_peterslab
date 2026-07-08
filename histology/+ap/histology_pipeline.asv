@@ -491,4 +491,84 @@ for plot_channel = plot_channels
     drawnow;
 end
 
+%% Histology -> ephys (v2)
+
+animal = 'AP009';
+
+% Get histology processing filename
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_dir = dir(histology_filepattern);
+histology_filename = fullfile(histology_dir.folder,histology_dir.name);
+load(histology_filename);
+
+% Get recordings with ephys
+animal_recordings = plab.find_recordings(animal);
+
+% Plot probes from NTE/histology
+ap.plot_probe_positions(animal,false)
+
+% Create day-matching box
+histology_labels = {AP_histology_processing.annotation.label}';
+
+ephys_labels_daysplit = cellfun(@(rec_day,probe) ...
+    compose('%s: Probe %d',rec_day,1:probe)', ...
+    {animal_recordings.day},num2cell([animal_recordings.ephys]),'uni',false);
+ephys_labels = vertcat(ephys_labels_daysplit{:});
+
+probe_label_ui = uifigure('Name','Choose histology -> ephys mapping');
+probe_label_ui_table = uitable(probe_label_ui, ...
+    'Data',[histology_labels, ...
+    repmat({'No recording chosen'},size(histology_labels))], ...
+    'ColumnName',{'Histology label','Ephys recording'}, ...
+    'ColumnEditable',[false,true], ...
+    'ColumnFormat',{[],ephys_labels'}, ...
+    'Units','normalized','position',[0,0,1,1]);
+
+probe_label_ui_table.Data(:,2)
+
+max(triu(string(probe_label_ui_table.Data(:,2))==string(probe_label_ui_table.Data(:,2)'),1),[],'all')
+
+
+
+% TO DO: 
+% - turn off totally editable - just dropdown
+% - make red/invalid if same recording selected twice
+
+
+%%%%%%%%% (below = copied from elsewhere)
+
+
+array2table(padarray(categorical(histology_labels),[0,1],'post'), ...
+    'VariableNames','Histology label','Ephys probe')
+
+table(padarray(categorical(histology_labels),[0,1],'post'), ...
+    'VariableNames',["Histology label","Ephys probe"])
+
+
+% Set available colors
+[colors_rgb,colors_name] = set_colors;
+
+% Get names for current colors
+[~,channel_color_idx] = ismember(histology_guidata.channel_colors,colors_rgb,'rows');
+channel_colors = colors_name(channel_color_idx);
+
+channel_properties = table(categorical(channel_colors,colors_name), ...
+    histology_guidata.channel_visibility,'VariableNames',{'Color','Visible'});
+
+table(histology_labels,cell(size(histology_labels)),'VariableNames','Histology label','Ephys probe')
+
+
+channel_properties_table = uitable(channel_properties_grid, ...
+    'ColumnEditable',[false,true]);
+
+channel_properties_table = uitable(channel_properties_grid, ...
+    'ColumnEditable',[false,true], ...
+    'RowName',histology_labels, ...
+    'Data',channel_properties);
+
+channel_properties_table.Layout.Column = [1,size(channel_properties,2)];
+channel_properties_table.DisplayDataChangedFcn = {@update_channel_properties,histology_gui,channel_properties_table};
+
+
+
 

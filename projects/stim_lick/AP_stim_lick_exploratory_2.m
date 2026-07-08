@@ -1,5 +1,7 @@
 % Batch package/analyze HA stim lick data
 
+%% ~~~ PACKAGING
+
 %% Set animals
 
 animals = [ ...
@@ -261,8 +263,7 @@ for curr_animal = 1:length(animals)
             continue
         end
 
-        n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
-
+        
         % Set parameters for regression
         time_bins = [wf_t;wf_t(end)+1/wf_framerate];
         n_components = 200;
@@ -277,8 +278,10 @@ for curr_animal = 1:length(animals)
         stim_x = vertcat(trial_events.values.TrialStimX);
         stim_x_unique = unique(stim_x);
 
+        n_trials = min(length(stimOn_times),length(stim_x));
+
         stim_regressors = cell2mat(arrayfun(@(x) ...
-            histcounts(stimOn_times(stim_x == x),time_bins), ...
+            histcounts(stimOn_times(stim_x(1:n_trials) == x),time_bins), ...
             stim_x_unique,'uni',false));
       
         [kernels,predicted_signals,explained_var] = ...
@@ -306,6 +309,37 @@ end
 % Save
 save_filename = fullfile(data_path,'wf_passive');
 save(save_filename,'wf_passive');
+
+
+%% ~~~ ANALYSIS
+
+%% (find learning days by discrimination)
+
+%% Test task
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+load(fullfile(data_path,'wf_task.mat'));
+
+n_components = 200;
+wf_U = plab.wf.load_master_U(n_components);
+
+data_idx = find(~cellfun(@isempty,{wf_task.animal}));
+
+framerate = 35;
+wf_t = wf_task(data_idx(1)).frame_shifts/framerate;
+
+move_task_idx = data_idx(contains({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_right_move'));
+static_task_idx = data_idx(contains({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_static'));
+
+move_kernel = nanmean(cat(4,wf_task(move_task_idx).stim_kernel),4);
+static_kernel = nanmean(cat(4,wf_task(static_task_idx).stim_kernel),4);
+
+
+ap.imscroll(plab.wf.svd2px(wf_U,static_kernel));
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image;
+
 
 
 
