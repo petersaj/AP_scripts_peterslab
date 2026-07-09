@@ -1,26 +1,22 @@
-function ccf_outline = ccf_outline_3d(ccf_3d_axes,av,plot_structures)
-% ccf_outline = ccf_outline_3d(ccf_3d_axes,av,plot_structures)
+function ccf_outline = ccf_outline_3d(ccf_3d_axes,plot_structures)
+% ccf_outline = ccf_outline_3d(ccf_3d_axes,plot_structures)
 %
 % Draw 3D outline of CCF
 %
 % ccf_3d_axes - axes to plot on (new figure if excluded) 
-% av - CCF annotated volume (loaded if excluded) 
 % plot_structures - string/cell array of names/acronyms, "brain" or empty
 % is whole-brain outline, e.g. ["brain","caudoputamen"])
 
 arguments 
     ccf_3d_axes = []
-    av = []
     plot_structures = "brain";
 end
 
 % Ensure plot_structures is string array
 plot_structures = string(plot_structures);
 
-% Load CCF if not provided
-if isempty(av)
-    [av,~,st] = ap_histology.load_ccf;
-end
+% Load CCF
+[av,~,st] = ap_histology.load_ccf;
 
 % Create up axes if one not provided
 if isempty(ccf_3d_axes)

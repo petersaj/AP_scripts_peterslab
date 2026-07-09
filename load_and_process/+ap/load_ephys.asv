@@ -328,30 +328,13 @@ end
 % (NTE saves positions as [top1,bottom1,top2...])
 % (assumes CCF = real distance, which is only approximate)
 
-if exist('probe_areas','var')
-    % (only grab CCF if probe areas are available)
-    template_ccf = nan(size(templates,1),3);
-    for curr_shank = unique(template_shanks)'
-        % (loop through shanks)
-        if exist('probe_vector_histology','var')
-            % (use histology if available)
-            curr_shank_vector = probe_vector_histology(:,:,curr_shank);
-
-        else
-            % (use NTE if histology not available)
-            curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0])';
-        end
-        % Interpolate CCF positions for each template
-        template_ccf(template_shanks == curr_shank,:) = ...
-            interp1([10*norm(diff(curr_shank_vector,[],2)),0],curr_shank_vector, ...
-            template_tipdist(template_shanks==curr_shank));
-    end
+template_ccf = nan(size(templates,1),3);
+for curr_shank = unique(template_shanks)'
+    curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0]);
+    template_ccf(template_shanks==curr_shank,:) = ...
+        interp1([10*norm(diff(curr_shank_vector,[],2)),0],curr_shank_vector', ...
+        template_tipdist(template_shanks==curr_shank));
 end
-
-% Plot brain outline
-ap.ccf_outline_3d([],[],{'brain','cp'});
-% Plot all units as small points
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),5,[0.5,0.5,0.5],'filled');
 
 
 %% Remove bad units from quality control

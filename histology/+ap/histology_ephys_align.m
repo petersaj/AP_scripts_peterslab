@@ -1,5 +1,5 @@
 function gui_fig = histology_ephys_align(st,slice_path, ...
-    spike_times,spike_templates,template_depths,use_probe)
+    spike_times,spike_templates,template_tipdist,use_probe)
 %
 % Uses AP_histology_processing.mat file from AP_histology
 
@@ -32,8 +32,8 @@ spike_binning_t_edges = nanmin(spike_times):spike_binning_t:nanmax(spike_times);
 binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
 for curr_depth = 1:size(depth_corr_bins,2)
     curr_depth_templates_idx = ...
-        find(template_depths >= depth_corr_bins(1,curr_depth) & ...
-        template_depths < depth_corr_bins(2,curr_depth));
+        find(template_tipdist >= depth_corr_bins(1,curr_depth) & ...
+        template_tipdist < depth_corr_bins(2,curr_depth));
     
     binned_spikes_depth(curr_depth,:) = histcounts(spike_times( ...
         ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
@@ -48,8 +48,7 @@ tiledlayout(1,7,'TileSpacing','compact');
 % Plot spike depth vs rate
 unit_ax = nexttile([1,3]);
 scatter(norm_template_spike_n(spike_templates_unique), ...
-    template_depths(spike_templates_unique),15,'k','filled');
-set(unit_ax,'YDir','reverse');
+    template_tipdist(spike_templates_unique),15,'k','filled');
 ylim([0,max_depths]);
 xlabel('N spikes')
 title('Template depth & rate')
@@ -61,10 +60,14 @@ multiunit_ax = nexttile([1,3]); axis off;
 imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
 caxis([0,0.3]); colormap(hot);
 ylim([0,max_depths]);
-set(multiunit_ax,'YTick',[]);
+set(multiunit_ax,'YTick',[],'YDir','normal','Xdir','reverse');
 title('MUA correlation');
 set(multiunit_ax,'FontSize',12)
 xlabel(multiunit_ax,'Multiunit depth');
+
+
+
+
 
 % Link all y-axes
 linkaxes([unit_ax,multiunit_ax],'y');

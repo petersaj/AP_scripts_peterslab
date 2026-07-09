@@ -3,33 +3,8 @@
 % This has become just a sandbox for histology
 
 %% Match trajectories with days
-% (plot NTE/histology days, select corresponding days from list)
-%
-% RUN THIS LINE BY LINE
 
-% Need to plot new areas - preferably do day match and z align on same
-% step?
-
-% Set animal and plot probe positions
-animal = 'AP009';
-ap.plot_probe_positions(animal);
-
-% Day selection for each histology trajectory
-recordings = plab.find_recordings(animal);
-ephys_days = {recordings([recordings.ephys]).day};
-probe_ccf_dir = dir(plab.locations.filename('server',animal,[],[], ...
-    'histology','*','probe_ccf.mat'));
-probe_ccf_filename = fullfile(probe_ccf_dir.folder,probe_ccf_dir.name);
-load(probe_ccf_filename);
-for curr_probe = 1:length(probe_ccf)
-    [day_idx,tf] = listdlg('PromptString',sprintf('Select day: Trajectory %d',curr_probe), ...
-        'ListString',ephys_days,'SelectionMode','single');
-    probe_ccf(curr_probe).day = ephys_days{day_idx};
-end
-
-% Save
-save(probe_ccf_filename,'probe_ccf');
-disp(['Saved ' probe_ccf_filename]);
+% (now done with plab.histology.set_probe_recs
 
 %% Align histology depth to recording
 
@@ -199,22 +174,6 @@ set(area_ax(curr_probe),'XTick',[],'YTick',trajectory_areas_centers, ...
 title(unit_ax,'Unit depth x rate');
 title(mua_corr_ax,'Multiunit correlation');
 
-%% Miscellaneous 
-
-% Extract slices from full-resolution images
-% (not worth it at the moment, each slice is 200 MB)
-% AP_grab_fullsize_histology_slices(im_path)
-
-% Convert points in histology images to CCF coordinates
-ccf_points = AP_histology2ccf(histology_points,slice_path);
-% Concatenate points and round to nearest integer coordinate
-ccf_points_cat = round(cell2mat(ccf_points));
-% Get indicies from subscripts
-ccf_points_idx = sub2ind(size(av),ccf_points_cat(:,1),ccf_points_cat(:,2),ccf_points_cat(:,3));
-% Find annotated volume (AV) values at points
-ccf_points_av = av(ccf_points_idx);
-% Get areas from the structure tree (ST) at given AV values
-ccf_points_areas = st(ccf_points_areas,:).safe_name;
 
 
 %% Plot probe areas
@@ -321,12 +280,24 @@ ap.load_recording;
 
 use_probe = 1;
 ap.histology_ephys_align(st,histology_path, ...
-    spike_times_timelite,spike_templates,template_depths,1);
+    spike_times_timelite,spike_templates,template_tipdist,1);
 
 
 %% Grab areas along trajectory from probe annotation
-% (OLD: use fit_probe_line to get probe fit)
 
+%%%%%%%%%%%%%%%%%%%% UNDER CONSTRUCTION
+
+probe_line_fits = ap_histology.fit_probe_line(AP_histology_processing_filename,1);
+
+% Load atlas
+[av,~,st] = ap_histology.load_ccf;
+
+% (BELOW IS COPIED/MODIFIED FROM NTE)
+
+
+
+
+%%%%%%%%%%%%%%%%%%%% OLD
 use_probe = 1;
 
 animal = 'DS030';
