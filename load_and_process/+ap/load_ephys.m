@@ -342,16 +342,16 @@ if exist('probe_areas','var')
             curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0])';
         end
         % Interpolate CCF positions for each template
+        ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)
         template_ccf(template_shanks == curr_shank,:) = ...
-            interp1([10*norm(diff(curr_shank_vector,[],2)),0],curr_shank_vector, ...
+            interp1([ccf2um*norm(diff(curr_shank_vector,[],1)),0],curr_shank_vector, ...
             template_tipdist(template_shanks==curr_shank));
     end
 end
 
-% Plot brain outline
-ap.ccf_outline_3d([],[],{'brain','cp'});
-% Plot all units as small points
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),5,[0.5,0.5,0.5],'filled');
+% % (DEBUG) plot units in CCF space
+% ap.ccf_outline_3d([],{'brain','cp','aca'});
+% scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),5,[0.5,0.5,0.5],'filled');
 
 
 %% Remove bad units from quality control

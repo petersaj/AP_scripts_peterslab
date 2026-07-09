@@ -436,7 +436,7 @@ end
 plot_channels = 1;
 channel_colors = {'r'};
 
-brain_plot = ap.ccf_outline_3d([],[],["brain","CP","VM"]);
+brain_plot = ap.ccf_outline_3d([],["brain","CP","VM"]);
 
 for plot_channel = plot_channels
     % Set channel to plot and value to threshold

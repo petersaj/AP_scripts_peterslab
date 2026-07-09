@@ -49,7 +49,7 @@ classdef ccf_draw < handle
             linkaxes(obj.ccf_axes(1:3));
 
             % Plot 3D brain outlines
-            ap.ccf_outline_3d(obj.ccf_axes(4),obj.av);
+            ap.ccf_outline_3d(obj.ccf_axes(4));
 
         end
 

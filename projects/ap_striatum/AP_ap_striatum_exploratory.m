@@ -276,7 +276,7 @@ unit_color(~any(unit_color,2),:) = 0.5;
 unit_size = max(1,10*nanmean(vis_psth_cat(:,500:700,3),2));
 
 % Plot units on ccf (colored responsive, scaled by response, jittered x/y)
-ap.ccf_outline_3d([],[],["brain","caudoputamen"]);
+ap.ccf_outline_3d([],["brain","caudoputamen"]);
 
 xy_jitter = 20;
 scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
@@ -417,7 +417,7 @@ unit_color(~any(unit_color,2),:) = 0.5;
 unit_size = max(1,2*nanmean(unit_psth_cat_norm(:,200:400,3),2));
 
 % Plot units on ccf (colored responsive, scaled by response, jittered x/y)
-ap.ccf_outline_3d([],[],["brain","CP","GPe","RT"]);
+ap.ccf_outline_3d([],["brain","CP","GPe","RT"]);
 
 xy_jitter = 20;
 scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
