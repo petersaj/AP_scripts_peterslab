@@ -330,22 +330,30 @@ end
 
 if exist('probe_areas','var')
     % (only grab CCF if probe areas are available)
+
+    ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)     
     template_ccf = nan(size(templates,1),3);
+
     for curr_shank = unique(template_shanks)'
         % (loop through shanks)
-        if exist('probe_vector_histology','var')
+        if exist('probe_histology','var')
             % (use histology if available)
-            curr_shank_vector = probe_vector_histology(:,:,curr_shank);
-
+            % Interpolate position by distance relative to area boundaries
+            probe_setpoints_tipdist = 1000*vertcat(probe_histology{1}.tip_distance(:,1), ...
+                probe_histology{1}.tip_distance(end,2));
+            probe_setpoints_ccf = cell2mat(vertcat(probe_histology{1}.ccf(:,1), ...
+                probe_histology{1}.ccf(end,2)));
         else
             % (use NTE if histology not available)
+            % Interpolate position by distance            
             curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0])';
+            probe_setpoints_tipdist = [ccf2um*norm(diff(curr_shank_vector,[],1)),0];
+            probe_setpoints_ccf = curr_shank_vector;
         end
-        % Interpolate CCF positions for each template
-        ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)
+
         template_ccf(template_shanks == curr_shank,:) = ...
-            interp1([ccf2um*norm(diff(curr_shank_vector,[],1)),0],curr_shank_vector, ...
-            template_tipdist(template_shanks==curr_shank));
+                interp1(probe_setpoints_tipdist,probe_setpoints_ccf, ...
+                template_tipdist(template_shanks==curr_shank));       
     end
 end
 
