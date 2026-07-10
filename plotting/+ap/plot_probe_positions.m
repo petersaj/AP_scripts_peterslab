@@ -80,9 +80,18 @@ end
 if plot_histology
     if ~isempty(histology_filename)
 
+        % Plot annotated points connected by lines
+        load(histology_filename);
+        for curr_probe = 1:length(AP_histology_processing.annotation)
+            curr_points = sortrows(horzcat(...
+                vertcat(AP_histology_processing.annotation(curr_probe).vertices_ccf.ap), ...
+                vertcat(AP_histology_processing.annotation(curr_probe).vertices_ccf.ml), ...
+                vertcat(AP_histology_processing.annotation(curr_probe).vertices_ccf.dv)),3);
+            plot3(curr_points(:,1),curr_points(:,2),curr_points(:,3),'r')
+        end
+      
         % Load histology and get probe fits
         probe_line_fits = ap_histology.fit_probe_line(histology_filename);
-
         for curr_probe = 1:length(probe_line_fits)
             % Draw probe line
             line(ccf_3d_axes, ...
