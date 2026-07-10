@@ -262,7 +262,6 @@ for curr_animal = 1:length(animals)
             warning('LOAD ERROR %s %s: %s',animal,rec_day,me.message)
             continue
         end
-
         
         % Set parameters for regression
         time_bins = [wf_t;wf_t(end)+1/wf_framerate];
@@ -310,6 +309,85 @@ end
 save_filename = fullfile(data_path,'wf_passive');
 save(save_filename,'wf_passive');
 
+%% Package: passive stim avg
+
+disp('Packaging: passive stim averages');
+
+% Get animals
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+load(fullfile(data_path,'animals.mat'));
+
+% Loop through animals and package
+wf_passive_avg = struct;
+for curr_animal = 1:length(animals)
+
+    animal = animals(curr_animal);
+    fprintf('Grabbing: %s\n',animal)
+
+    animal_recordings = plab.find_recordings(animal,[],'lcr_passive*');
+    wf_recordings = cellfun(@(x) x(end),{animal_recordings.widefield});
+    use_recordings = animal_recordings(wf_recordings);
+
+    for curr_recording = 1:length(use_recordings)
+
+        % Grab pre-load variables
+        preload_vars = who;
+
+        rec_day = use_recordings(curr_recording).day;
+        rec_time = use_recordings(curr_recording).recording{end};
+
+        load_parts.widefield = true;
+        load_parts.widefield_master = true;
+        try
+            ap.load_recording;
+        catch me
+            warning('LOAD ERROR %s %s: %s',animal,rec_day,me.message)
+            continue
+        end
+        
+        % Trial stim values
+        stim_x = vertcat(trial_events.values.TrialStimX);
+        n_trials = min(length(stimOn_times),length(stim_x));
+
+        % Quiescent trials
+        stim_window = [0,0.5];
+        quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
+            timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
+            timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
+            (1:n_trials)');
+
+        % Event-align widefield     
+        interp_samplerate = 35;
+        wf_stim_time = -0.5:(1/interp_samplerate):1;
+        V_stim_align = interp1(wf_t,wf_V',stimOn_times(quiescent_trials) + wf_stim_time);
+        V_stim_align_baselinesub = V_stim_align-nanmean(V_stim_align(:,wf_stim_time < -0.1,:),2);
+        
+        [wf_avg,stim_x_unique] = ap.groupfun(@nanmean,V_stim_align_baselinesub,stim_x(quiescent_trials));
+
+        % Store variables
+        n_components = 200;
+
+        wf_passive_avg(curr_animal,curr_recording).animal = animal;
+        wf_passive_avg(curr_animal,curr_recording).rec_day = rec_day;
+        wf_passive_avg(curr_animal,curr_recording).rec_time = rec_time;
+        wf_passive_avg(curr_animal,curr_recording).workflow = bonsai_workflow;
+
+        wf_passive_avg(curr_animal,curr_recording).stim_x_unique = stim_x_unique;
+        wf_passive_avg(curr_animal,curr_recording).wf_stim_time = wf_stim_time;
+        wf_passive_avg(curr_animal,curr_recording).wf_avg = permute(wf_avg(:,:,1:n_components),[3,2,1]);
+
+        % Clear load variables
+        clearvars('-except',preload_vars{:});
+
+        ap.print_progress_fraction(curr_recording,length(use_recordings));
+    end
+    fprintf('Done: %s\n',animal)
+end
+
+% Save
+save_filename = fullfile(data_path,'wf_passive_avg');
+save(save_filename,'wf_passive_avg');
+
 
 %% ~~~ ANALYSIS
 
@@ -328,8 +406,8 @@ data_idx = find(~cellfun(@isempty,{wf_task.animal}));
 framerate = 35;
 wf_t = wf_task(data_idx(1)).frame_shifts/framerate;
 
-move_task_idx = data_idx(contains({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_right_move'));
-static_task_idx = data_idx(contains({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_static'));
+move_task_idx = data_idx(strcmp({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_right_move'));
+static_task_idx = data_idx(strcmp({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_static'));
 
 move_kernel = nanmean(cat(4,wf_task(move_task_idx).stim_kernel),4);
 static_kernel = nanmean(cat(4,wf_task(static_task_idx).stim_kernel),4);
@@ -352,14 +430,42 @@ data_idx = find(~cellfun(@isempty,{wf_passive.animal}));
 framerate = 35;
 wf_t = wf_passive(data_idx(1)).frame_shifts/framerate;
 
-move_task_idx = data_idx(contains({wf_passive(data_idx).workflow},'visual_operant_lick_two_stim_right_move'));
-static_task_idx = data_idx(contains({wf_passive(data_idx).workflow},'visual_operant_lick_two_stim_static'));
+passive_lcr_idx = data_idx(strcmp({wf_passive(data_idx).workflow},'lcr_passive'));
+passive_lcr_corner_idx = data_idx(strcmp({wf_passive(data_idx).workflow},'lcr_passive_corner_CS+') & ...
+    cellfun(@(x) size(x,3),{wf_passive(data_idx).stim_kernel}) == 6); % (one dataset has 7 stim??)
 
+passive_lcr_kernel = nanmean(cat(4,wf_passive(passive_lcr_idx).stim_kernel),4);
+passive_lcr_corner_kernel = nanmean(cat(4,wf_passive(passive_lcr_corner_idx).stim_kernel),4);
 
-move_kernel = nanmean(cat(4,wf_passive(data_idx).stim_kernel),4);
-
-ap.imscroll(plab.wf.svd2px(wf_U,static_kernel));
+ap.imscroll(plab.wf.svd2px(wf_U,passive_lcr_corner_kernel));
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image;
 
+
+%% Test passive average
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+load(fullfile(data_path,'wf_passive_avg.mat'));
+
+n_components = 200;
+wf_U = plab.wf.load_master_U(n_components);
+
+data_idx = find(~cellfun(@isempty,{wf_passive.animal}));
+
+framerate = 35;
+wf_t = wf_passive(data_idx(1)).frame_shifts/framerate;
+
+passive_lcr_idx = data_idx(strcmp({wf_passive(data_idx).workflow},'lcr_passive'));
+passive_lcr_corner_idx = data_idx(strcmp({wf_passive(data_idx).workflow},'lcr_passive_corner_CS+') & ...
+    cellfun(@(x) size(x,3),{wf_passive(data_idx).stim_kernel}) == 6); % (one dataset has 7 stim??)
+
+passive_lcr_kernel = nanmean(cat(4,wf_passive(passive_lcr_idx).stim_kernel),4);
+passive_lcr_corner_kernel = nanmean(cat(4,wf_passive(passive_lcr_corner_idx).stim_kernel),4);
+
+ap.imscroll(plab.wf.svd2px(wf_U,passive_lcr_corner_kernel));
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image;
+
+% NOTE: corner stim decoding didn't work - looks like it scrambed stim IDs

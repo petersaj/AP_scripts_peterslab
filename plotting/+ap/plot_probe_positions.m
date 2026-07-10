@@ -14,7 +14,8 @@ end
 
 % Trajectory explorer probe position files
 % (include /ephys and /ephys/** subfolders)
-nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','**','*probe_positions.mat');
+nte_filepattern = plab.locations.filename('server',animal,'*',[], ...
+    'ephys','**','*probe_positions.mat');
 nte_filenames = dir(nte_filepattern);
 
 % Histology probe position files
@@ -22,9 +23,12 @@ nte_filenames = dir(nte_filepattern);
 % histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','*','probe_ccf.mat');
 % histology_fn = dir(histology_filepattern);
 % (new version)
-histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_filepattern = plab.locations.filename('server',animal,[],[], ...
+    'histology','**','AP_histology_processing.mat');
 histology_dir = dir(histology_filepattern);
-histology_filename = fullfile(histology_dir.folder,histology_dir.name);
+if ~isempty(histology_dir)
+    histology_filename = fullfile(histology_dir.folder,histology_dir.name);
+end
 
 % Return if no files found
 if isempty(nte_filenames) && isempty(histology_filename)

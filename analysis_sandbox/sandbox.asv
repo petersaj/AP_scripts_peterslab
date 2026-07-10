@@ -233,84 +233,21 @@ fprintf('Saved %s\n',histology_fn)
 % x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
 
 
-%% Dahee injection figure
+%% Find recordings with 2 probes
 
-% Get maximum fluorescence within CCF bins of aligned histology images
-histology_path = 'C:\Users\petersa\Desktop\Dahee_histology';
-atlas_orientation = 1;
-% atlas_bin_size = 100; % full CCF, define bin size
-atlas_bin_size = 600:20:800; % partial CCF, define bin edges
-[image_aligned_binmax,ccf_bin_edges] = ap_histology.bin_aligned_images(histology_path,atlas_orientation,atlas_bin_size);
 
-% Plot binned max with CCF borders
-% (load atlas)
-av = ap_histology.load_ccf;
-histology_clim = [30000,max(image_aligned_binmax,[],'all')];
-plot_channel = 1;
-plot_channel_color = [1,0,0]; % (pseudocolor of channel)
-overlay_dilation = 1; % (how thick to plot the CCF borders)
-figure; tiledlayout('TileSpacing','none');
-for curr_atlas_bin = 1:size(image_aligned_binmax,3)
-    % Get CCF borders from the middle of the bin
-    plot_atlas_ap = round(mean(ccf_bin_edges(curr_atlas_bin+[0,1])));
-    curr_ccf_borders = imdilate(boundarymask(permute(av(plot_atlas_ap,:,:),[2,3,1])),ones(overlay_dilation));
+data_dir = dir(plab.locations.server_data_path);
+animals_all = string({data_dir(3:end).name});
 
-    % Create color image
-    curr_im_colored = 1- ... % flip background black -> white
-        (mat2gray( ... % range-normalize
-        max(image_aligned_binmax(:,:,curr_atlas_bin,plot_channel),0,'omitnan'), ... % set NaNs to 0
-        histology_clim) ... % clip to min/max values
-        .*permute(1-plot_channel_color,[3,4,2,1])); % color (1-to flip black/white)
+for animal = animals_all
 
-    % Plot max image with CCF borders overlaid
-    curr_overlay = imoverlay(curr_im_colored,curr_ccf_borders,'k');
-    nexttile;imagesc(curr_overlay);axis image off;
-    drawnow;
+    x = dir(plab.locations.filename('server',animal,[],[],'*ProbeB*'));
+    if ~isempty(x)
+        break
+    end
+
+    disp(animal)
 end
-
-
-
-% Get non-binned histology volume
-histology_path = 'C:\Users\petersa\Desktop\Dahee_histology';
-atlas_orientation = 1;
-atlas_bin_size = 1; % return full histology volume
-histology_volume = ap_histology.bin_aligned_images(histology_path,atlas_orientation,atlas_bin_size);
-
-% Moving median to fill small gaps (e.g. between slices)
-histology_volume_movmed = movmedian(histology_volume(:,:,:,plot_channel),5,'omitmissing');
-
-% Binarize histology and get patch data
-plot_channel = 1;
-histology_threshold = 40000;
-
-
-% Get 
-[histology_faces,histology_vertices] = ...
-    extractIsosurface(permute(histology_volume_movmed(:,:,:,plot_channel) ...
-    > histology_threshold,[3,1,2]),0.5);
-
-
-% Plot histology patch data with brain outline
-ccf_outline = ap.ccf_outline_3d;
-
-face_alpha = 0.5;
-patch(ccf_outline.Parent, ...
-    'Vertices',histology_vertices, ...
-    'Faces',histology_faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
-
-
-
-face_alpha = 0.5;
-patch(ccf_outline.Parent, ...
-    'Vertices',histology_patchdata.vertices, ...
-    'Faces',histology_patchdata.faces, ...
-    'FaceColor','r','EdgeColor','none','FaceAlpha',face_alpha);
-
-
-
-
-
 
 
 

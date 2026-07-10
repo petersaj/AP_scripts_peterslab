@@ -55,8 +55,8 @@ else
     kilosort_path = kilosort_top_path;
 end
 
-%%%%% OLD - for serial multi-site
-% (not currently used: multi-site with same probe = /site_n)
+% Get site if serial multi-site
+% (multi-site with same probe = /site_n - not common/used anymore)
 if any(contains({kilosort_dir.name},'site'))
     % If 'site' folders (recordings in serial), choose last before recording
     ephys_site_paths = dir(fullfile(kilosort_top_path,'site_*'));
@@ -91,7 +91,6 @@ end
 % ephys_settings = readstruct(ephys_settings_filename,'filetype','xml');
 % ephys_datetime = datetime(ephys_settings.INFO.DATE, ...
 %     'InputFormat','dd MMM yyyy HH:mm:ss');
-%%%%%%
 
 % Load Open Ephys metadata (for sample rate)
 oe_metadata_fn = fullfile(fileparts(fileparts(open_ephys_path{1})),'structure.oebin');
@@ -293,7 +292,7 @@ if ~isempty(histology_dir)
 end
 
 % Load NTE positions (if available)
-nte_positions_filename = dir(fullfile(ephys_path,'**','*probe_positions*.mat'));
+nte_positions_filename = dir(fullfile(erase(kilosort_path,[filesep,'kilosort4']),'**','*probe_positions*.mat'));
 if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end

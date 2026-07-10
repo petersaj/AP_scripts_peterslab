@@ -346,15 +346,15 @@ for curr_animal = 1:length(animals)
         end
         
         % Trial stim values
-        trial_stim_values = vertcat(trial_events.values.TrialStimX);
-        trial_stim_values = trial_stim_values(1:length(stimOn_times));
-        
+        stim_x = vertcat(trial_events.values.TrialStimX);
+        n_trials = min(length(stimOn_times),length(stim_x));
+
         % Quiescent trials
         stim_window = [0,0.5];
         quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
             timelite.timestamps >= stimOn_times(x)+stim_window(1) & ...
             timelite.timestamps <= stimOn_times(x)+stim_window(2))), ...
-            (1:length(stimOn_times))');
+            (1:n_trials)');
 
         % Event-align widefield     
         interp_samplerate = 35;
@@ -362,7 +362,7 @@ for curr_animal = 1:length(animals)
         V_stim_align = interp1(wf_t,wf_V',stimOn_times(quiescent_trials) + wf_stim_time);
         V_stim_align_baselinesub = V_stim_align-nanmean(V_stim_align(:,wf_stim_time < -0.1,:),2);
         
-        [wf_avg,stim_x_unique] = ap.groupfun(@nanmean,V_stim_align_baselinesub,trial_stim_values(quiescent_trials));
+        [wf_avg,stim_x_unique] = ap.groupfun(@nanmean,V_stim_align_baselinesub,stim_x(quiescent_trials));
 
         % Store variables
         n_components = 200;
@@ -442,4 +442,29 @@ clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image;
 
-% NOTE: corner stim decoding didn't work - looks like it scrambed stim IDs
+
+%% Test passive average
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+load(fullfile(data_path,'wf_passive_avg.mat'));
+
+n_components = 200;
+wf_U = plab.wf.load_master_U(n_components);
+
+data_idx = find(~cellfun(@isempty,{wf_passive_avg.animal}));
+
+framerate = 35;
+wf_t = wf_passive_avg(data_idx(1)).wf_stim_time;
+
+passive_lcr_idx = data_idx(strcmp({wf_passive_avg(data_idx).workflow},'lcr_passive'));
+passive_lcr_corner_idx = data_idx(strcmp({wf_passive_avg(data_idx).workflow},'lcr_passive_corner_CS+') & ...
+    cellfun(@(x) size(x,3),{wf_passive_avg(data_idx).wf_avg}) == 6); % (one dataset has 7 stim??)
+
+passive_lcr_kernel = nanmean(cat(4,wf_passive_avg(passive_lcr_idx).wf_avg),4);
+passive_lcr_corner_kernel = nanmean(cat(4,wf_passive_avg(passive_lcr_corner_idx).wf_avg),4);
+
+ap.imscroll(plab.wf.svd2px(wf_U,passive_lcr_kernel));
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG'));
+axis image;
+
