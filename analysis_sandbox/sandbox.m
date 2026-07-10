@@ -233,20 +233,6 @@ fprintf('Saved %s\n',histology_fn)
 % x = vertcat(AP_histology_processing.annotation(curr_probe).vertices_histology{:});
 
 
-%% Find recordings with 2 probes
-
-
-data_dir = dir(plab.locations.server_data_path);
-animals_all = string({data_dir(3:end).name});
-
-for animal = animals_all
-
-    x = dir(plab.locations.filename('server',animal,[],[],'**','*ProbeB*'));
-    if ~isempty(x)
-        disp("FOUND: "+animal);
-    end
-    disp(animal);
-end
 
 
 

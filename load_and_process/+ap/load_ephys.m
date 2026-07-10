@@ -165,7 +165,7 @@ open_ephys_ttl_filename =  fullfile(kilosort_path,'open_ephys_ttl.mat');
 % (set last update of function to check for current version)
 ks2oe_timestamps_lastupdate = datetime('2026-06-25');
 
-if (exist(spike_times_openephys_filename,'file') && exist(open_ephys_ttl_filename,'file')) || ...
+if ~(exist(spike_times_openephys_filename,'file') && exist(open_ephys_ttl_filename,'file')) || ...
         (datetime(dir(spike_times_openephys_filename).date) < ks2oe_timestamps_lastupdate)
     % If timestamps don't exist or are before last update: (re)create them
     ks_spike_times_fn = fullfile(kilosort_path,'spike_times.npy');
@@ -284,9 +284,12 @@ if ~isempty(histology_dir)
     % (check if annotation ephys path matches loaded path)
     histology_annotation_match = find(strcmp(kilosort_path, ...
         {AP_histology_processing.annotation.ephys_path}));
-    % (fit line to probe, get areas)
-    probe_vector_histology = ap_histology.fit_probe_line(histology_filename, ...
-        histology_annotation_match).ccf;
+    % (sort by shank index)
+    [~,histology_annotation_shanksort] = ...
+        sort([AP_histology_processing.annotation(histology_annotation_match).ephys_shank]);
+    % (fit line to histology points across shanks in sorted order)
+    probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
+        histology_annotation_match(histology_annotation_shanksort)).ccf);
     % (get areas across trajectory)
     probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
 end
@@ -338,21 +341,27 @@ if exist('probe_areas','var')
         if exist('probe_histology','var')
             % (use histology if available)
             % Interpolate position by distance relative to area boundaries
-            probe_setpoints_tipdist = 1000*vertcat(probe_histology{1}.tip_distance(:,1), ...
+            use_area_idx = ...
+                probe_histology{1}.probe_shank == curr_shank & ... & on current shank
+                -diff(probe_histology{1}.tip_distance,[],2) > 0; % area size is > 0
+
+            probe_setpoints_tipdist = 1000 * ... % (convert mm to um)
+                vertcat(probe_histology{1}.tip_distance(use_area_idx,1), ...
                 probe_histology{1}.tip_distance(end,2));
-            probe_setpoints_ccf = cell2mat(vertcat(probe_histology{1}.ccf(:,1), ...
+            probe_setpoints_ccf = cell2mat( ...
+                vertcat(probe_histology{1}.ccf(use_area_idx,1), ...
                 probe_histology{1}.ccf(end,2)));
         else
             % (use NTE if histology not available)
-            % Interpolate position by distance            
+            % Interpolate position by distance
             curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0])';
             probe_setpoints_tipdist = [ccf2um*norm(diff(curr_shank_vector,[],1)),0];
             probe_setpoints_ccf = curr_shank_vector;
         end
 
         template_ccf(template_shanks == curr_shank,:) = ...
-                interp1(probe_setpoints_tipdist,probe_setpoints_ccf, ...
-                template_tipdist(template_shanks==curr_shank));       
+            interp1(probe_setpoints_tipdist,probe_setpoints_ccf, ...
+            template_tipdist(template_shanks==curr_shank));
     end
 end
 
