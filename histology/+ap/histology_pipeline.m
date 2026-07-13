@@ -268,11 +268,11 @@ plot3(annotation_vertices_ccf(:,1),annotation_vertices_ccf(:,2),annotation_verti
 allen_atlas_path = fileparts(which('template_volume_10um.npy'));
 st = loadStructureTree(fullfile(allen_atlas_path,'structure_tree_safe_2017.csv'));
 
-animal = 'AP009';
+animal = 'HA020';
 histology_path = fullfile(plab.locations.server_path,'Data',animal,'histology');
 
-rec_day = '2023-06-26';
-rec_time = '1603';
+rec_day = '2026-02-10';
+rec_time = '1618';
 
 load_parts.ephys = true;
 verbose = true;

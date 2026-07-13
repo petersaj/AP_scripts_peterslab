@@ -365,9 +365,9 @@ if exist('probe_areas','var')
     end
 end
 
-% % (DEBUG) plot units in CCF space
+% % % (DEBUG) plot units in CCF space
 % ap.ccf_outline_3d([],{'brain','cp','aca'});
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
+% scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
 
 
 %% Remove bad units from quality control

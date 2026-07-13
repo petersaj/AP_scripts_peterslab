@@ -91,7 +91,7 @@ group_nonan = ~any(isnan(group_flat),2);
 % If there are multi-label groups: replace output groups with full group
 if ~any(multilabel_group_idx)
     groups_output = groups_output_sanitized;
-elseif any(multilabel_group_idx) && length(groups_dims) == 1
+elseif any(multilabel_group_idx) && isscalar(groups_dims)
     groups_output = multilabel_groups{curr_multilabel_group}( ...
         groups_output_sanitized(:,groups_dims == curr_multilabel_group),:);
 else
@@ -102,7 +102,7 @@ end
 % Loop through groups and do function
 % (apply function to whole data if known dimension argument, otherwise
 % apply function to data columns separately but slower)
-grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(data));
+grouped_data = nan(max(group_flat_unique_idx),size(data_reshape,2),class(+data));
 switch func2str(group_function)
     case {'mean','nanmean','median','nanmedian','sum','nansum'}
         % Functions with dimension as argument 2

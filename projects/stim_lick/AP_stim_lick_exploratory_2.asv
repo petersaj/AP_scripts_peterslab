@@ -391,7 +391,70 @@ save(save_filename,'wf_passive_avg');
 
 %% ~~~ ANALYSIS
 
-%% (find learning days by discrimination)
+%% Behavior: get discrimination days
+% Significance for anticipatory licks CS+/CS-
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+bhv_filename = fullfile(data_path,'bhv.mat');
+load(bhv_filename);
+
+% Move stim 
+data_idx = find(~cellfun(@isempty,{bhv.lick_raster_stim_move}));
+
+lick_t = bhv(1).lick_t;
+use_lick_t = isbetween(lick_t,0,1);
+
+move_lick = cellfun(@(x) sum(x(:,use_lick_t),2),{bhv(data_idx).lick_raster_stim_move},'uni',false);
+stim_x = {bhv(data_idx).trial_stim_x};
+
+move_lick_cat = vertcat(move_lick{:});
+stim_x_cat = vertcat(stim_x{:});
+rec_idx = cell2mat(cellfun(@(x,rec) repelem(rec,size(x,1),1),stim_x, ...
+    num2cell(1:length(stim_x)),'uni',false)');
+
+lick_diff = abs(ap.nestgroupfun({@mean,@diff},move_lick_cat,stim_x_cat,rec_idx));
+
+n_shuff = 1000;
+lick_diff_shuff = nan(length(lick_diff),n_shuff);
+
+for curr_shuff = 1:n_shuff
+    stim_x_cat_shuff = ap.shake(stim_x_cat,1,rec_idx);
+    lick_diff_shuff(:,curr_shuff) = ...
+        abs(ap.nestgroupfun({@mean,@diff}, ...
+        move_lick_cat,stim_x_cat_shuff,rec_idx));
+    ap.print_progress_fraction(curr_shuff,n_shuff);
+end
+
+lick_diff_rank = tiedrank([lick_diff,lick_diff_shuff]')';
+lick_diff_p = 1-(lick_diff_rank(:,1)/(n_shuff+1));
+lick_discrim = num2cell(lick_diff_p < 0.05);
+
+% Save into structure
+[bhv(data_idx).lick_discrim] = deal(lick_discrim{:});
+save(bhv_filename);
+fprintf('Saved lick discrimination: %s\n',bhv_filename);
+
+
+%% Behavior: plot lick rasters
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+bhv_filename = fullfile(data_path,'bhv.mat');
+load(bhv_filename);
+
+% Average lick rasters by session
+
+cellfun(@(lick,stim) ap.groupfun(@mean,lick,stim
+{bhv.lick_raster_stim_on}
+
+% Move stim: pre v post learn
+data_idx = find(~cellfun(@isempty,{bhv.lick_raster_stim_move}));
+lick_t = bhv(1).lick_t;
+
+x = ap.groupfun(@mean,vertcat(bhv(data_idx).lick_raster_stim_on), ...
+    [vertcat(bhv(data_idx).trial_stim_x),vertcat(bhv(data_idx).lick_discrim)]);
+
+
+
 
 %% Test task
 
@@ -451,21 +514,20 @@ load(fullfile(data_path,'wf_passive_avg.mat'));
 n_components = 200;
 wf_U = plab.wf.load_master_U(n_components);
 
-data_idx = find(~cellfun(@isempty,{wf_passive.animal}));
+data_idx = find(~cellfun(@isempty,{wf_passive_avg.animal}));
 
 framerate = 35;
-wf_t = wf_passive(data_idx(1)).frame_shifts/framerate;
+wf_t = wf_passive_avg(data_idx(1)).wf_stim_time;
 
-passive_lcr_idx = data_idx(strcmp({wf_passive(data_idx).workflow},'lcr_passive'));
-passive_lcr_corner_idx = data_idx(strcmp({wf_passive(data_idx).workflow},'lcr_passive_corner_CS+') & ...
-    cellfun(@(x) size(x,3),{wf_passive(data_idx).stim_kernel}) == 6); % (one dataset has 7 stim??)
+passive_lcr_idx = data_idx(strcmp({wf_passive_avg(data_idx).workflow},'lcr_passive'));
+passive_lcr_corner_idx = data_idx(strcmp({wf_passive_avg(data_idx).workflow},'lcr_passive_corner_CS+') & ...
+    cellfun(@(x) size(x,3),{wf_passive_avg(data_idx).wf_avg}) == 6); % (one dataset has 7 stim??)
 
-passive_lcr_kernel = nanmean(cat(4,wf_passive(passive_lcr_idx).stim_kernel),4);
-passive_lcr_corner_kernel = nanmean(cat(4,wf_passive(passive_lcr_corner_idx).stim_kernel),4);
+passive_lcr_kernel = nanmean(cat(4,wf_passive_avg(passive_lcr_idx).wf_avg),4);
+passive_lcr_corner_kernel = nanmean(cat(4,wf_passive_avg(passive_lcr_corner_idx).wf_avg),4);
 
-ap.imscroll(plab.wf.svd2px(wf_U,passive_lcr_corner_kernel));
+ap.imscroll(plab.wf.svd2px(wf_U,passive_lcr_kernel));
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image;
 
-% NOTE: corner stim decoding didn't work - looks like it scrambed stim IDs
