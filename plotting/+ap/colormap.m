@@ -26,6 +26,7 @@ cmap_type = upper(cmap_type);
 if strcmpi(cmap_type,'tube')
 
     tube_colors = [ ...
+        % (tube line colors)
         0.7020    0.3882    0.0196
         0         0         0
         0.8902    0.1255    0.0902
@@ -41,6 +42,13 @@ if strcmpi(cmap_type,'tube')
         0.6275    0.6471    0.6627
         0.5176    0.7216    0.0902
         0.6078         0    0.3373
+        0.8627    0.6902    0.2431
+        % (zone colors, outside-in)
+        0.9608    0.7843    0.8667
+        0.6510    0.7294    0.8510
+        0.9843    0.8392    0.7451
+        0.9882    0.9765    0.6863
+        0.6980    0.8118    0.7216
         ];
 
     if exist('n_colors','var') && n_colors > size(tube_colors,1)
