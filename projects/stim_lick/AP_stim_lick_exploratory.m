@@ -307,15 +307,13 @@ stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
 stimOn_times = photodiode_on_times(1:n_trials);
 stimOff_times = photodiode_off_times(1:n_trials);
 
-% (reward times, or would-be for CS-)
-stim_reward_times = nan(size(stim_x));
-% stim_reward_times(stim_x == rewarded_x) = reward_times;
-stim_reward_times(stim_x == rewarded_x) = interp1(lick_times,lick_times,stimOn_times(stim_x == rewarded_x),'next');
-stim_reward_times(stim_x ~= rewarded_x) = interp1(lick_times,lick_times,stimOn_times(stim_x ~= rewarded_x),'next');
-
 % Trial params
 trial_static_stim_time = vertcat(trial_events.values(1:n_trials).TrialStimStaticTime);
 trial_quiescence_time = vertcat(trial_events.values(1:n_trials).TrialQuiescence);
+
+% First lick after reward available (or stim off, if CS-)
+reward_available_times = stimOn_times + trial_static_stim_time(1:n_trials);
+rewarded_lick_times = interp1(lick_times,lick_times,reward_available_times,'next');
 
 % Plot licks aligned to stim onset / (would-be) center
 % sort_val = 1:n_trials;
@@ -330,7 +328,7 @@ for curr_align = 1:2
         case 1
             plot_align = stimOn_times;
         case 2
-            plot_align = stim_reward_times;
+            plot_align = rewarded_lick_times;
     end
 
     r_trials = find(stim_x == rewarded_x & ~isnan(plot_align));

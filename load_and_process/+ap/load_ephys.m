@@ -282,16 +282,18 @@ if ~isempty(histology_dir)
     histology_filename = fullfile(histology_dir.folder,histology_dir.name);
     load(histology_filename);
     % (check if annotation ephys path matches loaded path)
-    histology_annotation_match = find(strcmp(kilosort_path, ...
-        {AP_histology_processing.annotation.ephys_path}));
-    % (sort by shank index)
-    [~,histology_annotation_shanksort] = ...
-        sort([AP_histology_processing.annotation(histology_annotation_match).ephys_shank]);
-    % (fit line to histology points across shanks in sorted order)
-    probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
-        histology_annotation_match(histology_annotation_shanksort)).ccf);
-    % (get areas across trajectory)
-    probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
+    if isfield(AP_histology_processing.annotation,'ephys_path')
+        histology_annotation_match = find(strcmp(kilosort_path, ...
+            {AP_histology_processing.annotation.ephys_path}));
+        % (sort by shank index)
+        [~,histology_annotation_shanksort] = ...
+            sort([AP_histology_processing.annotation(histology_annotation_match).ephys_shank]);
+        % (fit line to histology points across shanks in sorted order)
+        probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
+            histology_annotation_match(histology_annotation_shanksort)).ccf);
+        % (get areas across trajectory)
+        probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
+    end
 end
 
 % Load NTE positions (if available)

@@ -83,6 +83,11 @@ for curr_animal = 1:length(animals)
                 ap.psth(lick_times,stim_move_times, ...
                 'window',lick_window,'bin_size',lick_binsize);
 
+            % Time to first lick after stim in center (CS- would-be)
+            reward_available_times = stim_move_times + trial_events.parameters.StimMoveTime;
+            reward_available_firstlick_times = interp1(lick_times,lick_times,reward_available_times,'next');
+            rewarded_lick_t = reward_available_firstlick_times - reward_available_times;
+
         elseif contains(bonsai_workflow,'static')
             % Static stim
 
@@ -93,6 +98,11 @@ for curr_animal = 1:length(animals)
             [~,lick_raster_stim_on,lick_t] = ...
                 ap.psth(lick_times,stimOn_times, ...
                 'window',lick_window,'bin_size',lick_binsize);
+
+            % Time to first lick after stim in center (CS- would-be)
+            reward_available_times = stimOn_times + trial_static_stim_time(1:n_trials);
+            reward_available_firstlick_times = interp1(lick_times,lick_times,reward_available_times,'next');
+            rewarded_lick_t = reward_available_firstlick_times - reward_available_times;
         end
 
         % Store variables
@@ -109,8 +119,11 @@ for curr_animal = 1:length(animals)
         bhv(curr_animal,curr_recording).lick_t = lick_t;
         bhv(curr_animal,curr_recording).lick_raster_stim_on = sparse(logical(lick_raster_stim_on));
         if exist('lick_raster_stim_move','var')
-            bhv(curr_animal,curr_recording).lick_raster_stim_move = lick_raster_stim_move;
+            bhv(curr_animal,curr_recording).lick_raster_stim_move = sparse(logical(lick_raster_stim_move));
         end
+
+        % (time from reward availability to lick, or would-be)
+        bhv(curr_animal,curr_recording).rewarded_lick_t = rewarded_lick_t;
 
         % Clear load variables
         clearvars('-except',preload_vars{:});
@@ -391,7 +404,7 @@ save(save_filename,'wf_passive_avg');
 
 %% ~~~ ANALYSIS
 
-%% Behavior: get discrimination performance and significance (MOVE)
+%% Behavior: anticipatory lick discrimination/significance (MOVE)
 % Significance for anticipatory licks CS+/CS-
 
 data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
@@ -412,9 +425,9 @@ rec_idx = cell2mat(cellfun(@(x,rec) repelem(rec,size(x,1),1),stim_x, ...
     num2cell(1:length(stim_x)),'uni',false)');
 
 % Performance
-lick_cs_plus = ap.groupfun(@mean,move_lick_cat(stim_x_cat == 90),rec_idx(stim_x_cat == 90));
-lick_cs_minus = ap.groupfun(@mean,move_lick_cat(stim_x_cat == -90),rec_idx(stim_x_cat == -90));
-lick_discrim_idx = num2cell((lick_cs_plus-lick_cs_minus)./(lick_cs_plus+lick_cs_minus));
+lick_cs_plus = num2cell(ap.groupfun(@mean,move_lick_cat(stim_x_cat == 90),rec_idx(stim_x_cat == 90)));
+lick_cs_minus = num2cell(ap.groupfun(@mean,move_lick_cat(stim_x_cat == -90),rec_idx(stim_x_cat == -90)));
+lick_discrim_idx = cellfun(@(cs_p,cs_m) (cs_p-cs_m)./(cs_p+cs_m),lick_cs_plus,lick_cs_minus,'uni',false);
 
 % Significance
 n_shuff = 10000;
@@ -435,13 +448,15 @@ lick_discrim_idx_p = 1-(lick_discrim_idx_rank(:,1)/(n_shuff+1));
 lick_discrim = num2cell(lick_discrim_idx_p < 0.01);
 
 % Save into structure
+[bhv(data_idx).lick_cs_plus] = deal(lick_cs_plus{:});
+[bhv(data_idx).lick_cs_minus] = deal(lick_cs_minus{:});
 [bhv(data_idx).lick_discrim_idx] = deal(lick_discrim_idx{:});
 [bhv(data_idx).lick_discrim] = deal(lick_discrim{:});
 save(bhv_filename);
 fprintf('Saved lick discrimination: %s\n',bhv_filename);
 
 
-%% Behavior: get discrimination performance and significance (STATIC)
+%% Behavior: anticipatory lick discrimination/significance (STATIC)
 % Significance for anticipatory licks CS+/CS-
 
 data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
@@ -462,9 +477,9 @@ rec_idx = cell2mat(cellfun(@(x,rec) repelem(rec,size(x,1),1),stim_x, ...
     num2cell(1:length(stim_x)),'uni',false)');
 
 % Performance
-lick_cs_plus = ap.groupfun(@mean,stim_lick_cat(stim_x_cat == 90),rec_idx(stim_x_cat == 90));
-lick_cs_minus = ap.groupfun(@mean,stim_lick_cat(stim_x_cat == -90),rec_idx(stim_x_cat == -90));
-lick_discrim_idx = num2cell((lick_cs_plus-lick_cs_minus)./(lick_cs_plus+lick_cs_minus));
+lick_cs_plus = num2cell(ap.groupfun(@mean,stim_lick_cat(stim_x_cat == 90),rec_idx(stim_x_cat == 90)));
+lick_cs_minus = num2cell(ap.groupfun(@mean,stim_lick_cat(stim_x_cat == -90),rec_idx(stim_x_cat == -90)));
+lick_discrim_idx = cellfun(@(cs_p,cs_m) (cs_p-cs_m)./(cs_p+cs_m),lick_cs_plus,lick_cs_minus,'uni',false);
 
 % Significance
 n_shuff = 10000;
@@ -485,11 +500,67 @@ lick_discrim_idx_p = 1-(lick_discrim_idx_rank(:,1)/(n_shuff+1));
 lick_discrim = num2cell(lick_discrim_idx_p < 0.01);
 
 % Save into structure
+[bhv(data_idx).lick_cs_plus] = deal(lick_cs_plus{:});
+[bhv(data_idx).lick_cs_minus] = deal(lick_cs_minus{:});
 [bhv(data_idx).lick_discrim_idx] = deal(lick_discrim_idx{:});
 [bhv(data_idx).lick_discrim] = deal(lick_discrim{:});
 save(bhv_filename);
 fprintf('Saved lick discrimination: %s\n',bhv_filename);
 
+%% Behavior: rewarded lick discrimination
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+bhv_filename = fullfile(data_path,'bhv.mat');
+load(bhv_filename);
+
+stim_x_cat = vertcat(bhv.trial_stim_x);
+rewarded_lick_t_cat = vertcat(bhv.rewarded_lick_t);
+rec_idx = cell2mat(cellfun(@(x,rec) repelem(rec,size(x,1),1), ...
+    {bhv.trial_stim_x},num2cell(1:numel(bhv)),'uni',false)');
+
+% Performance
+lick_t_cs_plus = num2cell(ap.groupfun(@nanmedian,rewarded_lick_t_cat(stim_x_cat == 90),rec_idx(stim_x_cat == 90)));
+lick_t_cs_minus = num2cell(ap.groupfun(@nanmedian,rewarded_lick_t_cat(stim_x_cat == -90),rec_idx(stim_x_cat == -90)));
+lick_t_cs_diff = cellfun(@(cs_p,cs_m) (cs_m-cs_p),lick_t_cs_plus,lick_t_cs_minus,'uni',false);
+
+% Significance
+n_shuff = 10000;
+lick_t_cs_diff_shuff = nan(length(lick_t_cs_diff),n_shuff);
+
+for curr_shuff = 1:n_shuff
+    stim_x_cat_shuff = ap.shake(stim_x_cat,1,rec_idx);
+
+    lick_t_cs_plus_shuff = ap.groupfun(@nanmedian,rewarded_lick_t_cat(stim_x_cat_shuff == 90),rec_idx(stim_x_cat_shuff == 90));
+    lick_t_cs_minus_shuff = ap.groupfun(@nanmedian,rewarded_lick_t_cat(stim_x_cat_shuff == -90),rec_idx(stim_x_cat_shuff == -90));
+
+    lick_t_cs_diff_shuff(:,curr_shuff) = lick_t_cs_minus_shuff-lick_t_cs_plus_shuff;
+    ap.print_progress_fraction(curr_shuff,n_shuff);
+end
+
+lick_t_discrim_idx_rank = tiedrank([cell2mat(lick_t_cs_diff),lick_t_cs_diff_shuff]')';
+lick_t_discrim_idx_p = 1-(lick_t_discrim_idx_rank(:,1)/(n_shuff+1));
+lick_t_discrim = num2cell(lick_t_discrim_idx_p < 0.01);
+
+% Save into structure
+data_idx = ~cellfun(@isempty,{bhv.trial_stim_x});
+[bhv(data_idx).lick_t_discrim] = deal(lick_t_discrim{:});
+save(bhv_filename);
+fprintf('Saved lick t discrimination: %s\n',bhv_filename);
+
+
+%% Define pfc+/- animals (hard-coded for now)
+
+data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
+load(fullfile(data_path,'bhv.mat'));
+animals = vertcat(bhv(:,1).animal);
+
+% (mpfc)
+mpfc_plus = ["HA008" "HA010" "HA011" "HA012" "HA016" "AP036" "AP037"];
+mpfc_minus = ["HA007" "HA009" "HA014" "HA015" "HA018"];
+
+% (static transfer)
+mpfc_plus = ["HA008" "HA010" "HA012" "HA016" "AP036"];
+mpfc_minus = ["HA007" "HA009" "HA011" "HA014" "HA015"  "AP037"];
 
 
 %% Behavior: plot lick rasters
@@ -516,40 +587,73 @@ lick_raster_stim_move_avg = ...
 % "visual_operant_lick_two_stim_static_big_stim"
 % "visual_operant_lick_two_stim_static_big_stim_short_static_times"
 
-% curr_workflow = "visual_operant_lick_two_stim_right_move";
-curr_workflow = "visual_operant_lick_two_stim_static";
+curr_workflow = "visual_operant_lick_two_stim_right_move";
+% curr_workflow = "visual_operant_lick_two_stim_static";
 
-task_idx = reshape(strcmp({bhv.workflow},curr_workflow),size(bhv));
-learned_idx = reshape(cellfun(@any,{bhv.lick_discrim}),size(bhv));
+task_idx = reshape(strcmp({bhv.workflow},curr_workflow),size(bhv)); %task_idx(:,17:end) = false; % manually - remove task switches
+learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
 lick_t = bhv(1).lick_t;
 
-data_idx_prelearn = task_idx & ~learned_idx;
-data_idx_postlearn = task_idx & learned_idx;
+% data_idx_prelearn = task_idx & ~learned_idx;
+% data_idx_postlearn = task_idx & learned_idx;
+
+data_idx_prelearn = task_idx & ~learned_idx & ismember(animals,mpfc_minus);
+data_idx_postlearn = task_idx & learned_idx & ismember(animals,mpfc_minus);
+
+% data_idx_prelearn = task_idx & ismember(animals,mpfc_minus);
+% data_idx_postlearn = task_idx & ismember(animals,mpfc_plus);
 
 figure; tiledlayout(2,2,'TileIndexing','ColumnMajor');
 
 nexttile;
 plot(lick_t,...
-    ap.groupfun(@mean,vertcat(lick_raster_stim_on_avg{data_idx_prelearn}), ...
-    vertcat(lick_raster_grp{data_idx_prelearn}))');
+    movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_on_avg{data_idx_prelearn}), ...
+    vertcat(lick_raster_grp{data_idx_prelearn})),[0,30],2)');
+xline(0);
 
 nexttile;
 plot(lick_t,...
-    ap.groupfun(@mean,vertcat(lick_raster_stim_on_avg{data_idx_postlearn}), ...
-    vertcat(lick_raster_grp{data_idx_postlearn}))');
+    movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_on_avg{data_idx_postlearn}), ...
+    vertcat(lick_raster_grp{data_idx_postlearn})),[0,30],2)');
+xline(0);
 
 if contains(curr_workflow,'move')
     nexttile;
     plot(lick_t,...
-        ap.groupfun(@mean,vertcat(lick_raster_stim_move_avg{data_idx_prelearn}), ...
-        vertcat(lick_raster_grp{data_idx_prelearn}))');
+        movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_move_avg{data_idx_prelearn}), ...
+        vertcat(lick_raster_grp{data_idx_prelearn})),[0,30],2)');
+    xline([0,1]);
 
     nexttile;
     plot(lick_t,...
-        ap.groupfun(@mean,vertcat(lick_raster_stim_move_avg{data_idx_postlearn}), ...
-        vertcat(lick_raster_grp{data_idx_postlearn}))');
+        movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_move_avg{data_idx_postlearn}), ...
+        vertcat(lick_raster_grp{data_idx_postlearn})),[0,30],2)');
+    xline([0,1]);
 end
+
+
+% Individual animals
+figure; tiledlayout('flow')
+for curr_animal = 1:size(bhv,1)
+    nexttile; hold on;
+
+    curr_prelearn = movmean(nanmean(cat(3,lick_raster_stim_on_avg{curr_animal,data_idx_prelearn(curr_animal,:)}),3),[0,30],2);
+    curr_postlearn = movmean(nanmean(cat(3,lick_raster_stim_on_avg{curr_animal,data_idx_postlearn(curr_animal,:)}),3),[0,30],2);
+
+    if any(data_idx_prelearn(curr_animal,:))
+        plot(lick_t,curr_prelearn(1,:),'color',[0.5,0.5,0.5]);
+        plot(lick_t,curr_prelearn(2,:),'k');
+    end
+    if any(data_idx_postlearn(curr_animal,:))
+        plot(lick_t,curr_postlearn(1,:),'color',[1,0.5,0.5]);
+        plot(lick_t,curr_postlearn(2,:),'r');
+    end
+    xline(1)
+end
+
+
+
 
 
 %% Test task
@@ -567,6 +671,8 @@ data_idx = find(~cellfun(@isempty,{wf_task.animal}));
 framerate = 35;
 wf_t = wf_task(data_idx(1)).frame_shifts/framerate;
 
+
+
 move_task_idx = data_idx(strcmp({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_right_move'));
 static_task_idx = data_idx(strcmp({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_static'));
 
@@ -583,15 +689,17 @@ axis image;
 move_task_idx = reshape(strcmp({wf_task.workflow}, ...
     "visual_operant_lick_two_stim_right_move"),size(bhv));
 static_task_idx = reshape(strcmp({wf_task.workflow}, ...
-    "visual_operant_lick_two_stim_static"),size(bhv));
-% (learn: moving median to clean)
-learn_idx = movmedian(reshape(cellfun(@any,{bhv.lick_discrim}),size(bhv)),[1,1],2)==1;
+    "visual_operant_lick_two_stim_static"),size(bhv)); static_task_idx(:,17:end) = false;
+learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
-sl = learn_idx & static_task_idx;
-arrayfun(@(x) find(sl(x,:),1)-find(static_task_idx(x,:),1),1:size(sl,1))
+% prelearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & ~learned_idx).stim_kernel),4);
+% postlearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learned_idx).stim_kernel),4);
 
-prelearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & ~learn_idx).stim_kernel),4);
-postlearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learn_idx).stim_kernel),4);
+% prelearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learned_idx & ismember(animals,mpfc_plus)).stim_kernel),4);
+% postlearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learned_idx & ismember(animals,mpfc_minus)).stim_kernel),4);
+
+prelearn_move_kernel = nanmean(cat(4,wf_task(static_task_idx & ismember(animals,mpfc_plus)).stim_kernel),4);
+postlearn_move_kernel = nanmean(cat(4,wf_task(static_task_idx & ismember(animals,mpfc_minus)).stim_kernel),4);
 
 ap.imscroll([plab.wf.svd2px(wf_U,prelearn_move_kernel),plab.wf.svd2px(wf_U,postlearn_move_kernel)]);
 clim(max(abs(clim)).*[-1,1]);
@@ -601,8 +709,12 @@ axis image;
 
 % Looking for mPFC+/-
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
-    nanmean(cat(4,wf_task(x,move_task_idx(x,:) & learn_idx(x,:)).stim_kernel),4), ...
+    nanmean(cat(4,wf_task(x,move_task_idx(x,:) & learned_idx(x,:)).stim_kernel),4), ...
     1:size(wf_task,1),'uni',false);
+
+% stim_kernel_animal_postlearn = arrayfun(@(x) ...
+%     nanmean(cat(4,wf_task(x,find(move_task_idx(x,:),2,'last')).stim_kernel),4), ...
+%     1:size(wf_task,1),'uni',false);
 
 stim_kernel_animal_postlearn_px = cellfun(@(x) plab.wf.svd2px(wf_U,x), ...
     stim_kernel_animal_postlearn,'uni',false,'ErrorHandler',@(varargin) []);
@@ -627,6 +739,28 @@ clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG'));
 axis image;
 
+lick_discrim_postlearn = cell2mat(arrayfun(@(x) ...
+    nanmean(cat(1,bhv(x,find(move_task_idx(x,:) & learned_idx(x,:),2,'last')).lick_discrim_idx),1), ...
+    1:size(bhv,1),'uni',false));
+
+lick_csplus_postlearn = cell2mat(arrayfun(@(x) ...
+    nanmean(cat(1,bhv(x,find(move_task_idx(x,:) & learned_idx(x,:),2,'last')).lick_cs_plus),1), ...
+    1:size(bhv,1),'uni',false));
+
+lick_csminus_postlearn = cell2mat(arrayfun(@(x) ...
+    nanmean(cat(1,bhv(x,find(move_task_idx(x,:) & learned_idx(x,:),2,'last')).lick_cs_minus),1), ...
+    1:size(bhv,1),'uni',false));
+
+figure;
+nexttile; hold on;
+plot(lick_discrim_postlearn,mpfc,'.k','MarkerSize',20)
+xlabel('Lick discrim');
+ylabel('mPFC');
+nexttile; hold on;
+plot(lick_csplus_postlearn,mpfc,'.r','MarkerSize',20)
+plot(lick_csminus_postlearn,mpfc,'.b','MarkerSize',20)
+xlabel('Lick +/-');
+ylabel('mPFC');
 
 % ROI vs behavior
 % (draw roi)
@@ -699,12 +833,16 @@ axis image;
 
 % pre/post-learn move task
 move_task_idx = reshape(strcmp({bhv.workflow},'visual_operant_lick_two_stim_right_move'),size(bhv));
-learn_idx = reshape(cellfun(@any,{bhv.lick_discrim}),size(bhv));
+learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
 % Looking for mPFC+/-
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
     nanmean(cat(4,wf_passive(x,move_task_idx(x,:) & learn_idx(x,:)).stim_kernel),4), ...
     1:size(wf_passive,1),'uni',false);
+
+% stim_kernel_animal_postlearn = arrayfun(@(x) ...
+%     nanmean(cat(4,wf_passive(x,find(move_task_idx(x,:) & learned_idx(x,:),2,'last')).stim_kernel),4), ...
+%     1:size(wf_passive,1),'uni',false);
 
 stim_kernel_animal_postlearn_px = cellfun(@(x) plab.wf.svd2px(wf_U,x), ...
     stim_kernel_animal_postlearn,'uni',false,'ErrorHandler',@(varargin) []);
@@ -798,11 +936,11 @@ axis image;
 
 % pre/post-learn move task
 move_task_idx = reshape(strcmp({bhv.workflow},'visual_operant_lick_two_stim_right_move'),size(bhv));
-learn_idx = reshape(cellfun(@any,{bhv.lick_discrim}),size(bhv));
+learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
 % Looking for mPFC+/-
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
-    nanmean(cat(4,wf_passive_avg(x,move_task_idx(x,:) & learn_idx(x,:)).wf_avg),4), ...
+    nanmean(cat(4,wf_passive_avg(x,move_task_idx(x,:) & learned_idx(x,:)).wf_avg),4), ...
     1:size(wf_passive_avg,1),'uni',false);
 
 stim_kernel_animal_postlearn_px = cellfun(@(x) plab.wf.svd2px(wf_U,x), ...
