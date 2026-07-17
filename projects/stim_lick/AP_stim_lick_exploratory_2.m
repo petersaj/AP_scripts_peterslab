@@ -548,19 +548,22 @@ save(bhv_filename);
 fprintf('Saved lick t discrimination: %s\n',bhv_filename);
 
 
-%% Define pfc+/- animals (hard-coded for now)
+%% Define PFC +/- animals (hard-coded for now)
 
 data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
 load(fullfile(data_path,'bhv.mat'));
 animals = vertcat(bhv(:,1).animal);
 
-% (mpfc)
-mpfc_plus = ["HA008" "HA010" "HA011" "HA012" "HA016" "AP036" "AP037"];
-mpfc_minus = ["HA007" "HA009" "HA014" "HA015" "HA018"];
 
-% (static transfer)
+% (mice that switched tasks)
 mpfc_plus = ["HA008" "HA010" "HA012" "HA016" "AP036"];
 mpfc_minus = ["HA007" "HA009" "HA011" "HA014" "HA015"  "AP037"];
+
+
+% (mpfc from task v1)
+mpfc_plus = [ "HA008"  "HA010"  "HA011"  "HA012"  "HA016"  "HA020"  "AP036"];
+mpfc_minus = [ "HA007"  "HA009"   "HA014"  "HA015"  "AP031"  "HA017"  "HA018"  "HA019"  "AP037"];
+
 
 
 %% Behavior: plot lick rasters
@@ -587,70 +590,77 @@ lick_raster_stim_move_avg = ...
 % "visual_operant_lick_two_stim_static_big_stim"
 % "visual_operant_lick_two_stim_static_big_stim_short_static_times"
 
-curr_workflow = "visual_operant_lick_two_stim_right_move";
-% curr_workflow = "visual_operant_lick_two_stim_static";
-
-task_idx = reshape(strcmp({bhv.workflow},curr_workflow),size(bhv)); %task_idx(:,17:end) = false; % manually - remove task switches
+% Create indicies for task type
+% (first task either small or big move, before any switch)
+workflow_grid = reshape(string(cellfun(@char,{wf_task.workflow},'uni',false)),size(bhv));
+task_switch = padarray(workflow_grid(:,2:end)~=workflow_grid(:,1:end-1),[0,1],0,'pre');
+task_v1_idx = cumsum(task_switch,2)==0;
+task_v2_idx = cumsum(task_switch,2)==1;
+% (move/static)
+move_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"move"),size(bhv));
+static_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"static"),size(bhv));
+% (learning)
 learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
 lick_t = bhv(1).lick_t;
 
-% data_idx_prelearn = task_idx & ~learned_idx;
-% data_idx_postlearn = task_idx & learned_idx;
+data_idx_prelearn = task_v2_idx & static_task_idx & ismember(animals,mpfc_minus);
+data_idx_postlearn = task_v2_idx & static_task_idx & ismember(animals,mpfc_plus);
 
-data_idx_prelearn = task_idx & ~learned_idx & ismember(animals,mpfc_minus);
-data_idx_postlearn = task_idx & learned_idx & ismember(animals,mpfc_minus);
+% data_idx_prelearn = task_idx & ~learned_idx & ismember(animals,mpfc_minus);
+% data_idx_postlearn = task_idx & learned_idx & ismember(animals,mpfc_minus);
 
-% data_idx_prelearn = task_idx & ismember(animals,mpfc_minus);
-% data_idx_postlearn = task_idx & ismember(animals,mpfc_plus);
+% data_idx_prelearn = task_v1_idx & learned_idx & ismember(animals,mpfc_minus);
+% data_idx_postlearn = task_v1_idx & learned_idx & ismember(animals,mpfc_plus);
 
 figure; tiledlayout(2,2,'TileIndexing','ColumnMajor');
 
 nexttile;
 plot(lick_t,...
     movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_on_avg{data_idx_prelearn}), ...
-    vertcat(lick_raster_grp{data_idx_prelearn})),[0,30],2)');
+    vertcat(lick_raster_grp{data_idx_prelearn})),[30,0],2)');
 xline(0);
 
 nexttile;
 plot(lick_t,...
     movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_on_avg{data_idx_postlearn}), ...
-    vertcat(lick_raster_grp{data_idx_postlearn})),[0,30],2)');
+    vertcat(lick_raster_grp{data_idx_postlearn})),[30,0],2)');
 xline(0);
 
-if contains(curr_workflow,'move')
+if ~isempty([lick_raster_stim_move_avg{data_idx_prelearn}]) || ...
+        ~isempty([lick_raster_stim_move_avg{data_idx_postlearn}])
     nexttile;
     plot(lick_t,...
         movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_move_avg{data_idx_prelearn}), ...
-        vertcat(lick_raster_grp{data_idx_prelearn})),[0,30],2)');
+        vertcat(lick_raster_grp{data_idx_prelearn})),[30,0],2)');
     xline([0,1]);
 
     nexttile;
     plot(lick_t,...
         movmean(ap.groupfun(@mean,vertcat(lick_raster_stim_move_avg{data_idx_postlearn}), ...
-        vertcat(lick_raster_grp{data_idx_postlearn})),[0,30],2)');
+        vertcat(lick_raster_grp{data_idx_postlearn})),[30,0],2)');
     xline([0,1]);
 end
 
 
-% Individual animals
-figure; tiledlayout('flow')
-for curr_animal = 1:size(bhv,1)
-    nexttile; hold on;
-
-    curr_prelearn = movmean(nanmean(cat(3,lick_raster_stim_on_avg{curr_animal,data_idx_prelearn(curr_animal,:)}),3),[0,30],2);
-    curr_postlearn = movmean(nanmean(cat(3,lick_raster_stim_on_avg{curr_animal,data_idx_postlearn(curr_animal,:)}),3),[0,30],2);
-
-    if any(data_idx_prelearn(curr_animal,:))
-        plot(lick_t,curr_prelearn(1,:),'color',[0.5,0.5,0.5]);
-        plot(lick_t,curr_prelearn(2,:),'k');
-    end
-    if any(data_idx_postlearn(curr_animal,:))
-        plot(lick_t,curr_postlearn(1,:),'color',[1,0.5,0.5]);
-        plot(lick_t,curr_postlearn(2,:),'r');
-    end
-    xline(1)
-end
+% % Individual animals
+% figure; tiledlayout('flow')
+% for curr_animal = 1:size(bhv,1)
+%     nexttile; hold on;
+% 
+%     curr_prelearn = movmean(nanmean(cat(3,lick_raster_stim_on_avg{curr_animal,data_idx_prelearn(curr_animal,:)}),3),[0,30],2);
+%     curr_postlearn = movmean(nanmean(cat(3,lick_raster_stim_on_avg{curr_animal,data_idx_postlearn(curr_animal,:)}),3),[0,30],2);
+% 
+%     if any(data_idx_prelearn(curr_animal,:))
+%         plot(lick_t,curr_prelearn(1,:),'color',[0.5,0.5,0.5]);
+%         plot(lick_t,curr_prelearn(2,:),'k');
+%     end
+%     if any(data_idx_postlearn(curr_animal,:))
+%         plot(lick_t,curr_postlearn(1,:),'color',[1,0.5,0.5]);
+%         plot(lick_t,curr_postlearn(2,:),'r');
+%     end
+%     xline(1)
+% end
 
 
 
@@ -671,50 +681,72 @@ data_idx = find(~cellfun(@isempty,{wf_task.animal}));
 framerate = 35;
 wf_t = wf_task(data_idx(1)).frame_shifts/framerate;
 
+% first task (either small or big move, before any switch)
+workflow_grid = reshape(string(cellfun(@char,{wf_task.workflow},'uni',false)),size(bhv));
+task_v1_idx = ~cummax(padarray(workflow_grid(:,2:end)~=workflow_grid(:,1:end-1),[0,1],0,'pre'),2);
 
-
-move_task_idx = data_idx(strcmp({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_right_move'));
-static_task_idx = data_idx(strcmp({wf_task(data_idx).workflow},'visual_operant_lick_two_stim_static'));
-
-move_kernel = nanmean(cat(4,wf_task(move_task_idx).stim_kernel),4);
-static_kernel = nanmean(cat(4,wf_task(static_task_idx).stim_kernel),4);
-
-ap.imscroll(plab.wf.svd2px(wf_U,move_kernel));
-clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-axis image;
-
-
-% pre/post-learn move task
-move_task_idx = reshape(strcmp({wf_task.workflow}, ...
-    "visual_operant_lick_two_stim_right_move"),size(bhv));
-static_task_idx = reshape(strcmp({wf_task.workflow}, ...
-    "visual_operant_lick_two_stim_static"),size(bhv)); static_task_idx(:,17:end) = false;
+% small+big move/static
+move_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"move"),size(bhv));
+static_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"static"),size(bhv));
 learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
-% prelearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & ~learned_idx).stim_kernel),4);
-% postlearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learned_idx).stim_kernel),4);
+% % small-only move/static
+% move_task_idx = reshape(strcmp({wf_task.workflow}, ...
+%     "visual_operant_lick_two_stim_right_move"),size(bhv));
+% static_task_idx = reshape(strcmp({wf_task.workflow}, ...
+%     "visual_operant_lick_two_stim_static"),size(bhv)); static_task_idx(:,17:end) = false;
+% learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
-% prelearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learned_idx & ismember(animals,mpfc_plus)).stim_kernel),4);
-% postlearn_move_kernel = nanmean(cat(4,wf_task(move_task_idx & learned_idx & ismember(animals,mpfc_minus)).stim_kernel),4);
+% k1 = nanmean(cat(4,wf_task(move_task_idx & ~learned_idx).stim_kernel),4);
+% k2 = nanmean(cat(4,wf_task(move_task_idx & learned_idx).stim_kernel),4);
 
-prelearn_move_kernel = nanmean(cat(4,wf_task(static_task_idx & ismember(animals,mpfc_plus)).stim_kernel),4);
-postlearn_move_kernel = nanmean(cat(4,wf_task(static_task_idx & ismember(animals,mpfc_minus)).stim_kernel),4);
+k1 = nanmean(cat(4,wf_task(task_v1_idx & learned_idx & ismember(animals,mpfc_plus)).stim_kernel),4);
+k2 = nanmean(cat(4,wf_task(task_v1_idx & learned_idx & ismember(animals,mpfc_minus)).stim_kernel),4);
 
-ap.imscroll([plab.wf.svd2px(wf_U,prelearn_move_kernel),plab.wf.svd2px(wf_U,postlearn_move_kernel)]);
+% k1 = nanmean(cat(4,wf_task(static_task_idx & ismember(animals,mpfc_plus)).stim_kernel),4);
+% k2 = nanmean(cat(4,wf_task(static_task_idx & ismember(animals,mpfc_minus)).stim_kernel),4);
+
+ap.imscroll([plab.wf.svd2px(wf_U,k1),plab.wf.svd2px(wf_U,k2)]);
 clim(max(abs(clim)).*[-1,1]);
-colormap(ap.colormap('PWG'));
-axis image;
+colormap(ap.colormap('PWG',[],1.5));
+axis image off
 
-
-% Looking for mPFC+/-
+% Animal postlearn tmax
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
-    nanmean(cat(4,wf_task(x,move_task_idx(x,:) & learned_idx(x,:)).stim_kernel),4), ...
+    nanmean(cat(4,wf_task(x,task_v1_idx(x,:) & learned_idx(x,:)).stim_kernel),4), ...
     1:size(wf_task,1),'uni',false);
 
+stim_kernel_animal_postlearn_px = ...
+    cellfun(@(x) squeeze(max(plab.wf.svd2px(wf_U,x(:,5:15,1)),[],3)), ...
+    stim_kernel_animal_postlearn,'uni',false,'ErrorHandler',@(varargin) []);
+
+figure;
+tiledlayout('flow','tilespacing','tight');
+for i = 1:length(stim_kernel_animal_postlearn_px)
+    nexttile;
+    imagesc(stim_kernel_animal_postlearn_px{i});
+    axis image off;
+    clim([-4,4].*1e-4);
+    title(animals(i));
+end
+colormap(ap.colormap('PWG',[],2));
+
+
+% Individual animals
 % stim_kernel_animal_postlearn = arrayfun(@(x) ...
-%     nanmean(cat(4,wf_task(x,find(move_task_idx(x,:),2,'last')).stim_kernel),4), ...
+%     nanmean(cat(4,wf_task(x,move_task_idx(x,:) & learned_idx(x,:)).stim_kernel),4), ...
 %     1:size(wf_task,1),'uni',false);
+
+% stim_kernel_animal_postlearn = arrayfun(@(x) ...
+%     nanmean(cat(4,wf_task(x,static_task_idx(x,:)).stim_kernel),4), ...
+%     1:size(wf_task,1),'uni',false);
+
+% (last 2 days of any learning)
+stim_kernel_animal_postlearn = arrayfun(@(x) ...
+    nanmean(cell2mat(permute(cellfun(@(x) x(:,:,1), ...
+    {wf_task(x,find(learned_idx(x,:),2,'last')).stim_kernel},'uni',false),[1,3,2])),3), ...
+    1:size(wf_task,1),'uni',false);
+
 
 stim_kernel_animal_postlearn_px = cellfun(@(x) plab.wf.svd2px(wf_U,x), ...
     stim_kernel_animal_postlearn,'uni',false,'ErrorHandler',@(varargin) []);
@@ -832,8 +864,28 @@ colormap(ap.colormap('PWG'));
 axis image;
 
 % pre/post-learn move task
-move_task_idx = reshape(strcmp({bhv.workflow},'visual_operant_lick_two_stim_right_move'),size(bhv));
+
+% Create indicies for task type
+% (first task either small or big move, before any switch)
+workflow_grid = reshape(string(cellfun(@char,{wf_task.workflow},'uni',false)),size(bhv));
+task_switch = padarray(workflow_grid(:,2:end)~=workflow_grid(:,1:end-1),[0,1],0,'pre');
+task_v1_idx = cumsum(task_switch,2)==0;
+task_v2_idx = cumsum(task_switch,2)==1;
+% (move/static)
+move_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"move"),size(bhv));
+static_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"static"),size(bhv));
+% (learning)
 learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
+
+kernel_grid = reshape(cellfun(@(x) x(:,:,end),{wf_passive.stim_kernel},'uni',false,'ErrorHandler',@(varargin) []),size(bhv));
+k1 = nanmean(cat(3,kernel_grid{task_v1_idx & learned_idx & ismember(animals,mpfc_plus)}),3);
+k2 = nanmean(cat(3,kernel_grid{task_v1_idx & learned_idx & ismember(animals,mpfc_minus)}),3);
+
+ap.imscroll([plab.wf.svd2px(wf_U,k1),plab.wf.svd2px(wf_U,k2)]);
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+axis image off
+
 
 % Looking for mPFC+/-
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
@@ -934,9 +986,31 @@ colormap(ap.colormap('PWG'));
 axis image;
 
 
-% pre/post-learn move task
-move_task_idx = reshape(strcmp({bhv.workflow},'visual_operant_lick_two_stim_right_move'),size(bhv));
+% Create indicies for task type
+% (first task either small or big move, before any switch)
+workflow_grid = reshape(string(cellfun(@char,{wf_task.workflow},'uni',false)),size(bhv));
+task_switch = padarray(workflow_grid(:,2:end)~=workflow_grid(:,1:end-1),[0,1],0,'pre');
+task_v1_idx = cumsum(task_switch,2)==0;
+task_v2_idx = cumsum(task_switch,2)==1;
+% (move/static)
+move_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"move"),size(bhv));
+static_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"static"),size(bhv));
+% (learning)
 learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
+
+wf_grid = reshape(cellfun(@(x) x(:,:,end),{wf_passive_avg.wf_avg},'uni',false,'ErrorHandler',@(varargin) []),size(bhv));
+
+% k1 = nanmean(cat(3,wf_grid{task_v1_idx & learned_idx & ismember(animals,mpfc_plus)}),3);
+% k2 = nanmean(cat(3,wf_grid{task_v1_idx & learned_idx & ismember(animals,mpfc_minus)}),3);
+
+k1 = nanmean(cat(3,wf_grid{task_v2_idx & static_task_idx & ismember(animals,mpfc_plus)}),3);
+k2 = nanmean(cat(3,wf_grid{task_v2_idx & static_task_idx & ismember(animals,mpfc_minus)}),3);
+
+ap.imscroll([plab.wf.svd2px(wf_U,k1),plab.wf.svd2px(wf_U,k2)]);
+clim(max(abs(clim)).*[-1,1]);
+colormap(ap.colormap('PWG',[],1.5));
+axis image off
+
 
 % Looking for mPFC+/-
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
