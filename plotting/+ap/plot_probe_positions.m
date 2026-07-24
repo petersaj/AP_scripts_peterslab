@@ -82,6 +82,9 @@ if plot_histology
 
         % Plot annotated points connected by lines
         load(histology_filename);
+        if ~isfield(AP_histology_processing,'annotation')
+            return
+        end
         for curr_probe = 1:length(AP_histology_processing.annotation)
             curr_points = sortrows(horzcat(...
                 vertcat(AP_histology_processing.annotation(curr_probe).vertices_ccf.ap), ...
@@ -100,11 +103,19 @@ if plot_histology
                 probe_line_fits(curr_probe).ccf(:,2), ...
                 'linewidth',2,'color','r')
 
+            % Get recording date, if mapped
+            if isfield(AP_histology_processing.annotation,'ephys_path')
+                date_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
+                rec_label = " > " + string(extract(AP_histology_processing.annotation(curr_probe).ephys_path,date_pattern));
+            else
+                rec_label = string;
+            end
+            
             % Label probe
             text(probe_line_fits(curr_probe).ccf(1,1), ...
                 probe_line_fits(curr_probe).ccf(1,3), ...
                 probe_line_fits(curr_probe).ccf(1,2), ...
-                probe_line_fits(curr_probe).label,'color','r');
+                probe_line_fits(curr_probe).label+rec_label,'color','r');
         end
     end
 end

@@ -480,7 +480,7 @@ skip_seconds = 60;
 time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
 time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
 
-mua_method = 'even'; % striatum, even, click, define
+mua_method = 'click'; % striatum, even, click, define
 
 switch mua_method
 
@@ -502,11 +502,11 @@ switch mua_method
 
     case 'click'
         % (for clickable manual depths)
-        unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_tipdist,probe_areas);    
+        unit_axes = ap.plot_unit_depthrate;    
         title('Click MUA borders');
         user_click_coords = ginput;
-        close(unit_axes.Parent.Parent);
-        depth_group_edges = user_click_coords(:,2);
+        close(ancestor(unit_axes,'figure'));
+        depth_group_edges = user_click_coords(:,2)*1000;
 
     case 'define'
         depth_group_edges = cellfun(@str2num,inputdlg({'MUA start','MUA end'}));
@@ -516,17 +516,12 @@ switch mua_method
         return
 end
 
-% Draw units and borders
-unit_axes = ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_tipdist,probe_areas);
-yline(depth_group_edges,'linewidth',2,'color','r');
-depth_group_centers = movmean(depth_group_edges,2,'endpoints','discard');
-text(zeros(length(depth_group_centers),1),depth_group_centers, ...
-    num2cell(1:length(depth_group_centers)),'FontSize',20','color','r');
-drawnow;
-
 % Bin spikes
+depth_group_edges_sorted = sort(depth_group_edges);
+depth_group_centers = movmean(depth_group_edges_sorted,2,'endpoints','discard');
+
 n_depths = length(depth_group_edges) - 1;
-depth_group = discretize(spike_depths,depth_group_edges);
+depth_group = discretize(spike_tipdist,depth_group_edges_sorted);
 
 binned_spikes = zeros(n_depths,length(time_bins)-1);
 for curr_depth = 1:n_depths
@@ -536,6 +531,13 @@ end
 
 binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
 binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+% Plot bins
+unit_axes = ap.plot_unit_depthrate;
+yline(depth_group_edges_sorted/1000,'b','linewidth',4);
+text(zeros(n_depths,1),depth_group_centers/1000, ...
+    num2cell(1:n_depths),'FontSize',20','color','b');
+drawnow
 
 % use_svs = 1:200;
 % kernel_t = [-1,1];
@@ -573,12 +575,9 @@ axis image;
 
 % Get center of mass for each pixel
 % (get max r for each pixel, filter out big ones)
-r_px_max = squeeze(r_px(:,:,kernel_frames==0,:));% squeeze(max(r_px,[],3));
-r_px_max(isnan(r_px_max)) = 0;
-r_px_max_norm = bsxfun(@rdivide,r_px_max, ...
-    permute(max(reshape(r_px_max,[],n_depths),[],1),[1,3,2]));
-r_px_max_norm(isnan(r_px_max_norm)) = 0;
-r_px_com = sum(bsxfun(@times,r_px_max_norm,permute(1:n_depths,[1,3,2])),3)./sum(r_px_max_norm,3);
+r_px_max = max(0,squeeze(r_px(:,:,kernel_frames==0,:)));
+r_px_max_norm = r_px_max./max(r_px_max,[],[1,2]);
+r_px_com = sum(r_px_max_norm.*permute(1:size(r_px_max_norm,3),[1,3,2]),3)./(sum(r_px_max_norm,3)+1e-4);
 
 % Plot map of cortical pixel by preferred depth of probe
 r_px_com_col = ind2rgb(round(mat2gray(r_px_com,[1,n_depths])*255),jet(255));
@@ -590,7 +589,7 @@ a2 = axes('Visible','off');
 p = imagesc(r_px_com_col);
 axis off; axis image;
 set(p,'AlphaData',mat2gray(max(r_px_max_norm,[],3), ...
-    [0,double(prctile(reshape(max(r_px_max_norm,[],3),[],1),95))]));
+    [0,double(prctile(reshape(max(r_px_max_norm,[],3),[],1),99))]));
 set(gcf,'color','w');
 
 c1 = colorbar('peer',a1,'Visible','off');

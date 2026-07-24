@@ -574,4 +574,104 @@ xline(0);
 ap.prettyfig;
 
 
+%% ~~~~~~~~ INTERVIEW
+
+%% VM/CTX
+
+% (updated histology)
+animal = 'AP014';
+rec_day = '2024-02-21';
+rec_time = '1225';
+ap.load_recording
+
+% Plot position
+ap.plot_probe_positions('AP014',false,false,true);
+ap.ccf_outline_3d(gca,"VM");
+
+
+% Set upsample value for regression
+upsample_factor = 1;
+sample_rate = (1/mean(diff(wf_t)))*upsample_factor;
+
+% Skip the first/last n seconds to do this
+skip_seconds = 60;
+time_bins = wf_t(find(wf_t > skip_seconds,1)):1/sample_rate:wf_t(find(wf_t-wf_t(end) < -skip_seconds,1,'last'));
+time_bin_centers = time_bins(1:end-1) + diff(time_bins)/2;
+
+% Bin spikes
+depth_group_edges = [800,1200];
+depth_group_edges_sorted = sort(depth_group_edges);
+depth_group_centers = movmean(depth_group_edges_sorted,2,'endpoints','discard');
+
+n_depths = length(depth_group_edges) - 1;
+depth_group = discretize(spike_tipdist,depth_group_edges_sorted);
+
+binned_spikes = zeros(n_depths,length(time_bins)-1);
+for curr_depth = 1:n_depths
+    curr_spike_times = spike_times_timelite(depth_group == curr_depth);
+    binned_spikes(curr_depth,:) = histcounts(curr_spike_times,time_bins);
+end
+
+binned_spikes_std = binned_spikes./nanstd(binned_spikes,[],2);
+binned_spikes_std(isnan(binned_spikes_std)) = 0;
+
+% Plot bins
+unit_axes = ap.plot_unit_depthrate;
+yline(depth_group_edges_sorted/1000,'b','linewidth',4);
+text(zeros(n_depths,1),depth_group_centers/1000, ...
+    num2cell(1:n_depths),'FontSize',20','color','b');
+drawnow
+
+use_svs = 1:200;
+kernel_t = [-0.2,0.2];
+kernel_frames = round(kernel_t(1)*sample_rate):round(kernel_t(2)*sample_rate);
+lambda = 10;
+zs = [false,false];
+cvfold = 5;
+return_constant = false;
+use_constant = true;
+
+fVdf_deconv_resample = interp1(wf_t,wf_V(use_svs,:)',time_bin_centers)';
+
+% Regress cortex to spikes
+[k,predicted_spikes,explained_var] = ...
+    ap.regresskernel(fVdf_deconv_resample, ...
+    binned_spikes_std,kernel_frames, ...
+    lambda,zs,cvfold,return_constant,use_constant);
+
+% Convert kernel to pixel space
+r_px = plab.wf.svd2px(wf_U(:,:,use_svs),k);
+
+ap.imscroll(r_px,kernel_frames/wf_framerate);
+clim([-prctile(r_px(:),99.9),prctile(r_px(:),99.9)])
+colormap(AP_colormap('BWR'));
+axis image;
+
+% Plot map of cortical pixel by preferred depth of probe
+figure;
+a1 = axes('YDir','reverse');
+imagesc(wf_avg); colormap(gray); clim([0,prctile(wf_avg(:),99.5)]);
+axis off; axis image;
+a2 = axes('Visible','off');
+p = imagesc(r_px(:,:,kernel_frames==0,:));
+axis off; axis image;
+set(p,'AlphaData',mat2gray(max(r_px_max_norm,[],3), ...
+    [0,double(prctile(reshape(max(r_px_max_norm,[],3),[],1),98))]));
+colormap(a2,ap.colormap('WG'));
+ap.prettyfig
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

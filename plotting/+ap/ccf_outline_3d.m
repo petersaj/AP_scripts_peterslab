@@ -55,6 +55,9 @@ for curr_structure = reshape(plot_structures,1,[])
         face_alpha = 0.2;
     end
 
+    % (another option is extractIsosurface - faster for larger detail, but
+    % the larger detail looks worse/is slower to move)
+
     plot_ccf_patchdata = isosurface(permute(plot_ccf_volume,[3,1,2]),0.5);
     ccf_outline = patch(ccf_3d_axes, ...
         'Vertices',plot_ccf_patchdata.vertices*slice_spacing, ...
