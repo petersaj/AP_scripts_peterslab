@@ -294,16 +294,19 @@ if ~isempty(histology_dir)
         % (get areas across trajectory)
         probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
 
-        % %%%%%%%%%%% TESTING: no fitted line, just points
-        % % (updated grab_probe_areas to interpolate across any given points)
-        % probe_ccf_vertices = arrayfun(@(x) horzcat( ...
-        %     vertcat(x.vertices_ccf.ap), ...
-        %     vertcat(x.vertices_ccf.dv), ...
-        %     vertcat(x.vertices_ccf.ml)), ...
-        %     AP_histology_processing.annotation(histology_annotation_shanksort),'uni',false);
-        % 
-        % probe_histology = plab.histology.grab_probe_areas(probe_ccf_vertices);
-        % %%%%%%%%%%%%%%
+        %%%%%%%%%%% testing: no fitted line, just points
+
+        probe_ccf_vertices = arrayfun(@(x) horzcat( ...
+            vertcat(x.vertices_ccf.ap), ...
+            vertcat(x.vertices_ccf.dv), ...
+            vertcat(x.vertices_ccf.ml)), ...
+            AP_histology_processing.annotation(histology_annotation_shanksort),'uni',false);
+
+        probe_histology = plab.histology.grab_probe_areas(probe_ccf_vertices);
+
+
+
+        %%%%%%%%%%%%%%
 
     end
 end
