@@ -10,7 +10,9 @@ Scripts written after opening lab
 
 #### Ephys
 ##### Preprocessing
-- `preprocess_neuropixels(animal,day)` - saves metadata, runs PyKilosort, translates spike times into Open Ephys timestamps
+(moved to PetersLab_analysis)
+- `ap.run_bombcell` - called by `plab.ephys.neuropixels_preprocess`
+- `ap.rerun_bombcell(animal,rec_day)` - re-run bombcell (e.g. if parameters changed)
 ##### Analysis
 - `spike_cg` - auto/cross-correlation
 
