@@ -1,11 +1,13 @@
-function run_bombcell(rawFile,ephysKilosortPath,meta_filename,kilosortVersion)
-% run_bombcell(ap_band_filename,kilosort_path,meta_filename)
+function run_bombcell(rawFile,ephysKilosortPath,meta_filename,kilosortVersion,rerun)
+% run_bombcell(rawFile,ephysKilosortPath,meta_filename,kilosortVersion,rerun)
 %
 % Run Bombcell (JF quality metrics) and extra metrics
 %
 % ap_band_filename - filename of AP-band data used to run kilosort
 % kilosort_path - path with kilosort output
 % meta_filename - filename for recording metadata (structure.oebin file)
+% kilosortVersion - look for data in folder: kilosortN
+% rerun - flag to re-run quality metrics (default: false)
 
 %% Run bombcell 
 
@@ -37,8 +39,14 @@ param.extractRaw = 1;
 param.plotGlobal = false;
 param.plotDetails = false;
 
+% Custom parameters: these catch 2-peak+narrow-trough axons better
+param.minWidthFirstPeak_nonSomatic = Inf;
+param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
+
 % Run quality metrics
-rerun = 0;
+if ~exist('rerun','var') || isempty(rerun)
+    rerun = 0;
+end
 qMetricsExist = ~isempty(dir(fullfile(savePath, 'qMetric*.mat'))) || ~isempty(dir(fullfile(savePath, 'templates._bc_qMetrics.parquet')));
 
 if qMetricsExist == 0 || rerun

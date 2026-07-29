@@ -90,6 +90,29 @@ imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
 axis image;
 clim([-1,1].*0.5);
 colormap(ap.colormap('BWR'))
+set(gca,'YDir','normal','XDir','reverse');
+
+%% MUA correlelogram v2
+
+% Get correlation of MUA in sliding windows
+
+% MUA binning properties
+mua_depth_window = 10; % MUA depth window (microns)
+mua_depth_smooth = 5; % Moving window for depth bins
+mua_t_window = 0.2; % MUA temporal window (seconds)
+
+mua_depth_bins = min(template_tipdist):mua_depth_window:max(template_tipdist);
+mua_t_bins = nanmin(spike_times_timelite):mua_t_window:nanmax(spike_times_timelite);
+mua_corr = corrcoef(histcounts2(spike_times_timelite,spike_tipdist, ...
+    mua_t_bins,mua_depth_bins));
+mua_corr_smooth = smoothdata2(mua_corr,'movmean',mua_depth_smooth);
+
+mua_depth_bin_centers = movmean(mua_depth_bins,2,'Endpoints','discard');
+figure;imagesc(mua_depth_bin_centers,mua_depth_bin_centers,mua_corr_smooth);
+axis image;
+clim([-1,1].*0.5);
+colormap(ap.colormap('BWR'))
+set(gca,'YDir','normal','XDir','reverse');
 
 
 %% Cell raster

@@ -148,8 +148,9 @@ if plot_units
         ap.load_recording;
 
         unit_axes = nexttile(h); hold on;
-        ap.plot_unit_depthrate(spike_times_timelite,spike_templates,template_depths,probe_areas,unit_axes);
-
+        ap.plot_unit_depthrate(unit_axes);
+        
+        title(unit_axes,rec_day);
         drawnow;
 
         ap.print_progress_fraction(curr_recording,length(ephys_recordings));

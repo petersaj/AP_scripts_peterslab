@@ -177,60 +177,21 @@ scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),1*max(event_spike
 
 %% probe line fitting
 
-% NOTE - this doesn't work at the moment, fitting a smoothed spline results
-% in a crazy curve
-
-% (working on this function)
 ap_histology.fit_probe_line(histology_filename, ...
     histology_annotation_match(histology_annotation_shanksort));
 
-
-
 % Sort points by depth
-curr_probe_points = sortrows(probe_ccf_vertices{curr_probe},2);
+curr_points = sortrows(probe_ccf_vertices{curr_probe},2);
+
 
 % Fit 3D smoothed spline
-smoothing_param = 0.1; % 0 (straight line) - 1 (no smoothing)
-
-% eval_points_probe = (1:size(curr_points,1))';
-
-max_eval = round(sqrt(max(size(av)).^2*2));
-eval_points_probe = (-max_eval:max_eval);
-
-% eval_points_probe = (-100:100)';
-
+eval_points = (1:size(curr_points,1))';
 ft = fittype('smoothingspline');
-curr_probe_points_smoothed = nan(length(eval_points_probe),3);
-for curr_dim = 1:size(curr_probe_points,2)
-    probe_fit_dim = fit(vecnorm(curr_probe_points - curr_probe_points(end,:),2,2), ...
-        curr_probe_points(:,curr_dim), ft, 'SmoothingParam', smoothing_param);
-    curr_probe_points_smoothed(:,curr_dim) = probe_fit_dim(eval_points_probe);
-end
-
-
-
-
-
-eval_points_ccf = round(interp1([0,norm(diff(probe_vector))],probe_vector, ...
-    eval_points_probe,'linear','extrap'));
-
-eval_points_ccf_valid = eval_points_ccf(all(eval_points_ccf > 0 & eval_points_ccf <= size(av),2),:);
-
-eval_points_ccf_idx = sub2ind(size(av),eval_points_ccf_valid(:,1), ...
-    eval_points_ccf_valid(:,2),eval_points_ccf_valid(:,3));
-
-probe_trajectory_av = av(eval_points_ccf_idx);
-
-% Get insertion point: where fit intersects brain
-probe_insertion_ccf_fit = eval_points_ccf_valid(find(probe_trajectory_av > 1,1),:);
-
-% Get deepest point (tip): where fit is closest to deepest labeled point
-[~,deepest_point_idx] = max(probe_ccf_vertices{curr_probe}(:,2));
-probe_depth_ccf_labeled = probe_ccf_vertices{curr_probe}(deepest_point_idx,:);
-
-probe_depth_ccf_fit = probe_vector(1,:) + ...
-    ((probe_depth_ccf_labeled-probe_vector(1,:))*diff(probe_vector,[],1)').* ...
-    diff(probe_vector,[],1);
+smoothing_param = 0.5; % 0-1
+curr_points_smoothed = 
+fitresult_x = fit(eval_points, curr_points(:,1), ft, 'SmoothingParam', smoothing_param);
+fitresult_y = fit(eval_points, curr_points(:,2), ft, 'SmoothingParam', smoothing_param);
+fitresult_z = fit(eval_points, curr_points(:,3), ft, 'SmoothingParam', smoothing_param);
 
 
 

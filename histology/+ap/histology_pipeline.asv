@@ -469,7 +469,30 @@ animal = 'HA019';
 rec_day = '2026-02-12';
 ap.load_recording;
 
-plab.histology.adjust_probe_areas(probe_areas);
+
+
+unit_dots = ap.plot_unit_depthrate;
+unit_ax = unit_dots.Parent;
+axis tight;
+
+curr_shank = 1;
+
+% Get areas on current shank
+curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
+
+% Plot areas as rectangles
+area_ui_lines = gobjects(length(curr_shank_areas),1);
+for curr_area = reshape(curr_shank_areas,1,[])
+    area_ui_lines(curr_area) = images.roi.Line(unit_ax, ...
+        'Position',[xlim',repelem(probe_areas{1}.tip_distance(curr_area,1),2,1)], ...
+        'color','w','InteractionsAllowed','translate', ...
+        'Label',probe_areas{1}.acronym{curr_area},'LabelVisible','hover', 'HandleVisibility','off');
+end
+
+
+
+
+
 
 
 

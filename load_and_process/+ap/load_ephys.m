@@ -282,29 +282,20 @@ if ~isempty(histology_dir)
     histology_filename = fullfile(histology_dir.folder,histology_dir.name);
     load(histology_filename);
     % (check if annotation ephys path matches loaded path)
-    if isfield(AP_histology_processing.annotation,'ephys_path')
+    if isfield(AP_histology_processing,'annotation') && ...
+            isfield(AP_histology_processing.annotation,'ephys_path')
         histology_annotation_match = find(strcmp(kilosort_path, ...
             {AP_histology_processing.annotation.ephys_path}));
         % (sort by shank index)
         [~,histology_annotation_shanksort] = ...
             sort([AP_histology_processing.annotation(histology_annotation_match).ephys_shank]);
+
+        % Fit line to points
         % (fit line to histology points across shanks in sorted order)
         probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
             histology_annotation_match(histology_annotation_shanksort)).ccf);
         % (get areas across trajectory)
         probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
-
-        % %%%%%%%%%%% TESTING: no fitted line, just points
-        % % (updated grab_probe_areas to interpolate across any given points)
-        % probe_ccf_vertices = arrayfun(@(x) horzcat( ...
-        %     vertcat(x.vertices_ccf.ap), ...
-        %     vertcat(x.vertices_ccf.dv), ...
-        %     vertcat(x.vertices_ccf.ml)), ...
-        %     AP_histology_processing.annotation(histology_annotation_shanksort),'uni',false);
-        % 
-        % probe_histology = plab.histology.grab_probe_areas(probe_ccf_vertices);
-        % %%%%%%%%%%%%%%
-
     end
 end
 
@@ -350,28 +341,19 @@ if exist('probe_areas','var')
     ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)     
     template_ccf = nan(size(templates,1),3);
 
+    % (loop through shanks)
     for curr_shank = unique(template_shanks)'
-        % (loop through shanks)
-        if exist('probe_histology','var')
-            % (use histology if available)
-            % Interpolate position by distance relative to area boundaries
-            use_area_idx = ...
-                probe_histology{1}.probe_shank == curr_shank & ... & on current shank
-                -diff(probe_histology{1}.tip_distance,[],2) > 0; % area size is > 0
 
-            probe_setpoints_tipdist = 1000 * ... % (convert mm to um)
-                vertcat(probe_histology{1}.tip_distance(use_area_idx,1), ...
-                probe_histology{1}.tip_distance(end,2));
-            probe_setpoints_ccf = cell2mat( ...
-                vertcat(probe_histology{1}.ccf(use_area_idx,1), ...
-                probe_histology{1}.ccf(end,2)));
-        else
-            % (use NTE if histology not available)
-            % Interpolate position by distance
-            curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0])';
-            probe_setpoints_tipdist = [ccf2um*norm(diff(curr_shank_vector,[],1)),0];
-            probe_setpoints_ccf = curr_shank_vector;
-        end
+        use_area_idx = ...
+            probe_areas{1}.probe_shank == curr_shank & ... & on current shank
+            -diff(probe_areas{1}.tip_distance,[],2) > 0; % area size is > 0
+
+        probe_setpoints_tipdist = 1000 * ... % (convert mm to um)
+            vertcat(probe_areas{1}.tip_distance(use_area_idx,1), ...
+            probe_areas{1}.tip_distance(end,2));
+        probe_setpoints_ccf = cell2mat( ...
+            vertcat(probe_areas{1}.ccf(use_area_idx,1), ...
+            probe_areas{1}.ccf(end,2)));
 
         template_ccf(template_shanks == curr_shank,:) = ...
             interp1(probe_setpoints_tipdist,probe_setpoints_ccf, ...
@@ -384,90 +366,23 @@ end
 % scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
 
 
-%% Remove bad units from quality control
+%% Quality control units (bombcell)
 
-ephys_qc_type = 'bombcell';
 
-if strcmp(ephys_qc_type,'bombcell')
-    % Load Bombcell quality metrics (if exist)
-    qMetrics_path = fullfile(kilosort_path,'qMetrics');
-    if  exist(qMetrics_path,'dir')
+% Load Bombcell quality metrics (if exist)
+qMetrics_path = fullfile(kilosort_path,'qMetrics');
+if  exist(qMetrics_path,'dir')
+    % Load unit labels (from ap.run_bombcell / ap.rerun_bombcell)
+    load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
 
-        % Load unit labels
+    % Define good units from labels
+    good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
+    if verbose; fprintf('Ephys: Applying Bombcell quality metrics...'); end
 
-        % %%%%%%%%%%%%%% UNDER CONSTRUCTION: 
-        % % Going back to native bombcell labels to apply params on the fly,
-        % % makes changing params more robust without saving new labels any
-        % % time a lab-wide param is changed
-        % % 
-        % % - Decide whether/how to add raw/template corr param
-        % % - Bombcell function to load all metrics, only used for troubleshooting
-        % [bombcell_param, bombcell_qMetric] = bc.load.loadSavedMetrics(qMetrics_path,false);
-        % % - Adjust these axon parameters: 
-        % param.minWidthFirstPeak_nonSomatic = Inf;
-        % param.maxPeak1ToPeak2Ratio_nonSomatic = 1/4;
-        % % - Turn of label saving (just loading for here)
-        % bombcell_param.saveAsTSV = false;
-        % % - get bombcell unit type: 
-        % unitType = bc.qm.getQualityUnitType(bombcell_param, bombcell_qMetric);
-        % % Set names for numbered unit types
-        % unit_type_labels = { ...
-        %     0,'noise'; ...
-        %     1,'singleunit';...
-        %     2,'multiunit';...
-        %     3,'axon'};
-        % [~,unitType_idx] = ismember(unitType,cell2mat(unit_type_labels(:,1)));
-        % template_qc_labels = unit_type_labels(unitType_idx,2);
-        % %%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-        % (extra metrics & translated bombcell labels created in ap.run_bombcell)
-        load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
-
-        % Define good units from labels
-        good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
-        if verbose; fprintf('Ephys: Applying Bombcell quality metrics...'); end
-
-        % Keep only labels from good units
-        template_qc_labels = template_qc_labels(good_templates);
-
-    else
-        warning('Bombcell metrics not available');
-        return
-    end
-
-elseif strcmp(ephys_qc_type,'phy')
-    % Load manual Phy sorting (old)
-    cluster_filepattern = [kilosort_path filesep 'cluster_group*'];
-    cluster_filedir = dir(cluster_filepattern);
-    if ~isempty(cluster_filedir)
-        cluster_filename = [kilosort_path filesep cluster_filedir.name];
-        fid = fopen(cluster_filename);
-        cluster_groups = textscan(fid,'%d%s','HeaderLines',1);
-        fclose(fid);
-    end
-    % Get "good" templates from labels if quality control selected and
-    % manual labels exist
-    if exist('cluster_groups','var')
-        % If there's a manual classification
-        if verbose; disp('Ephys: Keeping manually labelled good units...'); end
-
-        % Check that all used spike templates have a label
-        spike_templates_unique_0idx = unique(spike_templates)-1;
-        if ~all(ismember(spike_templates_unique_0idx,uint32(cluster_groups{1}))) || ...
-                ~all(ismember(cluster_groups{2},{'good','mua','noise'}))
-            warning([animal ' ' day ': not all templates labeled']);
-        end
-
-        % Define good units from labels
-        good_templates_idx = uint32(cluster_groups{1}( ...
-            strcmp(cluster_groups{2},'good') | strcmp(cluster_groups{2},'mua')));
-        good_templates = ismember(0:size(templates,1)-1,good_templates_idx);
-    else
-        % If no cluster groups at all, keep all
-        warning('Phy labels not available');
-        return
-    end
+    % Keep only labels from good units
+    template_qc_labels = template_qc_labels(good_templates);
 else
+    warning('Bombcell metrics not available');
     return
 end
 

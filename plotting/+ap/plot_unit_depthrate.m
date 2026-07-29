@@ -1,13 +1,12 @@
-function unit_dots = plot_unit_depthrate(plot_axes,split_shanks)
-% plot_unit_depthrate(split_shanks)
+function plot_handles = plot_unit_depthrate(plot_axes,split_shanks)
+% unit_dots = plot_unit_depthrate(plot_axes,split_shanks)
 %
 % % Plot unit depth vs spike rate, with areas (if available)
 % (grabs variables from base workspace)
 % 
 % INPUTS:
 % plot_axes - axis handle to plot shanks
-% split_shanks - shanks on separate axes (true) or one axis (false). True
-% by default without area_axes, forced as false with area_axes.
+% split_shanks - true/false split shanks on separate axes (default true without area_axes, forced false with area_axes)
 % plot_probe - which probe to plot (if multiple)
 
 arguments
@@ -15,14 +14,25 @@ arguments
     split_shanks = true
 end
 
-% Pull variables from base workspace
-spike_times_openephys = evalin('base','spike_times_openephys');
-spike_templates = evalin('base','spike_templates');
-template_tipdist = evalin('base','template_tipdist');
-template_shanks = evalin('base','template_shanks');
-load_probe = evalin('base','load_probe');
+% Pull variables from base/caller workspace
 try
-    probe_areas = evalin('base','probe_areas');
+    use_workspace = 'base';
+    spike_times_openephys = evalin(use_workspace,'spike_times_openephys');
+catch me
+    try
+        use_workspace = 'caller';
+        spike_times_openephys = evalin(use_workspace,'spike_times_openephys');
+    catch me
+        error('Spike variables not found in workspace')
+    end
+end
+
+spike_templates = evalin(use_workspace,'spike_templates');
+template_tipdist = evalin(use_workspace,'template_tipdist');
+template_shanks = evalin(use_workspace,'template_shanks');
+load_probe = evalin(use_workspace,'load_probe');
+try
+    probe_areas = evalin(use_workspace,'probe_areas');
 catch me
 end
 
@@ -61,7 +71,8 @@ if exist('probe_areas','var')
         for curr_area = reshape(curr_shank_areas,1,[])
             curr_rgb = hex2dec(mat2cell(probe_areas{1}.color_hex_triplet{curr_area},1,repmat(2,1,3)))./255;
             curr_y = probe_areas{1}.tip_distance(curr_area,:);
-            rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
+            plot_handles(curr_shank).area_rectangles(curr_area) = ...
+                rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
                 1,abs(diff(curr_y))], ...
                 'FaceColor',curr_rgb,'EdgeColor','none');
         end
@@ -84,13 +95,14 @@ unit_xplot = norm_spike_count + reshape(shank_xoffset(template_shanks),[],1);
 unit_yplot = template_tipdist/1000;
 
 if split_shanks
-    unit_dots = arrayfun(@(shank) scatter(shank_axes(shank), ...
+    %%%%%%%% updated this - won't work, need to test
+    [plot_handles.unit_dots] = arrayfun(@(shank) scatter(shank_axes(shank), ...
         unit_xplot(template_shanks==shank), ...
         unit_yplot(template_shanks==shank),20,'k','filled', ...
         'UserData',struct('shank',template_shanks(template_shanks==shank))), ...
         1:n_shanks);
 else
-    unit_dots = scatter(unique(shank_axes), ...
+    plot_handles.unit_dots = scatter(unique(shank_axes), ...
         unit_xplot,unit_yplot,20, ...
         'k','filled', ...
         'UserData',struct('shank',template_shanks));
@@ -98,4 +110,4 @@ end
 xlabel(shank_axes,'Rate')
 
 % Set y-limit around units
-ylim(prctile(unit_yplot,[0,100])+[-0.1,0.1]);
+ylim(shank_axes,prctile(unit_yplot,[0,100])+[-0.1,0.1]);
