@@ -275,18 +275,16 @@ spike_times_timelite = interp1(sync_ephys,sync_timelite,spike_times_openephys,'l
 
 %% Load probe position 
 
-keyboard;
-
-% Hierarchy of probe positions: adjusted > histology > NTE
-use_probe_areas = 'none';
-
 % Load histology positions (if available)
 histology_dir = dir(plab.locations.filename('server',animal,[],[], ...
     'histology','**','AP_histology_processing.mat'));
 if ~isempty(histology_dir)
     histology_filename = fullfile(histology_dir.folder,histology_dir.name);
     load(histology_filename);
-    try
+    % (check if annotation ephys path matches loaded path)
+    if isfield(AP_histology_processing,'annotation') && ...
+            isfield(AP_histology_processing.annotation,'ephys_path')
+
         % (get annotation for loaded recording)
         histology_annotation_match_unsorted = find(strcmp(kilosort_path, ...
             {AP_histology_processing.annotation.ephys_path}));
@@ -295,43 +293,48 @@ if ~isempty(histology_dir)
             sort([AP_histology_processing.annotation(histology_annotation_match_unsorted).ephys_shank]);
         histology_annotation_match = histology_annotation_match_unsorted(histology_annotation_shanksort_idx);
 
-        use_probe_areas = 'histology';
+        % Check for adjusted areas
+        if isfield(AP_histology_processing.annotation,'probe_areas')
+            probe_histology_adjusted = ...
+                {AP_histology_processing.annotation(histology_annotation_match).probe_areas};
+        end
+        
+        % Set histology areas
+        if exist('probe_histology_adjusted','var') && ...
+                all(~cellfun(@isempty,probe_histology_adjusted))
+            % If all areas adjusted, use those as-is
+            probe_histology = vertcat(probe_histology_adjusted{:});
+        else
+            % Grab probe areas from histology
+            probe_vector_histology = cat(3, ...
+                ap_histology.fit_probe_line(histology_filename, ...
+                histology_annotation_match).ccf);
+            probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);           
+            if exist('probe_histology_adjusted','var')
+                % Adjust areas by shank, if present
+                for adjusted_shank = find(~cellfun(@isempty,probe_histology_adjusted))
+
+                end
+            end
+        end
+
+        AP_histology_processing.annotation(histology_annotation_match).probe_areas
+
+
+
 
         if isfield(AP_histology_processing.annotation,'probe_areas') && ...
-                ~isempty(
-            {AP_histology_processing.annotation(histology_annotation_match).probe_areas}
-
-    catch me
-    end
-end
-
-
-
-
-AP_histology_processing.annotation(histology_annotation_match)
-
-
-
-
-
-if ~isempty(histology_dir)
-    histology_filename = fullfile(histology_dir.folder,histology_dir.name);
-    load(histology_filename);
-    % (check if annotation ephys path matches loaded path)
-    if isfield(AP_histology_processing,'annotation') && ...
-            isfield(AP_histology_processing.annotation,'ephys_path')
-        histology_annotation_match = find(strcmp(kilosort_path, ...
-            {AP_histology_processing.annotation.ephys_path}));
-        % (sort by shank index)
-        [~,histology_annotation_shanksort] = ...
-            sort([AP_histology_processing.annotation(histology_annotation_match).ephys_shank]);
-
-        % Fit line to points
-        % (fit line to histology points across shanks in sorted order)
-        probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
-            histology_annotation_match(histology_annotation_shanksort)).ccf);
-        % (get areas across trajectory)
-        probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
+                ~isempty(AP_histology_processing.annotation(histology_annotation_match).probe_areas)
+            probe_histology = {AP_histology_processing.annotation(histology_annotation_match).probe_areas};
+        else
+            % Otherwise, grab areas
+            % Fit line to points
+            % (fit line to histology points across shanks in sorted order)
+            probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
+                histology_annotation_match).ccf);
+            % (get areas across trajectory)
+            probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
+        end
     end
 end
 
@@ -341,7 +344,7 @@ if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end
 
-% Set probe areas (histology > NTE)
+% Set probe areas (adjusted > histology > NTE)
 if exist('probe_histology','var')
     probe_areas = probe_histology;
     if verbose; disp('Ephys: Loaded histology positions...'); end
@@ -403,7 +406,6 @@ end
 
 
 %% Quality control units (bombcell)
-
 
 % Load Bombcell quality metrics (if exist)
 qMetrics_path = fullfile(kilosort_path,'qMetrics');

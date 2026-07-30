@@ -1,5 +1,5 @@
-function plot_handles = plot_unit_depthrate(plot_axes,split_shanks)
-% unit_dots = plot_unit_depthrate(plot_axes,split_shanks)
+function plot_handles = plot_unit_depthrate(plot_axes,split_shanks,plot_shank)
+% plot_handles = plot_unit_depthrate(plot_axes,split_shanks,plot_shank)
 %
 % % Plot unit depth vs spike rate, with areas (if available)
 % (grabs variables from base workspace)
@@ -7,11 +7,16 @@ function plot_handles = plot_unit_depthrate(plot_axes,split_shanks)
 % INPUTS:
 % plot_axes - axis handle to plot shanks
 % split_shanks - true/false split shanks on separate axes (default true without area_axes, forced false with area_axes)
-% plot_probe - which probe to plot (if multiple)
+% plot_shank - shank to plot (all by default, single if specified)
+%
+% OUTPUTS
+% plot_handles - [.unit_dots, .area_rectangles] graphics handles
+
 
 arguments
     plot_axes = []
     split_shanks = true
+    plot_shank = [];
 end
 
 % Pull variables from base/caller workspace
@@ -60,19 +65,22 @@ else
 end
 linkaxes(shank_axes,'y')
 
-% Draw areas for all shanks
+% Draw areas by shank
+if isempty(plot_shank)
+    plot_shank = 1:n_shanks;
+end
 if exist('probe_areas','var')
-    for curr_shank = 1:n_shanks
+    for curr_shank = reshape(plot_shank,1,[])
 
         hold(shank_axes(curr_shank),'on');
         
         % Get areas on current shank
-        curr_shank_areas = find(probe_areas{1}.probe_shank==curr_shank);
+        curr_shank_areas = find(probe_areas.probe_shank==curr_shank);
 
         % Plot areas as rectangles
         for curr_area = reshape(curr_shank_areas,1,[])
-            curr_color = ['#',probe_areas{1}.color_hex_triplet{curr_area}];
-            curr_y = probe_areas{1}.tip_distance(curr_area,:);
+            curr_color = ['#',probe_areas.color_hex_triplet{curr_area}];
+            curr_y = probe_areas.tip_distance(curr_area,:);
             plot_handles(curr_shank).area_rectangles(curr_area) = ...
                 rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
                 1,abs(diff(curr_y))], ...
@@ -82,10 +90,10 @@ if exist('probe_areas','var')
         % Label area centers
         text(shank_axes(curr_shank), ...
             repelem(shank_xoffset(curr_shank),length(curr_shank_areas),1), ...
-            probe_areas{1}.tip_distance(curr_shank_areas,1), ...
-            probe_areas{1}.acronym(curr_shank_areas));
+            probe_areas.tip_distance(curr_shank_areas,1), ...
+            probe_areas.acronym(curr_shank_areas));
 
-        set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas{1}.tip_distance,[],'all'));
+        set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas.tip_distance,[],'all'));
     end
 end
 
@@ -96,19 +104,13 @@ norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'r
 unit_xplot = norm_spike_count + reshape(shank_xoffset(template_shanks),[],1);
 unit_yplot = template_tipdist/1000;
 
-if split_shanks
-    %%%%%%%% updated this - won't work, need to test
-    [plot_handles.unit_dots] = arrayfun(@(shank) scatter(shank_axes(shank), ...
-        unit_xplot(template_shanks==shank), ...
-        unit_yplot(template_shanks==shank),20,'k','filled', ...
-        'UserData',struct('shank',template_shanks(template_shanks==shank))), ...
-        1:n_shanks);
-else
-    plot_handles.unit_dots = scatter(unique(shank_axes), ...
-        unit_xplot,unit_yplot,20, ...
-        'k','filled', ...
-        'UserData',struct('shank',template_shanks));
-end
+unit_dots = arrayfun(@(shank) scatter(shank_axes(shank), ...
+    unit_xplot(template_shanks==shank), ...
+    unit_yplot(template_shanks==shank),20,'k','filled', ...
+    'UserData',struct('shank',template_shanks(template_shanks==shank))), ...
+    plot_shank,'uni',false);
+[plot_handles.unit_dots] = deal(unit_dots{:});
+
 xlabel(shank_axes,'Rate')
 
 % Set y-limit around units

@@ -294,17 +294,29 @@ if ~isempty(histology_dir)
         histology_annotation_match = histology_annotation_match_unsorted(histology_annotation_shanksort_idx);
 
         % Check for adjusted areas
-        if isfield(AP_histology_processing.annotation,'probe_areas') && ...
-                ~isempty(AP_histology_processing.annotation(histology_annotation_match).probe_areas)
-            probe_histology = {AP_histology_processing.annotation(histology_annotation_match).probe_areas};
+        if isfield(AP_histology_processing.annotation,'probe_areas')
+            probe_histology_adjusted = ...
+                {AP_histology_processing.annotation(histology_annotation_match).probe_areas};
+        end
+        
+        % Set histology areas
+        if exist('probe_histology_adjusted','var') && ...
+                all(~cellfun(@isempty,probe_histology_adjusted))
+            % If all areas adjusted, use those as-is
+            probe_histology = vertcat(probe_histology_adjusted{:});
         else
-            % Otherwise, grab areas
-            % Fit line to points
-            % (fit line to histology points across shanks in sorted order)
-            probe_vector_histology = cat(3,ap_histology.fit_probe_line(histology_filename, ...
+            % Grab probe areas from histology
+            probe_vector_histology = cat(3, ...
+                ap_histology.fit_probe_line(histology_filename, ...
                 histology_annotation_match).ccf);
-            % (get areas across trajectory)
-            probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
+            probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);           
+            if exist('probe_histology_adjusted','var')
+                % Adjust areas by shank, if present
+                for adjusted_shank = find(~cellfun(@isempty,probe_histology_adjusted))
+                    probe_histology(probe_histology.probe_shank == adjusted_shank,:) = ...
+                        probe_histology_adjusted{adjusted_shank};
+                end
+            end
         end
     end
 end
@@ -320,19 +332,19 @@ if exist('probe_histology','var')
     probe_areas = probe_histology;
     if verbose; disp('Ephys: Loaded histology positions...'); end
 elseif exist('probe_nte','var')
-    probe_areas = probe_nte.probe_areas(load_probe);
+    probe_areas = probe_nte.probe_areas{load_probe};
     if verbose; disp('Ephys: Loaded NTE positions...'); end
 end
 
 % NTE LEGACY SUPPORT
 % - If `probe_depth` instead of `tip_distance`, calculate
-if ~any(strcmp(probe_areas{1}.Properties.VariableNames,'tip_distance')) && ...
-        any(strcmp(probe_areas{1}.Properties.VariableNames,'probe_depth'))
-    probe_areas{1}.tip_distance = 3840 - probe_areas{1}.probe_depth;
+if ~any(strcmp(probe_areas.Properties.VariableNames,'tip_distance')) && ...
+        any(strcmp(probe_areas.Properties.VariableNames,'probe_depth'))
+    probe_areas.tip_distance = 3840 - probe_areas.probe_depth;
 end
 % - if no `probe_shank`, add 1's
-if ~any(strcmp(probe_areas{1}.Properties.VariableNames,'probe_shank'))
-    probe_areas{1}.probe_shank = ones(height(probe_areas{1}),1);
+if ~any(strcmp(probe_areas.Properties.VariableNames,'probe_shank'))
+    probe_areas.probe_shank = ones(height(probe_areas),1);
 end
 
 
@@ -355,15 +367,15 @@ if exist('probe_areas','var')
     for curr_shank = unique(template_shanks)'
 
         use_area_idx = ...
-            probe_areas{1}.probe_shank == curr_shank & ... & on current shank
-            -diff(probe_areas{1}.tip_distance,[],2) > 0; % area size is > 0
+            probe_areas.probe_shank == curr_shank & ... & on current shank
+            -diff(probe_areas.tip_distance,[],2) > 0; % area size is > 0
 
         probe_setpoints_tipdist = 1000 * ... % (convert mm to um)
-            vertcat(probe_areas{1}.tip_distance(use_area_idx,1), ...
-            probe_areas{1}.tip_distance(end,2));
+            vertcat(probe_areas.tip_distance(use_area_idx,1), ...
+            probe_areas.tip_distance(end,2));
         probe_setpoints_ccf = cell2mat( ...
-            vertcat(probe_areas{1}.ccf(use_area_idx,1), ...
-            probe_areas{1}.ccf(end,2)));
+            vertcat(probe_areas.ccf(use_area_idx,1), ...
+            probe_areas.ccf(end,2)));
 
         template_ccf(template_shanks == curr_shank,:) = ...
             interp1(probe_setpoints_tipdist,probe_setpoints_ccf, ...
@@ -377,7 +389,6 @@ end
 
 
 %% Quality control units (bombcell)
-
 
 % Load Bombcell quality metrics (if exist)
 qMetrics_path = fullfile(kilosort_path,'qMetrics');
