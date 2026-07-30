@@ -1,11 +1,11 @@
 function plot_probe_positions(animal,plot_units,plot_nte,plot_histology)
-% plot_probe_positions(animal)
+% plot_probe_positions(animal,plot_units,plot_nte,plot_histology)
 %
 % Plot probe positions from Trajectory Explorer and histology
 
 arguments
     animal = [];
-    plot_units logical = true;
+    plot_units logical = false;
     plot_nte logical = true;
     plot_histology logical = true;
 end
