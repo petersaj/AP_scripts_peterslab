@@ -37,6 +37,8 @@ catch me
 end
 
 % Set up axes
+plot_handles = struct;
+
 n_shanks = max(template_shanks);
 shank_spacing = 1.5;
 if isempty(plot_axes)

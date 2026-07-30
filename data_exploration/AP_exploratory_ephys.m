@@ -92,7 +92,7 @@ clim([-1,1].*0.5);
 colormap(ap.colormap('BWR'))
 set(gca,'YDir','normal','XDir','reverse');
 
-%% MUA correlelogram v2
+%% MUA correlelogram
 
 % Get correlation of MUA in sliding windows
 

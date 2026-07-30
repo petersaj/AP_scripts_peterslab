@@ -83,8 +83,8 @@ tiledlayout(cellraster_gui,6,4,'TileSpacing','tight');
 
 % (unit dots: plot depths vs spike number, color background by area)
 unit_axes = nexttile([5,1]);
-unit_dots = ap.plot_unit_depthrate(unit_axes,false);
-unit_dots.ButtonDownFcn = @unit_click;
+unit_depthrate_handles = ap.plot_unit_depthrate(unit_axes,false);
+unit_depthrate_handles.unit_dots.ButtonDownFcn = @unit_click;
 
 % (plot of waveform across the probe)
 waveform_axes =  nexttile([5,1]);
@@ -134,7 +134,7 @@ set(cellraster_gui,'KeyReleaseFcn',@key_press);
 gui_data = struct;
 
 % (plots)
-gui_data.unit_dots = unit_dots;
+gui_data.unit_depthrate_handles = unit_depthrate_handles;
 gui_data.waveform_lines = waveform_lines;
 gui_data.psth_axes = psth_axes;
 gui_data.raster_axes = raster_axes;
@@ -187,8 +187,8 @@ end
 
 % Set color and size on unit dots
 curr_unit_unique_idx = ismember(unique(gui_data.spike_templates),gui_data.curr_unit);
-gui_data.unit_dots.CData = zeros(length(curr_unit_unique_idx),3) + [1,0,0].*curr_unit_unique_idx;
-gui_data.unit_dots.SizeData = 20*ones(size(curr_unit_unique_idx)) + 50*curr_unit_unique_idx;
+gui_data.unit_depthrate_handles.unit_dots.CData = zeros(length(curr_unit_unique_idx),3) + [1,0,0].*curr_unit_unique_idx;
+gui_data.unit_depthrate_handles.unit_dots.SizeData = 20*ones(size(curr_unit_unique_idx)) + 50*curr_unit_unique_idx;
 
 % Plot waveform across probe (any channels with > x*max value)
 % (reversed YDir, flip Y axis and plot depth)
@@ -336,9 +336,9 @@ gui_data = guidata(cellraster_gui);
 switch eventdata.Key
     case 'downarrow'
         % N units down
-        template_tipdist = get(gui_data.unit_dots,'YData');
+        template_tipdist = get(gui_data.unit_depthrate_handles.unit_dots,'YData');
         template_id = 1:length(template_tipdist);
-        template_shanks = gui_data.unit_dots.UserData.shank;
+        template_shanks = gui_data.unit_depthrate_handles.unit_dots.UserData.shank;
                 
         curr_shank = unique(template_shanks(gui_data.curr_unit));
         use_templates = ismember(template_shanks,curr_shank);
@@ -350,9 +350,9 @@ switch eventdata.Key
         
     case 'uparrow'
         % N units up
-        template_tipdist = get(gui_data.unit_dots,'YData');
+        template_tipdist = get(gui_data.unit_depthrate_handles.unit_dots,'YData');
         template_id = 1:length(template_tipdist);
-        template_shanks = gui_data.unit_dots.UserData.shank;
+        template_shanks = gui_data.unit_depthrate_handles.unit_dots.UserData.shank;
                 
         curr_shank = unique(template_shanks(gui_data.curr_unit));
         use_templates = ismember(template_shanks,curr_shank);
@@ -412,11 +412,11 @@ switch eventdata.Key
                 
     case 'm'    
         % Draw rectangle to select units for multiunit
-        unit_roi = drawrectangle(gui_data.unit_dots.Parent);
+        unit_roi = drawrectangle(gui_data.unit_depthrate_handles.unit_dots.Parent);
         unit_bounds = unit_roi.Position(1:2)+[0,0;unit_roi.Position(3:4)];
         selected_units = ...
-            isbetween(gui_data.unit_dots.XData,unit_bounds(1,1),unit_bounds(2,1)) & ...
-            isbetween(gui_data.unit_dots.YData,unit_bounds(1,2),unit_bounds(2,2));
+            isbetween(gui_data.unit_depthrate_handles.unit_dots.XData,unit_bounds(1,1),unit_bounds(2,1)) & ...
+            isbetween(gui_data.unit_depthrate_handles.unit_dots.YData,unit_bounds(1,2),unit_bounds(2,2));
         unit_roi.delete;
 
         gui_data.curr_unit = find(selected_units);
@@ -465,8 +465,8 @@ function unit_click(cellraster_gui,eventdata)
 gui_data = guidata(cellraster_gui);
 
 % Get the clicked unit, update current unit
-unit_x = get(gui_data.unit_dots,'XData');
-unit_y = get(gui_data.unit_dots,'YData');
+unit_x = get(gui_data.unit_depthrate_handles.unit_dots,'XData');
+unit_y = get(gui_data.unit_depthrate_handles.unit_dots,'YData');
 
 [~,clicked_unit] = min(sqrt(sum(([unit_x;unit_y] - ...
     eventdata.IntersectionPoint(1:2)').^2,1)));
