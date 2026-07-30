@@ -281,6 +281,7 @@ histology_dir = dir(plab.locations.filename('server',animal,[],[], ...
 if ~isempty(histology_dir)
     histology_filename = fullfile(histology_dir.folder,histology_dir.name);
     load(histology_filename);
+    
     % (check if annotation ephys path matches loaded path)
     if isfield(AP_histology_processing,'annotation') && ...
             isfield(AP_histology_processing.annotation,'ephys_path')
@@ -292,6 +293,11 @@ if ~isempty(histology_dir)
         [~,histology_annotation_shanksort_idx] = ...
             sort([AP_histology_processing.annotation(histology_annotation_match_unsorted).ephys_shank]);
         histology_annotation_match = histology_annotation_match_unsorted(histology_annotation_shanksort_idx);
+
+        % (get probe points in CCF)
+        probe_vector_histology = cat(3, ...
+            ap_histology.fit_probe_line(histology_filename, ...
+            histology_annotation_match).ccf);
 
         % Check for adjusted areas
         if isfield(AP_histology_processing.annotation,'probe_areas')
@@ -306,10 +312,7 @@ if ~isempty(histology_dir)
             probe_histology = vertcat(probe_histology_adjusted{:});
         else
             % Grab probe areas from histology
-            probe_vector_histology = cat(3, ...
-                ap_histology.fit_probe_line(histology_filename, ...
-                histology_annotation_match).ccf);
-            probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);           
+            probe_histology = plab.histology.grab_probe_areas(probe_vector_histology);
             if exist('probe_histology_adjusted','var')
                 % Adjust areas by shank, if present
                 for adjusted_shank = find(~cellfun(@isempty,probe_histology_adjusted))
