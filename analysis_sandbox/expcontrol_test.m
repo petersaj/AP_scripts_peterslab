@@ -159,10 +159,35 @@ if user_confirm
     end
 end
 
-% Broadcast stop message
-connected_tcp = [gui_data.connection_tcpservers.Connected];
-arrayfun(@(tcp) writeline(tcp,'stop'), ...
-    gui_data.connection_tcpservers(connected_tcp));
+% % Broadcast stop message
+% connected_tcp = [gui_data.connection_tcpservers.Connected];
+% arrayfun(@(tcp) writeline(tcp,'stop'), ...
+%     gui_data.connection_tcpservers(connected_tcp));
+
+%%%%%%%%%%%% TEMPORARY 
+
+% Bonsai server can't handle a stop if it's already stopping
+% so for now - if stop comes from bonsai, skip bonsai server
+
+if user_confirm
+
+    % Broadcast stop message
+    connected_tcp = [gui_data.connection_tcpservers.Connected];
+    arrayfun(@(tcp) writeline(tcp,'stop'), ...
+        gui_data.connection_tcpservers(connected_tcp));
+
+else
+
+    % Broadcast stop message
+    connected_tcp = [gui_data.connection_tcpservers.Connected] & ...
+        ([connection_tcpservers.ServerPort] ~= plab.locations.bonsai_port);
+    arrayfun(@(tcp) writeline(tcp,'stop'), ...
+        gui_data.connection_tcpservers(connected_tcp));
+
+end
+
+
+%%%%%%%%%%%%%%%%
 
 % Enable start, disable stop
 gui_data.handles.start.Enable = true;
