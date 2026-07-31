@@ -25,7 +25,7 @@ connection_tcpservers = arrayfun(@(x) tcpserver("0.0.0.0",x),connection_ports);
 % (Bonsai server connection: set up callback for remote stopping)
 configureCallback( ...
     connection_tcpservers([connection_tcpservers.ServerPort] == plab.locations.bonsai_port), ...
-    "terminator", @read_incoming);
+    "terminator", @(src,event,x) read_incoming(src,event,gui_fig));
 
 connection_panel_grid = uigridlayout(connection_panel,[2,length(connection_modalities)]);
 arrayfun(@(x) uilabel(connection_panel_grid,'Text',x,'HorizontalAlignment','Center'),connection_modalities);
@@ -52,7 +52,7 @@ handles.start = uibutton(exp_control_panel_grid,'Text','Start', ...
     'BackgroundColor',[0.6,1,0.6],'Enable',false);
 
 handles.stop = uibutton(exp_control_panel_grid,'Text','Stop', ...
-    'ButtonPushedFcn',{@recording_stop,gui_fig}, ...
+    'ButtonPushedFcn',{@recording_stop,gui_fig,true}, ...
     'BackgroundColor',[1,0.6,0.6],'Enable',false);
 
 
@@ -86,11 +86,13 @@ start(connections_timer);
 
 end
 
+
 function connections_check(source,eventdata,gui_fig)
 gui_data = guidata(gui_fig);
 [gui_data.handles.connection_lamps([gui_data.connection_tcpservers.Connected]).Color] = deal('g');
 [gui_data.handles.connection_lamps(~[gui_data.connection_tcpservers.Connected]).Color] = deal('r');
 end
+
 
 function choose_protocol(source,event,gui_fig)
 [protocol_name, protocol_path] = uigetfile(fullfile(plab.locations.local_workflow_path, '*.bonsai'));
@@ -100,12 +102,14 @@ gui_data.handles.protocol.UserData = fullfile(protocol_path,protocol_name);
 update_controls([],[],gui_fig);
 end
 
+
 function update_controls(source,event,gui_fig)
 gui_data = guidata(gui_fig);
 mouse = gui_data.handles.mouse.Value;
 bonsai_filename = gui_data.handles.protocol.UserData;
 gui_data.handles.start.Enable = ~isempty(mouse) && exist(bonsai_filename,'file');
 end
+
 
 function recording_start(source,event,gui_fig)
 
@@ -143,36 +147,38 @@ arrayfun(@(tcp) writeline(tcp,recording_info_json), ...
 
 end
 
+function recording_stop(source,event,gui_fig,user_confirm)
 
+gui_data = guidata(gui_fig);
 
-
-%%%%%%%%%%% UNDER CONSTRUCTION
-%%% set up reader for stim server
-function read_incoming(varargin)
-
-keyboard
-
-    disp('Data received')
-    server_stim.UserData = readline(server_stim);
-    disp(server_stim.UserData)
-
-    if strfind(server_stim.UserData, 'done')
-        % send stop to timelitem mousecam, widefield
-        if server_timelite.Connected
-            writeline(server_timelite, 'stop');
-        end
-        if server_mousecam.Connected
-            writeline(server_mousecam, 'stop');
-        end
-        if server_widefield.Connected
-            writeline(server_widefield, 'stop');
-        end
-
-        % change button
-        StartButton.Text = 'Start';
-        StartButton.Value = 0;
+% User confirm (if selected)
+if user_confirm
+    user_confirm_choice = uiconfirm(gui_fig,'Stop recording?','Confirm stop');
+    if ~strcmpi(user_confirm_choice,'ok')
+        return
     end
+end
 
+% Broadcast stop message
+connected_tcp = [gui_data.connection_tcpservers.Connected];
+arrayfun(@(tcp) writeline(tcp,'stop'), ...
+    gui_data.connection_tcpservers(connected_tcp));
+
+% Enable start, disable stop
+gui_data.handles.start.Enable = true;
+gui_data.handles.stop.Enable = false;
+
+end
+
+
+function read_incoming(source,event,gui_fig)
+gui_data = guidata(gui_fig);
+
+incoming_message = readline(source);
+
+if strcmp(incoming_message,'done')
+    recording_stop(source,event,gui_fig,false)
+end
 end
 
        
