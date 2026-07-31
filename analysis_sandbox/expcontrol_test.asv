@@ -1,0 +1,123 @@
+% Exp Control overhaul
+
+function expcontrol_test
+
+% Create figure
+gui_fig = uifigure('Name','Experiment controller', ...
+    'units','normalized','position',[0.01,0.1,0.2,0.8]);
+gui_grid = uigridlayout(gui_fig,[4,1], ...
+    'RowHeight',{'1x','1x','1x','1x','5x'},'BackgroundColor','w');
+handles = struct;
+
+% Connections lamps
+connection_panel = uipanel(gui_grid,'Title','Connection status');
+connection_modalities = {'Timelite','Stim','Mousecam','Widefield','Ephys'};
+connection_ports = [ ...
+    plab.locations.timelite_port, ...
+    plab.locations.bonsai_port, ...
+    plab.locations.mousecam_port, ...
+    plab.locations.widefield_port, ...
+    37497, ... % Open Ephys: constant in software
+    ];
+
+connection_tcpservers = arrayfun(@(x) tcpserver("0.0.0.0",x),connection_ports);
+
+% (Bonsai server connection: set up callback for remote stopping)
+configureCallback( ...
+    connection_tcpservers([connection_tcpservers.ServerPort] == plab.locations.bonsai_port), ...
+    "terminator", @plab.rig.exp_control_helpers.read_bonsai_end_exp);
+
+connection_panel_grid = uigridlayout(connection_panel,[2,length(connection_modalities)]);
+arrayfun(@(x) uilabel(connection_panel_grid,'Text',x,'HorizontalAlignment','Center'),connection_modalities);
+handles.connection_lamps = arrayfun(@(x) uilamp(connection_panel_grid,'Color','r'),1:length(connection_modalities));
+
+% Recording settings
+rec_settings_panel = uipanel(gui_grid,'Title','Recording settings');
+rec_settings_panel_grid = uigridlayout(rec_settings_panel,[2,2]);
+
+uilabel(rec_settings_panel_grid,'Text','Mouse','HorizontalAlignment','Center')
+uibutton(rec_settings_panel_grid,'Text','Protocol','ButtonPushedFcn',{@choose_protocol,gui_fig});
+
+handles.mouse = uieditfield(rec_settings_panel_grid);
+handles.protocol = ...
+    uilabel(rec_settings_panel_grid,'Text','<No protocol>','HorizontalAlignment','Center','BackgroundColor','w');
+
+
+% Control buttons
+exp_control_panel = uipanel(gui_grid,'Title','Control recording');
+exp_control_panel_grid = uigridlayout(exp_control_panel,[1,2]);
+
+handles.start = uibutton(exp_control_panel_grid,'Text','Start', ...
+    'ButtonPushedFcn',{@start_recording,gui_fig}, ...
+    'BackgroundColor',[0.6,1,0.6],'Enable',false);
+
+handles.stop = uibutton(exp_control_panel_grid,'Text','Stop', ...
+    'ButtonPushedFcn',{@stop_recording,gui_fig}, ...
+    'BackgroundColor',[1,0.6,0.6],'Enable',false);
+
+
+% Ephys section?
+ephys_panel = uipanel(gui_grid,'Title','Ephys');
+
+
+% Notes section
+notes_panel = uipanel(gui_grid,'Title','Notes');
+notes_panel_grid = uigridlayout(notes_panel,[4,1], ...
+    'RowHeight',{'1x','10x','1x','10x'});
+
+uilabel(notes_panel_grid,'Text','Recording notes')
+handles.notes_recording = uitextarea(notes_panel_grid);
+
+uilabel(notes_panel_grid,'Text','Day notes')
+handles.notes_day = uitextarea(notes_panel_grid);
+
+% Timer function to check connections
+connections_timer = timer('Period',1,'ExecutionMode','fixedSpacing', ...
+    'TimerFcn',@connections_check);
+start(connections_timer);
+
+% Store guidata
+gui_data = struct;
+
+gui_data.connection_tcpservers = connection_tcpservers;
+gui_data.handles = handles;
+
+guidata(gui_fig,gui_data);
+
+end
+
+
+function connections_check(source,eventdata)
+
+
+
+
+end
+
+%%%%%%%%%%% UNDER CONSTRUCTION
+function read_bonsai_end_exp(server_stim, ~, server_timelite, server_mousecam, server_widefield, StartButton)
+
+    disp('Data received')
+    server_stim.UserData = readline(server_stim);
+    disp(server_stim.UserData)
+
+    if strfind(server_stim.UserData, 'done')
+        % send stop to timelitem mousecam, widefield
+        if server_timelite.Connected
+            writeline(server_timelite, 'stop');
+        end
+        if server_mousecam.Connected
+            writeline(server_mousecam, 'stop');
+        end
+        if server_widefield.Connected
+            writeline(server_widefield, 'stop');
+        end
+
+        % change button
+        StartButton.Text = 'Start';
+        StartButton.Value = 0;
+    end
+
+end
+
+       
