@@ -33,9 +33,10 @@ handles.connection_lamps = arrayfun(@(x) uilamp(connection_panel_grid,'Color','y
 
 % Recording settings
 rec_settings_panel = uipanel(gui_grid,'Title','Recording settings');
-rec_settings_panel_grid = uigridlayout(rec_settings_panel,[2,2]);
+rec_settings_panel_grid = uigridlayout(rec_settings_panel,[2,2], ...
+    'ColumnWidth',{'1x','4x'});
 
-uilabel(rec_settings_panel_grid,'Text','Mouse name','HorizontalAlignment','Center');
+uilabel(rec_settings_panel_grid,'Text','Mouse','HorizontalAlignment','Center');
 uibutton(rec_settings_panel_grid,'Text','Protocol','ButtonPushedFcn',{@choose_protocol,gui_fig});
 
 handles.mouse = uieditfield(rec_settings_panel_grid,'ValueChangingFcn',{@update_controls,gui_fig});
