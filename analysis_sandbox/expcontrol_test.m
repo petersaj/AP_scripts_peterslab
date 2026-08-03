@@ -95,7 +95,10 @@ end
 
 
 function choose_protocol(source,event,gui_fig)
-[protocol_name, protocol_path] = uigetfile(fullfile(plab.locations.local_workflow_path, '*.bonsai'));
+bonsai_workflow_path = fullfile(extractBetween(string(which('plab.rig.bonsai_server')), ...
+    '','PetersLab_rigging','Boundaries','inclusive'),'bonsai_workflows','*.bonsai');
+
+[protocol_name, protocol_path] = uigetfile(bonsai_workflow_path);
 gui_data = guidata(gui_fig);
 gui_data.handles.protocol.Text = erase(protocol_name,'.bonsai');
 gui_data.handles.protocol.UserData = fullfile(protocol_path,protocol_name);
@@ -159,35 +162,10 @@ if user_confirm
     end
 end
 
-% % Broadcast stop message
-% connected_tcp = [gui_data.connection_tcpservers.Connected];
-% arrayfun(@(tcp) writeline(tcp,'stop'), ...
-%     gui_data.connection_tcpservers(connected_tcp));
-
-%%%%%%%%%%%% TEMPORARY 
-
-% Bonsai server can't handle a stop if it's already stopping
-% so for now - if stop comes from bonsai, skip bonsai server
-
-if user_confirm
-
-    % Broadcast stop message
-    connected_tcp = [gui_data.connection_tcpservers.Connected];
-    arrayfun(@(tcp) writeline(tcp,'stop'), ...
-        gui_data.connection_tcpservers(connected_tcp));
-
-else
-
-    % Broadcast stop message
-    connected_tcp = [gui_data.connection_tcpservers.Connected] & ...
-        ([connection_tcpservers.ServerPort] ~= plab.locations.bonsai_port);
-    arrayfun(@(tcp) writeline(tcp,'stop'), ...
-        gui_data.connection_tcpservers(connected_tcp));
-
-end
-
-
-%%%%%%%%%%%%%%%%
+% Broadcast stop message
+connected_tcp = [gui_data.connection_tcpservers.Connected];
+arrayfun(@(tcp) writeline(tcp,'stop'), ...
+    gui_data.connection_tcpservers(connected_tcp));
 
 % Enable start, disable stop
 gui_data.handles.start.Enable = true;
@@ -201,7 +179,7 @@ gui_data = guidata(gui_fig);
 
 incoming_message = readline(source);
 
-if strcmp(incoming_message,'done')
+if strcmp(incoming_message,'Bonsai finished')
     recording_stop(source,event,gui_fig,false)
 end
 end
