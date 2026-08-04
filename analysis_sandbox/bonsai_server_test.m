@@ -47,9 +47,34 @@ classdef bonsai_server_test
 
             if strcmp(incoming_message, 'stop')
                 % If stop, send STOP to bonsai
+
+
                 plab.rig.bonsai_server_helpers.bonsai_oscsend( ...
                     obj.communication_handles.bonsai_udp,'/stop', ...
                     "localhost",30000,'s','stop');
+
+
+                % %%%% UNDER CONSTRUCTION
+                % % getting rid of helper function - but somehow it works
+                % % differently than this, even though same command?
+                % 
+                % bonsai_reciever_port = 30000; % (defined in workflow)
+                % bonsai_osc_stop_command = '/stop   ,s  stop';
+                % % (OSC commands must be null-terminated, 0's padding
+                % % message to multiple of 4)
+                % bonsai_osc_stop_command_nullterm = [bonsai_osc_stop_command,zeros(1,4)];
+                % bonsai_osc_stop_command_nullterm = ...
+                %     bonsai_osc_stop_command_nullterm(1:end- ...
+                %     mod(length(bonsai_osc_stop_command),4));
+                % 
+                % write(obj.communication_handles.bonsai_udp, ...
+                %     bonsai_osc_stop_command,"localhost",bonsai_reciever_port)
+                % 
+                % %%%%%%%%%%%%%%
+
+
+
+
             else
                 % Otherwise, assume recording info and start bonsai
                 obj = obj.run_bonsai(incoming_message);

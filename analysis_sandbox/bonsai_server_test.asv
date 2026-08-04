@@ -43,13 +43,28 @@ classdef bonsai_server_test
         function obj = read_expcontrol_message(obj,source,eventdata)
 
             incoming_message = readline(source);
-            fprintf('Experiment controller message recieved: \n--> %s\n',incoming_message);
+            fprintf('BONSAI SERVER: Experiment controller message recieved: \n--> %s\n',incoming_message);
 
             if strcmp(incoming_message, 'stop')
                 % If stop, send STOP to bonsai
-                plab.rig.bonsai_server_helpers.bonsai_oscsend( ...
-                    obj.communication_handles.bonsai_udp,'/stop', ...
-                    "localhost",30000,'s','stop');
+                bonsai_reciever_port = 30000; % (defined in workflow)
+                bonsai_osc_stop_command = '/stop   ,s  stop';
+                % (OSC commands must be null-terminated, 0's ending in
+                % multiples of 
+                bonsai_osc_stop_command_nullterm = [bonsai_osc_stop_command,zeros(1,4)];
+                bonsai_osc_stop_command_nullterm = ...
+                    bonsai_osc_stop_command_nullterm(1:end- ...
+                    mod(length(bonsai_osc_stop_command),4));
+
+                % plab.rig.bonsai_server_helpers.bonsai_oscsend( ...
+                %     obj.communication_handles.bonsai_udp,'/stop', ...
+                %     "localhost",30000,'s','stop');
+
+                write(obj.communication_handles.bonsai_udp, ...
+                    bonsai_osc_stop_command,"localhost",bonsai_reciever_port)
+
+
+
             else
                 % Otherwise, assume recording info and start bonsai
                 obj = obj.run_bonsai(incoming_message);
@@ -92,7 +107,7 @@ classdef bonsai_server_test
 
             system(command);
 
-            fprintf('Running Bonsai workflow: \n--> %s %s %s: %s\n', ...
+            fprintf('BONSAI SERVER: Running Bonsai workflow: \n--> %s %s %s: %s\n', ...
                 recording_info.mouse,recording_info.date,recording_info.time,bonsai_name);
            
         end
@@ -100,7 +115,7 @@ classdef bonsai_server_test
         function read_bonsai_message(obj,source,eventdata,local_save_path)
 
             incoming_message = read(source,source.NumDatagramsAvailable,'string').Data;
-            fprintf('Bonsai message recieved: \n--> %s\n',incoming_message);
+            fprintf('BONSAI SERVER: Bonsai message recieved: \n--> %s\n',incoming_message);
             
             % Recieved stop from Bonsai
             if contains(incoming_message,'stop')
@@ -119,8 +134,6 @@ classdef bonsai_server_test
         function move_data_to_server(obj,local_save_path)
             % Move data from local to server
 
-            disp('moving to server')
-
             % Check if the server is available
             if ~exist(plab.locations.server_data_path,'dir')
                 warning('Server not accessible at %s',plab.locations.server_data_path)
@@ -133,8 +146,13 @@ classdef bonsai_server_test
                 curr_data_path_server = strrep(local_save_path, ...
                     plab.locations.local_data_path,plab.locations.server_data_path);
                 [status,message] = movefile(local_save_path,curr_data_path_server);
+                
                 if ~status
+                    % (if failed moving, try pausing and trying again)
                     warning('Failed copying to server (attempt %d): %s',message,curr_try);
+                    pause(2)
+                else
+                    break
                 end
             end
 
