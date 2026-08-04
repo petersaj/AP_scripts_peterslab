@@ -238,7 +238,14 @@ probe_depth_ccf_fit = probe_vector(1,:) + ...
 
 
 % Open UDP connection for Bonsai
-bonsai_udp_down = udpport("IPV4",'LocalPort',20000);
+% bonsai_udp_down = udpport("IPV4",'LocalPort',20000);
+
+
+bonsai_udp_down = udpport("datagram",'LocalPort',20000);
+
+
+configureCallback(bonsai_udp_down,'datagram',1,@(varargin) keyboard)
+
 
 
 x = tcpclient(plab.local_rig.config.local.client,plab.locations.bonsai_port+1);
@@ -246,25 +253,6 @@ x = tcpclient(plab.local_rig.config.local.client,plab.locations.bonsai_port+1);
 m = readline(bonsai_udp_down);
 
 m = read(x,x.NumBytesAvailable);
-
-
-
-% Setup listening to Bonsai workflow
-% (load the jar file)
-javaaddpath(fullfile(fileparts(which( ...
-    'plab.rig.bonsai_server_helpers.bonsai_oscsend')), ...
-    'javaosctomatlab.jar'));
-% (import java packages)
-import com.illposed.osc.*;
-import java.lang.String;
-
-% (set up OSC listener and receiver)
-oscport= 20000;
-obj.communication_handles.bonsai_receiver = OSCPortIn(oscport);
-obj.communication_handles.bonsai_listener = MatlabOSCListener();
-obj.communication_handles.bonsai_receiver.addListener(String('/stop'), ...
-    obj.communication_handles.bonsai_listener);
-obj.communication_handles.bonsai_receiver.startListening();
 
 
 

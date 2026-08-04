@@ -126,11 +126,18 @@ rec_day = string(datetime('now','Format','yyyy-MM-dd'));
 rec_time = string(datetime('now','Format','HHmm'));
 
 % Create recording path
-recording_path = plab.locations.filename('server',mouse,rec_day,rec_time);
-if exist(plab.locations.server_data_path,'dir')
-    mkdir(recording_path);
+% (check for server)
+if ~exist(plab.locations.server_data_path,'dir')
+    warning('Server inaccessible, only saving locally');
 else
-    error('Server inaccessible');
+    recording_path = plab.locations.filename('server',mouse,rec_day,rec_time);
+    if ~exist(recording_path)
+        % (create server path for recording)
+        mkdir(recording_path)
+    else
+        % (if it already exists, error out so user waits 1m for rec time)
+        error('Recording path already exists - wait 1 minute and try again')
+    end
 end
 
 % Disable start, enable stop
