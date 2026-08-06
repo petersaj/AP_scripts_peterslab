@@ -1,10 +1,18 @@
-function h = scalebar(x_scale,y_scale)
+function h = scalebar(varargin)
 % ap.scalebar(x_scale,y_scale)
+% ap.scalebar(axis,x_scale,y_scale)
 % 
 % Draws scalebars in the bottom left corner of a plot 
 
-% Place on current axis
-draw_ax = gca;
+% First two numeric inputs are [x,y]
+[x_scale,y_scale] = deal(varargin{cellfun(@isnumeric,varargin)});
+
+% Set axis to draw on
+if nargin == 3 && isgraphics(varargin{1})
+    draw_ax = varargin{1};
+else
+    draw_ax = gca;
+end
 
 % Set properties
 % (draw magenta for now so they're obvious when transferring)
