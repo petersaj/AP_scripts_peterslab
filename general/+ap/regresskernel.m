@@ -202,9 +202,11 @@ cv_partition(predictable_samples) = min(floor(linspace(1,cvfold+1,sum(predictabl
 % cv_partition(predictable_samples) = AP_shake(round(linspace(1,cvfold,sum(predictable_samples)))');
 
 k_cv = nan(size(regressors_gpu,2),size(signals,1),cvfold,'double');
-predicted_signals = nan(size(signals));
-predicted_signals_reduced = nan(size(signals,1),size(signals,2),length(regressors));
-predicted_signals_partial = nan(size(signals,1),size(signals,2),length(regressors),2);
+
+% (predicted signals are signal mean by default)
+predicted_signals = repmat(nanmean(signals,2),1,size(signals,2));
+predicted_signals_reduced = repmat(predicted_signals,1,1,length(regressors));
+predicted_signals_partial = repmat(predicted_signals_reduced,1,1,1,2);
 for curr_cv = 1:cvfold
     
     % Get training/test sets
@@ -323,23 +325,13 @@ if ...
     error('Inf/NaN in kernel or predicted signal')
 end
 
-% Total explained variance (R^2)
-sse_residual = sum((signals(predictable_signals,predictable_samples) - ...
-    predicted_signals(predictable_signals,predictable_samples)).^2,2);
-sse_total = sum((signals(predictable_signals,predictable_samples) - ...
-    nanmean(signals(predictable_signals,predictable_samples),2)).^2,2);
-explained_var.total = nan(size(signals,1),1);
-explained_var.total(predictable_signals) = 1 - (sse_residual./sse_total);
+% Total explained variance
+explained_var.total = 1 - var(signals-predicted_signals,[],2)./var(signals,[],2);
 
 % Partial (unique if exclusion) explained variance
 if length(regressors) > 1    
-    sse_residual_reduced = sum((signals(predictable_signals,predictable_samples) - ...
-        predicted_signals_partial(predictable_signals,predictable_samples,:,:)).^2,2);
-    sse_residual_full = sum((signals(predictable_signals,predictable_samples) - ...
-        predicted_signals(predictable_signals,predictable_samples,:)).^2,2);   
-    explained_var.partial = nan(size(signals,1),length(regressors),2);
-    explained_var.partial(predictable_signals,:,:) = ...
-        permute(1 - (sse_residual_full./sse_residual_reduced),[1,3,4,2]);
+    explained_var.partial =  1 - var(signals-predicted_signals,[],2)./ ...
+        var(signals-predicted_signals_partial,[],2);
 end
 
 % Get the final k from averaging
