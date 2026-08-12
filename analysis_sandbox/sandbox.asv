@@ -237,9 +237,18 @@ probe_depth_ccf_fit = probe_vector(1,:) + ...
 %% OE remote control
 
 
+oe = tcpclient(plab.local_rig.config.local.client, ...
+    plab.locations.ephys_port,'ConnectTimeout',1);
 
 animal = 'test';
 rec_day = '2026-08-11';
+
+recording_info = struct( ...
+    'parent_directory', plab.locations.local_data_path, ...
+    'base_text', animal, ...
+    'append_text', rec_day, ...
+    'default_record_engine', "BINARY", ...
+    'start_new_directory', true);
 
 % set recording path
 oe_save_path = plab.locations.filename('local',animal);
@@ -252,8 +261,6 @@ recording_info = struct( ...
 openephys_url = sprintf('http://%s:%d/api/recording',oe.Address,oe.Port);
 openephys_send_status = webwrite(openephys_url, recording_info, ...
     weboptions('RequestMethod','put','MediaType','application/json'));
-
-
 
 % start recording
 openephys_url = sprintf('http://%s:%d/api/status',oe.Address,oe.Port);
@@ -269,54 +276,7 @@ openephys_send_status = webwrite(openephys_url, x, ...
 
 
 
-
-% (holding - for reading info)
-oe_recording = webread(sprintf('http://%s:%d/api/recording',oe.Address,oe.Port));
-oe_processors = webread(sprintf('http://%s:%d/api/processors',oe.Address,oe.Port));
-oe_status = webread(sprintf('http://%s:%d/api/status',oe.Address,oe.Port));
-
-
-% (use this to auto-sync)
-oe_recording.record_nodes.is_synchronized
-
-
-% (get available probes)
-connected_probes = unique(extract({oe_processors.processors(1).streams.name}, ...
-    'Probe'+lettersPattern(1)));
-
-
-
-%% Dye chooser
-
-probes = ["ProbeA","ProbeB"];
-
-% Create gui
-gui_fig = uifigure('Name','Set histology-ephys mapping');
-gui_grid = uigridlayout(gui_fig,[3,3], ...
-    'RowHeight',{'0.5x','7x','1x'});
-
-% Add table with drop-downs
-% (put histology/ephys paths in UserData)
-probe_mapping_table_ud = ...
-    struct('histology_filename',histology_filename,'ephys_paths',{ephys_paths});
-
-probe_mapping_table = uitable(gui_grid, ...
-    'Layout',matlab.ui.layout.GridLayoutOptions('Row',2, ...
-    'Column',[1,length(gui_grid.ColumnWidth)]), ...
-    'Data',[histology_labels, ...
-    repmat({'<No ephys>'},size(histology_labels)), ...
-    repmat({'<No shank>'},size(histology_labels))], ...
-    'ColumnName',{'Probe','Ephys recording','Shank'}, ...
-    'ColumnEditable',[false,true,true], ...
-    'ColumnFormat',{[],ephys_labels',cellstr(string(1:4))}, ...
-    'CellEditCallback',@probe_mapping_update, ...
-    'BackgroundColor',[1,1,1], ...
-    'UserData',probe_mapping_table_ud);
-
-% Add buttons
-uibutton(gui_grid,'text','Save','ButtonPushedFcn',{@probe_mapping_save,probe_mapping_table});
-uibutton(gui_grid,'text','Reset','ButtonPushedFcn',{@probe_mapping_reset,probe_mapping_table});
-uibutton(gui_grid,'text','3D plot','ButtonPushedFcn',{@probe_plot,animal});
-
-
+openephys_url = sprintf('http://%s:%d/api/recording',oe.Address,oe.Port);
+openephys_send_status = webwrite(openephys_ur, ...
+    weboptions('RequestMethod','GET','MediaType','application/json'));
 
