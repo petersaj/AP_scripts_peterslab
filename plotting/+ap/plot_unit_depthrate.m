@@ -69,6 +69,7 @@ linkaxes(shank_axes,'y')
 if isempty(plot_shank)
     plot_shank = 1:n_shanks;
 end
+area_rectangles = cell(n_shanks,1);
 if exist('probe_areas','var')
     for curr_shank = reshape(plot_shank,1,[])
 
@@ -78,10 +79,11 @@ if exist('probe_areas','var')
         curr_shank_areas = find(probe_areas.probe_shank==curr_shank);
 
         % Plot areas as rectangles
-        for curr_area = reshape(curr_shank_areas,1,[])
+        for curr_area_idx = 1:length(curr_shank_areas)
+            curr_area = curr_shank_areas(curr_area_idx);
             curr_color = ['#',probe_areas.color_hex_triplet{curr_area}];
             curr_y = probe_areas.tip_distance(curr_area,:);
-            plot_handles(curr_shank).area_rectangles(curr_area) = ...
+            area_rectangles{curr_shank}(curr_area_idx,1) = ...
                 rectangle(shank_axes(curr_shank),'Position',[shank_xoffset(curr_shank),min(curr_y), ...
                 1,abs(diff(curr_y))], ...
                 'FaceColor',curr_color,'EdgeColor','none');
@@ -97,6 +99,12 @@ if exist('probe_areas','var')
     end
 end
 
+if split_shanks
+    [plot_handles(1:n_shanks).area_rectangles] = deal(area_rectangles{:});
+else
+    plot_handles.area_rectangles = vertcat(area_rectangles{:});
+end
+
 
 % Plot units
 norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
@@ -104,12 +112,19 @@ norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'r
 unit_xplot = norm_spike_count + reshape(shank_xoffset(template_shanks),[],1);
 unit_yplot = template_tipdist/1000;
 
-unit_dots = arrayfun(@(shank) scatter(shank_axes(shank), ...
-    unit_xplot(template_shanks==shank), ...
-    unit_yplot(template_shanks==shank),20,'k','filled', ...
-    'UserData',struct('shank',template_shanks(template_shanks==shank))), ...
-    plot_shank,'uni',false);
-[plot_handles.unit_dots] = deal(unit_dots{:});
+if split_shanks
+    unit_dots = arrayfun(@(shank) scatter(shank_axes(shank), ...
+        unit_xplot(template_shanks==shank), ...
+        unit_yplot(template_shanks==shank),20,'k','filled', ...
+        'UserData',struct('shank',template_shanks(template_shanks==shank))), ...
+        plot_shank,'uni',false);
+    [plot_handles.unit_dots] = deal(unit_dots{:});
+else
+    plot_handles.unit_dots = scatter(shank_axes(1), ...
+        unit_xplot, ...
+        unit_yplot,20,'k','filled', ...
+        'UserData',struct('shank',template_shanks));
+end
 
 xlabel(shank_axes,'Rate')
 

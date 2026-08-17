@@ -353,14 +353,13 @@ end
 
 %% Get CCF positions of units 
 
-% (Currently only from NTE - approximate)
-
 % Loop through shanks, interpolate template position relative to shank in
 % CCF space: [AP,DV,ML]
-% (NTE saves positions as [top1,bottom1,top2...])
 % (assumes CCF = real distance, which is only approximate)
 
-if exist('probe_areas','var')
+% (NTE not incorporated yet - saves positions in as probe_nte.probe_positions_ccf [top1,bottom1,top2...])
+
+if exist('probe_areas','var') && isfield(probe_areas,'ccf')
     % (only grab CCF if probe areas are available)
 
     ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)     
@@ -376,6 +375,7 @@ if exist('probe_areas','var')
         probe_setpoints_tipdist = 1000 * ... % (convert mm to um)
             vertcat(probe_areas.tip_distance(use_area_idx,1), ...
             probe_areas.tip_distance(end,2));
+
         probe_setpoints_ccf = cell2mat( ...
             vertcat(probe_areas.ccf(use_area_idx,1), ...
             probe_areas.ccf(end,2)));
