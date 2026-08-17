@@ -10,7 +10,8 @@ function plot_handles = plot_unit_depthrate(plot_axes,split_shanks,plot_shank)
 % plot_shank - shank to plot (all by default, single if specified)
 %
 % OUTPUTS
-% plot_handles - [.unit_dots, .area_rectangles] graphics handles
+% plot_handles - [.unit_dots, .area_rectangles] graphics handles (splits if
+% shanks across axes, combines if single axis)
 
 
 arguments

@@ -357,10 +357,8 @@ end
 % CCF space: [AP,DV,ML]
 % (assumes CCF = real distance, which is only approximate)
 
-% (NTE not incorporated yet - saves positions in as probe_nte.probe_positions_ccf [top1,bottom1,top2...])
-
 if exist('probe_areas','var') && isfield(probe_areas,'ccf')
-    % (only grab CCF if probe areas are available)
+    % From histology, if available
 
     ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)     
     template_ccf = nan(size(templates,1),3);
@@ -384,10 +382,21 @@ if exist('probe_areas','var') && isfield(probe_areas,'ccf')
             interp1(probe_setpoints_tipdist,probe_setpoints_ccf, ...
             template_tipdist(template_shanks==curr_shank));
     end
+elseif exist('probe_nte','var')
+    % From NTE otherwise
+    % (saves positions in as probe_nte.probe_positions_ccf [top1,bottom1,top2...])
+
+    template_ccf = nan(size(templates,1),3);
+    for curr_shank = unique(template_shanks)'
+        curr_shank_vector = probe_nte.probe_positions_ccf{load_probe}(:,2*curr_shank+[-1,0]);
+        template_ccf(template_shanks==curr_shank,:) = ...
+            interp1([10*norm(diff(curr_shank_vector,[],2)),0],curr_shank_vector', ...
+            template_tipdist(template_shanks==curr_shank));
+    end
 end
 
 % % % (DEBUG) plot units in CCF space
-% ap.ccf_outline_3d([],{'brain','cp','aca'});
+% ap.ccf_outline_3d([],{'brain','cp','aca','snr'});
 % scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
 
 
