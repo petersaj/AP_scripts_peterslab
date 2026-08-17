@@ -31,7 +31,7 @@ if ~isempty(histology_dir)
 end
 
 % Return if no files found
-if isempty(nte_filenames) && isempty(histology_filename)
+if isempty(nte_filenames) && ~exist('histology_filename','var')
     fprintf('No probe positions found: %s\n',animal);
     return;
 end
@@ -78,7 +78,7 @@ end
 %% Draw probes (from histology)
 
 if plot_histology
-    if ~isempty(histology_filename)
+    if exist('histology_filename','var')
 
         % Plot annotated points connected by lines
         load(histology_filename);
