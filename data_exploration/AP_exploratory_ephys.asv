@@ -58,6 +58,39 @@ clim([0,max(binned_spikes_depth_smooth,[],'all')*0.5])
 %     xline(stimOn_times(stim_azimuth == 90),'r');
 % end
 
+%% MUA correlelogram
+
+% Get correlation of MUA in sliding windows
+depth_corr_window = 50; % MUA window in microns
+depth_corr_window_spacing = 20; % MUA window spacing in microns
+
+max_depths = 3840; % (hardcode, sometimes kilosort drops channels)
+
+depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); ...
+    (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
+depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
+
+spike_binning_t = 0.05; % seconds
+spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spike_times_timelite);
+
+binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
+for curr_depth = 1:size(depth_corr_bins,2)
+    curr_depth_templates_idx = ...
+        find(template_tipdist >= depth_corr_bins(1,curr_depth) & ...
+        template_tipdist < depth_corr_bins(2,curr_depth));
+    
+    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
+        ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
+end
+
+mua_corr = corrcoef(binned_spikes_depth');
+
+figure;
+imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
+axis image;
+clim([-1,1].*0.5);
+colormap(ap.colormap('BWR'))
+set(gca,'YDir','normal','XDir','reverse');
 
 %% MUA correlelogram
 
@@ -136,7 +169,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {trial_sort_idx,trial_sort_idx,iti_move_sortidx,reward_sort_idx});
 end
 
-set(gcf,'Name',sprintf('%s, %s, %s (%s)',animal,rec_day,rec_time,bonsai_workflow));
+set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
 
 
 %% PSTH - units
@@ -196,7 +229,7 @@ quiescent_trials = arrayfun(@(x) ~any(wheel_move(...
 if contains(bonsai_workflow,'lcr')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimX);
-    use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 0 & quiescent_trials);
+    use_align = stimOn_times(stim_type(1:length(stimOn_times)) == 90 & quiescent_trials);
 elseif contains(bonsai_workflow,'tmb')
     % (vis passive)
     stim_type = vertcat(trial_events.values.TrialStimY);
@@ -229,7 +262,7 @@ event_response_p = event_response_rank(:,1)./(n_shuff+1);
 
 % Plot responsive units by depth
 unit_handles = ap.plot_unit_depthrate([],false);
-unit_handles.unit_dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
+unit_handles.dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
 
 % Plot rasters of responsive units (from above - if done)
 psth_use_t = unit_psth_t >= response_t(1) & unit_psth_t <= response_t(2);

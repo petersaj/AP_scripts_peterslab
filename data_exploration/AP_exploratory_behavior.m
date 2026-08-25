@@ -137,7 +137,7 @@ plot(surround_t(2:end),nanmedian(cam_roi_diff_align,1));
 % align_times = stimOn_times(stim_x == 90);
 % align_times = stim_move_time;
 % align_times = iti_fastmove_times;
-align_times = stimOn_times(trial_type==0);
+align_times = stimOn_times([trial_events.values.TaskType]==1);
 
 % stim_x = vertcat(trial_events.values.TrialX);
 % align_times = stimOn_times(stim_x(1:n_trials) == -90);

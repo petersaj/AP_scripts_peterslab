@@ -402,15 +402,23 @@ end
 
 %% Quality control units (bombcell)
 
-% Load Bombcell quality metrics (if exist)
+% Load Bombcell quality metrics
 qMetrics_path = fullfile(kilosort_path,'qMetrics');
 if  exist(qMetrics_path,'dir')
+    % (keep axons if flagged)
+    if isfield(load_parts,'ephys_axons') && ...
+            load_parts.ephys_axons
+        bombcell_keep = {'singleunit','multiunit','axon'};
+        if verbose; fprintf('Ephys: Keeping axons...\n'); end
+    else
+        bombcell_keep = {'singleunit','multiunit'};
+    end
+
     % Load unit labels (from ap.run_bombcell / ap.rerun_bombcell)
     load(fullfile(qMetrics_path, 'template_qc_labels.mat'))
 
     % Define good units from labels
-    good_templates = ismember(template_qc_labels,{'singleunit','multiunit'});
-    if verbose; fprintf('Ephys: Applying Bombcell quality metrics...'); end
+    good_templates = ismember(template_qc_labels,bombcell_keep);
 
     % Keep only labels from good units
     template_qc_labels = template_qc_labels(good_templates);
@@ -441,7 +449,7 @@ spike_times_timelite = spike_times_timelite(good_spikes);
 % Rename the remaining spike templates (1:N, to match index for template)
 [~,spike_templates] = ismember(spike_templates,find(good_templates));
 
-if verbose; fprintf('kept %d/%d "good" units...\n',sum(good_templates),length(good_templates)); end
+if verbose; fprintf('Ephys: Bombcell kept %d/%d units...\n',sum(good_templates),length(good_templates)); end
 
 
 

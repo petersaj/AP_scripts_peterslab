@@ -86,9 +86,6 @@ unit_axes = nexttile([5,1]);
 unit_depthrate_handles = ap.plot_unit_depthrate(unit_axes,false);
 unit_depthrate_handles.unit_dots.ButtonDownFcn = @unit_click;
 
-% (selected units as outlines)
-unit_selected = scatter(unit_axes,nan,nan,20,'r','LineWidth',2);
-
 % (plot of waveform across the probe)
 waveform_axes =  nexttile([5,1]);
 set(waveform_axes,'visible','off','YDir','reverse');
@@ -138,7 +135,6 @@ gui_data = struct;
 
 % (plots)
 gui_data.unit_depthrate_handles = unit_depthrate_handles;
-gui_data.unit_selected = unit_selected;
 gui_data.waveform_lines = waveform_lines;
 gui_data.psth_axes = psth_axes;
 gui_data.raster_axes = raster_axes;
@@ -191,9 +187,8 @@ end
 
 % Set color and size on unit dots
 curr_unit_unique_idx = ismember(unique(gui_data.spike_templates),gui_data.curr_unit);
-set(gui_data.unit_selected, ...
-    'XData',gui_data.unit_depthrate_handles.unit_dots.XData(curr_unit_unique_idx), ...
-    'YData',gui_data.unit_depthrate_handles.unit_dots.YData(curr_unit_unique_idx));
+gui_data.unit_depthrate_handles.unit_dots.CData = zeros(length(curr_unit_unique_idx),3) + [1,0,0].*curr_unit_unique_idx;
+gui_data.unit_depthrate_handles.unit_dots.SizeData = 20*ones(size(curr_unit_unique_idx)) + 50*curr_unit_unique_idx;
 
 % Plot waveform across probe (any channels with > x*max value)
 % (reversed YDir, flip Y axis and plot depth)
