@@ -130,7 +130,7 @@ norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'r
 unit_xplot = norm_spike_count + reshape(shank_xoffset(template_shanks),[],1);
 unit_yplot = template_tipdist/1000;
 
-soma_axon_color = [0,0,0;1,1,1];
+soma_axon_color = [0,0,0;0.5,0.5,0.5];
 
 if split_shanks
     unit_dots = arrayfun(@(shank) scatter(shank_axes(shank), ...
