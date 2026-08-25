@@ -357,7 +357,8 @@ end
 % CCF space: [AP,DV,ML]
 % (assumes CCF = real distance, which is only approximate)
 
-if exist('probe_areas','var') && isfield(probe_areas,'ccf')
+if exist('probe_areas','var') && ...
+        any(ismember(probe_areas.Properties.VariableNames,'ccf'))
     % From histology, if available
 
     ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)     
@@ -395,9 +396,9 @@ elseif exist('probe_nte','var')
     end
 end
 
-% % % (DEBUG) plot units in CCF space
-% ap.ccf_outline_3d([],{'brain','cp','aca','snr'});
-% scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
+% % (DEBUG) plot units in CCF space
+ap.ccf_outline_3d([],{'brain','cp','aca','snr'});
+scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
 
 
 %% Quality control units (bombcell)
