@@ -396,9 +396,9 @@ elseif exist('probe_nte','var')
     end
 end
 
-% % (DEBUG) plot units in CCF space
-ap.ccf_outline_3d([],{'brain','cp','aca','snr'});
-scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
+% % % (DEBUG) plot units in CCF space
+% ap.ccf_outline_3d([],{'brain','cp','aca','snr'});
+% scatter3(template_ccf(:,1),template_ccf(:,3),template_ccf(:,2),10,'k','filled');
 
 
 %% Quality control units (bombcell)
