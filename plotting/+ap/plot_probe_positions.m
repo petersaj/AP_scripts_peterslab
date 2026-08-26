@@ -145,6 +145,7 @@ if plot_units
 
         load_parts = struct;
         load_parts.ephys = true;
+        load_parts.ephys_axons = true;
         ap.load_recording;
 
         unit_axes = nexttile(h); hold on;
