@@ -132,7 +132,7 @@ template_tipdist = (sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)
 % (get shank for each unit)
 shank_spacing = 0.25;
 shank_borders = (0:4)*shank_spacing-shank_spacing/2;
-template_xpos = sum(template_chan_amp_overthresh.*channel_positions(:,1)',2)./sum(template_chan_amp_overthresh,2);
+template_xpos = (sum(template_chan_amp_overthresh.*channel_positions(:,1)',2)./sum(template_chan_amp_overthresh,2))/1000;
 template_shanks = discretize(template_xpos,shank_borders);
 
 % Get the depth of each spike
@@ -363,7 +363,6 @@ if exist('probe_areas','var') && ...
         any(ismember(probe_areas.Properties.VariableNames,'ccf'))
     % From histology, if available
 
-    ccf2um = 10; % conversion factor: CCF is in 10um voxels (untransformed)     
     template_ccf = nan(size(templates,1),3);
 
     % (loop through shanks)
@@ -373,7 +372,7 @@ if exist('probe_areas','var') && ...
             probe_areas.probe_shank == curr_shank & ... & on current shank
             -diff(probe_areas.tip_distance,[],2) > 0; % area size is > 0
 
-        probe_setpoints_tipdist = 1000 * ... % (convert mm to um)
+        probe_setpoints_tipdist = ...
             vertcat(probe_areas.tip_distance(use_area_idx,1), ...
             probe_areas.tip_distance(end,2));
 
