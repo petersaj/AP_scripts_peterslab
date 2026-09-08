@@ -380,7 +380,7 @@ line(eval_points_ccf_valid([1,end],1), ...
 %% View volumetric histology
 
 % Set path with images/histology file
-animal = 'AP009';
+animal = 'DS041';
 histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
 histology_path = dir(histology_filepattern).folder;
 
@@ -411,7 +411,7 @@ end
 av = ap_histology.load_ccf;
 histology_clim = prctile(histology_volume_binmax(:,:,:,plot_channel),[0,100],'all');
 plot_channel_color = [1,0,0];
-overlay_dilation = 1;
+overlay_dilation = 2;
 
 figure; tiledlayout('TileSpacing','none');
 for curr_atlas_bin = 1:size(histology_volume_binmax,3)
@@ -433,10 +433,10 @@ for curr_atlas_bin = 1:size(histology_volume_binmax,3)
 end
 
 % Plot binarized fluorescence in 3D brain
-plot_channels = 1;
-channel_colors = {'r'};
+plot_channels = 2;
+channel_colors = {'g','r'};
 
-brain_plot = ap.ccf_outline_3d([],["brain","CP","VM"]);
+brain_plot = ap.ccf_outline_3d([],["brain","SNr"]);
 
 for plot_channel = plot_channels
     % Set channel to plot and value to threshold

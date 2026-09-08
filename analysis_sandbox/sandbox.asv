@@ -237,18 +237,9 @@ probe_depth_ccf_fit = probe_vector(1,:) + ...
 %% OE remote control
 
 
-oe = tcpclient(plab.local_rig.config.local.client, ...
-    plab.locations.ephys_port,'ConnectTimeout',1);
 
 animal = 'test';
 rec_day = '2026-08-11';
-
-recording_info = struct( ...
-    'parent_directory', plab.locations.local_data_path, ...
-    'base_text', animal, ...
-    'append_text', rec_day, ...
-    'default_record_engine', "BINARY", ...
-    'start_new_directory', true);
 
 % set recording path
 oe_save_path = plab.locations.filename('local',animal);
@@ -261,6 +252,8 @@ recording_info = struct( ...
 openephys_url = sprintf('http://%s:%d/api/recording',oe.Address,oe.Port);
 openephys_send_status = webwrite(openephys_url, recording_info, ...
     weboptions('RequestMethod','put','MediaType','application/json'));
+
+
 
 % start recording
 openephys_url = sprintf('http://%s:%d/api/status',oe.Address,oe.Port);
@@ -276,7 +269,34 @@ openephys_send_status = webwrite(openephys_url, x, ...
 
 
 
-openephys_url = sprintf('http://%s:%d/api/recording',oe.Address,oe.Port);
-openephys_send_status = webwrite(openephys_ur, ...
-    weboptions('RequestMethod','GET','MediaType','application/json'));
+
+% (holding - for reading info)
+oe_recording = webread(sprintf('http://%s:%d/api/recording',oe.Address,oe.Port));
+oe_processors = webread(sprintf('http://%s:%d/api/processors',oe.Address,oe.Port));
+oe_status = webread(sprintf('http://%s:%d/api/status',oe.Address,oe.Port));
+
+
+% (use this to auto-sync)
+oe_recording.record_nodes.is_synchronized
+
+
+% (get available probes)
+connected_probes = unique(extract({oe_processors.processors(1).streams.name}, ...
+    'Probe'+lettersPattern(1)));
+
+
+%% non-linear alignment
+
+
+curr_slice = 7;
+
+curr_histology_slice = slice_histology{curr_slice};
+curr_atlas_slice = slice_atlas(curr_slice).tv;
+curr_atlas_slice(isnan(curr_atlas_slice)) = 0;
+
+
+
+
+[D,moving_reg] = imregdemons(curr_atlas_slice,curr_histology_slice);
+
 

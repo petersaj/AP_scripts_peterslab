@@ -285,38 +285,25 @@ connected_probes = unique(extract({oe_processors.processors(1).streams.name}, ..
     'Probe'+lettersPattern(1)));
 
 
+%% non-linear alignment
 
-%% Dye chooser
 
-probes = ["ProbeA","ProbeB"];
+curr_slice = 7;
 
-% Create gui
-gui_fig = uifigure('Name','Set histology-ephys mapping');
-gui_grid = uigridlayout(gui_fig,[3,3], ...
-    'RowHeight',{'0.5x','7x','1x'});
+curr_histology_slice = slice_histology{curr_slice};
+curr_atlas_slice = slice_atlas(curr_slice).tv;
+curr_atlas_slice(isnan(curr_atlas_slice)) = 0;
 
-% Add table with drop-downs
-% (put histology/ephys paths in UserData)
-probe_mapping_table_ud = ...
-    struct('histology_filename',histology_filename,'ephys_paths',{ephys_paths});
+resize_factor = min(size(curr_histology_slice)./size(curr_atlas_slice));
+curr_atlas_slice_resize = imresize(curr_atlas_slice,resize_factor,'nearest');
+downsample_factor = round(max(size(curr_histology_slice))/300);
 
-probe_mapping_table = uitable(gui_grid, ...
-    'Layout',matlab.ui.layout.GridLayoutOptions('Row',2, ...
-    'Column',[1,length(gui_grid.ColumnWidth)]), ...
-    'Data',[histology_labels, ...
-    repmat({'<No ephys>'},size(histology_labels)), ...
-    repmat({'<No shank>'},size(histology_labels))], ...
-    'ColumnName',{'Probe','Ephys recording','Shank'}, ...
-    'ColumnEditable',[false,true,true], ...
-    'ColumnFormat',{[],ephys_labels',cellstr(string(1:4))}, ...
-    'CellEditCallback',@probe_mapping_update, ...
-    'BackgroundColor',[1,1,1], ...
-    'UserData',probe_mapping_table_ud);
+a = imresize(curr_atlas_slice_resize,1/downsample_factor,'nearest');
+h = imresize(curr_histology_slice,1/downsample_factor,'nearest');
 
-% Add buttons
-uibutton(gui_grid,'text','Save','ButtonPushedFcn',{@probe_mapping_save,probe_mapping_table});
-uibutton(gui_grid,'text','Reset','ButtonPushedFcn',{@probe_mapping_reset,probe_mapping_table});
-uibutton(gui_grid,'text','3D plot','ButtonPushedFcn',{@probe_plot,animal});
+[D,a_h] = imregdemons(a,h);
+
+[dispField,reg] = imregdeform(a,h(1:size(a,1),1:size(a,2)));
 
 
 

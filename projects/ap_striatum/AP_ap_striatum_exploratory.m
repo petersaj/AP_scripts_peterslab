@@ -2,7 +2,7 @@
 % some kind of iteration of comparing A/P striatum in naive, 2-stim
 % learning, appetitive/aversive learning
 
-%% DS AV posterior striatum: plot recording locations
+%% DS AV: plot recording locations
 
 % Animals that had posterior recordings + learned visual
 animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
@@ -29,7 +29,7 @@ for curr_animal = 1:length(animals)
     ccf_draw.draw_probes_nte(animal,probe_color);
 end
 
-%% DS AV posterior striatum: plot recording locations
+%% DS AV: plot responsive units
 
 % Animals that had posterior recordings + learned visual
 animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
@@ -174,8 +174,8 @@ for curr_animal = 1:length(animals)
                 responsive_units = event_response_p > 0.95;
 
                 % Get striatum templates
-                striatum_idx = strcmp(probe_areas{1}.name,'Caudoputamen');
-                striatum_depth = prctile(probe_areas{1}.tip_distance(striatum_idx,:),[0,100],'all');
+                striatum_idx = strcmp(probe_areas.name,'Caudoputamen');
+                striatum_depth = prctile(probe_areas.tip_distance(striatum_idx,:),[0,100],'all');
                 striatum_templates = isbetween(template_tipdist,striatum_depth(1),striatum_depth(2));
 
                 % Store unit PSTHs and responsive units (striatum units only)

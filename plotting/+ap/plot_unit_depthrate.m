@@ -114,7 +114,7 @@ end
 
 % Plot recorded sites
 % (change x-values to be normalized by shank)
-shank_spacing = 250;
+shank_spacing = 0.25;
 shank_borders = (0:4)*shank_spacing-shank_spacing/2;
 channel_shanks = discretize(channel_positions(:,1),shank_borders);
 
@@ -128,7 +128,7 @@ end
 norm_spike_count = normalize(log10(accumarray(findgroups(spike_templates),1)),'range');
 
 unit_xplot = norm_spike_count + reshape(shank_xoffset(template_shanks),[],1);
-unit_yplot = template_tipdist/1000;
+unit_yplot = template_tipdist;
 
 soma_axon_color = [0,0,0;0.5,0.5,0.5];
 

@@ -870,7 +870,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP033';
+animal = 'DS038';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');
@@ -878,7 +878,7 @@ histology_dir = dir(fullfile(histology_path,'*.tif'));
 
 histology_filenames = cellfun(@(path,name) fullfile(path,name), ...
     {histology_dir.folder},{histology_dir.name},'uni',false);
-[~,sort_idx] = natsortfiles(histology_filenames);
+[~,sort_idx] = ap_histology.natsort(histology_filenames);
 
 histology_im = cell(size(histology_dir));
 for curr_im = 1:length(sort_idx)

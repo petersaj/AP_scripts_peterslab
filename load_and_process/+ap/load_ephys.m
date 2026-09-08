@@ -128,9 +128,9 @@ template_chan_amp = squeeze(range(templates,2));
 template_chan_amp_thresh = max(template_chan_amp,[],2)*0.5;
 template_chan_amp_overthresh = template_chan_amp.*(template_chan_amp >= template_chan_amp_thresh);
 % (get tip distance center-of-mass on thresholded channel amplitudes)
-template_tipdist = sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2);
+template_tipdist = (sum(template_chan_amp_overthresh.*channel_positions(:,2)',2)./sum(template_chan_amp_overthresh,2))/1000;
 % (get shank for each unit)
-shank_spacing = 250;
+shank_spacing = 0.25;
 shank_borders = (0:4)*shank_spacing-shank_spacing/2;
 template_xpos = sum(template_chan_amp_overthresh.*channel_positions(:,1)',2)./sum(template_chan_amp_overthresh,2);
 template_shanks = discretize(template_xpos,shank_borders);
@@ -224,7 +224,9 @@ flipper_times_ephys = ...
 % figure; hold on;
 % plot((timelite.timestamps-timelite.timestamps(1))+ephys_timelite_flipper_lag,flipper_thresh);
 % plot(open_ephys_flipper_trace_t,open_ephys_flipper_trace+1.2);
-% plot(open_ephys_ttl.timestamps(short_ephys_flips),2.2,'.r','MarkerSize',20);
+% if ~isempty(short_ephys_flips)
+%     plot(open_ephys_ttl.timestamps(short_ephys_flips),2.2,'.r','MarkerSize',20);
+% end
 % ylim([-1,2.5]);
 % legend({'Timelite','Ephys'})
 
