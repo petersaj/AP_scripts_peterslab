@@ -207,11 +207,13 @@ use_animals = true(size(animals));
 vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 
+plot_v_stim = 2;
 v_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,1}),responsive_units_all(use_animals,str_ap),'uni',false)));
-[~,v_sort_idx] = sort(nanmean(vis_psth_cat(v_units_cat,500:700,3),2));
+[~,v_sort_idx] = sort(nanmean(vis_psth_cat(v_units_cat,500:700,plot_v_stim),2));
 
+plot_a_stim = 2;
 a_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,2}),responsive_units_all(use_animals,str_ap),'uni',false)));
-[~,a_sort_idx] = sort(nanmean(aud_psth_cat(a_units_cat,500:700,2),2));
+[~,a_sort_idx] = sort(nanmean(aud_psth_cat(a_units_cat,500:700,plot_a_stim),2));
 
 figure; colormap(AP_colormap('BWR'));
 h = tiledlayout(2,2);
@@ -235,6 +237,20 @@ nexttile;
 imagesc(aud_psth_cat(a_units_cat(a_sort_idx),:,2));
 clim([-10,10]);
 title('Aud (A units)')
+
+% Plot V PSTH A/P
+figure; tiledlayout(1,2);
+for str_ap = 1:2
+
+    vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
+
+    plot_v_stim = 3;
+    [~,max_idx] = max(vis_psth_cat(:,:,plot_v_stim),[],2);
+    [~,sort_idx] = sort(max_idx);
+    nexttile;imagesc(vis_psth_cat(sort_idx,:,plot_v_stim));
+    clim([-5,5]);
+    colormap(AP_colormap('BWR'));
+end
 
 
 % Plot PSTHs for V/A units during V/A stim

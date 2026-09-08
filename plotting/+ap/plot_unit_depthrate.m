@@ -116,7 +116,7 @@ end
 % (change x-values to be normalized by shank)
 shank_spacing = 0.25;
 shank_borders = (0:4)*shank_spacing-shank_spacing/2;
-channel_shanks = discretize(channel_positions(:,1),shank_borders);
+channel_shanks = discretize(channel_positions(:,1)/1000,shank_borders);
 
 for curr_shank = reshape(plot_shank,1,[])
     plot(shank_axes(curr_shank),shank_xoffset(curr_shank)+0.1, ...

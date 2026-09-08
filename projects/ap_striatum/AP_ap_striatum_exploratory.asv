@@ -2,7 +2,7 @@
 % some kind of iteration of comparing A/P striatum in naive, 2-stim
 % learning, appetitive/aversive learning
 
-%% DS AV posterior striatum: plot recording locations
+%% DS AV: plot recording locations
 
 % Animals that had posterior recordings + learned visual
 animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
@@ -29,7 +29,7 @@ for curr_animal = 1:length(animals)
     ccf_draw.draw_probes_nte(animal,probe_color);
 end
 
-%% DS AV posterior striatum: plot recording locations
+%% DS AV: plot responsive units
 
 % Animals that had posterior recordings + learned visual
 animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
@@ -174,8 +174,8 @@ for curr_animal = 1:length(animals)
                 responsive_units = event_response_p > 0.95;
 
                 % Get striatum templates
-                striatum_idx = strcmp(probe_areas{1}.name,'Caudoputamen');
-                striatum_depth = prctile(probe_areas{1}.tip_distance(striatum_idx,:),[0,100],'all');
+                striatum_idx = strcmp(probe_areas.name,'Caudoputamen');
+                striatum_depth = prctile(probe_areas.tip_distance(striatum_idx,:),[0,100],'all');
                 striatum_templates = isbetween(template_tipdist,striatum_depth(1),striatum_depth(2));
 
                 % Store unit PSTHs and responsive units (striatum units only)
@@ -207,11 +207,13 @@ use_animals = true(size(animals));
 vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 aud_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,2}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
 
+plot_v_stim = 2;
 v_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,1}),responsive_units_all(use_animals,str_ap),'uni',false)));
-[~,v_sort_idx] = sort(nanmean(vis_psth_cat(v_units_cat,500:700,3),2));
+[~,v_sort_idx] = sort(nanmean(vis_psth_cat(v_units_cat,500:700,plot_v_stim),2));
 
+plot_a_stim = 2;
 a_units_cat = find(cell2mat(cellfun(@(x) vertcat(x{:,2}),responsive_units_all(use_animals,str_ap),'uni',false)));
-[~,a_sort_idx] = sort(nanmean(aud_psth_cat(a_units_cat,500:700,2),2));
+[~,a_sort_idx] = sort(nanmean(aud_psth_cat(a_units_cat,500:700,plot_a_stim),2));
 
 figure; colormap(AP_colormap('BWR'));
 h = tiledlayout(2,2);
@@ -235,6 +237,20 @@ nexttile;
 imagesc(aud_psth_cat(a_units_cat(a_sort_idx),:,2));
 clim([-10,10]);
 title('Aud (A units)')
+
+% Plot V PSTH A/P
+figure; tiledlayout(1,2);
+for str_ap = 1:2
+
+    vis_psth_cat = cell2mat(cellfun(@(x) vertcat(x{:,1}),unit_psth_all_norm(use_animals,str_ap),'uni',false));
+
+    plot_v_stim = 3;
+    [~,max_idx] = max(vis_psth_cat(:,:,plot_v_stim),[],2);
+    [~,sort_idx] = sort(max_idx);
+    nexttile;imagesc(vis_psth_cat(sort_idx,:,plot_v_stim));
+    clim([-5,5]);
+    colormap(AP_colormap('BWR'));
+end
 
 
 % Plot PSTHs for V/A units during V/A stim
@@ -276,7 +292,7 @@ unit_color(~any(unit_color,2),:) = 0.5;
 unit_size = max(1,10*nanmean(vis_psth_cat(:,500:700,3),2));
 
 % Plot units on ccf (colored responsive, scaled by response, jittered x/y)
-ap.ccf_outline_3d([],[],["brain","caudoputamen"]);
+ap.ccf_outline_3d([],["brain","caudoputamen"]);
 
 xy_jitter = 20;
 scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
@@ -417,7 +433,7 @@ unit_color(~any(unit_color,2),:) = 0.5;
 unit_size = max(1,2*nanmean(unit_psth_cat_norm(:,200:400,3),2));
 
 % Plot units on ccf (colored responsive, scaled by response, jittered x/y)
-ap.ccf_outline_3d([],[],["brain","caudoputamen"]);
+ap.ccf_outline_3d([],["brain","CP","GPe","RT"]);
 
 xy_jitter = 20;
 scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
