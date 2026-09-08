@@ -79,8 +79,9 @@ end
 area_rectangles = cell(n_shanks,1);
 if exist('probe_areas','var')
     for curr_shank = reshape(plot_shank,1,[])
+        shank_idx = curr_shank==plot_shank;
 
-        hold(shank_axes(curr_shank),'on');
+        hold(shank_axes(shank_idx),'on');
         
         % Get areas on current shank
         curr_shank_areas = find(probe_areas.probe_shank==curr_shank);
@@ -97,12 +98,12 @@ if exist('probe_areas','var')
         end
 
         % Label area centers
-        text(shank_axes(curr_shank), ...
-            repelem(shank_xoffset(curr_shank),length(curr_shank_areas),1), ...
+        text(shank_axes(shank_idx), ...
+            repelem(shank_xoffset(shank_idx),length(curr_shank_areas),1), ...
             probe_areas.tip_distance(curr_shank_areas,1), ...
             probe_areas.acronym(curr_shank_areas));
 
-        set(shank_axes(curr_shank),'YTick',0:0.5:max(probe_areas.tip_distance,[],'all'));
+        set(shank_axes(shank_idx),'YTick',0:0.5:max(probe_areas.tip_distance,[],'all'));
     end
 end
 
@@ -119,7 +120,8 @@ shank_borders = (0:4)*shank_spacing-shank_spacing/2;
 channel_shanks = discretize(channel_positions(:,1)/1000,shank_borders);
 
 for curr_shank = reshape(plot_shank,1,[])
-    plot(shank_axes(curr_shank),shank_xoffset(curr_shank)+0.1, ...
+    shank_idx = curr_shank==plot_shank;
+    plot(shank_axes(shank_idx),shank_xoffset(shank_idx)+0.1, ...
         channel_positions(channel_shanks == curr_shank,2)/1000, ...
         'squarek','MarkerSize',5);
 end
