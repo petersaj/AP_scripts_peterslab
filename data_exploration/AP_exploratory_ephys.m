@@ -841,7 +841,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'AP018'};
+animals = {'DS004'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
@@ -850,7 +850,7 @@ for curr_animal = 1:length(animals)
     if exist(histology_path,'dir')
 
         histology_dir = dir(fullfile(histology_path,'**','slice_*.tif'));
-        [~,sort_idx] = natsortfiles({histology_dir.name});
+        [~,sort_idx] = ap_histology.natsortfiles({histology_dir.name});
         
         histology_im = cell(length(histology_dir),1);
         for curr_slice = 1:length(histology_dir)
@@ -870,7 +870,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'DS038';
+animal = 'DS001';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');
@@ -921,19 +921,6 @@ im_montage_rgb = min(sum(cell2mat(arrayfun(@(chan) ...
 figure;image(im_montage_rgb);axis image off;
 title(animal);
 
-%% Histology scroller (ODESN'T WORK - OLD?)
-
-animal = 'AP033';
-
-
-% (pre-SMZ)
-% histology_path = plab.locations.filename('server',animal,[],[],'histology','raw_combined');
-% (SMZ)
-histology_path = plab.locations.filename('server',animal,[],[],'histology','raw');
-
-
-% Histology scroller
-ap_histology.histology_scroll(histology_path)
 
 
 

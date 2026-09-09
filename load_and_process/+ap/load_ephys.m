@@ -345,7 +345,7 @@ end
 % - If `probe_depth` instead of `tip_distance`, calculate
 if ~any(strcmp(probe_areas.Properties.VariableNames,'tip_distance')) && ...
         any(strcmp(probe_areas.Properties.VariableNames,'probe_depth'))
-    probe_areas.tip_distance = 3840 - probe_areas.probe_depth;
+    probe_areas.tip_distance = 3.840 - probe_areas.probe_depth/1000;
 end
 % - if no `probe_shank`, add 1's
 if ~any(strcmp(probe_areas.Properties.VariableNames,'probe_shank'))
