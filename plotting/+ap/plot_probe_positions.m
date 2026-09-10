@@ -104,7 +104,8 @@ if plot_histology
                 'linewidth',2,'color','r')
 
             % Get recording date, if mapped
-            if isfield(AP_histology_processing.annotation,'ephys_path')
+            if isfield(AP_histology_processing.annotation,'ephys_path') && ...
+                    ~isempty(AP_histology_processing.annotation(curr_probe).ephys_path)
                 date_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
                 rec_label = " > " + string(extract(AP_histology_processing.annotation(curr_probe).ephys_path,date_pattern));
             else

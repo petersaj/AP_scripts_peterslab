@@ -841,7 +841,7 @@ colormap(AP_colormap('BWR'));
 
 %% Grab and plot histology pictures (pre-SMZ)
 
-animals = {'DS004'};
+animals = {'AP022'};
 
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
