@@ -303,7 +303,38 @@ scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
 %% Spatial with PG data (prelim test)
 
 % Animals that had posterior recordings + learned visual
-animals = {'PG001','PG003','PG006','PG007','PG008','PG009'};
+
+% (PG)
+animals = {'PG006','PG008','PG009'};
+
+% % (DS)
+% animals = {'AP022','DS011','DS007','DS010', ...
+%     'AP020','AP018', ...
+%     'AP021'};
+
+use_recs = cell(size(animals));
+for curr_animal = 1:length(animals)
+    animal = animals{curr_animal};
+
+    histology_filepattern = plab.locations.filename('server',animal,[],[], ...
+        'histology','**','AP_histology_processing.mat');
+    histology_dir = dir(histology_filepattern);
+    if ~isempty(histology_dir)
+        histology_filename = fullfile(histology_dir.folder,histology_dir.name);
+    end
+
+    % Get days with mapped posterior recordings
+    load(histology_filename)
+
+    ap_thresh = 600;
+    ap_annotation = cellfun(@(x) any(vertcat(x.ap) > ap_thresh), ...
+        {AP_histology_processing.annotation.vertices_ccf});
+
+    day_pattern = digitsPattern(4) + '-' + digitsPattern(2) + '-' + digitsPattern(2);
+    rec_days = unique(extract({AP_histology_processing.annotation(ap_annotation).ephys_path},day_pattern));
+
+    use_recs{curr_animal} = rec_days;
+end
 
 % Set times for PSTH
 raster_window = [-0.2,0.8];
@@ -316,22 +347,14 @@ unit_ccf_all = cell(length(animals),1);
 unit_psth_all = cell(length(animals),1);
 responsive_units_all = cell(length(animals),1);
 for curr_animal = 1:length(animals)
+    for curr_day = 1:length(use_recs{curr_animal})
 
-    % Load data
-    animal = animals{curr_animal};
-    % workflow = 'lcr_passive_corner*';
-    workflow = 'lcr_passive_size60';
-    recordings = plab.find_recordings(animal,[],workflow);
-    recordings = recordings([recordings.ephys]>0);
+        % Load data
+        animal = animals{curr_animal};
+        rec_day = use_recs{curr_animal}{curr_day};
+        workflow = 'lcr_passive*';
+        rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
-    if isempty(recordings)
-        continue
-    end
-
-    for curr_day = 1:length(recordings)
-
-        rec_day = recordings(curr_day).day;
-        rec_time = recordings(curr_day).recording{end};
         ap.load_recording;
 
         % Get quiescent trials
@@ -397,9 +420,22 @@ for curr_animal = 1:length(animals)
         responsive_units = event_response_p > 0.95;
 
         % Store unit PSTHs and responsive units (striatum units only)
-        unit_ccf_all{curr_animal}{curr_day} = template_ccf;
-        unit_psth_all{curr_animal}{curr_day} = unit_psth;
-        responsive_units_all{curr_animal}{curr_day} = responsive_units;
+        striatum_probe_area_idx = find(strcmp(probe_areas.acronym,'CP'));
+
+        arrayfun(@(x) ...
+            isbetween(template_tipdist,probe_areas.tip_distance(x,2),probe_areas.tip_distance(x,1)) & ...
+            template_shanks == probe_areas.probe_shank(x), ...
+            striatum_probe_area_idx,'uni',false)
+
+
+        striatum_tipdist = probe_areas.tip_distance(strcmp(probe_areas.acronym,'CP'),:);
+        striatal_templates = any(cell2mat(arrayfun(@(x) ...
+            isbetween(template_tipdist,striatum_tipdist(x,1),striatum_tipdist(x,2)), ...
+            1:size(striatum_tipdist,1),'uni',false)),2);
+
+        unit_ccf_all{curr_animal}{curr_day} = template_ccf(striatal_templates,:);
+        unit_psth_all{curr_animal}{curr_day} = unit_psth(striatal_templates,:);
+        responsive_units_all{curr_animal}{curr_day} = responsive_units(striatal_templates);
 
     end
     ap.print_progress_fraction(curr_animal,length(animals));
@@ -408,19 +444,23 @@ end
 
 
 % Smooth and normalize PSTH data
-unit_psth_cat_smooth = smoothdata(cell2mat(horzcat(unit_psth_all{:})'),2,'gaussian',100);
+unit_psth_cat_smooth = smoothdata(cell2mat(cellfun(@(x) x(:,:,end),horzcat(unit_psth_all{:}),'uni',false)'),2,'gaussian',100);
 
 softnorm = 1;
-unit_psth_cat_norm = unit_psth_cat_smooth-nanmean(unit_psth_cat_smooth(:,1:200,:),[2,3])./ ...
+unit_psth_cat_norm = (unit_psth_cat_smooth-nanmean(unit_psth_cat_smooth(:,1:200,:),[2,3]))./ ...
     (nanmean(unit_psth_cat_smooth(:,1:200,:),[2,3])+softnorm);
 
 responsive_units_cat = cell2mat(horzcat(responsive_units_all{:})');
 responsive_units_ind = find(responsive_units_cat);
 
-[~,sort_idx] = sort(nanmean(unit_psth_cat_norm(responsive_units_cat,200:400,3),2));
+% % (sort amplitude)
+% [~,sort_idx] = sort(nanmean(unit_psth_cat_norm(responsive_units_cat,200:400),2));
+% (sort time)
+[~,max_idx] = max(unit_psth_cat_norm(responsive_units_cat,200:400),[],2);
+[~,sort_idx] = sort(max_idx);
 
 figure;
-imagesc(unit_psth_cat_norm(responsive_units_ind(sort_idx),:,3));
+imagesc(t_centers,[],unit_psth_cat_norm(responsive_units_ind(sort_idx),:));
 clim([-10,10]);
 title('Vis (V units)')
 colormap(AP_colormap('BWR'));
@@ -430,7 +470,7 @@ unit_ccf_cat = cell2mat(horzcat(unit_ccf_all{:})');
 
 unit_color = padarray(+responsive_units_cat,[0,2],0,'pre');
 unit_color(~any(unit_color,2),:) = 0.5;
-unit_size = max(1,2*nanmean(unit_psth_cat_norm(:,200:400,3),2));
+unit_size = max(1,2*nanmean(unit_psth_cat_norm(:,200:400),2));
 
 % Plot units on ccf (colored responsive, scaled by response, jittered x/y)
 ap.ccf_outline_3d([],["brain","CP","GPe","RT"]);
@@ -439,5 +479,7 @@ xy_jitter = 20;
 scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
     unit_ccf_cat(:,3)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
     unit_ccf_cat(:,2),unit_size,unit_color,'filled','MarkerFaceAlpha',0.5);
+
+
 
 
