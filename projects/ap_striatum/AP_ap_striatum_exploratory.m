@@ -427,7 +427,7 @@ for curr_animal = 1:length(animals)
             striatum_probe_area_idx,'uni',false)'),2);
 
         unit_ccf_all{curr_animal}{curr_day} = template_ccf(striatal_templates,:);
-        unit_psth_all{curr_animal}{curr_day} = unit_psth(striatal_templates,:);
+        unit_psth_all{curr_animal}{curr_day} = unit_psth(striatal_templates,:,:);
         responsive_units_all{curr_animal}{curr_day} = responsive_units(striatal_templates);
 
     end
