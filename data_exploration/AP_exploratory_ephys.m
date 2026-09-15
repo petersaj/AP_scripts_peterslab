@@ -1111,5 +1111,19 @@ end
 linkaxes(h.Children);
 title(h,sprintf('%s: %s',animal,use_workflow),'interpreter','none');
 
+%% Ephys adjustments for all mapped recordings
 
+animal = 'HA019';
+
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_dir = dir(histology_filepattern);
+load(fullfile(histology_dir.folder,histology_dir.name));
+
+day_pattern = digitsPattern(4)+'-'+digitsPattern(2)+'-'+digitsPattern(2);
+mapped_paths = {AP_histology_processing.annotation.ephys_path};
+ephys_mapped_days = unique(extract(mapped_paths(~cellfun(@isempty,mapped_paths)),day_pattern));
+
+for curr_day = ephys_mapped_days
+    plab.histology.adjust_probe_areas(animal,curr_day{1});
+end
 

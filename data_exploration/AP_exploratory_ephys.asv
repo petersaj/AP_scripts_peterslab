@@ -58,39 +58,6 @@ clim([0,max(binned_spikes_depth_smooth,[],'all')*0.5])
 %     xline(stimOn_times(stim_azimuth == 90),'r');
 % end
 
-%% MUA correlelogram
-
-% Get correlation of MUA in sliding windows
-depth_corr_window = 50; % MUA window in microns
-depth_corr_window_spacing = 20; % MUA window spacing in microns
-
-max_depths = 3840; % (hardcode, sometimes kilosort drops channels)
-
-depth_corr_bins = [0:depth_corr_window_spacing:(max_depths-depth_corr_window); ...
-    (0:depth_corr_window_spacing:(max_depths-depth_corr_window))+depth_corr_window];
-depth_corr_bin_centers = depth_corr_bins(1,:) + diff(depth_corr_bins,[],1)/2;
-
-spike_binning_t = 0.05; % seconds
-spike_binning_t_edges = nanmin(spike_times_timelite):spike_binning_t:nanmax(spike_times_timelite);
-
-binned_spikes_depth = zeros(size(depth_corr_bins,2),length(spike_binning_t_edges)-1);
-for curr_depth = 1:size(depth_corr_bins,2)
-    curr_depth_templates_idx = ...
-        find(template_tipdist >= depth_corr_bins(1,curr_depth) & ...
-        template_tipdist < depth_corr_bins(2,curr_depth));
-    
-    binned_spikes_depth(curr_depth,:) = histcounts(spike_times_timelite( ...
-        ismember(spike_templates,curr_depth_templates_idx)),spike_binning_t_edges);
-end
-
-mua_corr = corrcoef(binned_spikes_depth');
-
-figure;
-imagesc(depth_corr_bin_centers,depth_corr_bin_centers,mua_corr);
-axis image;
-clim([-1,1].*0.5);
-colormap(ap.colormap('BWR'))
-set(gca,'YDir','normal','XDir','reverse');
 
 %% MUA correlelogram
 
@@ -169,7 +136,7 @@ elseif contains(bonsai_workflow,'stim_wheel')
         {trial_sort_idx,trial_sort_idx,iti_move_sortidx,reward_sort_idx});
 end
 
-set(gcf,'Name',sprintf('%s, %s',animal,rec_day));
+set(gcf,'Name',sprintf('%s, %s, %s (%s)',animal,rec_day,rec_time,bonsai_workflow));
 
 
 %% PSTH - units
@@ -262,7 +229,7 @@ event_response_p = event_response_rank(:,1)./(n_shuff+1);
 
 % Plot responsive units by depth
 unit_handles = ap.plot_unit_depthrate([],false);
-unit_handles.dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
+unit_handles.unit_dots.CData = +([1,0,0].*(event_response_p > 0.95)) + ([0,0,1].*(event_response_p < 0.05));
 
 % Plot rasters of responsive units (from above - if done)
 psth_use_t = unit_psth_t >= response_t(1) & unit_psth_t <= response_t(2);
@@ -883,7 +850,7 @@ for curr_animal = 1:length(animals)
     if exist(histology_path,'dir')
 
         histology_dir = dir(fullfile(histology_path,'**','slice_*.tif'));
-        [~,sort_idx] = natsortfiles({histology_dir.name});
+        [~,sort_idx] = ap_histology.natsortfiles({histology_dir.name});
         
         histology_im = cell(length(histology_dir),1);
         for curr_slice = 1:length(histology_dir)
@@ -903,7 +870,7 @@ end
 
 %% Grab and plot histology pictures (SMZ)
 
-animal = 'AP033';
+animal = 'DS001';
 
 % Just load all images
 histology_path = plab.locations.filename('server',animal,[],[],'histology');
@@ -911,7 +878,7 @@ histology_dir = dir(fullfile(histology_path,'*.tif'));
 
 histology_filenames = cellfun(@(path,name) fullfile(path,name), ...
     {histology_dir.folder},{histology_dir.name},'uni',false);
-[~,sort_idx] = natsortfiles(histology_filenames);
+[~,sort_idx] = ap_histology.natsort(histology_filenames);
 
 histology_im = cell(size(histology_dir));
 for curr_im = 1:length(sort_idx)
@@ -954,19 +921,6 @@ im_montage_rgb = min(sum(cell2mat(arrayfun(@(chan) ...
 figure;image(im_montage_rgb);axis image off;
 title(animal);
 
-%% Histology scroller (ODESN'T WORK - OLD?)
-
-animal = 'AP033';
-
-
-% (pre-SMZ)
-% histology_path = plab.locations.filename('server',animal,[],[],'histology','raw_combined');
-% (SMZ)
-histology_path = plab.locations.filename('server',animal,[],[],'histology','raw');
-
-
-% Histology scroller
-ap_histology.histology_scroll(histology_path)
 
 
 
@@ -1157,5 +1111,18 @@ end
 linkaxes(h.Children);
 title(h,sprintf('%s: %s',animal,use_workflow),'interpreter','none');
 
+%% Ephys adjustments for all mapped recordings
 
+animal = 'HA018';
+
+histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
+histology_dir = dir(histology_filepattern);
+load(fullfile(histology_dir.folder,histology_dir.name));
+
+day_pattern = digitsPattern(4)+'-'+digitsPattern(2)+'-'+digitsPattern(2);
+ephys_mapped_days = unique(extract({AP_histology_processing.annotation.ephys_path},day_pattern));
+
+for curr_day = ephys_mapped_days
+    plab.histology.adjust_probe_areas(animal,curr_day{1});
+end
 

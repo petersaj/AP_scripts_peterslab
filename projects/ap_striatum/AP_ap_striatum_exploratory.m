@@ -2,7 +2,7 @@
 % some kind of iteration of comparing A/P striatum in naive, 2-stim
 % learning, appetitive/aversive learning
 
-%% DS AV: plot recording locations
+%% DS AV: plot recording locations (histology)
 
 % Animals that had posterior recordings + learned visual
 animals = {'AP022','DS007','DS010','DS011', ... % V-A, performed both
@@ -26,7 +26,10 @@ ccf_draw.draw_name('Caudoputamen');
 for curr_animal = 1:length(animals)
     animal = animals{curr_animal};
     probe_color = animal_col(curr_animal,:);
-    ccf_draw.draw_probes_nte(animal,probe_color);
+    try
+        ccf_draw.draw_probes_histology(animal,probe_color);
+        drawnow;
+    end
 end
 
 %% DS AV: plot responsive units
@@ -300,17 +303,17 @@ scatter3(unit_ccf_cat(:,1)+rand(size(unit_ccf_cat,1),1)*xy_jitter, ...
     unit_ccf_cat(:,2),unit_size,unit_color,'filled','MarkerFaceAlpha',0.5);
 
 
-%% Spatial with PG data (prelim test)
+%% Spatial visual responses (prelim test)
 
 % Animals that had posterior recordings + learned visual
 
-% (PG)
-animals = {'PG006','PG008','PG009'};
+% % (PG)
+% animals = {'PG006','PG008','PG009'};
 
-% % (DS)
-% animals = {'AP022','DS011','DS007','DS010', ...
-%     'AP020','AP018', ...
-%     'AP021'};
+% (DS)
+animals = {'AP022','DS011','DS007','DS010', ...
+    'AP020','AP018', ...
+    'AP021'};
 
 use_recs = cell(size(animals));
 for curr_animal = 1:length(animals)
@@ -420,7 +423,8 @@ for curr_animal = 1:length(animals)
         responsive_units = event_response_p > 0.95;
 
         % Store unit PSTHs and responsive units (striatum units only)
-        striatum_probe_area_idx = find(strcmp(probe_areas.acronym,'CP'));
+        % striatum_probe_area_idx = find(strcmp(probe_areas.acronym,'CP'));
+        striatum_probe_area_idx = find(strcmp(probe_areas.acronym,'GPe'));
         striatal_templates = any(cell2mat(arrayfun(@(x) ...
             isbetween(template_tipdist,probe_areas.tip_distance(x,2),probe_areas.tip_distance(x,1)) & ...
             template_shanks == probe_areas.probe_shank(x), ...
