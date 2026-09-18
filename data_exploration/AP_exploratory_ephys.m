@@ -1113,7 +1113,7 @@ title(h,sprintf('%s: %s',animal,use_workflow),'interpreter','none');
 
 %% Ephys adjustments for all mapped recordings
 
-animal = 'HA019';
+animal = 'AP037';
 
 histology_filepattern = plab.locations.filename('server',animal,[],[],'histology','**','AP_histology_processing.mat');
 histology_dir = dir(histology_filepattern);

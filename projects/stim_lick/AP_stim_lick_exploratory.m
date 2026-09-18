@@ -210,7 +210,7 @@ xline(lick_stim,'r');
 %%% (e.g. if actual quiescence was 0.2 and alt was 1.8, +0.5s from actual
 %%% might run into real reward time)
 
-%% Lick raster (move/static)
+%% Lick raster (move or static)
 
 % Get trial parameters
 n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));

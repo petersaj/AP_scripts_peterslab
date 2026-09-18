@@ -481,23 +481,23 @@ lick_cs_plus = num2cell(ap.groupfun(@mean,stim_lick_cat(stim_x_cat == 90),rec_id
 lick_cs_minus = num2cell(ap.groupfun(@mean,stim_lick_cat(stim_x_cat == -90),rec_idx(stim_x_cat == -90)));
 lick_discrim_idx = cellfun(@(cs_p,cs_m) (cs_p-cs_m)./(cs_p+cs_m),lick_cs_plus,lick_cs_minus,'uni',false);
 
-% % Significance
-% n_shuff = 10000;
-% lick_discrim_idx_shuff = nan(length(lick_discrim_idx),n_shuff);
-% 
-% for curr_shuff = 1:n_shuff
-%     stim_x_cat_shuff = ap.shake(stim_x_cat,1,rec_idx);
-% 
-%     lick_cs_plus_shuff = ap.groupfun(@mean,stim_lick_cat(stim_x_cat_shuff == 90),rec_idx(stim_x_cat_shuff == 90));
-%     lick_cs_minus_shuff = ap.groupfun(@mean,stim_lick_cat(stim_x_cat_shuff == -90),rec_idx(stim_x_cat_shuff == -90));
-% 
-%     lick_discrim_idx_shuff(:,curr_shuff) = (lick_cs_plus_shuff-lick_cs_minus_shuff)./(lick_cs_plus_shuff+lick_cs_minus_shuff);
-%     ap.print_progress_fraction(curr_shuff,n_shuff);
-% end
-% 
-% lick_discrim_idx_rank = tiedrank([cell2mat(lick_discrim_idx),lick_discrim_idx_shuff]')';
-% lick_discrim_idx_p = 1-(lick_discrim_idx_rank(:,1)/(n_shuff+1));
-% lick_discrim = num2cell(lick_discrim_idx_p < 0.01);
+% Significance
+n_shuff = 10000;
+lick_discrim_idx_shuff = nan(length(lick_discrim_idx),n_shuff);
+
+for curr_shuff = 1:n_shuff
+    stim_x_cat_shuff = ap.shake(stim_x_cat,1,rec_idx);
+
+    lick_cs_plus_shuff = ap.groupfun(@mean,stim_lick_cat(stim_x_cat_shuff == 90),rec_idx(stim_x_cat_shuff == 90));
+    lick_cs_minus_shuff = ap.groupfun(@mean,stim_lick_cat(stim_x_cat_shuff == -90),rec_idx(stim_x_cat_shuff == -90));
+
+    lick_discrim_idx_shuff(:,curr_shuff) = (lick_cs_plus_shuff-lick_cs_minus_shuff)./(lick_cs_plus_shuff+lick_cs_minus_shuff);
+    ap.print_progress_fraction(curr_shuff,n_shuff);
+end
+
+lick_discrim_idx_rank = tiedrank([cell2mat(lick_discrim_idx),lick_discrim_idx_shuff]')';
+lick_discrim_idx_p = 1-(lick_discrim_idx_rank(:,1)/(n_shuff+1));
+lick_discrim = num2cell(lick_discrim_idx_p < 0.01);
 
 % Save into structure
 [bhv(data_idx).lick_cs_plus] = deal(lick_cs_plus{:});
@@ -828,6 +828,7 @@ data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
 
 load(fullfile(data_path,'bhv.mat'));
 load(fullfile(data_path,'wf_passive.mat'));
+animals = vertcat(wf_passive(:,1).animal);
 
 % HACKY - FOR NOW: match wf_passive to wf_task
 wf_passive_subset = repmat(wf_passive(end,end),size(bhv));
@@ -867,13 +868,13 @@ axis image;
 
 % Create indicies for task type
 % (first task either small or big move, before any switch)
-workflow_grid = reshape(string(cellfun(@char,{wf_task.workflow},'uni',false)),size(bhv));
+workflow_grid = reshape(string(cellfun(@char,{wf_passive.workflow},'uni',false)),size(bhv));
 task_switch = padarray(workflow_grid(:,2:end)~=workflow_grid(:,1:end-1),[0,1],0,'pre');
 task_v1_idx = cumsum(task_switch,2)==0;
 task_v2_idx = cumsum(task_switch,2)==1;
 % (move/static)
-move_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"move"),size(bhv));
-static_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"static"),size(bhv));
+move_task_idx = reshape(contains(string(cellfun(@char,{wf_passive.workflow},'uni',false)),"move"),size(bhv));
+static_task_idx = reshape(contains(string(cellfun(@char,{wf_passive.workflow},'uni',false)),"static"),size(bhv));
 % (learning)
 learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 
@@ -888,13 +889,13 @@ axis image off
 
 
 % Looking for mPFC+/-
-stim_kernel_animal_postlearn = arrayfun(@(x) ...
-    nanmean(cat(4,wf_passive(x,move_task_idx(x,:) & learn_idx(x,:)).stim_kernel),4), ...
-    1:size(wf_passive,1),'uni',false);
-
 % stim_kernel_animal_postlearn = arrayfun(@(x) ...
-%     nanmean(cat(4,wf_passive(x,find(move_task_idx(x,:) & learned_idx(x,:),2,'last')).stim_kernel),4), ...
+%     nanmean(cat(4,wf_passive(x,move_task_idx(x,:) & learned_idx(x,:)).stim_kernel),4), ...
 %     1:size(wf_passive,1),'uni',false);
+
+stim_kernel_animal_postlearn = arrayfun(@(x) ...
+    nanmean(cat(4,wf_passive(x,find(move_task_idx(x,:) & learned_idx(x,:),2,'last')).stim_kernel),4), ...
+    1:size(wf_passive,1),'uni',false);
 
 stim_kernel_animal_postlearn_px = cellfun(@(x) plab.wf.svd2px(wf_U,x), ...
     stim_kernel_animal_postlearn,'uni',false,'ErrorHandler',@(varargin) []);
@@ -988,13 +989,13 @@ axis image;
 
 % Create indicies for task type
 % (first task either small or big move, before any switch)
-workflow_grid = reshape(string(cellfun(@char,{wf_task.workflow},'uni',false)),size(bhv));
+workflow_grid = reshape(string(cellfun(@char,{wf_passive.workflow},'uni',false)),size(bhv));
 task_switch = padarray(workflow_grid(:,2:end)~=workflow_grid(:,1:end-1),[0,1],0,'pre');
 task_v1_idx = cumsum(task_switch,2)==0;
 task_v2_idx = cumsum(task_switch,2)==1;
 % (move/static)
-move_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"move"),size(bhv));
-static_task_idx = reshape(contains(string(cellfun(@char,{wf_task.workflow},'uni',false)),"static"),size(bhv));
+move_task_idx = reshape(contains(string(cellfun(@char,{wf_passive.workflow},'uni',false)),"move"),size(bhv));
+static_task_idx = reshape(contains(string(cellfun(@char,{wf_passive.workflow},'uni',false)),"static"),size(bhv));
 % (learning)
 learned_idx = reshape(cellfun(@any,{bhv.lick_t_discrim}),size(bhv));
 

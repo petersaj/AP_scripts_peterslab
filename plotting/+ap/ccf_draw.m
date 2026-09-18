@@ -79,7 +79,7 @@ classdef ccf_draw < handle
 
         %% Plot probes
 
-        function obj = draw_probes_nte(obj,animal,probe_color)
+        function draw_probes_nte(obj,animal,probe_color)
             % draw_probes_nte(obj,animal,probe_color)
             % Trajectory explorer probe position files
             nte_filepattern = plab.locations.filename('server',animal,'*',[],'ephys','**','*probe_positions*.mat');
@@ -96,7 +96,7 @@ classdef ccf_draw < handle
             end
         end
 
-        function obj = draw_probes_histology(obj,animal,probe_color)
+        function draw_probes_histology(obj,animal,probe_color)
             % draw_probes_histology(animal,probe_color)
 
             % Histology probe position files

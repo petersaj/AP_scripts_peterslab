@@ -828,6 +828,7 @@ data_path = "C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data";
 
 load(fullfile(data_path,'bhv.mat'));
 load(fullfile(data_path,'wf_passive.mat'));
+load(fullfile(data_path,'wf_task.mat'));
 
 % HACKY - FOR NOW: match wf_passive to wf_task
 wf_passive_subset = repmat(wf_passive(end,end),size(bhv));
@@ -888,8 +889,12 @@ axis image off
 
 
 % Looking for mPFC+/-
+% stim_kernel_animal_postlearn = arrayfun(@(x) ...
+%     nanmean(cat(4,wf_passive(x,move_task_idx(x,:) & learned_idx(x,:)).stim_kernel),4), ...
+%     1:size(wf_passive,1),'uni',false);
+
 stim_kernel_animal_postlearn = arrayfun(@(x) ...
-    nanmean(cat(4,wf_passive(x,move_task_idx(x,:) & learn_idx(x,:)).stim_kernel),4), ...
+    nanmean(cat(4,wf_passive(x,static_task_idx(x,:)).stim_kernel),4), ...
     1:size(wf_passive,1),'uni',false);
 
 % stim_kernel_animal_postlearn = arrayfun(@(x) ...

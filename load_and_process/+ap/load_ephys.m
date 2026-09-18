@@ -327,7 +327,7 @@ if ~isempty(histology_dir)
 end
 
 % Load NTE positions (if available)
-nte_positions_filename = dir(fullfile(erase(kilosort_path,[filesep,'kilosort4']),'**','*probe_positions*.mat'));
+nte_positions_filename = dir(fullfile(fileparts(kilosort_top_path),'**','*probe_positions*.mat'));
 if ~isempty(nte_positions_filename)
     probe_nte = load(fullfile(nte_positions_filename.folder,nte_positions_filename.name));
 end

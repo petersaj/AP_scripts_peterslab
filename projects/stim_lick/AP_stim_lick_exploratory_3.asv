@@ -26,15 +26,11 @@ for curr_animal = 1:length(animals)
     recordings = plab.find_recordings(animal);
     ephys_start_idx = find([recordings.ephys],1);
 
-    % Use big task if present, small if not
-    task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
-    task_recordings = plab.find_recordings(animal,[],task_workflow);
-    if isempty(task_recordings)
-        task_workflow = 'visual_operant_lick_two_stim_static';
-        task_recordings = plab.find_recordings(animal,[],task_workflow);
-    end
+    % task_recordings = plab.find_recordings(animal,[],'visual*static*');
+    task_recordings = plab.find_recordings(animal,[],'visual*move*');
 
-    use_recordings = find(datetime({task_recordings.day}) < datetime({recordings(ephys_start_idx).day}));
+    % use_recordings = find(datetime({task_recordings.day}) < datetime({recordings(ephys_start_idx).day}));
+    use_recordings = find(datetime({task_recordings.day}) < datetime({recordings(ephys_start_idx).day}),2,'last');
 
     for curr_recording = 1:length(use_recordings)
 
@@ -149,9 +145,6 @@ end
 % (CS+ lick: concat)
 x = cellfun(@(x) mean(vertcat(x{:,1})),anticipatory_licks);
 
-% % (CS+ lick: avg)
-% x = cellfun(@(x) mean(cellfun(@mean,x(:,1))),anticipatory_licks);
-
 % % (discrimination)
 % x = cellfun(@(x) (mean(vertcat(x{:,1}))-mean(vertcat(x{:,2})))./(mean(vertcat(x{:,1}))+mean(vertcat(x{:,2}))),anticipatory_licks);
 
@@ -205,19 +198,9 @@ for curr_animal = 1:length(animals)
 
         % Load data
         animal = animals{curr_animal};
-
-        % % Use big task/passive if present, small if not
-        % task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
-        % task_recordings = plab.find_recordings(animal,[],task_workflow);
-        % if ~isempty(task_recordings)
-        %     passive_workflow = 'lcr_passive_corner_CS\+_big_stim';
-        % else
-        %     passive_workflow = 'lcr_passive_corner_CS\+';
-        % end
-        passive_workflow = 'lcr_passive_corner_CS\+_big_stim';
-
         rec_day = use_recs{curr_animal}{curr_day};
-        rec_time = plab.find_recordings(animal,rec_day,passive_workflow).recording{end};
+        workflow = 'lcr_passive_corner_CS\+_big_stim';
+        rec_time = plab.find_recordings(animal,rec_day,workflow).recording{end};
 
         ap.load_recording;
 
@@ -369,14 +352,7 @@ for curr_animal = 1:length(animals)
     recordings = plab.find_recordings(animal);
     ephys_start_idx = find([recordings.ephys],1);
 
-    % Use big task if present, small if not
-    task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
-    task_recordings = plab.find_recordings(animal,[],task_workflow);
-    if isempty(task_recordings)
-        task_workflow = 'visual_operant_lick_two_stim_static';
-        task_recordings = plab.find_recordings(animal,[],task_workflow);
-    end
-
+    task_recordings = plab.find_recordings(animal,[],'visual*static*');
     use_days = find((datetime({task_recordings.day}) < datetime({recordings(ephys_start_idx).day})) & ...
         cellfun(@any,{task_recordings.widefield}));
 
@@ -459,7 +435,6 @@ clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG',[],1.5));
 axis image
 
-
 %% widefield pre-ephys: passive
 
 animals = {'HA016','HA017','HA018','HA019','HA020','AP036','AP037'};
@@ -471,19 +446,16 @@ for curr_animal = 1:length(animals)
     recordings = plab.find_recordings(animal);
     ephys_start_idx = find([recordings.ephys],1);
 
-    % Use big task/passive if present, small if not
     task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
-    task_recordings = plab.find_recordings(animal,[],task_workflow);
-    if ~isempty(task_recordings)
-        passive_workflow = 'lcr_passive_corner_CS\+_big_stim';
-    else
-        task_workflow = 'visual_operant_lick_two_stim_static';
-        task_recordings = plab.find_recordings(animal,[],task_workflow);
-        passive_workflow = 'lcr_passive_corner_CS\+';
-    end
 
-    use_days = find((datetime({task_recordings.day}) < ...
-        datetime({recordings(ephys_start_idx).day})) & ...
+    task_workflow = 'visual_operant_lick_two_stim_static';
+    task_recordings = plab.find_recordings(animal,[],task_workflow);
+
+    'visual_operant_lick_two_stim_static'
+
+
+    task_recordings = plab.find_recordings(animal,[],'visual*static*');
+    use_days = find((datetime({task_recordings.day}) < datetime({recordings(ephys_start_idx).day})) & ...
         cellfun(@any,{task_recordings.widefield}));
 
     for curr_day = 1:length(use_days)
@@ -491,12 +463,16 @@ for curr_animal = 1:length(animals)
         % Set preload variables
         preload_vars = who;
 
-        rec_day = task_recordings(use_days(curr_day)).day;        
+        rec_day = task_recordings(use_days(curr_day)).day;
+
+        passive_workflow = 'lcr_passive_corner_CS\+_big_stim';
         rec_time = plab.find_recordings(animal,rec_day,passive_workflow).recording{end};
 
         load_parts.widefield = true;
         load_parts.widefield_master = true;
         ap.load_recording;
+
+        n_trials = sum(cellfun(@(x) length(x) == 2,{trial_events.timestamps.StimOn}));
 
         % Set parameters for regression
         time_bins = [wf_t;wf_t(end)+1/wf_framerate];
@@ -507,23 +483,39 @@ for curr_animal = 1:length(animals)
 
         skip_t = 60; % seconds start/end to skip for artifacts
         skip_frames = round(skip_t*wf_framerate);
+     
+        % Get stim on/move times  
+        trial_stim_x = vertcat(trial_events.values(1:n_trials).TrialX);
 
-        % Get stim kernels
-        stim_x = vertcat(trial_events.values.TrialStimX);
-        stim_x_unique = unique(stim_x);
+        if contains(bonsai_workflow,'move')
+            % Moving stim
+            % (photodiode CS- = on/off for CS+ = on,pulse on move,off)
+            stim_pd_n = (trial_stim_x == -90)*1 + (trial_stim_x == 90)*2;
+            stim_pd_on_grouped = mat2cell(photodiode_on_times(1:sum(stim_pd_n)),stim_pd_n);
+            stim_pd_off_grouped = mat2cell(photodiode_off_times(1:sum(stim_pd_n)),stim_pd_n);
 
-        n_trials = min(length(stimOn_times),length(stim_x));
+            stimOn_times = cellfun(@(x) x(1), stim_pd_on_grouped);
+            stim_move_times = cellfun(@(x) x(1), stim_pd_off_grouped);
 
-        stim_regressors = cell2mat(arrayfun(@(x) ...
-            histcounts(stimOn_times(stim_x(1:n_trials) == x),time_bins), ...
-            stim_x_unique,'uni',false));
+        elseif contains(bonsai_workflow,'static')
+            % Static stim
+            stimOn_times = photodiode_on_times(1:n_trials);          
+        end
 
-        kernels = ...
-            ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
+        % Set regressors
+        stim_regressors = zeros(0,length(time_bins)-1);
+        stim_regressors(1,:) = histcounts(stimOn_times(trial_stim_x == 90),time_bins);
+        stim_regressors(2,:) = histcounts(stimOn_times(trial_stim_x == -90),time_bins);
+        if contains(bonsai_workflow,'move')
+            stim_regressors(3,:) = histcounts(stim_move_times(trial_stim_x == 90),time_bins);
+        end
+      
+        % Get stim kernel
+        kernels = ap.regresskernel(wf_V(1:n_components,skip_frames:end-skip_frames), ...
             stim_regressors(:,skip_frames:end-skip_frames),-frame_shifts,lambda,[],cv_fold);
 
-        % Store (just 90deg stim)
-        wf_kernel{curr_animal}{curr_day} = kernels(:,:,stim_x_unique == 90);
+        % Store
+        wf_kernel{curr_animal}{curr_day} = kernels(:,:,1);
 
         % Clear load variables
         clearvars('-except',preload_vars{:});
@@ -535,8 +527,9 @@ n_components = 200;
 wf_U = plab.wf.load_master_U(n_components);
 
 data_path = 'C:\Users\petersa\Documents\PetersLab\analysis\stim_lick\data';
-data_filename = fullfile(data_path,'wf_kernel_passive_ck');
+data_filename = fullfile(data_path,'wf_kernel_task_ck');
 save(data_filename,'wf_kernel');
+
 
 px = plab.wf.svd2px(wf_U,cell2mat(permute(cellfun(@(x) ...
     mean(cat(3,x{:}),3),wf_kernel,'uni',false),[2,3,1])));
