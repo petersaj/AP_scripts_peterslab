@@ -26,13 +26,17 @@ for curr_animal = 1:length(animals)
     recordings = plab.find_recordings(animal);
     ephys_start_idx = find([recordings.ephys],1);
 
-    % Use big task if present, small if not
-    task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
+    % % Use big task if present, small if not
+    % task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
+    % task_recordings = plab.find_recordings(animal,[],task_workflow);
+    % if isempty(task_recordings)
+    %     task_workflow = 'visual_operant_lick_two_stim_static';
+    %     task_recordings = plab.find_recordings(animal,[],task_workflow);
+    % end
+    
+    % Use all static
+    task_workflow = 'visual*static*';
     task_recordings = plab.find_recordings(animal,[],task_workflow);
-    if isempty(task_recordings)
-        task_workflow = 'visual_operant_lick_two_stim_static';
-        task_recordings = plab.find_recordings(animal,[],task_workflow);
-    end
 
     use_recordings = find(datetime({task_recordings.day}) < datetime({recordings(ephys_start_idx).day}));
 
@@ -472,26 +476,35 @@ for curr_animal = 1:length(animals)
     ephys_start_idx = find([recordings.ephys],1);
 
     % Use big task/passive if present, small if not
-    task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
-    task_recordings = plab.find_recordings(animal,[],task_workflow);
-    if ~isempty(task_recordings)
-        passive_workflow = 'lcr_passive_corner_CS\+_big_stim';
-    else
-        task_workflow = 'visual_operant_lick_two_stim_static';
-        task_recordings = plab.find_recordings(animal,[],task_workflow);
-        passive_workflow = 'lcr_passive_corner_CS\+';
-    end
+    % task_workflow = 'visual_operant_lick_two_stim_static_big_stim';
+    % task_recordings = plab.find_recordings(animal,[],task_workflow);
+    % if ~isempty(task_recordings)
+    %     passive_workflow = 'lcr_passive_corner_CS\+_big_stim';
+    % else
+    %     task_workflow = 'visual_operant_lick_two_stim_static';
+    %     task_recordings = plab.find_recordings(animal,[],task_workflow);
+    %     passive_workflow = 'lcr_passive_corner_CS\+';
+    % end
+    % use_days = find((datetime({task_recordings.day}) < ...
+    %     datetime({recordings(ephys_start_idx).day})) & ...
+    %     cellfun(@any,{task_recordings.widefield}));
 
-    use_days = find((datetime({task_recordings.day}) < ...
-        datetime({recordings(ephys_start_idx).day})) & ...
-        cellfun(@any,{task_recordings.widefield}));
+    % Use big passive
+    task_workflow = 'visual*static*';
+    task_recordings = plab.find_recordings(animal,[],task_workflow);
+
+    passive_workflow = 'lcr_passive_corner_CS\+_big_stim';   
+    passive_recordings = plab.find_recordings(animal,[],passive_workflow);
+    use_days = {passive_recordings( ...
+        datetime({passive_recordings.day}) >= datetime(task_recordings(1).day) & ...
+        cellfun(@any,{passive_recordings.widefield})).day};
 
     for curr_day = 1:length(use_days)
 
         % Set preload variables
         preload_vars = who;
 
-        rec_day = task_recordings(use_days(curr_day)).day;        
+        rec_day = use_days{curr_day};        
         rec_time = plab.find_recordings(animal,rec_day,passive_workflow).recording{end};
 
         load_parts.widefield = true;
@@ -545,5 +558,6 @@ ap.imscroll(px);
 clim(max(abs(clim)).*[-1,1]);
 colormap(ap.colormap('PWG',[],1.5));
 axis image
+set(gcf,'name','passive');
 
 
